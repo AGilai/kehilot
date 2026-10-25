@@ -8,7 +8,13 @@ The canonical shared repository is https://github.com/AGilai/kehilot (public), b
 
 The source, tests, lockfile and documentation are versioned. Local credentials/environment files, community databases, dependencies, native build directories and generated artifacts remain ignored. The original `TRANSFER-MANIFEST.json` describes the historical transfer package, not the current Git checkout. Clones still require machine-local setup and local compilation as described below.
 
-## Latest change — gabbai classification and Arvit/Shacharit seating
+## Latest UI adjustments — October 25, 2026
+
+The shared `PARASHA_OPTIONS` now places each combined reading immediately after its second individual parasha (for example, `אחרי מות`, `קדושים`, `אחרי מות־קדושים`; `מטות`, `מסעי`, `מטות־מסעי`). This applies to both the member and sons' bar-mitzvah selectors. All existing option values remain intact.
+
+The seating screen no longer shows the general `כמה מקומות לא צריך השבת?` / holiday question. Only the Arvit and Shacharit questions remain, with the existing bold/red `לא`, dropdown limits and reporting semantics.
+
+## Previous change — gabbai classification and Arvit/Shacharit seating
 
 Noam's latest requirements supersede the earlier seating section below. A `קבוע` worshipper can never report seats. Users cannot choose their classification. Self-registration now creates an unclassified member; after saving personal details, a durable private request alerts the gabbaim. The gabbai's Home card `מתפללים חדשים לסיווג` opens `src/screens/Membership.tsx`, with exactly `א` and `קבוע`. Only active `א` household heads see/can use the seating option. Unknown quota still requires gabbai configuration; no real allocation is guessed. The separate Kohen/Levi/Yisrael profile field remains user-entered and is unrelated to membership classification.
 
@@ -16,7 +22,7 @@ Noam's latest requirements supersede the earlier seating section below. A `קב�
 
 Family classifications are now stored automatically in `roster_people`: eligible sons get `דור ב` or `דור ב-נשוי` based on marriage, and married daughters' husbands get `חתן` for association households. Existing linked husband rows are reused; new husbands get their own permanent roster ID linked to the daughter's unchanged community ID. Underage sons retain their existing community identity until roster eligibility. Known regular-attendee households propagate `קבוע`. Profile/marriage/classification changes resync derived fields; archival and history retain IDs. Children/linked husbands cannot independently be changed into household heads through roster classification writes. Wider account linking and full gabbai management remain future work.
 
-Seating now has **two numbers**, `arvit` and `shacharit`, required and saved atomically. The short 24-point heading asks `כמה מקומות לא צריך השבת?` (or `בחג`), followed by two larger prayer-specific dropdown questions; `לא` stays bold/red. The long ordinary-service explanation was removed. Ordinary values are unused seats, with all seats retained per prayer without a report. Special values are needed seats, with no seats retained without an active report. Each dropdown remains 0 through allocation. API `value`, `neededSeats`, `releasedSeats` and summary totals are now per-prayer objects; old single-value writes are rejected.
+Seating has **two numbers**, `arvit` and `shacharit`, required and saved atomically. The two larger prayer-specific dropdown questions keep `לא` bold/red. The general question was subsequently removed, as described above. Ordinary values are unused seats, with all seats retained per prayer without a report. Special values are needed seats, with no seats retained without an active report. Each dropdown remains 0 through allocation. API `value`, `neededSeats`, `releasedSeats` and summary totals are now per-prayer objects; old single-value writes are rejected.
 
 **Seating history is no longer retained.** The selected event and reports stay available throughout its civil date even after reporting closes. After it passes (Shabbat: Sunday 00:00 Israel), the 60-second worker/startup/seating access deletes past reports and event rows. Selecting another current event immediately clears prior reports. Future queued configuration can remain, but only the current event retains household reports. Aliyah history and permanent people are untouched. Upgrade removes ambiguous legacy single-number reports, including demo copies, rather than assuming both prayers have the same count. Users must report both numbers anew. `server/API.md` has the exact new contract and cutoff convention.
 

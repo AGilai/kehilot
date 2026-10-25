@@ -49,7 +49,6 @@ export function Seating({ onClose }: { onClose: () => void }) {
   const selected = status ? { arvit: draft.key === key ? draft.arvit : initialSeatValue(status, 'arvit'), shacharit: draft.key === key ? draft.shacharit : initialSeatValue(status, 'shacharit') } : { arvit: '', shacharit: '' };
   const allocation = status?.allocatedSeats;
   const title = isDemo && demoTitle?.key === key ? demoTitle.title : status?.event.title;
-  const holiday = status && ['holiday', 'high_holidays', 'megillah_evening'].includes(status.event.occasion);
   const unused = status?.event.mode === 'unused';
   const prayers: { key: keyof PrayerSeats; label: string }[] = [{ key: 'arvit', label: 'ערבית' }, { key: 'shacharit', label: 'שחרית' }];
   return <ScrollView style={s.page} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor={C.green} />}>
@@ -61,7 +60,6 @@ export function Seating({ onClose }: { onClose: () => void }) {
       : <>
         <View style={s.card}>
           <Text style={s.heading}>{allocation === 1 ? 'למשפחה מוקצה מקום אחד' : `למשפחה מוקצים ${allocation} מקומות`}</Text>
-          <Text style={[s.heading, { fontSize: 24 }]}>כמה מקומות {unused && <Text style={{ fontWeight: '900', color: C.red }}>לא </Text>}צריך {holiday ? 'בחג' : 'השבת'}?</Text>
           {!unused && <Text style={s.muted}>ללא דיווח לא יישמרו מקומות.</Text>}
           {status.event.closesAt && <Text style={s.muted}>סיום קבלת הדיווחים: {new Intl.DateTimeFormat('he-IL', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(status.event.closesAt))}</Text>}
           {!status.event.reportingOpen && <Text style={[s.text, { color: C.red }]}>קבלת הדיווחים לאירוע זה נסגרה. לשינוי יש לפנות לגבאי.</Text>}

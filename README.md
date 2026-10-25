@@ -44,7 +44,7 @@ Only household heads classified `א` see seating reporting and can submit it, fo
 
 ## Family seating reports
 
-The Home card `עדכון מקומות לשבת` opens the upcoming Shabbat/selected holiday, with the parasha/date and the gabbai-controlled men's-section allocation. The short, larger question is `כמה מקומות לא צריך השבת?` (or `בחג`), followed by **two dropdowns**, for Arvit and Shacharit. Both run from zero to the allocated count and are saved together. An unknown quota directs the household to the gabbai.
+The Home card `עדכון מקומות לשבת` opens the upcoming Shabbat/selected holiday, with the parasha/date and the gabbai-controlled men's-section allocation. Only the **two prayer-specific questions** appear, with dropdowns for Arvit and Shacharit; there is no additional general question. Both run from zero to the allocated count and are saved together. An unknown quota directs the household to the gabbai.
 
 For ordinary events the numbers are seats **not** needed (`לא` stays bold/red); absence of a report retains all seats at each prayer. Special events ask for seats actually needed, including explicit zero; no report retains none. The event mode is set by the gabbai. The family can update both counts while reporting is open. Changed allocation/event meaning requires a fresh report.
 
