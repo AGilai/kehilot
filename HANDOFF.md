@@ -2,6 +2,12 @@
 
 נקודת המשך מעודכנת במחשב הביתי: 25 באוקטובר 2026. המסמך עומד בפני עצמו; אין צורך בהיסטוריית הצ׳אט או בפרויקט Hoshanot כדי להמשיך.
 
+## Shared GitHub repository — October 25, 2026
+
+The canonical shared repository is https://github.com/AGilai/kehilot (public), branch `main`. The authenticated GitHub account `lebovitz` has collaborator write access. This checkout uses `origin` for the shared repository and keeps the earlier private `https://github.com/lebovitz/kehilot.git` repository as remote `personal`. `main` tracks `origin/main`; ordinary `git push` publishes to the shared project.
+
+The source, tests, lockfile and documentation are versioned. Local credentials/environment files, community databases, dependencies, native build directories and generated artifacts remain ignored. The original `TRANSFER-MANIFEST.json` describes the historical transfer package, not the current Git checkout. Clones still require machine-local setup and local compilation as described below.
+
 ## Latest change — gabbai classification and Arvit/Shacharit seating
 
 Noam's latest requirements supersede the earlier seating section below. A `קבוע` worshipper can never report seats. Users cannot choose their classification. Self-registration now creates an unclassified member; after saving personal details, a durable private request alerts the gabbaim. The gabbai's Home card `מתפללים חדשים לסיווג` opens `src/screens/Membership.tsx`, with exactly `א` and `קבוע`. Only active `א` household heads see/can use the seating option. Unknown quota still requires gabbai configuration; no real allocation is guessed. The separate Kohen/Levi/Yisrael profile field remains user-entered and is unrelated to membership classification.

@@ -6,6 +6,12 @@
 
 **בחירת הפיתוח: כל בניית האפליקציה מתבצעת מקומית במחשב של המשתמש.** iOS נבנה עם Xcode ו־CocoaPods, ואנדרואיד עם Android SDK ו־Gradle. פקודות הפרויקט אינן משתמשות ב־EAS Build או בשרת בנייה מרוחק. Metro פועל ברשת המקומית, ללא tunnel. עדיין נדרשת גישה לרשת להורדת תלויות, זמני היום, הודעות והתראות מרוחקות; העדפת הבנייה המקומית אינה שינוי במקור הנתונים או בשירותי המשלוח.
 
+## GitHub repository
+
+The shared project repository is [AGilai/kehilot](https://github.com/AGilai/kehilot), on branch `main`. It is public. The local `origin` remote points there; `personal` preserves the earlier `lebovitz/kehilot` repository. Use `git pull --ff-only` to update and `git push` to publish committed work to the shared repository.
+
+Clone on another computer with `git clone https://github.com/AGilai/kehilot.git`, then read `HANDOFF.md` and install the machine-local dependencies. Credentials, local community databases, native build directories and generated artifacts are excluded from Git; compilation remains local.
+
 ## מצב המחשב הביתי — 25 באוקטובר 2026
 
 המקור הועבר אל `/Users/Noam/Developer/Shul-Regular`. כל 36 קובצי המקור התאימו לגדלים ול־SHA-256 שב־`TRANSFER-MANIFEST.json` לפני השינויים המקומיים. החבילה אינה כוללת היסטוריית Git או מסד קהילה אמיתי.
