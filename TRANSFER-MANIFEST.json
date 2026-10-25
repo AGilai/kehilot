@@ -1,0 +1,187 @@
+{
+  "format": 1,
+  "project": "Shul-Regular",
+  "createdAt": "2026-10-25T15:50:21.486472+00:00",
+  "files": [
+    {
+      "path": ".env.example",
+      "size": 585,
+      "sha256": "ecfb294670a1daf3644ac81ce6dbb9677e909191d4c31d8966e9781a0bfde515"
+    },
+    {
+      "path": ".gitignore",
+      "size": 186,
+      "sha256": "d0f6be5a74cf3afc15be865b9b64a2ed05c563f9811491c09cee7be5b36c1f5d"
+    },
+    {
+      "path": "AGENTS.md",
+      "size": 1002,
+      "sha256": "3660f97c073d6bd98dd095cb8ca302c5dd20fe34fff1125be6e07a4aa7621290"
+    },
+    {
+      "path": "App.tsx",
+      "size": 8032,
+      "sha256": "be4e5399946bab90bcbb2480e548d8afe56d467bfb3d9f424bc438c37225aae4"
+    },
+    {
+      "path": "HANDOFF.md",
+      "size": 11640,
+      "sha256": "8c2f03d8b387f36f0212be6000ff59a8f21f0c5a590c81f5d37cfb3fb9408b05"
+    },
+    {
+      "path": "README.md",
+      "size": 24522,
+      "sha256": "3db300125ac98a89d3f8b1f182c2abb51894aa65dd9ff3e98d9e661925b499de"
+    },
+    {
+      "path": "app.config.ts",
+      "size": 859,
+      "sha256": "994febff599f63587f5d7f2bbc06a43754809e92f0210acb05cb053c8debdd58"
+    },
+    {
+      "path": "expo-env.d.ts",
+      "size": 37,
+      "sha256": "57d45be957186273b21383b09f6a6aa3ca599b28d1fb742fb3edfac464504b90"
+    },
+    {
+      "path": "index.ts",
+      "size": 100,
+      "sha256": "3cc816440c81db1b45a7d796c25ee6b45e19cfa2d64f1f934e42b1384c82d90b"
+    },
+    {
+      "path": "package.json",
+      "size": 1405,
+      "sha256": "7bcff1939e5476a9a420425499d54599509655c6265dc57b28a40f2cc8d852b5"
+    },
+    {
+      "path": "server/API.md",
+      "size": 7495,
+      "sha256": "62c615ba7e1f798a2d1650b5a48ccec75763f6294bcc89e9e7aeef9bf5bfed04"
+    },
+    {
+      "path": "server/__init__.py",
+      "size": 65,
+      "sha256": "1cc784e6b6c681bb90d9c72648a4b6c26c36f3c67c8bbf6b8e7d758ee9f9fb83"
+    },
+    {
+      "path": "server/app.py",
+      "size": 7213,
+      "sha256": "7d12382d257b04caacb36ec709eb6de20566ea94682cc1ec68c07d1b1e324d38"
+    },
+    {
+      "path": "server/example-message.json",
+      "size": 265,
+      "sha256": "d44c440e90d6f01b78ea8a5f4979e899c10d5fe843c63d0925aa44964a7544a1"
+    },
+    {
+      "path": "server/manage.py",
+      "size": 2281,
+      "sha256": "a5a3d9464798ef66c4d02937b37f13baf63b2394efadbc9dd2dd16e32059dc7d"
+    },
+    {
+      "path": "server/push.py",
+      "size": 3705,
+      "sha256": "ea23fabc343ee9b06564b7c2882fe6208d0cfb833ea9aeac86ba0fc82ec9e184"
+    },
+    {
+      "path": "server/store.py",
+      "size": 19412,
+      "sha256": "3867777ace7a3ae8b3bd08053a1fb28c26138579c3d483c4ca3388054f892b87"
+    },
+    {
+      "path": "server/tests/test_api.py",
+      "size": 22370,
+      "sha256": "c6bed5ee4eeea2a23909155cfbe621db829165640f36e1c13fdb508372e2a097"
+    },
+    {
+      "path": "server/validation.py",
+      "size": 8098,
+      "sha256": "506157f1ea5efba6a69acece164f7669278ddcdb8573ce95b6f5ef21d32a6bb5"
+    },
+    {
+      "path": "src/api.ts",
+      "size": 4496,
+      "sha256": "001c569a88f9f6f753e6aa24ecea5ba81d4596630b2959dfb5b451d30313cc2d"
+    },
+    {
+      "path": "src/dates.ts",
+      "size": 5307,
+      "sha256": "cc0d3ca980f19bf081955717d5b37a0b159c97764703a6a43c752839dede2f8c"
+    },
+    {
+      "path": "src/demo.ts",
+      "size": 2373,
+      "sha256": "01d4e051c239023ef33751a1c62ab375f50f676e190caf7296a1408b24a74e42"
+    },
+    {
+      "path": "src/notifications.ts",
+      "size": 2664,
+      "sha256": "78bf8da898ef6579681f1c40d7b1e4425e8c52aaf6a523063ec0b80596f90b69"
+    },
+    {
+      "path": "src/screens/FamilyChildren.tsx",
+      "size": 6049,
+      "sha256": "b9e4c64507bf6bb6deecf4aafb9f258df91492b67e47e07459bdb6b1adf43b12"
+    },
+    {
+      "path": "src/screens/Home.tsx",
+      "size": 9142,
+      "sha256": "61a07462b8f529972c8dc2f090c7864caa678e246268d334bab100b2e4e6f8f2"
+    },
+    {
+      "path": "src/screens/Messages.tsx",
+      "size": 6994,
+      "sha256": "f534f082feebf66e784300a930cc7ab716317e0ad9fcb7a97ad740295d0c7771"
+    },
+    {
+      "path": "src/screens/Preferences.tsx",
+      "size": 4286,
+      "sha256": "da268fc6628e6982e4b0d6c533367a7f06640337bc042cdd8e0a77cf3ac55000"
+    },
+    {
+      "path": "src/screens/Profile.tsx",
+      "size": 7613,
+      "sha256": "8ff0772d9fce238a446cafc9fdd327a4ea4992dd3951401895f3da5c53c46311"
+    },
+    {
+      "path": "src/state.tsx",
+      "size": 7963,
+      "sha256": "26e7a374b29eed482bcc63e09136a121c4117262362311b1f4db3baf784976c8"
+    },
+    {
+      "path": "src/types.ts",
+      "size": 5208,
+      "sha256": "4f438b6b1b51d1288dfc5bc8855798ed30202ab3a6eeee47305e42fd762572d9"
+    },
+    {
+      "path": "src/ui.tsx",
+      "size": 4661,
+      "sha256": "5df86f75a27094654f89c802c1e15c2b54b95bf27956164f4e44af7eeb16f37f"
+    },
+    {
+      "path": "tests/domain.test.ts",
+      "size": 4674,
+      "sha256": "4a097e5383412e05da230f81fc7ed8f7f9f1ca74eb211038297cd4a377a4ed11"
+    },
+    {
+      "path": "tests/family.test.ts",
+      "size": 3719,
+      "sha256": "dbab72cebfad73abeb495b2b8032525ac6060b186acfeeeab0a2abf3342e1bc6"
+    },
+    {
+      "path": "tools/check_local_build.py",
+      "size": 3117,
+      "sha256": "d734a0e66b8d850ea6d4d9bdef8aa7d8d6161ac40f841a76175c1aef0d51fa91"
+    },
+    {
+      "path": "tools/package_transfer.py",
+      "size": 3764,
+      "sha256": "0a440c44e24ec64bda68aa23c8be365f1fd63810506544789d2fa354dffd60c3"
+    },
+    {
+      "path": "tsconfig.json",
+      "size": 309,
+      "sha256": "0d568b17f2f276ac88fb9766778ba299f5e9764c35445015bba65d15aa20b9e2"
+    }
+  ]
+}

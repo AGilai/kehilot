@@ -1,0 +1,58 @@
+import React, { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCommunity } from '../state';
+import { prayerAddedDate } from '../healingPrayers';
+import { Button, C, ErrorText, Field, s } from '../ui';
+
+export function HealingPrayers() {
+  const { data, isDemo, refresh, addHealingPrayer, deleteHealingPrayer } = useCommunity();
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState<'add' | 'delete' | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  if (!data) return null;
+  async function add() {
+    if (busy) return;
+    setBusy('add'); setError(null); setNotice(null);
+    try { await addHealingPrayer(name); setName(''); setNotice('השם נוסף לרשימת מי שברך לחולים.'); }
+    catch (e) { setError(e instanceof Error ? e.message : 'לא ניתן להוסיף את השם.'); }
+    finally { setBusy(null); }
+  }
+  async function remove(id: string) {
+    if (busy) return;
+    setBusy('delete'); setError(null); setNotice(null);
+    try { await deleteHealingPrayer(id); setRemoving(null); setNotice('השם נמחק מהרשימה.'); }
+    catch (e) { setError(e instanceof Error ? e.message : 'לא ניתן למחוק את השם.'); }
+    finally { setBusy(null); }
+  }
+  async function reload() {
+    setRefreshing(true); setError(null);
+    try { await refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'לא ניתן לטעון את הרשימה.'); }
+    finally { setRefreshing(false); }
+  }
+  return <ScrollView style={s.page} keyboardShouldPersistTaps="handled" contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor={C.green} />}>
+    <View style={{ gap: 5 }}><Text style={s.title}>מי שברך לחולים</Text><Text style={s.muted}>מוסיפים שם לתפילה לרפואה שלמה ומנהלים את השמות שהוספת.</Text></View>
+    <View style={s.card}>
+      <Text style={s.heading}>הוספת שם לתפילה</Text>
+      <Field label="שם למי שברך לחולים *" value={name} onChangeText={setName} editable={!busy} maxLength={200} placeholder="השם ושם האם" hint="יש לכתוב את שם החולה ושם אמו." />
+      <Button title="הוספת שם" onPress={() => void add()} disabled={!!busy || !name.trim()} busy={busy === 'add'} />
+    </View>
+    <ErrorText error={error} />
+    {notice && <Text accessibilityRole="alert" style={[s.text, { color: C.green }]}>{notice}</Text>}
+    <View style={s.between}><Text style={s.heading}>השמות שהוספתי</Text><Text style={s.muted}>{data.healingPrayers.length === 1 ? 'שם אחד' : `${data.healingPrayers.length} שמות`}</Text></View>
+    {!data.healingPrayers.length && <View style={s.card}><Text style={s.text}>עדיין לא הוספת שמות.</Text><Text style={s.muted}>השמות שתוסיף יופיעו כאן עם תאריך ההוספה.</Text></View>}
+    {data.healingPrayers.map(entry => <View key={entry.id} style={s.card}>
+      <View style={s.between}><Text style={[s.heading, { flex: 1 }]}>{entry.name}</Text><Pressable accessibilityRole="button" accessibilityLabel={`מחיקת ${entry.name}`} disabled={!!busy} hitSlop={10} onPress={() => { setRemoving(entry.id); setError(null); setNotice(null); }}><Text style={{ color: C.red }}>מחיקה</Text></Pressable></View>
+      <Text style={s.muted}>תאריך הוספה: {prayerAddedDate(entry.addedOn)}</Text>
+      {removing === entry.id && <View style={{ gap: 10 }}>
+        <Text style={s.text}>למחוק את השם מהרשימה?</Text>
+        <Button title="מחיקת השם" secondary disabled={!!busy} busy={busy === 'delete'} onPress={() => void remove(entry.id)} />
+        <Button title="ביטול" secondary disabled={!!busy} onPress={() => setRemoving(null)} />
+      </View>}
+    </View>)}
+    <Text style={s.muted}>{isDemo ? 'מצב הדגמה: השמות נשמרים במכשיר זה בלבד.' : 'מוצגים השמות שהוספת. השמות זמינים גם לגבאים לצורך מי שברך לחולים.'}</Text>
+  </ScrollView>;
+}

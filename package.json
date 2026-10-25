@@ -1,0 +1,49 @@
+{
+  "name": "shul-regular",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start --dev-client --lan",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "ios:device": "expo run:ios --device",
+    "android:device": "expo run:android --device",
+    "ios:release": "expo run:ios --configuration Release",
+    "android:release": "expo run:android --variant release",
+    "prebuild": "expo prebuild",
+    "check:local": "python3 tools/check_local_build.py",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "export": "expo export --platform all",
+    "test:server": ".venv/bin/python -m unittest discover -s server/tests -v"
+  },
+  "dependencies": {
+    "@hebcal/hdate": "^0.23.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.31",
+    "expo-build-properties": "~57.0.22",
+    "expo-constants": "~57.0.22",
+    "expo-dev-client": "~57.0.20",
+    "expo-device": "~57.0.2",
+    "expo-localization": "~57.0.2",
+    "expo-notifications": "~57.0.24",
+    "expo-secure-store": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  }
+}
