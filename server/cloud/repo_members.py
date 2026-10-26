@@ -48,6 +48,10 @@ class MembersRepo:
     def delete_device(self, user_id, token):
         self.table.delete_item(Key={'pk': f'U#{user_id}', 'sk': f'D#{token}'})
 
+    def put_push_ticket(self, ticket_id, token, user_id, expires_at):
+        self.table.put_item(Item={'pk': 'PUSHTKT', 'sk': f'T#{ticket_id}', 'token': token, 'userId': user_id,
+                                  'expiresAt': expires_at})
+
     def list_devices(self, user_id):
         items, kwargs = [], {}
         while True:
