@@ -293,7 +293,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 | PUT | `/v1/me/profile` | signed in | `{firstName (required), lastName?, lang: "he"\|"en"}` | 200 `{firstName, lastName, lang}` | 400 `invalid_body`, `invalid_json`, `invalid_first_name`, `invalid_last_name`, `invalid_lang` |
 | PUT | `/v1/me/devices` | signed in | `{token: "ExponentPushToken[...]", platform: "ios"\|"android"\|"web"}` | 204; a token already registered to another user moves to the caller | 400 `invalid_token`, `invalid_platform`, `invalid_body` |
 | DELETE | `/v1/me/devices/{token}` | signed in | the token in the path, percent-encoded (`ExponentPushToken%5Bxxxx%5D`) | 204, also when it was not registered | - |
-| DELETE | `/v1/me` | signed in | - | 204; deletes the account's data (names on messages are blanked, counts are kept) and the Cognito user | 409 `last_gabbai` (sole gabbai of any Kehila: hand over first) |
+| DELETE | `/v1/me` | signed in | - | 204; deletes the account's data (names on messages are blanked, counts are kept) and the Cognito user | 409 `last_gabbai` (sole gabbai of any Kehila: hand over first), 500 `internal` (**retry the same request**: the operation is idempotent and a retry finishes the job; the client may repeat it until it gets 204). After success the account is a tombstone for 1 day: any signed-in call with the old token returns 401 `account_deleted` (the app should sign out), except a repeated `DELETE /v1/me`, which still answers 204 |
 
 #### Kehila, invites and joining
 
@@ -345,7 +345,7 @@ A reply can be posted only to a message that has a `targetMemberId`. Replies are
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/v1/kehilot/{k}/messages/{m}/replies` | member, gabbai | `{body}` (1-1000) | 201 `{replyId, authorId, authorName, body, createdAt}` | 400 `invalid_body`, 404 `message_not_found`, 409 `replies_not_allowed` (no target), `cannot_reply_to_own` (the target), `try_again` |
+| POST | `/v1/kehilot/{k}/messages/{m}/replies` | member, gabbai | `{body}` (1-1000) | 201 `{replyId, authorId, authorName, body, createdAt}` | 400 `invalid_body`, 404 `message_not_found`, 409 `replies_not_allowed` (no target), `cannot_reply_to_own` (the target), `target_left` (the target is no longer a member: hide the reply box), `try_again` |
 | GET | `/v1/kehilot/{k}/messages/{m}/replies` | any | - | 200 `[reply]`, only the ones the caller may see (empty for everyone else) | 404 `message_not_found` |
 
 #### Change feed and notification preferences
@@ -378,6 +378,7 @@ Posting a message, a reply or a membership request queues a job (SQS); a worker 
 | --- | --- | --- |
 | 400 | `invalid_body`, `invalid_json` | body missing, not an object, over 16 KB, or not JSON |
 | 400 | `invalid_<field>` | a field is missing or malformed (`invalid_first_name`, `invalid_title`, `invalid_channel_id`, `invalid_kehila_id`, `invalid_target_member_id`, `invalid_token`, `invalid_since`, `invalid_limit`, `invalid_before`, ...) |
+| 401 | `account_deleted` | the account was deleted with `DELETE /v1/me` and the token is still valid: sign out, do not retry |
 | 403 | `forbidden` | role is too low for this route |
 | 404 | `not_found` | no such route |
 | 404 | `kehila_not_found`, `channel_not_found`, `message_not_found`, `member_not_found`, `request_not_found`, `invite_not_found` | missing, or hidden from the caller |
@@ -388,6 +389,7 @@ Posting a message, a reply or a membership request queues a job (SQS); a worker 
 | 409 | `last_gabbai` | the action would leave the Kehila with no gabbai |
 | 409 | `role_change_not_allowed` | role changes are only member and gabbai |
 | 409 | `replies_not_allowed`, `cannot_reply_to_own` | reply rules |
+| 409 | `target_left` | the message's target family is no longer a member of the Kehila (left, removed or deleted): the app should hide the reply box |
 | 410 | `invite_expired` | expired or used up |
 | 429 | `broadcast_limit` | a member's daily message limit |
 | 500 | `internal` | unexpected failure; nothing is leaked, retry later |

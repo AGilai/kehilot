@@ -55,6 +55,14 @@ class RepliesTest(test_messages.MessagesTest):
     def test_target_cannot_reply_to_own(self):
         self.assertEqual(self.reply('quiet-sub'), (409, {'error': 'cannot_reply_to_own'}))
 
+    def test_reply_to_departed_target_409_and_count_unchanged(self):
+        self.reply('member-sub', 'before')
+        before = self.call('GET', f'{self.base()}/messages/{self.mid}', sub='member-sub')[1]['replierCount']
+        self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='quiet-sub')[0], 204)
+        self.assertEqual(self.reply('other-sub'), (409, {'error': 'target_left'}))
+        after = self.call('GET', f'{self.base()}/messages/{self.mid}', sub='member-sub')[1]['replierCount']
+        self.assertEqual((before, after), (1, 1))
+
     def test_reply_shape_change_and_push(self):
         with mock.patch.object(push, 'enqueue') as enqueue:
             status, body = self.reply('member-sub')

@@ -1,6 +1,7 @@
 """Who is calling: JWT claims from the API Gateway authorizer, mapped to our own stable userId."""
 from dataclasses import dataclass
 
+from .errors import ApiError
 from .ids import new_id
 
 
@@ -20,4 +21,7 @@ def caller_from_event(event):
 
 
 def resolve_user_id(repo, caller):
-    return repo.get_user_id(caller.sub) or repo.create_user_id(caller.sub, new_id())
+    item = repo.get_sub(caller.sub)
+    if item and item.get('deleted'):  # tombstone left by DELETE /v1/me: never recreate the account
+        raise ApiError(401, 'account_deleted')
+    return item['userId'] if item else repo.create_user_id(caller.sub, new_id())

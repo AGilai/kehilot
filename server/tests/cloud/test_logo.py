@@ -136,6 +136,15 @@ class LogoRepoAndRouteTest(unittest.TestCase):
         self.assertIn('settings', item)
         self.assertEqual(self.repo.get_logo(self.k)[1], make_png(64))
 
+    def test_logo_bytes_live_in_their_own_item_not_in_meta(self):
+        png = make_png(64)
+        version = self.repo.set_logo(self.k, png)
+        meta = self.repo.table.get_item(Key={'pk': f'K#{self.k}', 'sk': 'META'})['Item']
+        self.assertNotIn('logo', meta)
+        self.assertEqual(meta['logoVersion'], version)
+        logo = self.repo.table.get_item(Key={'pk': f'K#{self.k}', 'sk': 'LOGO'})['Item']
+        self.assertEqual((bytes(logo['logo'].value), logo['logoVersion']), (png, version))
+
     def test_logo_route_rejects_invalid_kehila_id(self):
         self.assertEqual(self.call('/v1/kehilot/not-an-id/logo'), (400, {'error': 'invalid_kehila_id'}))
 

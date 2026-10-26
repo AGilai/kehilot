@@ -103,8 +103,13 @@ def handler(event, context):
         repo = _repo()
         caller = caller_from_event(event)
         body = _body(event)
-        status, payload = func(
-            Ctx(repo, caller, resolve_user_id(repo, caller), body, event.get('queryStringParameters') or {}), params)
+        try:
+            user_id = resolve_user_id(repo, caller)
+        except ApiError as error:
+            if error.code == 'account_deleted' and func is routes_me.delete_account:
+                return _response(*routes_me.finish_deleted_account(caller))  # idempotent retry
+            raise
+        status, payload = func(Ctx(repo, caller, user_id, body, event.get('queryStringParameters') or {}), params)
         return _response(status, payload)
     except ApiError as error:
         return _response(error.status, {'error': error.code})

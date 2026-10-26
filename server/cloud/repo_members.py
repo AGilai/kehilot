@@ -75,8 +75,9 @@ class MembersRepo:
 
         Deletes every item with the userId or the sub in pk/sk/gsi1pk/gsi1sk, plus push tickets of the user;
         blanks authorName on messages and replies the user wrote and targetName on messages aimed at them.
-        joinCount and replierCount stay unchanged (historic counts). The U#<sub> mapping goes last: until it
-        is gone a retry resolves to the same userId.
+        joinCount and replierCount stay unchanged (historic counts). The U#<sub> mapping goes last and is replaced by a
+        tombstone {deleted, expiresAt +1 day}: until then a retry resolves to the same userId, afterwards the
+        resolver answers 401 account_deleted instead of creating a new account.
         """
         from boto3.dynamodb.conditions import Attr
         key_fields = ('pk', 'sk', 'gsi1pk', 'gsi1sk')
@@ -87,30 +88,32 @@ class MembersRepo:
         sub_key = {'pk': f'U#{sub}', 'sk': 'SUB'}
         kwargs = {'FilterExpression': condition, 'ConsistentRead': True}
         deleted = blanked = 0
-        while True:
-            page = self.table.scan(**kwargs)
-            for item in page['Items']:
-                key = {'pk': item['pk'], 'sk': item['sk']}
-                if key == sub_key:
-                    continue
-                if any(needle in item.get(field, '') for needle in (user_id, sub) for field in key_fields) \
-                        or item.get('userId') == user_id:
-                    self.table.delete_item(Key=key)
-                    deleted += 1
-                    continue
-                sets = []
-                if item.get('authorId') == user_id and 'authorName' in item:
-                    sets.append('authorName = :empty')
-                if item.get('targetMemberId') == user_id and 'targetName' in item:
-                    sets.append('targetName = :empty')
-                if sets:
-                    self.table.update_item(Key=key, UpdateExpression='SET ' + ', '.join(sets),
-                                           ExpressionAttributeValues={':empty': ''})
-                    blanked += 1
-            if 'LastEvaluatedKey' not in page:
-                break
-            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
-        self.table.delete_item(Key=sub_key)
+        with self.table.batch_writer() as batch:  # 25 keys per request; flushed when the block exits
+            while True:
+                page = self.table.scan(**kwargs)
+                for item in page['Items']:
+                    key = {'pk': item['pk'], 'sk': item['sk']}
+                    if key == sub_key:
+                        continue
+                    if any(needle in item.get(field, '') for needle in (user_id, sub) for field in key_fields) \
+                            or item.get('userId') == user_id:
+                        batch.delete_item(Key=key)
+                        deleted += 1
+                        continue
+                    sets = []
+                    if item.get('authorId') == user_id and 'authorName' in item:
+                        sets.append('authorName = :empty')
+                    if item.get('targetMemberId') == user_id and 'targetName' in item:
+                        sets.append('targetName = :empty')
+                    if sets:
+                        self.table.update_item(Key=key, UpdateExpression='SET ' + ', '.join(sets),
+                                               ExpressionAttributeValues={':empty': ''})
+                        blanked += 1
+                if 'LastEvaluatedKey' not in page:
+                    break
+                kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+        # tombstone, not a delete: a token that is still valid must not recreate the account (TTL removes it)
+        self.table.put_item(Item={**sub_key, 'deleted': True, 'expiresAt': int(time.time()) + 86400})
         return deleted, blanked
 
     def list_devices(self, user_id):

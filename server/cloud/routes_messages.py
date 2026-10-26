@@ -152,6 +152,8 @@ def post_reply(ctx, params):
         raise ApiError(409, 'replies_not_allowed')
     if target == ctx.user_id:
         raise ApiError(409, 'cannot_reply_to_own')
+    if not ctx.repo.get_membership(k, target):  # left, removed or deleted: nobody would receive it
+        raise ApiError(409, 'target_left')
     body = inputs.text(inputs.body_object(ctx), 'body', REPLY_MAX, required=True)
     item, counted = ctx.repo.put_reply(k, params['m'], ctx.user_id, membership.get('displayName', ''), body)
     reply = _reply_json(item)

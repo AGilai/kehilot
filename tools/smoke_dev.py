@@ -67,7 +67,7 @@ class Smoke:
         self.sqs = boto3.client('sqs', region_name=region)
         self.logs = boto3.client('logs', region_name=region)
         self.repo = Repo(boto3.resource('dynamodb', region_name=region).Table(self.out['table_name']))
-        self.users, self.items = [], []
+        self.users, self.items, self.emails = [], [], {}
         self.kehilot, self.user_ids, self.subs = [], [], []
 
     def make_user(self, label):
@@ -78,6 +78,7 @@ class Smoke:
                                    UserAttributes=[{'Name': 'email', 'Value': email},
                                                    {'Name': 'email_verified', 'Value': 'true'}])
         self.users.append(email)
+        self.emails[label] = email
         self.idp.admin_set_user_password(UserPoolId=pool, Username=email, Password=password, Permanent=True)
         auth = self.idp.admin_initiate_auth(UserPoolId=pool, ClientId=self.out['smoke_client_id'],
                                             AuthFlow='ADMIN_USER_PASSWORD_AUTH',
@@ -132,6 +133,7 @@ class Smoke:
         self.check_private_reply()
         self.check_devices()
         self.check_push_pipeline()
+        self.check_account_deletion()
 
     def check_invite_flow(self):
         """Admin CLI creates a Kehila; gabbai, a family and a listener join through invites."""
@@ -298,6 +300,34 @@ class Smoke:
         ran = self.logs.filter_log_events(logGroupName=group, startTime=start_ms, filterPattern='"START RequestId"')['events']
         print(f"INFO  worker invocations since publish (diagnostic): {len(ran)}")
         print('PASS  check_push_pipeline')
+
+    def items_of_user(self, user_id):
+        """Items whose pk, sk, gsi1pk or gsi1sk carries the user id, or whose userId attribute is it (full scan)."""
+        found, scan = [], {}
+        while True:
+            page = self.repo.table.scan(ConsistentRead=True, **scan)
+            for item in page['Items']:
+                if item.get('userId') == user_id or any(user_id in item.get(f, '') for f in ('pk', 'sk', 'gsi1pk', 'gsi1sk')):
+                    found.append((item['pk'], item['sk']))
+            if 'LastEvaluatedKey' not in page:
+                return found
+            scan['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def check_account_deletion(self):
+        """DELETE /v1/me for one user: proves the API's Scan and AdminDeleteUser permissions against AWS."""
+        email, (token, user_id) = self.emails['fam2'], self.people['fam2']
+        expect('deletion_target_has_items', bool(self.items_of_user(user_id)))
+        status, _ = self.call(token, 'DELETE', '/v1/me')
+        expect('delete_account_204', status == 204, str(status))
+        try:
+            self.idp.admin_get_user(UserPoolId=self.out['user_pool_id'], Username=email)
+            gone = False
+        except self.idp.exceptions.UserNotFoundException:
+            gone = True
+        expect('cognito_user_deleted', gone)
+        left = self.items_of_user(user_id)
+        expect('no_items_left_for_deleted_user', not left, f'{len(left)} items, e.g. {left[:3]}')
+        print('PASS  check_account_deletion')
 
     def diagnose(self, urls, start_ms):
         """Print what explains a push failure: queue state, DLQ depth and the worker's WARNING+ lines."""

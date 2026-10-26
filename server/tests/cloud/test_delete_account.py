@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import unittest
 from unittest import mock
 
@@ -69,12 +70,16 @@ class DeleteAccountTest(unittest.TestCase):
         self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana'), (204, None))
         keys = ('pk', 'sk', 'gsi1pk', 'gsi1sk')
         left = self.repo.table.scan()['Items']
+        tomb = [i for i in left if i['pk'] == 'U#sub-dana']  # the only trace: a PII-free tombstone
+        self.assertEqual([set(i) for i in tomb], [{'pk', 'sk', 'deleted', 'expiresAt'}])
         for item in left:
+            if item in tomb:
+                continue
             for key in keys:
                 for needle in (self.dana, 'sub-dana'):
                     self.assertNotIn(needle, item.get(key, ''), item)
         self.assertEqual(self.repo.list_push_tickets(), [])
-        self.assertEqual(self.repo.get_user_id('sub-dana'), None)
+        self.assertEqual(self.repo.get_user_id('sub-dana'), None)  # tombstone has no userId
         # the other user is untouched
         self.assertEqual(self.repo.get_membership(self.k1, self.gab)['role'], 'gabbai')
         users = [u['Username'] for u in self.cognito.list_users(UserPoolId=self.pool)['Users']]
@@ -83,6 +88,39 @@ class DeleteAccountTest(unittest.TestCase):
         mid = other['sk'][4:]
         message = self.repo.get_message(self.k1, mid)
         self.assertEqual((int(message['joinCount']), int(message['replierCount'])), (1, 1))
+
+    def test_calls_after_delete_create_nothing_and_get_account_deleted(self):
+        self.seed_activity()
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        before = sorted((i['pk'], i['sk']) for i in self.repo.table.scan()['Items'])
+        tomb = self.repo.table.get_item(Key={'pk': 'U#sub-dana', 'sk': 'SUB'})['Item']
+        self.assertEqual(tomb['deleted'], True)
+        self.assertTrue(time.time() + 80000 < int(tomb['expiresAt']) <= time.time() + 87000)
+        expected = (401, {'error': 'account_deleted'})
+        self.assertEqual(self.call('GET', '/v1/me', 'sub-dana'), expected)
+        self.assertEqual(self.call('PUT', '/v1/me/profile', 'sub-dana',
+                                   {'firstName': 'G', 'lastName': 'H', 'lang': 'en'}), expected)
+        self.assertEqual(self.call('PUT', '/v1/me/devices', 'sub-dana', {'token': TOKEN, 'platform': 'ios'}), expected)
+        self.assertEqual(sorted((i['pk'], i['sk']) for i in self.repo.table.scan()['Items']), before)
+
+    def test_delete_retried_after_tombstone_still_finishes_cognito(self):
+        self.seed_activity()
+        with mock.patch.object(routes_me, '_delete_cognito_user', side_effect=RuntimeError('boom')):
+            self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 500)
+        self.assertEqual(self.repo.table.get_item(Key={'pk': 'U#sub-dana', 'sk': 'SUB'})['Item']['deleted'], True)
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        self.assertEqual([u['Username'] for u in self.cognito.list_users(UserPoolId=self.pool)['Users']], ['sub-gab'])
+
+    def test_many_read_items_deleted_in_batches(self):
+        self.seed_activity()
+        with self.repo.table.batch_writer() as batch:
+            for n in range(300):
+                batch.put_item(Item={'pk': f'K#{self.k1}#U#{self.dana}', 'sk': f'READ#{n:05d}', 'at': 1})
+        with mock.patch.object(self.repo.table, 'delete_item', wraps=self.repo.table.delete_item) as single:
+            self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        self.assertEqual(single.call_count, 0)
+        for item in self.repo.table.scan()['Items']:
+            self.assertNotIn(self.dana, item['pk'] + item['sk'])
 
     def test_deleted_author_name_blanked(self):
         own, aimed, other = self.seed_activity()

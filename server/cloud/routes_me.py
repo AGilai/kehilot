@@ -46,6 +46,14 @@ def _delete_cognito_user(sub):
         pass
 
 
+def finish_deleted_account(caller):
+    """A retry of DELETE /v1/me after the data purge (tombstone written): only the Cognito user can be left."""
+    if not os.environ.get('USER_POOL_ID'):
+        raise RuntimeError('USER_POOL_ID not set')
+    _delete_cognito_user(caller.sub)
+    return 204, None
+
+
 def delete_account(ctx, params):
     """Refuse while last gabbai anywhere; then data first, Cognito last (a retry finishes either half)."""
     if not os.environ.get('USER_POOL_ID'):

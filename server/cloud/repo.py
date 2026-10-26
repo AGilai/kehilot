@@ -3,6 +3,7 @@ from boto3.dynamodb.conditions import Key
 from boto3.dynamodb.types import Binary
 from botocore.exceptions import ClientError
 
+from .errors import ApiError
 from .ids import new_id
 from .repo_members import AdminRepo, MembersRepo
 from .repo_messages import MessagesRepo
@@ -20,7 +21,6 @@ TABLE_SCHEMA = dict(
     BillingMode='PAY_PER_REQUEST',
 )
 
-
 class Repo(MembersRepo, AdminRepo, MessagesRepo):
     def __init__(self, table):
         self.table = table
@@ -28,9 +28,13 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo):
     def _get(self, pk, sk):
         return self.table.get_item(Key={'pk': pk, 'sk': sk}).get('Item')
 
+    def get_sub(self, sub):
+        """The U#<sub> mapping item: {userId} or the deletion tombstone {deleted: True}; None when unknown."""
+        return self.table.get_item(Key={'pk': f'U#{sub}', 'sk': 'SUB'}, ConsistentRead=True).get('Item')
+
     def get_user_id(self, sub):
-        item = self.table.get_item(Key={'pk': f'U#{sub}', 'sk': 'SUB'}, ConsistentRead=True).get('Item')
-        return item['userId'] if item else None
+        item = self.get_sub(sub)
+        return item.get('userId') if item else None
 
     def create_user_id(self, sub, user_id):
         # Email is not stored: it comes from the ID token on every request, so it never goes stale.
@@ -42,13 +46,14 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo):
         except ClientError as error:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise
-            return error.response['Item']['userId']['S']  # the winner of a concurrent first login
+            winner = error.response['Item']
+            if 'userId' not in winner:  # a tombstone appeared between the read and the write
+                raise ApiError(401, 'account_deleted')
+            return winner['userId']['S']  # the winner of a concurrent first login
 
     def get_kehila(self, k):
-        # never the logo bytes: this is read on most requests
-        return self.table.get_item(
-            Key={'pk': f'K#{k}', 'sk': 'META'}, ProjectionExpression='pk, sk, kehilaId, #n, settings, logoVersion',
-            ExpressionAttributeNames={'#n': 'name'}).get('Item')
+        # META holds no logo bytes any more (they live in K#<k>/LOGO), so a plain get is already small
+        return self.table.get_item(Key={'pk': f'K#{k}', 'sk': 'META'}).get('Item')
 
     def get_membership(self, k, user_id):
         return self._get(f'K#{k}', f'M#{user_id}')
@@ -67,23 +72,29 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo):
         self.table.put_item(Item={'pk': f'K#{k}', 'sk': 'META', 'kehilaId': k, 'name': name})
 
     def set_logo(self, k, data):
-        """Replace logo and logoVersion together; raises LookupError when the Kehila does not exist."""
+        """Replace the logo item and META.logoVersion together; raises LookupError when the Kehila does not exist."""
         version = new_id()
         try:
-            self.table.update_item(Key={'pk': f'K#{k}', 'sk': 'META'}, UpdateExpression='SET logo = :l, logoVersion = :v',
-                                   ConditionExpression='attribute_exists(pk)',
-                                   ExpressionAttributeValues={':l': Binary(data), ':v': version})
+            self.table.meta.client.transact_write_items(TransactItems=[
+                {'Update': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': 'META'},
+                            'UpdateExpression': 'SET logoVersion = :v',
+                            'ConditionExpression': 'attribute_exists(pk)',
+                            'ExpressionAttributeValues': {':v': version}}},
+                {'Put': {'TableName': self.table.name,
+                         'Item': {'pk': f'K#{k}', 'sk': 'LOGO', 'logo': Binary(data), 'logoVersion': version}}},
+            ])
         except ClientError as error:
-            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+            if error.response['Error']['Code'] != 'TransactionCanceledException':
                 raise
-            raise LookupError(k)
+            if any(r.get('Code') == 'ConditionalCheckFailed' for r in error.response.get('CancellationReasons', [])):
+                raise LookupError(k)
+            raise
         return version
 
     def get_logo(self, k):
         """(logoVersion, png bytes), or None when the Kehila has no logo."""
-        item = self.table.get_item(Key={'pk': f'K#{k}', 'sk': 'META'},
-                                   ProjectionExpression='logo, logoVersion').get('Item')
-        if not item or 'logo' not in item:
+        item = self._get(f'K#{k}', 'LOGO')
+        if not item:
             return None
         logo = item['logo']
         return item['logoVersion'], bytes(logo.value if isinstance(logo, Binary) else logo)

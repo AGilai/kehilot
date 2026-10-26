@@ -11,7 +11,7 @@ resource "aws_sqs_queue" "dlq" {
 
 resource "aws_sqs_queue" "push" {
   name                       = "${var.name_prefix}-push"
-  visibility_timeout_seconds = 120
+  visibility_timeout_seconds = 360
   sqs_managed_sse_enabled    = true
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.dlq.arn
