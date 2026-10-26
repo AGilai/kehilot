@@ -226,14 +226,106 @@ class ImportTest(unittest.TestCase):
         self.assertEqual((status, body), (403, {'error': 'forbidden'}))
         self.assertEqual(self.cognito_users(), [])
 
-    def test_more_than_25_rows_is_400(self):
-        rows = [row('A', 'B', f'p{i}@example.test') for i in range(26)]
+    def test_more_than_10_rows_is_400(self):
+        rows = [row('A', 'B', f'p{i}@example.test') for i in range(11)]
         self.assertEqual(self.do_import(rows), (400, {'error': 'invalid_rows'}))
         self.assertEqual(self.do_import([]), (400, {'error': 'invalid_rows'}))
         self.assertEqual(self.do_import(['x']), (400, {'error': 'invalid_rows'}))
         self.assertEqual(self.call('POST', IMPORT.format(self.k), body={'rows': 'x'}), (400, {'error': 'invalid_rows'}))
-        self.assertEqual(len(self.do_import(rows[:25])[1]['results']), 25)
+        self.assertEqual(len(self.do_import(rows[:10])[1]['results']), 10)
 
     def test_body_over_64kb_is_400(self):
-        big = [row('A' * 60, 'B', f'p{i}@example.test') for i in range(25)] + [{'pad': 'x' * 70000}]
-        self.assertEqual(self.do_import(big)[0], 400)
+        status, body = self.do_import([row(first='A' * 70000)])
+        self.assertEqual((status, body), (400, {'error': 'invalid_body'}))
+        self.assertEqual(self.cognito_users(), [])
+
+    def test_create_uses_sub_from_create_response_without_second_lookup(self):
+        with mock.patch.object(self.cognito, 'admin_get_user', wraps=self.cognito.admin_get_user) as get:
+            self.do_import([row()])
+        self.assertEqual(get.call_count, 1)
+
+    def test_ensure_account_lowercases_and_strips(self):
+        sub, created = accounts.ensure_account(self.cognito, self.pool, '  Dana@Example.TEST ')
+        self.assertTrue(created)
+        self.assertEqual(accounts.ensure_account(self.cognito, self.pool, 'dana@example.test'), (sub, False))
+        self.assertEqual(len(self.cognito_users()), 1)
+
+    def make_user(self, status):
+        """A moto user in FORCE_CHANGE_PASSWORD (the default after admin_create_user) or UNCONFIRMED."""
+        if status == 'UNCONFIRMED':
+            self.cognito.sign_up(ClientId=self.cognito.create_user_pool_client(
+                UserPoolId=self.pool, ClientName='c')['UserPoolClient']['ClientId'],
+                Username='dana@example.test', Password='Chosen-By-Stranger1!',
+                UserAttributes=[{'Name': 'email', 'Value': 'dana@example.test'}])
+        else:
+            self.cognito.admin_create_user(UserPoolId=self.pool, Username='dana@example.test', UserAttributes=[
+                {'Name': 'email', 'Value': 'dana@example.test'}])
+        self.assertEqual(self.user_by_email('dana@example.test')['UserStatus'], status)
+
+    def check_normalised(self, status):
+        self.make_user(status)
+        with mock.patch.object(self.cognito, 'admin_set_user_password',
+                               wraps=self.cognito.admin_set_user_password) as setpw:
+            result = self.do_import([row()])[1]['results']
+        self.assertEqual(result, [{'index': 0, 'status': 'added'}])
+        user = self.user_by_email('dana@example.test')
+        self.assertEqual(user['UserStatus'], 'CONFIRMED')
+        attrs = {a['Name']: a['Value'] for a in user['UserAttributes']}
+        self.assertEqual(attrs['email_verified'], 'true')
+        self.assertEqual(setpw.call_count, 1)
+        self.assertTrue(setpw.call_args.kwargs['Permanent'])
+        self.assertNotEqual(setpw.call_args.kwargs['Password'], 'Chosen-By-Stranger1!')
+
+    def test_existing_force_change_password_user_is_normalised(self):
+        self.check_normalised('FORCE_CHANGE_PASSWORD')
+
+    def test_existing_unconfirmed_user_is_confirmed_with_new_password(self):
+        self.check_normalised('UNCONFIRMED')
+
+    def test_confirmed_user_is_left_untouched(self):
+        self.do_import([row()])
+        with mock.patch.object(self.cognito, 'admin_set_user_password') as setpw, \
+                mock.patch.object(self.cognito, 'admin_update_user_attributes') as upd, \
+                mock.patch.object(self.cognito, 'admin_confirm_sign_up') as conf:
+            self.do_import([row()])
+        for m in (setpw, upd, conf):
+            m.assert_not_called()
+
+    def test_stops_when_time_is_short_and_skips_the_rest(self):
+        remaining = iter([20000, 20000, 2000, 2000])
+        from server.cloud import importer
+        results = importer.import_rows(self.repo, self.cognito, self.pool, self.k,
+                                       [row(email=f'p{i}@example.test') for i in range(4)],
+                                       remaining_ms=lambda: next(remaining))
+        self.assertEqual([r['status'] for r in results], ['created', 'created', 'skipped', 'skipped'])
+        self.assertEqual(len(self.cognito_users()), 2)
+        # re-sending the skipped rows finishes the job
+        again = self.do_import([row(email=f'p{i}@example.test') for i in range(4)])[1]['results']
+        self.assertEqual([r['status'] for r in again], ['exists', 'exists', 'created', 'created'])
+
+    def test_handler_passes_lambda_deadline(self):
+        class Ctx(Context):
+            def get_remaining_time_in_millis(self):
+                return 1000
+        response = handler_module.handler(event('POST', IMPORT.format(self.k), sub='sub-gab', email='gab@example.test',
+                                                body=json.dumps({'rows': [row()]})), Ctx())
+        self.assertEqual(json.loads(response['body'])['results'], [{'index': 0, 'status': 'skipped'}])
+
+    def test_try_again_on_transaction_conflict(self):
+        from botocore.exceptions import ClientError
+        self.do_import([row(role='listener')])
+        err = ClientError({'Error': {'Code': 'TransactionCanceledException', 'Message': 'x'},
+                           'CancellationReasons': [{'Code': 'TransactionConflict'}, {'Code': 'None'}]},
+                          'TransactWriteItems')
+        with mock.patch.object(self.repo.table.meta.client, 'transact_write_items', side_effect=err):
+            self.assertEqual(self.do_import([row(role='member')]), (409, {'error': 'try_again'}))
+
+    def test_upgrade_race_where_listener_changed_reports_exists(self):
+        from botocore.exceptions import ClientError
+        self.do_import([row(role='listener')])
+        err = ClientError({'Error': {'Code': 'TransactionCanceledException', 'Message': 'x'},
+                           'CancellationReasons': [{'Code': 'ConditionalCheckFailed'}, {'Code': 'None'}]},
+                          'TransactWriteItems')
+        with mock.patch.object(self.repo.table.meta.client, 'transact_write_items', side_effect=err):
+            status, body = self.do_import([row(role='member')])
+        self.assertEqual(body['results'], [{'index': 0, 'status': 'exists'}])

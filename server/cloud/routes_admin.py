@@ -12,7 +12,7 @@ from .ids import ID_RE
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 ROLES = ('listener', 'member', 'gabbai')
 GABBAI = ('gabbai',)
-IMPORT_MAX_ROWS = 25
+IMPORT_MAX_ROWS = 10
 IMPORT_MAX_BODY = 64 * 1024
 
 log = logging.getLogger(__name__)
@@ -142,8 +142,9 @@ def import_list(ctx, params):
     pool_id = os.environ.get('USER_POOL_ID')
     if not pool_id:
         raise RuntimeError('USER_POOL_ID not set')
-    results = importer.import_rows(ctx.repo, accounts.cognito_client(), pool_id, k, rows)
+    results = importer.import_rows(ctx.repo, accounts.cognito_client(), pool_id, k, rows,
+                                  getattr(ctx.context, 'get_remaining_time_in_millis', None))
     counts = Counter(r['status'] for r in results)
     log.info('import k=%s %s', k, ' '.join(f'{s}={counts.get(s, 0)}'
-                                          for s in ('created', 'added', 'upgraded', 'exists', 'invalid')))
+                                          for s in ('created', 'added', 'upgraded', 'exists', 'invalid', 'skipped')))
     return 200, {'results': results}

@@ -9,16 +9,37 @@ def cognito_client():
     return boto3.client('cognito-idp')
 
 
-def _sub(user):
-    return next(a['Value'] for a in user['UserAttributes'] if a['Name'] == 'sub')
+def _sub(attributes):
+    return next(a['Value'] for a in attributes if a['Name'] == 'sub')
+
+
+def _random_password():
+    return secrets.token_urlsafe(32) + 'aA1!'
 
 
 def _find(client, pool_id, email):
-    """The user's sub, or None. The pool uses username_attributes = [email], so the email is the username."""
+    """The user, or None. The pool uses username_attributes = [email], so the email is the username."""
     try:
-        return _sub(client.admin_get_user(UserPoolId=pool_id, Username=email))
+        return client.admin_get_user(UserPoolId=pool_id, Username=email)
     except client.exceptions.UserNotFoundException:
         return None
+
+
+def _normalise(client, pool_id, email, user):
+    """Make a user who cannot use "forgot password" able to. A CONFIRMED user is never touched.
+
+    An UNCONFIRMED user's password may have been chosen by whoever typed the email at sign-up, so it is always
+    replaced by a random one nobody knows (otherwise confirming would hand them a live account).
+    """
+    status = user.get('UserStatus')
+    if status not in ('FORCE_CHANGE_PASSWORD', 'RESET_REQUIRED', 'UNCONFIRMED'):
+        return
+    if status == 'UNCONFIRMED':
+        client.admin_confirm_sign_up(UserPoolId=pool_id, Username=email)
+    client.admin_set_user_password(UserPoolId=pool_id, Username=email, Permanent=True,
+                                   Password=_random_password())
+    client.admin_update_user_attributes(UserPoolId=pool_id, Username=email,
+                                        UserAttributes=[{'Name': 'email_verified', 'Value': 'true'}])
 
 
 def ensure_account(client, pool_id, email):
@@ -27,23 +48,27 @@ def ensure_account(client, pool_id, email):
     The person signs in later through "forgot password" (a code by email) or Google/Apple. The password is
     created here, handed to Cognito and dropped: never stored, returned or logged.
     """
-    sub = _find(client, pool_id, email)
-    if sub:
-        return sub, False
+    email = email.strip().lower()
+    user = _find(client, pool_id, email)
+    if user:
+        _normalise(client, pool_id, email, user)
+        return _sub(user['UserAttributes']), False
     try:
-        client.admin_create_user(UserPoolId=pool_id, Username=email, MessageAction='SUPPRESS',
-                                 UserAttributes=[{'Name': 'email', 'Value': email},
-                                                 {'Name': 'email_verified', 'Value': 'true'}])
+        created = client.admin_create_user(
+            UserPoolId=pool_id, Username=email, MessageAction='SUPPRESS',
+            UserAttributes=[{'Name': 'email', 'Value': email}, {'Name': 'email_verified', 'Value': 'true'}])
     except client.exceptions.UsernameExistsException:  # created by a concurrent import or sign-up
-        return _find(client, pool_id, email), False
+        user = _find(client, pool_id, email)
+        _normalise(client, pool_id, email, user)
+        return _sub(user['UserAttributes']), False
     try:
         client.admin_set_user_password(UserPoolId=pool_id, Username=email, Permanent=True,
-                                       Password=secrets.token_urlsafe(32) + 'aA1!')
+                                       Password=_random_password())
     except Exception:
-        # a user left in FORCE_CHANGE_PASSWORD could never be fixed by a re-import: remove it, a retry starts clean
+        # a user left in FORCE_CHANGE_PASSWORD is repaired by the next import, but do not leave one if we can help it
         try:
             client.admin_delete_user(UserPoolId=pool_id, Username=email)
         except Exception:
             pass
         raise
-    return _find(client, pool_id, email), True
+    return _sub(created['User']['Attributes']), True

@@ -41,12 +41,19 @@ def clean_row(row):
             'classification': '' if role == 'listener' else classification}, None
 
 
-def import_rows(repo, client, pool_id, k, rows):
+MIN_REMAINING_MS = 3000
+
+
+def import_rows(repo, client, pool_id, k, rows, remaining_ms=None):
+    """`remaining_ms()` is the time left (Lambda context); below MIN_REMAINING_MS the rest are `skipped`."""
     settings = repo.get_kehila(k).get('settings', {})
     lang = settings.get('defaultLang', 'he')
     broadcast_default = bool(settings.get('memberBroadcastDefault', False))
     seen, results = set(), []
     for index, raw in enumerate(rows):
+        if remaining_ms and remaining_ms() < MIN_REMAINING_MS:
+            results.append({'index': index, 'status': 'skipped'})
+            continue
         row, error = clean_row(raw)
         if row and row['email'] in seen:
             row, error = None, 'duplicate_email'

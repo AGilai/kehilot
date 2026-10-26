@@ -63,6 +63,7 @@ class Ctx:
     user_id: str
     body: str | None  # raw text; inputs.body_object parses it
     query: dict = field(default_factory=dict)  # query string parameters (strings)
+    context: object = None  # the Lambda context (time left)
 
 
 @functools.cache
@@ -111,7 +112,7 @@ def handler(event, context):
             if error.code == 'account_deleted' and func is routes_me.delete_account:
                 return _response(*routes_me.finish_deleted_account(caller))  # idempotent retry
             raise
-        status, payload = func(Ctx(repo, caller, user_id, body, event.get('queryStringParameters') or {}), params)
+        status, payload = func(Ctx(repo, caller, user_id, body, event.get('queryStringParameters') or {}, context), params)
         return _response(status, payload)
     except ApiError as error:
         return _response(error.status, {'error': error.code})
