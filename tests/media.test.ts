@@ -139,3 +139,23 @@ test('other errors (rate_limited) are not retried', async () => {
   }), (e: unknown) => e instanceof ApiCodeError && e.code === 'rate_limited');
   assert.equal(grants, 1);
 });
+
+test('the 1600 fallback never makes things worse: the smaller result is kept', async () => {
+  const f = fake(c => (c.compress === 0.6 ? 1_200_000 : 700_000), { width: 3000, height: 2000 });
+  const r = await prepareImage('in.jpg', f);
+  assert.equal(r.bytes, 700_000);
+  assert.equal(r.uri, f.calls.length === 5 ? 'out4.jpg' : r.uri);
+});
+
+test('image_too_large only when both the 0.4 result and the fallback exceed 1 MiB', async () => {
+  const f = fake(() => MAX_BYTES + 5);
+  await assert.rejects(prepareImage('in.jpg', f), (e: unknown) => e instanceof ApiCodeError && e.code === 'image_too_large');
+});
+
+test('PUT omits credentials and a network failure is upload_failed', async () => {
+  let init: RequestInit | undefined;
+  await putToS3(grant, new Blob(['x']), (async (_u: string, i: RequestInit) => { init = i; return new Response(null, { status: 200 }); }) as typeof fetch);
+  assert.equal(init!.credentials, 'omit');
+  await assert.rejects(putToS3(grant, new Blob(['x']), (async () => { throw new TypeError('Failed to fetch https://s3.example.invalid/x?sig=1'); }) as typeof fetch),
+    (e: unknown) => e instanceof ApiCodeError && e.code === 'upload_failed' && !String(e.message).includes('s3.example'));
+});

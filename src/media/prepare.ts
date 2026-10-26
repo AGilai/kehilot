@@ -50,7 +50,7 @@ export async function prepareImage(uri: string, { manipulate, sizeOf }: PrepareD
   const small = resizePlan(dims!.width, dims!.height, FALLBACK_EDGE); // from the source, not the 2000 px copy
   if (small) {
     const out = await encode(FALLBACK_QUALITY, small);
-    last = { uri: out.r.uri, bytes: out.bytes };
+    if (out.bytes < last!.bytes) last = { uri: out.r.uri, bytes: out.bytes }; // never worse than the 0.4 result
   }
   if (last!.bytes > MAX_BYTES) throw new ApiCodeError(0, 'image_too_large');
   return { ...last!, contentType: 'image/jpeg' };

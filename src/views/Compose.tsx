@@ -13,6 +13,7 @@ import { TOUCH, fonts, type as scale } from '../kit/theme.ts';
 import type { Picked } from '../media/device.ts';
 import { sendMessage } from '../media/send.ts';
 import type { Stage } from '../media/send.ts';
+import { singleFlight } from '../client/singleFlight.ts';
 import { Stripe } from './MessageRow.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
@@ -30,7 +31,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const k = useTokens();
   const errText = useErrorText();
   const { state, postMessage, requestUpload, directory } = useSession();
-  const channels = postableChannels(state.channels);
+  const channels = React.useMemo(() => postableChannels(state.channels), [state.channels]);
   const [type, setType] = React.useState<MessageType>(initial?.type ?? 'weekly');
   const [channelId, setChannelId] = React.useState<string | null>(channels[0]?.channelId ?? null);
   const [title, setTitle] = React.useState('');
@@ -42,6 +43,8 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const [stage, setStage] = React.useState<Stage | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const alive = React.useRef(true);
+  const latest = React.useRef<() => Promise<void>>(async () => {});
+  const publishOnce = React.useRef(singleFlight(() => latest.current())).current;
   React.useEffect(() => () => { alive.current = false; }, []);
 
   // Only the targets that are valid for the chosen channel (a group channel's own members).
@@ -53,6 +56,10 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
     directory(channelId!).then(l => { if (live) setPeople(l); }, () => { if (live) setPeople('error'); });
     return () => { live = false; };
   }, [wantTargets, channelId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A channel that is no longer postable after a refresh is dropped for the first one that is.
+  React.useEffect(() => {
+    if (!channels.some(c => c.channelId === channelId)) setChannelId(channels[0]?.channelId ?? null);
+  }, [channels]); // eslint-disable-line react-hooks/exhaustive-deps
   // A target that is no longer a valid choice for this channel is dropped.
   React.useEffect(() => {
     if (Array.isArray(people) && targetId && !people.some(p => p.userId === targetId)) setTargetId(null);
@@ -65,6 +72,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const gabbai = state.kehila?.role === 'gabbai';
   const shown = Array.isArray(people) ? people.filter(p => p.displayName.toLowerCase().includes(q.trim().toLowerCase())) : [];
 
+  latest.current = publish;
   async function publish() {
     if (!ok || !channelId) return;
     setError(null);
@@ -87,7 +95,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
         <Txt size="small" bold>{t('compose.type')}</Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {TYPES.map(x => (
-            <Pressable key={x} accessibilityRole="button" accessibilityState={{ selected: type === x }} disabled={busy} onPress={() => setType(x)}
+            <Pressable key={x} accessibilityRole="button" accessibilityState={{ selected: type === x }} disabled={busy} onPress={() => { setType(x); setTargetId(null); setQ(''); }}
               style={{ flexBasis: '47%', flexGrow: 1 }}>
               <View style={{ flexDirection: 'row', minHeight: TOUCH + 8, borderRadius: 12, overflow: 'hidden', backgroundColor: k.surface, borderWidth: type === x ? 2 : 1, borderColor: type === x ? k.tekhelet : k.line }}>
                 <Stripe type={x} />
@@ -101,7 +109,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
       <View style={{ gap: 8 }}>
         <Txt size="small" bold>{t('compose.channel')}</Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {channels.map(c => <Chip key={c.channelId} label={c.name} selected={channelId === c.channelId} onPress={() => { if (!busy) setChannelId(c.channelId); }} />)}
+          {channels.map(c => <Chip key={c.channelId} label={c.name} selected={channelId === c.channelId} onPress={() => { if (!busy) { setChannelId(c.channelId); setTargetId(null); } }} />)}
         </View>
       </View>
 
@@ -135,7 +143,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
       {channelName ? <Txt size="small" color={k.muted}>{t('compose.audience', { channel: channelName })}</Txt> : null}
       {stage ? <Txt size="small" color={k.muted} accessibilityRole="alert">{t(`compose.progress.${stage}`)}</Txt> : null}
       {error ? <Banner tone="error" text={error} /> : null}
-      <Button title={t('compose.publish')} onPress={() => void publish()} busy={busy} disabled={!ok} />
+      <Button title={t('compose.publish')} onPress={() => void publishOnce()} busy={busy} disabled={!ok} />
     </Screen>
   );
 }

@@ -6,7 +6,12 @@ import type { UploadGrant } from '../client/types.ts';
  * the API client). The URL is a 300 s secret; it is not logged and does not appear in errors.
  */
 export async function putToS3(grant: Pick<UploadGrant, 'url' | 'headers'>, blob: Blob, doFetch: typeof fetch = fetch): Promise<void> {
-  const res = await doFetch(grant.url, { method: 'PUT', headers: { ...grant.headers }, body: blob });
+  let res: Response;
+  try {
+    res = await doFetch(grant.url, { method: 'PUT', headers: { ...grant.headers }, body: blob, credentials: 'omit' });
+  } catch {
+    throw new ApiCodeError(0, 'upload_failed'); // the fetch error text can carry the URL
+  }
   if (res.ok) return;
   throw new ApiCodeError(res.status, res.status === 403 ? 'upload_expired' : 'upload_failed');
 }

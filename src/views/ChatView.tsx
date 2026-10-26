@@ -11,6 +11,7 @@ import { TOUCH } from '../kit/theme.ts';
 import type { Picked } from '../media/device.ts';
 import { sendMessage } from '../media/send.ts';
 import type { Stage } from '../media/send.ts';
+import { singleFlight } from '../client/singleFlight.ts';
 import { useErrorText } from './auth/Frame.tsx';
 
 /** Chat view of a conversation channel: bubbles with author and time, no titles, newest at the bottom. */
@@ -25,11 +26,14 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
   const [stage, setStage] = React.useState<Stage | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const alive = React.useRef(true);
+  const latest = React.useRef<() => Promise<void>>(async () => {});
+  const sendOnce = React.useRef(singleFlight(() => latest.current())).current;
   React.useEffect(() => () => { alive.current = false; }, []);
   const scroller = React.useRef<ScrollView>(null);
   const channel = channels.find(c => c.channelId === channelId);
   if (!kehila || !channel) return null;
   const busy = stage !== null;
+  latest.current = send;
   async function send() {
     if (busy || !canSendChat(draft, !!image)) return;
     setError(null);
@@ -71,7 +75,7 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
           {image ? <View style={{ paddingBottom: 8 }}><AttachPreview image={image} onRemove={() => setImage(null)} disabled={busy} /></View> : null}
           {stage ? <Txt size="small" color={k.muted} style={{ paddingBottom: 8 }} accessibilityRole="alert">{t(`compose.progress.${stage}`)}</Txt> : null}
           {error ? <View style={{ paddingBottom: 8 }}><Banner tone="error" text={error} /></View> : null}
-          <Composer value={draft} onChange={setDraft} maxCodePoints={CHAT_MAX} placeholder={t('messages.chatPlaceholder')} onSend={() => void send()} busy={busy}
+          <Composer value={draft} onChange={setDraft} maxCodePoints={CHAT_MAX} placeholder={t('messages.chatPlaceholder')} onSend={() => void sendOnce()} busy={busy}
             allowEmpty={!!image} extras={<AttachButton disabled={busy || !!image} onPicked={setImage} onDenied={() => setError(t('compose.permissionDenied'))} />} />
         </View>
       ) : null}
