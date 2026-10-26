@@ -179,11 +179,43 @@
   },
   "noKehila": {
     "title": "No community yet",
-    "body": "To get started, join with an invite code or link from your gabbai. Joining comes in the next step."
+    "body": "To get started, join with an invite code or link from your gabbai.",
+    "codeLabel": "Invite code or link",
+    "codeSubmit": "Continue",
+    "codeInvalid": "The code or link is not valid"
   },
   "topbar": {
     "switch": "Switch community",
     "bell": "Notifications",
     "logo": "Community logo"
+  },
+  "join": {
+    "title": "Join a community",
+    "invited": "You are invited to join",
+    "asMember": "as a member",
+    "asListener": "as a listener",
+    "expires": "The link is valid until {date}",
+    "expired": "The link has expired. Ask a member for a new link.",
+    "loading": "Checking the link…",
+    "loadError": "Could not check the link. Check your connection and try again.",
+    "register": "Register",
+    "haveAccount": "I already have an account",
+    "accept": "Join",
+    "later": "Not now",
+    "back": "Back"
+  },
+  "guest": {
+    "requestTitle": "Request membership",
+    "requestBody": "Members get full access to the community. The gabbai will see your request.",
+    "requestSend": "Send request",
+    "requestSent": "Request sent, waiting for the gabbai",
+    "channels": "Open channels",
+    "noChannels": "No open channels to listen to yet.",
+    "locked": "What members get",
+    "membersOnly": "Members only",
+    "lockedBlessings": "Private blessings to families",
+    "lockedChat": "Chats and group channels",
+    "lockedDirectory": "The member directory",
+    "lockedPosting": "Posting messages in channels"
   }
 }

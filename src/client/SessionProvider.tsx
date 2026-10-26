@@ -5,6 +5,7 @@ import type { KeyValue } from '../auth/tokens.ts';
 import { setSessionStoreReset, useAuth } from '../auth/AuthProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { createLogoCache } from './logoCache.ts';
+import { pendingInvite } from './pendingStore.ts';
 import { createStore } from './store.ts';
 import type { Route, StoreState } from './store.ts';
 import type { Lang } from './types.ts';
@@ -22,6 +23,12 @@ export type SessionApi = {
   logo(kehilaId: string, logoVersion: string | null): Promise<string | null>;
   select(kehilaId: string): Promise<void>;
   saveProfile(p: { firstName: string; lastName: string; lang: Lang }): Promise<void>;
+  /** Join screen: accepts the invite and opens the new Kehila. */
+  acceptInvite(code: string): Promise<void>;
+  /** Listener home: sends a membership request (already sent counts as sent). */
+  requestMembership(): Promise<void>;
+  /** Hides the dropped-invite notice. */
+  dismissJoinError(): void;
   /** Re-run the start sequence after an error. */
   retry(): void;
 };
@@ -32,7 +39,7 @@ const SessionContext = React.createContext<SessionApi | null>(null);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { api } = useAuth();
   const { setLang } = useI18n();
-  const store = React.useMemo(() => createStore(api, storage), [api]);
+  const store = React.useMemo(() => createStore(api, storage, { pending: pendingInvite }), [api]);
   const logos = React.useMemo(() => createLogoCache(storage), []);
   const logo = React.useCallback((k: string, v: string | null) => logos.get(api, k, v), [logos, api]);
   const state = React.useSyncExternalStore(store.subscribe, store.getState, store.getState);
@@ -62,6 +69,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       try {
         if (!(await store.loadMe())) return;
         if (store.dropMissingSelection()) { const r = await store.chooseKehila(); if (store.guard(gen)) setRoute(r); }
+        else if (await store.syncRole()) void store.pollNow(); // approved (or changed) while away: the tabs follow the new role
       } catch { /* offline: keep what we have */ }
     });
     return () => sub.remove();
@@ -80,6 +88,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const r = await store.saveProfile(p);
       if (store.guard(gen)) setRoute(r);
     },
+    async acceptInvite(code) {
+      const gen = store.getState().generation;
+      if (await store.acceptInvite(code) && store.guard(gen)) setRoute('ready');
+    },
+    requestMembership: () => store.requestMembership(),
+    dismissJoinError: () => store.clearJoinError(),
     retry: () => setAttempt(a => a + 1),
   }), [state, route, logo, store]);
 

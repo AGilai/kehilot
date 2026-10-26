@@ -2,14 +2,20 @@ import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Banner } from './kit/components.tsx';
+import { useErrorText } from './views/auth/Frame.tsx';
 import { AuthProvider, useAuth } from './auth/AuthProvider.tsx';
 import { config } from './config.ts';
 import { fixtureParams } from './client/fixtures.ts';
+import { pendingInvite } from './client/pendingStore.ts';
 import { SessionProvider, useSession } from './client/SessionProvider.tsx';
 import { I18nProvider, useI18n } from './i18n/I18nProvider.tsx';
 import { Button, Screen, Txt, useAppFonts, useTokens } from './kit/components.tsx';
 import { ForgotPassword } from './views/auth/ForgotPassword.tsx';
 import { AuthFrame } from './views/auth/Frame.tsx';
+import { GuestHome } from './views/GuestHome.tsx';
+import { Join } from './views/Join.tsx';
+import { useIncomingLink } from './views/useIncomingLink.ts';
 import { KehilaSwitcher } from './views/KehilaSwitcher.tsx';
 import { NoKehila } from './views/NoKehila.tsx';
 import { ProfileSetup } from './views/ProfileSetup.tsx';
@@ -24,7 +30,9 @@ type AuthScreen =
   | { name: 'verify'; email: string }
   | { name: 'forgot'; email?: string };
 
-function initialScreen(): AuthScreen {
+function initialScreen(start?: 'register' | 'signin'): AuthScreen {
+  if (start === 'register') return { name: 'register' };
+  if (start === 'signin') return { name: 'signin' };
   const s = config.fixtures ? fixtureParams().screen : null;
   if (s === 'register') return { name: 'register' };
   if (s === 'verify') return { name: 'verify', email: 'dana@example.invalid' };
@@ -32,9 +40,9 @@ function initialScreen(): AuthScreen {
   return { name: 'signin' };
 }
 
-function SignedOutFlow() {
+function SignedOutFlow({ start }: { start?: 'register' | 'signin' }) {
   const { t } = useI18n();
-  const [screen, setScreen] = React.useState<AuthScreen>(initialScreen);
+  const [screen, setScreen] = React.useState<AuthScreen>(() => initialScreen(start));
   switch (screen.name) {
     case 'register':
       return <Register onSignIn={() => setScreen({ name: 'signin' })} onForgot={email => setScreen({ name: 'forgot', email })} onRegistered={email => setScreen({ name: 'verify', email })} />;
@@ -48,12 +56,19 @@ function SignedOutFlow() {
 }
 
 /** Signed in: the session flow (profile, Kehila choice) and, once a Kehila is open, its screens. */
-function SessionFlow() {
+function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const { t } = useI18n();
   const { signOut } = useAuth();
-  const { route, retry, state } = useSession();
+  const { route, retry, state, acceptInvite, dismissJoinError } = useSession();
   const k = useTokens();
+  const errText = useErrorText();
   const [switcher, setSwitcher] = React.useState(false);
+  const [typed, setTyped] = React.useState<string | null>(null);
+  const code = link.code ?? typed;
+  // A link that opens before the profile exists waits as a pending invite (accepted right after ProfileSetup).
+  React.useEffect(() => {
+    if (link.code && route === 'setup') { void pendingInvite.set(link.code).then(() => link.clear()); }
+  }, [link, route]);
   if (route === 'loading') {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
@@ -66,11 +81,16 @@ function SessionFlow() {
     );
   }
   if (route === 'setup') return <ProfileSetup />;
-  if (route === 'none') return <NoKehila />;
+  if (code) {
+    return <Join code={code} onAccept={() => acceptInvite(code).then(() => { setTyped(null); link.clear(); })} onClose={() => { setTyped(null); link.clear(); }} />;
+  }
+  if (route === 'none') return <NoKehila onCode={setTyped} />;
   return (
     <Screen>
       <TopBar onOpenSwitcher={() => setSwitcher(true)} />
-      {route === 'ready' ? <Txt>{t('session.home')}</Txt> : null}
+      {state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null}
+      {route === 'ready' && state.kehila?.role === 'listener' ? <GuestHome /> : null}
+      {route === 'ready' && state.kehila && state.kehila.role !== 'listener' ? <Txt>{t('session.home')}</Txt> : null}
       <Button kind="secondary" title={t('auth.profile.signOut')} onPress={() => void signOut()} />
       <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} />
     </Screen>
@@ -91,11 +111,19 @@ function Offline() {
 function Shell() {
   const { status } = useAuth();
   const k = useTokens();
+  const link = useIncomingLink();
+  const [after, setAfter] = React.useState<'register' | 'signin' | null>(null);
+  // Signed out: the invite waits until sign-in or the profile step accepts it.
+  React.useEffect(() => { if (link.code && status === 'signedOut') void pendingInvite.set(link.code); }, [link.code, status]);
   if (status === 'loading') {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
   if (status === 'offline') return <Offline />;
-  return status === 'signedIn' ? <SessionProvider><SessionFlow /></SessionProvider> : <SignedOutFlow />;
+  if (status === 'signedIn') return <SessionProvider><SessionFlow link={link} /></SessionProvider>;
+  if (link.code && !after) {
+    return <Join code={link.code} onRegister={() => { setAfter('register'); link.clear(); }} onSignIn={() => { setAfter('signin'); link.clear(); }} onClose={() => { link.clear(); }} />;
+  }
+  return <SignedOutFlow start={after ?? undefined} />;
 }
 
 export function CloudApp() {

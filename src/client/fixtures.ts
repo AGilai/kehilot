@@ -67,8 +67,12 @@ export function createFixtureApi(role: Role, screen: string | null = null) {
     routes[`GET /v1/kehilot/${x.kehilaId}`] = { ...kehila, kehilaId: x.kehilaId, name: x.name, role: x.role };
     routes[`GET /v1/kehilot/${x.kehilaId}/channels`] = channels;
   }
+  // Invite previews (public): 7K3M9Q2XPA is valid, 4D8F2H6NRT has expired. Same codes as views/useIncomingLink.ts.
+  routes['GET /v1/invites/7K3M9Q2XPA'] = { kehilaName: kehila.name, role: 'member', expiresAt: '2026-11-20T12:00:00.000Z' };
+  routes[`POST /v1/kehilot/${kehila.kehilaId}/membership-request`] = {};
   const http: Http = {
     async request(method, path) {
+      if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const hit = routes[`${method} ${path.split('?')[0]}`];
       if (hit === undefined) throw new ApiCodeError(404, 'not_found');
       return structuredClone(hit) as any;

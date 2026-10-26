@@ -1,7 +1,9 @@
 import type { KeyValue } from '../auth/tokens.ts';
 import type { endpoints } from './endpoints.ts';
+import { ApiCodeError } from './errors.ts';
 import { applyChanges, createPoller, emptyFeed, feedFromMessages, realSleep } from './feed.ts';
 import type { FeedState, Sleep } from './feed.ts';
+import type { PendingInvite } from './links.ts';
 import type { Channel, Kehila, Lang, Me } from './types.ts';
 
 type Api = ReturnType<typeof endpoints>;
@@ -14,6 +16,8 @@ export type StoreState = {
   kehila: Kehila | null;
   channels: Channel[];
   feed: FeedState;
+  /** Error code of a pending invite that was dropped at start (shown once). */
+  joinError: string | null;
 };
 
 /** Where the start sequence ends: profile form, join screen, Kehila picker, or the signed-in app. */
@@ -21,9 +25,9 @@ export type Route = 'setup' | 'none' | 'switcher' | 'ready';
 
 export const lastKehilaKey = (userId: string) => `kehilot.lastKehila.${userId}`;
 
-const empty = (generation: number): StoreState => ({ generation, me: null, kehilaId: null, kehila: null, channels: [], feed: emptyFeed });
+const empty = (generation: number): StoreState => ({ generation, me: null, kehilaId: null, kehila: null, channels: [], feed: emptyFeed, joinError: null });
 
-export type StoreOptions = { sleep?: Sleep; isActive?: () => boolean };
+export type StoreOptions = { sleep?: Sleep; isActive?: () => boolean; pending?: PendingInvite };
 
 export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}) {
   let state = empty(0);
@@ -60,6 +64,20 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return true;
   }
 
+  /** Accepts the stored invite once; on success the new Kehila is opened. Null: nothing happened. */
+  async function joinPending(): Promise<Route | null> {
+    const pending = opts.pending;
+    if (!pending) return null;
+    const gen = state.generation;
+    const out = await pending.accept(code => api.acceptInvite(code));
+    if (!guard(gen)) return 'none';
+    if (out.status === 'error') { if (out.removed) set({ joinError: out.code }); return null; }
+    if (out.status !== 'joined') return null;
+    await loadMe();
+    if (!guard(gen)) return 'none';
+    return (await selectKehila(out.kehilaId)) ? 'ready' : 'none';
+  }
+
   /** The last Kehila, else the only one, else the switcher; no Kehilot gives 'none'. */
   async function chooseKehila(): Promise<Route> {
     const gen = state.generation;
@@ -76,7 +94,9 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   }
 
   async function start(): Promise<Route> {
-    if (!(await loadMe())) return 'none';
+    const me = await loadMe();
+    if (!me) return 'none';
+    if (me.profile) { const joined = await joinPending(); if (joined) return joined; }
     return chooseKehila();
   }
 
@@ -85,8 +105,37 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const profile = await api.putProfile(p);
     if (!guard(gen) || !state.me) return 'none';
     set({ me: { ...state.me, profile } });
-    return chooseKehila();
+    return (await joinPending()) ?? chooseKehila();
   }
+
+  /** Join screen: accepts a code the user is looking at, then opens the Kehila. */
+  async function acceptInvite(code: string): Promise<string | null> {
+    const gen = state.generation;
+    const r = await api.acceptInvite(code);
+    if (opts.pending && (await opts.pending.get()) === code) await opts.pending.clear();
+    await loadMe();
+    if (!guard(gen)) return null;
+    return (await selectKehila(r.kehilaId)) ? r.kehilaId : null;
+  }
+
+  /** Listener home: ask for membership. A 409 already_requested counts as sent. */
+  async function requestMembership(): Promise<void> {
+    const gen = state.generation;
+    const k = state.kehilaId;
+    if (!k) return;
+    try { await api.requestMembership(k); } catch (e) { if (!(e instanceof ApiCodeError) || e.code !== 'already_requested') throw e; }
+    if (guard(gen) && state.kehila && state.kehilaId === k) set({ kehila: { ...state.kehila, pendingRequest: true } });
+  }
+
+  /** After me(): reload the open Kehila when the user's role in it changed (approval, demotion). */
+  async function syncRole(): Promise<boolean> {
+    const { me, kehila, kehilaId } = state;
+    const mine = me?.kehilot.find(x => x.kehilaId === kehilaId);
+    if (!mine || !kehila || !kehilaId || mine.role === kehila.role) return false;
+    return selectKehila(kehilaId);
+  }
+
+  function clearJoinError(): void { set({ joinError: null }); }
 
   /** After a focus refresh: forget a selected Kehila the user no longer belongs to. */
   function dropMissingSelection(): boolean {
@@ -106,7 +155,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   return {
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    loadMe, selectKehila, chooseKehila, start, saveProfile, dropMissingSelection, reset, guard,
+    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, reset, guard,
     pollNow: () => poller.pollNow(),
   };
 }
