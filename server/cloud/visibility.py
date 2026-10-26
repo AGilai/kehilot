@@ -1,10 +1,33 @@
 """The only place that decides who may see or post what. Routes and the change feed call these."""
 
 
+def _shares_group(membership, channel):
+    return bool(set(membership.get('groups') or ()) & set(channel.get('groups') or ()))
+
+
 def can_read_channel(membership, channel):
+    """Gabbaim read every channel (to moderate). A channel with groups is members-only: listeners never read
+    it, whatever `listenersCanRead` says. A member reads it when they share at least one of its groups."""
     if not membership or not channel:
         return False
-    return membership['role'] != 'listener' or bool(channel.get('listenersCanRead'))
+    role = membership['role']
+    if role == 'gabbai':
+        return True
+    if role == 'listener':
+        return bool(channel.get('listenersCanRead')) and not channel.get('groups')
+    return not channel.get('groups') or _shares_group(membership, channel)
+
+
+def in_audience(membership, channel):
+    """Readable and addressed to this person: a gabbai outside a channel's groups reads it but is not in its
+    audience (no push, not in "mine")."""
+    return can_read_channel(membership, channel) and (not channel.get('groups') or _shares_group(membership, channel))
+
+
+def reply_target_ok(target_membership, channel):
+    """May this person be the target of a blessing or reply in this channel? Family or gabbai who can read it."""
+    return (bool(target_membership) and target_membership['role'] in ('member', 'gabbai')
+            and can_read_channel(target_membership, channel))
 
 
 def can_post(membership, channel):

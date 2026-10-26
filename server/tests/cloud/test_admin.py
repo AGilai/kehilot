@@ -114,7 +114,7 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(self.call('PUT', f'{self.base()}/admin/broadcast', body={'allow': 'yes'})[0], 400)
         listed = self.call('GET', f'{self.base()}/admin/members')[1]
         self.assertEqual({m['userId'] for m in listed}, {self.gabbai, self.listener, *members})
-        self.assertEqual({'userId', 'displayName', 'role', 'classification', 'canBroadcast'}, set(listed[0]))
+        self.assertEqual({'userId', 'displayName', 'role', 'classification', 'canBroadcast', 'groups'}, set(listed[0]))
 
     def test_last_gabbai_cannot_be_demoted_or_leave(self):
         path = f'{self.base()}/admin/members/{self.gabbai}'

@@ -435,13 +435,17 @@ class AdminRepo:
     # change makes us answer try_again instead of overwriting it.
     def update_member(self, k, user_id, seen_role, fields):
         names = {'#r': 'role'}
-        sets, values = [], {':seen': seen_role}
+        sets, removes, values = [], [], {':seen': seen_role}
         for i, (name, value) in enumerate(fields.items()):
             names[f'#f{i}'] = name
-            values[f':v{i}'] = value
+            if name == 'groups' and not value:  # a string set cannot be empty
+                removes.append(f'#f{i}')
+                continue
+            values[f':v{i}'] = set(value) if name == 'groups' else value
             sets.append(f'#f{i} = :v{i}')
+        expression = ('SET ' + ', '.join(sets) if sets else '') + (' REMOVE ' + ', '.join(removes) if removes else '')
         update = {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),
-                  'UpdateExpression': 'SET ' + ', '.join(sets), 'ConditionExpression': '#r = :seen',
+                  'UpdateExpression': expression.strip(), 'ConditionExpression': '#r = :seen',
                   'ExpressionAttributeNames': names, 'ExpressionAttributeValues': values}
         if 'role' in fields:  # never to or from listener, even if the role changed since the caller looked
             update['ConditionExpression'] += ' AND #r IN (:member, :gabbai)'
@@ -449,6 +453,47 @@ class AdminRepo:
         if seen_role == 'gabbai' and fields.get('role', 'gabbai') != 'gabbai':
             return self._without_last_gabbai(k, user_id, [{'Update': update}])
         self._run(k, [{'Update': update}])
+
+    def add_member_groups(self, k, user_id, group_ids):
+        """Atomic union into the member's groups. Nothing is created for a member who has gone."""
+        if not group_ids:
+            return
+        try:
+            self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression='ADD #g :ss',
+                                   ConditionExpression='attribute_exists(sk)',
+                                   ExpressionAttributeNames={'#g': 'groups'},
+                                   ExpressionAttributeValues={':ss': set(group_ids)})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+
+    # groups (spec 3c)
+    def list_groups(self, k):
+        return self._query_prefix(k, 'G#')
+
+    def put_group(self, k, name):
+        item = {**self._key(k, f'G#{new_id()}'), 'name': name}
+        self.table.put_item(Item=item)
+        return item
+
+    def rename_group(self, k, group_id, name):
+        try:
+            return self.table.update_item(Key=self._key(k, f'G#{group_id}'), UpdateExpression='SET #n = :n',
+                                          ConditionExpression='attribute_exists(sk)',
+                                          ExpressionAttributeNames={'#n': 'name'},
+                                          ExpressionAttributeValues={':n': name}, ReturnValues='ALL_NEW')['Attributes']
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            raise ApiError(404, 'group_not_found')
+
+    def delete_group(self, k, group_id):
+        try:
+            self.table.delete_item(Key=self._key(k, f'G#{group_id}'), ConditionExpression='attribute_exists(sk)')
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            raise ApiError(404, 'group_not_found')
 
     def remove_member(self, k, user_id, seen_role):
         items = [{'Delete': {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),

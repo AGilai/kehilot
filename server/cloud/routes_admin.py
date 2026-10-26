@@ -8,6 +8,7 @@ from . import accounts, importer, inputs, push
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
+from .routes_groups import group_ids
 
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 ROLES = ('listener', 'member', 'gabbai')
@@ -61,8 +62,10 @@ def reject(ctx, params):
 
 def list_members(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    existing = {g['sk'][len('G#'):] for g in ctx.repo.list_groups(params['k'])}  # a deleted group's ID is not listed
     return 200, [{'userId': m['userId'], 'displayName': m.get('displayName', ''), 'role': m['role'],
-                  'classification': m.get('classification', ''), 'canBroadcast': bool(m.get('canBroadcast'))}
+                  'classification': m.get('classification', ''), 'canBroadcast': bool(m.get('canBroadcast')),
+                  'groups': sorted(set(m.get('groups') or ()) & existing)}
                  for m in ctx.repo.list_members(params['k'])]
 
 
@@ -77,6 +80,8 @@ def update_member(ctx, params):
         fields['classification'] = inputs.choice(d, 'classification', CLASSIFICATIONS)
     if 'canBroadcast' in d:
         fields['canBroadcast'] = inputs.boolean(d, 'canBroadcast')
+    if 'groups' in d:
+        fields['groups'] = group_ids(ctx, k, d['groups'])
     if not fields:
         raise ApiError(400, 'invalid_body')
     target = _target(ctx, params, 'member_not_found')
@@ -110,28 +115,43 @@ def leave(ctx, params):
 POST_POLICIES = ('management', 'broadcasters')
 
 
-def _channel_fields(ctx):
+def _channel_fields(ctx, k):
+    """(name, listenersCanRead, postPolicy, groups); groups is None when the body omits it."""
     d = inputs.body_object(ctx)
-    return (inputs.text(d, 'name', 60, required=True), inputs.boolean(d, 'listenersCanRead'),
-            inputs.choice(d, 'postPolicy', POST_POLICIES))
+    name, readable, policy = (inputs.text(d, 'name', 60, required=True), inputs.boolean(d, 'listenersCanRead'),
+                              inputs.choice(d, 'postPolicy', POST_POLICIES))
+    groups = group_ids(ctx, k, d['groups']) if 'groups' in d else None
+    if groups and readable:  # group channels are members-only
+        raise ApiError(400, 'invalid_groups')
+    return name, readable, policy, groups
 
 
-def _channel_json(item):
-    return {'channelId': item['sk'][len('C#'):], 'name': item['name'],
-            'listenersCanRead': item['listenersCanRead'], 'postPolicy': item['postPolicy']}
+def _channel_json(item, with_groups=False):
+    out = {'channelId': item['sk'][len('C#'):], 'name': item['name'],
+           'listenersCanRead': item['listenersCanRead'], 'postPolicy': item['postPolicy']}
+    if with_groups:
+        out['groups'] = sorted(item.get('groups') or ())
+    return out
 
 
 def create_channel(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
-    return 201, _channel_json(ctx.repo.put_channel(params['k'], *_channel_fields(ctx)))
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    name, readable, policy, groups = _channel_fields(ctx, k)
+    return 201, _channel_json(ctx.repo.put_channel(k, name, readable, policy, groups or frozenset()), True)
 
 
 def update_channel(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
-    fields = _channel_fields(ctx)
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    name, readable, policy, groups = _channel_fields(ctx, k)
     if not ID_RE.fullmatch(params['c']):
         raise ApiError(404, 'channel_not_found')
-    return 200, _channel_json(ctx.repo.update_channel(params['k'], params['c'], *fields))
+    if groups is None and readable:  # omitted groups keep the stored ones, which must not meet listenersCanRead
+        stored = ctx.repo.get_channel(k, params['c'])
+        if stored and stored.get('groups'):
+            raise ApiError(400, 'invalid_groups')
+    return 200, _channel_json(ctx.repo.update_channel(k, params['c'], name, readable, policy, groups), True)
 
 
 def import_list(ctx, params):

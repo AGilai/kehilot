@@ -37,7 +37,9 @@ def _visible_message(ctx, k, membership, message_id):
 
 def list_channels(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
-    channels = [{**_channel_json(c), 'canPost': visibility.can_post(membership, c)}
+    is_gabbai = membership['role'] == 'gabbai'
+    channels = [{**_channel_json(c, is_gabbai), 'canPost': visibility.can_post(membership, c),
+                 'inAudience': visibility.in_audience(membership, c)}
                 for c in ctx.repo.list_channels(params['k']) if visibility.can_read_channel(membership, c)]
     return 200, channels
 
@@ -63,6 +65,8 @@ def post_message(ctx, params):
     channel = ctx.repo.get_channel(k, channel_id)
     if not visibility.can_read_channel(membership, channel):
         raise ApiError(404, 'channel_not_found')
+    if target and not visibility.reply_target_ok(target_membership, channel):
+        raise ApiError(400, 'invalid_target_member_id')
     if not visibility.can_post(membership, channel):
         raise ApiError(403, 'forbidden')
     if membership['role'] != 'gabbai':
@@ -114,9 +118,19 @@ def get_message(ctx, params):
 
 def list_directory(ctx, params):
     """Names of the members and gabbaim, for choosing a target family. Listeners never see it."""
-    require(ctx.repo, ctx.user_id, params['k'], ('member', 'gabbai'))
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    channel_id = ctx.query.get('channelId')
+    channel = None
+    if channel_id is not None:  # only people who could be the target of a blessing in that channel
+        if not ID_RE.fullmatch(channel_id):
+            raise ApiError(400, 'invalid_channel_id')
+        channel = ctx.repo.get_channel(k, channel_id)
+        if not visibility.can_read_channel(membership, channel):
+            raise ApiError(404, 'channel_not_found')
     rows = [{'userId': m['userId'], 'displayName': m.get('displayName', '')}
-            for m in ctx.repo.list_members(params['k']) if m['role'] in ('member', 'gabbai')]
+            for m in ctx.repo.list_members(k)
+            if (visibility.reply_target_ok(m, channel) if channel else m['role'] in ('member', 'gabbai'))]
     return 200, sorted(rows, key=lambda r: r['displayName'])
 
 
@@ -158,13 +172,14 @@ def _reply_json(item):
 def post_reply(ctx, params):
     k = params['k']
     membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
-    message, _ = _visible_message(ctx, k, membership, params['m'])
+    message, channel = _visible_message(ctx, k, membership, params['m'])
     target = message.get('targetMemberId')
     if not target:
         raise ApiError(409, 'replies_not_allowed')
     if target == ctx.user_id:
         raise ApiError(409, 'cannot_reply_to_own')
-    if not ctx.repo.get_membership(k, target):  # left, removed or deleted: nobody would receive it
+    if not visibility.reply_target_ok(ctx.repo.get_membership(k, target), channel):
+        # left, removed, deleted or no longer in the channel's groups: nobody would receive it
         raise ApiError(409, 'target_left')
     body = inputs.text(inputs.body_object(ctx), 'body', REPLY_MAX, required=True)
     item, counted = ctx.repo.put_reply(k, params['m'], ctx.user_id, membership.get('displayName', ''), body)

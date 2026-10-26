@@ -39,7 +39,10 @@ def recipients(repo, kind, kehila, ref):
         return []
     if kind == 'reply':
         target = message.get('targetMemberId')
-        return [target] if target and repo.get_membership(kehila, target) else []
+        if not target:
+            return []
+        channel = repo.get_channel(kehila, message['channelId'])
+        return [target] if visibility.reply_target_ok(repo.get_membership(kehila, target), channel) else []
     if kind != 'message':
         return []
     channel = repo.get_channel(kehila, message['channelId'])
@@ -47,7 +50,7 @@ def recipients(repo, kind, kehila, ref):
     for member in repo.list_members(kehila):
         uid = member['userId']
         notify = member.get('notify') or {}
-        if uid == message['authorId'] or not visibility.can_read_channel(member, channel):
+        if uid == message['authorId'] or not visibility.in_audience(member, channel):
             continue
         if (message['channelId'] in notify.get('mutedChannels', ())
                 or message.get('type') in notify.get('mutedTypes', ())

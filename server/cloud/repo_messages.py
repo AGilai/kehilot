@@ -40,21 +40,34 @@ class MessagesRepo:
     def list_channels(self, k):
         return self._query_prefix(k, 'C#')
 
-    def put_channel(self, k, name, listeners_can_read, post_policy):
+    def put_channel(self, k, name, listeners_can_read, post_policy, groups=frozenset()):
         channel_id = new_id()
         item = {'pk': f'K#{k}', 'sk': f'C#{channel_id}', 'name': name,
                 'listenersCanRead': listeners_can_read, 'postPolicy': post_policy}
+        if groups:  # a string set cannot be empty: absent means the whole Kehila
+            item['groups'] = set(groups)
         self.table.put_item(Item=item)
         return item
 
-    def update_channel(self, k, channel_id, name, listeners_can_read, post_policy):
+    def update_channel(self, k, channel_id, name, listeners_can_read, post_policy, groups=None):
+        """`groups=None` keeps the stored groups; an empty set removes them."""
+        sets = 'SET #n = :n, listenersCanRead = :l, postPolicy = :p'
+        values = {':n': name, ':l': listeners_can_read, ':p': post_policy}
+        if groups is not None and groups:
+            sets += ', #g = :g'
+            values[':g'] = set(groups)
+        names = {'#n': 'name'}
+        if groups is not None:
+            names['#g'] = 'groups'
+            if not groups:
+                sets += ' REMOVE #g'
         try:
             return self.table.update_item(
                 Key={'pk': f'K#{k}', 'sk': f'C#{channel_id}'},
-                UpdateExpression='SET #n = :n, listenersCanRead = :l, postPolicy = :p',
+                UpdateExpression=sets,
                 ConditionExpression='attribute_exists(sk)',
-                ExpressionAttributeNames={'#n': 'name'},
-                ExpressionAttributeValues={':n': name, ':l': listeners_can_read, ':p': post_policy},
+                ExpressionAttributeNames=names,
+                ExpressionAttributeValues=values,
                 ReturnValues='ALL_NEW')['Attributes']
         except ClientError as error:
             if not _failed(error, 'ConditionalCheckFailedException'):

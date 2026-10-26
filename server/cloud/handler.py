@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_invites, routes_me, routes_messages
+from . import routes_admin, routes_changes, routes_core, routes_groups, routes_invites, routes_me, routes_messages
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -43,6 +43,10 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/broadcast$'), routes_admin.set_broadcast),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels$'), routes_admin.create_channel),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels/(?P<c>[^/]+)$'), routes_admin.update_channel),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/groups$'), routes_groups.list_groups),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/groups$'), routes_groups.create_group),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/groups/(?P<g>[^/]+)$'), routes_groups.rename_group),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/groups/(?P<g>[^/]+)$'), routes_groups.delete_group),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/channels$'), routes_messages.list_channels),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/members$'), routes_messages.list_directory),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.post_message),
