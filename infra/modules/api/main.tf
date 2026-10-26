@@ -35,7 +35,11 @@ data "aws_iam_policy_document" "api" {
     resources = [var.push_queue_arn]
   }
   statement {
-    actions   = ["cognito-idp:AdminDeleteUser"]
+    actions = [
+      "cognito-idp:AdminDeleteUser", "cognito-idp:AdminGetUser", "cognito-idp:AdminCreateUser",
+      "cognito-idp:AdminSetUserPassword", "cognito-idp:AdminUserGlobalSignOut",
+      "cognito-idp:AdminUpdateUserAttributes", "cognito-idp:AdminConfirmSignUp",
+    ]
     resources = [var.user_pool_arn]
   }
   statement {
@@ -64,7 +68,7 @@ resource "aws_lambda_function" "api" {
   filename         = var.lambda_zip
   source_code_hash = filebase64sha256(var.lambda_zip)
   memory_size      = 256
-  timeout          = 10
+  timeout          = 20 # the import batch
 
   environment {
     variables = {
@@ -81,6 +85,13 @@ resource "aws_lambda_function" "api" {
 resource "aws_apigatewayv2_api" "http" {
   name          = "${var.name_prefix}-http"
   protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_origins = var.cors_origins
+    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers = ["authorization", "content-type"]
+    max_age       = 600
+  }
 }
 
 resource "aws_apigatewayv2_authorizer" "jwt" {

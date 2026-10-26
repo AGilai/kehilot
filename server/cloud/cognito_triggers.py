@@ -65,6 +65,10 @@ def _link_external(event, client):
         logger.error('trigger=%s outcome=aws_error operation=%s code=%s', event['triggerSource'], operation,
                      exc.code)
         raise Exception('link_failed') from None
+    except Exception as exc:  # BotoCoreError, ParamValidationError...: their text can carry the email
+        logger.error('trigger=%s outcome=error operation=%s error=%s', event['triggerSource'], operation,
+                     type(exc).__name__)
+        raise Exception('link_failed') from None
     return 'created_and_linked' if created else 'linked'
 
 

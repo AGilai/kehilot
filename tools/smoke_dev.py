@@ -132,6 +132,10 @@ class Smoke:
         self.check_message_visibility()
         self.check_private_reply()
         self.check_devices()
+        self.check_cors()
+        self.check_import()
+        self.check_revoke_on_leave()
+        self.check_listener_cap()
         self.check_push_pipeline()
         self.check_account_deletion()
 
@@ -259,6 +263,93 @@ class Smoke:
         status, _ = self.call(fam[0], 'DELETE', '/v1/me/devices/' + urllib.parse.quote(token, safe=''))
         expect('device_deleted_percent_encoded', status == 204 and not self.repo.list_devices(fam[1]), str(status))
         print('PASS  check_devices')
+
+    def check_cors(self):
+        request = urllib.request.Request(
+            f'{self.api}/v1/me', method='OPTIONS',
+            headers={'Origin': 'http://localhost:8081', 'Access-Control-Request-Method': 'GET',
+                     'Access-Control-Request-Headers': 'authorization'})
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                status, headers = response.status, response.headers
+        except urllib.error.HTTPError as error:
+            status, headers = error.code, error.headers
+        expect('cors_preflight_localhost', status == 204
+               and headers.get('access-control-allow-origin') == 'http://localhost:8081'
+               and 'authorization' in (headers.get('access-control-allow-headers') or '').lower(),
+               f'{status} {dict(headers)}')
+        print('PASS  check_cors')
+
+    def user_state(self, email):
+        user = self.idp.admin_get_user(UserPoolId=self.out['user_pool_id'], Username=email)
+        attrs = {a['Name']: a['Value'] for a in user['UserAttributes']}
+        return user['UserStatus'], attrs.get('email_verified'), attrs['sub']
+
+    def check_import(self):
+        """Two invented rows: one new, one UNCONFIRMED self-sign-up. Both end CONFIRMED and verified."""
+        pool, k = self.out['user_pool_id'], self.k
+        new_email = f'smoke-imp-new+{secrets.token_hex(4)}@example.invalid'
+        old_email = f'smoke-imp-old+{secrets.token_hex(4)}@example.invalid'
+        old_password = secrets.token_urlsafe(18) + 'aA1!'
+        self.users += [new_email, old_email]
+        self.idp.sign_up(ClientId=self.out['app_client_id'], Username=old_email, Password=old_password,
+                         UserAttributes=[{'Name': 'email', 'Value': old_email}])
+        expect('import_precondition_unconfirmed', self.user_state(old_email)[0] == 'UNCONFIRMED')
+        rows = [{'email': new_email, 'firstName': 'Dana', 'lastName': 'Example', 'role': 'member'},
+                {'email': old_email.upper(), 'firstName': 'Noam', 'lastName': 'Bedayon', 'role': 'listener'}]
+        status, body = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/import', {'rows': rows})
+        expect('import_ok', status == 200 and [r['status'] for r in body['results']] == ['created', 'added'],
+               f'{status} {body}')
+        for email in (new_email, old_email):
+            state, verified, sub = self.user_state(email)
+            self.subs.append(sub)
+            expect('import_confirmed_and_verified', (state, verified) == ('CONFIRMED', 'true'), f'{state} {verified}')
+        try:
+            self.idp.admin_initiate_auth(UserPoolId=pool, ClientId=self.out['smoke_client_id'],
+                                         AuthFlow='ADMIN_USER_PASSWORD_AUTH',
+                                         AuthParameters={'USERNAME': old_email, 'PASSWORD': old_password})
+            worked = True
+        except self.idp.exceptions.NotAuthorizedException:
+            worked = False
+        expect('import_original_password_rejected', not worked)
+        status, again = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/import', {'rows': rows})
+        expect('reimport_exists', status == 200 and [r['status'] for r in again['results']] == ['exists', 'exists'],
+               f'{status} {again}')
+        print('PASS  check_import')
+
+    def check_revoke_on_leave(self):
+        """A member's listener links stop working when they leave."""
+        k = self.k
+        status, body = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/invites', {'role': 'member', 'uses': 1, 'days': 1})
+        expect('member_invite_for_leaver', status == 201, f'{status} {body}')
+        token, _ = self.person('leaver', 'Leah', 'Leaver')
+        status, body = self.call(token, 'POST', f'/v1/invites/{body["code"]}/accept')
+        expect('leaver_joined_as_member', (status, body.get('role')) == (200, 'member'), f'{status} {body}')
+        status, body = self.call(token, 'POST', f'/v1/kehilot/{k}/invites', {})
+        expect('leaver_creates_link', status == 201, f'{status} {body}')
+        code = body['code']
+        expect('link_works_before_leave', http(f'{self.api}/v1/invites/{code}')[0] == 200)
+        status, _ = self.call(token, 'DELETE', f'/v1/kehilot/{k}/membership')
+        expect('leaver_left', status == 204, str(status))
+        status, _ = http(f'{self.api}/v1/invites/{code}')
+        expect('link_dead_after_leave', status in (404, 410), str(status))
+        print('PASS  check_revoke_on_leave')
+
+    def check_listener_cap(self):
+        """maxListeners=1 and the smoke Kehila already has one listener: the next one gets 409 kehila_full."""
+        k = self.k
+        status, body = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/invites', {'uses': 5, 'days': 1})
+        expect('listener_invite_for_cap', status == 201, f'{status} {body}')
+        code = body['code']
+        token, _ = self.person('capped', 'Cap', 'Listener')
+        try:
+            status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/settings', {'maxListeners': 1})
+            expect('max_listeners_set', status == 200, str(status))
+            status, body = self.call(token, 'POST', f'/v1/invites/{code}/accept')
+            expect('listener_cap_409', (status, body) == (409, {'error': 'kehila_full'}), f'{status} {body}')
+        finally:
+            self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/settings', {'maxListeners': 500})
+        print('PASS  check_listener_cap')
 
     def queue_depth(self, url):
         attrs = self.sqs.get_queue_attributes(QueueUrl=url, AttributeNames=[

@@ -25,3 +25,15 @@ output "table_name" {
 output "region" {
   value = data.aws_region.current.region
 }
+
+output "cognito_domain" {
+  value = module.auth.domain
+}
+
+output "web_bucket" {
+  value = module.web.bucket_name
+}
+
+output "web_distribution_id" {
+  value = module.web.distribution_id
+}

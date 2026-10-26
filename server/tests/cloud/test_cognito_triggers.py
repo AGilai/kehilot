@@ -185,6 +185,40 @@ class PreSignUpTest(unittest.TestCase):
         for secret in ('dana', 'example.com', '123'):
             self.assertNotIn(secret, text)
 
+    def test_confirmed_user_with_unverified_email_is_reset_before_verify(self):
+        fake = FakeCognito([native(status='CONFIRMED', verified='false')])
+        cognito_triggers.handler(external_event('Google_1'), None, client=fake)
+        names = [c[0] for c in fake.calls]
+        self.assertLess(names.index('admin_set_user_password'), names.index('admin_user_global_sign_out'))
+        self.assertLess(names.index('admin_user_global_sign_out'), names.index('admin_update_user_attributes'))
+        self.assertLess(names.index('admin_update_user_attributes'), names.index('admin_link_provider_for_user'))
+        self.assertEqual(fake.named('admin_confirm_sign_up'), [])
+
+    def test_unexpected_exception_in_linking_becomes_link_failed_without_pii(self):
+        from botocore.exceptions import BotoCoreError, ParamValidationError
+
+        class Weird(FakeCognito):
+            def __init__(self, exc, *a):
+                super().__init__(*a)
+                self.exc = exc
+
+            def admin_link_provider_for_user(self, **kw):
+                raise self.exc
+        errors = [ParamValidationError(report='bad value dana@example.com'),
+                  BotoCoreError(), KeyError('dana@example.com'), RuntimeError('dana@example.com')]
+        for error in errors:
+            with self.assertLogs(cognito_triggers.logger, level=logging.DEBUG) as logs:
+                with self.assertRaises(Exception) as ctx:
+                    cognito_triggers.handler(external_event('Google_123'), None, client=Weird(error, [native()]))
+            exc = ctx.exception
+            self.assertEqual(str(exc), 'link_failed')
+            self.assertIsNone(exc.__cause__)
+            self.assertTrue(exc.__suppress_context__)
+            text = '\n'.join(logs.output) + repr(exc.args)
+            self.assertIn(type(error).__name__, text)
+            for secret in ('dana', 'example.com'):
+                self.assertNotIn(secret, text)
+
     def test_api_error_from_ensure_account_also_becomes_link_failed(self):
         from server.cloud.errors import ApiError
 

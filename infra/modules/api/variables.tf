@@ -57,3 +57,7 @@ variable "user_pool_id" {
 variable "user_pool_arn" {
   type = string
 }
+
+variable "cors_origins" {
+  type = list(string)
+}

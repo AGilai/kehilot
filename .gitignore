@@ -25,3 +25,5 @@ infra/**/.terraform/
 *.tfplan
 infra/**/terraform.tfvars
 .superpowers/
+.env.dev
+.env.prod

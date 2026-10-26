@@ -9,3 +9,13 @@ Runs from this EC2 with the `kehilot-deployer` instance role (no keys).
     .venv/bin/python tools/smoke_dev.py                # end-to-end check
 
 `terraform.tfvars` (gitignored) holds `alert_email`.
+
+## App configuration
+
+After an apply, write the app's (gitignored) `.env.dev` from the Terraform outputs:
+
+    python3 tools/write_app_env.py --env dev
+
+`EXPO_PUBLIC_FEDERATION` stays empty until Google/Apple sign-in is set up. The Cognito domain
+(`kehilot-dev.auth.<region>.amazoncognito.com`) and the OAuth settings on the app client exist for that
+federation; the app never shows the hosted pages. CORS allows the web URL and `http://localhost:8081`.
