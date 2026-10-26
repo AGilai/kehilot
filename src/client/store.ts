@@ -331,18 +331,23 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
    * Notification preferences (M5): shown at once, sent at once, and only the fields of this change go back to
    * their old values when the server refuses (the error is rethrown for the toast).
    */
+  let notifySeq = 0;
+  const notifyLast = new Map<string, number>();
   async function setNotify(partial: Partial<NotifyPrefs>): Promise<void> {
     const gen = state.generation;
     const k = state.kehilaId;
     const kehila = state.kehila;
     if (!k || !kehila) return;
     const prev = kehila.notify;
+    // A later change to the same field owns it: an older failure must not restore over it.
+    const mine = new Map<string, number>();
+    for (const f of Object.keys(partial)) { const n = ++notifySeq; notifyLast.set(f, n); mine.set(f, n); }
     set({ kehila: { ...kehila, notify: { ...prev, ...partial } } });
     try { await api.putNotify(k, partial); } catch (e) {
       const cur = state.kehila;
       if (guard(gen) && cur && state.kehilaId === k) {
         const back = {} as Record<string, unknown>;
-        for (const f of Object.keys(partial) as (keyof NotifyPrefs)[]) back[f] = prev[f];
+        for (const f of Object.keys(partial) as (keyof NotifyPrefs)[]) if (notifyLast.get(f) === mine.get(f)) back[f] = prev[f];
         set({ kehila: { ...cur, notify: { ...cur.notify, ...back } } });
       }
       throw e;

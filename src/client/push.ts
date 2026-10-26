@@ -27,6 +27,34 @@ export function routeFromPush(data: unknown): PushRoute | null {
   return out;
 }
 
+/** The server accepts at most this many `chatChannels`. */
+export const MAX_CHAT_CHANNELS = 100;
+
+export type MutedRow = { userId: string; name: string };
+
+/**
+ * Names for the muted-members list: directory first (members and gabbaim), then names seen in the feed, then
+ * the fallback. One row per ID, in the order given. `directory` is null for listeners or when it failed.
+ */
+export function mutedMemberRows(mutedIds: string[], directory: { userId: string; displayName: string }[] | null, feedNames: Map<string, string>, fallback: string): MutedRow[] {
+  const dir = new Map((directory ?? []).map(d => [d.userId, d.displayName]));
+  const seen = new Set<string>();
+  const out: MutedRow[] = [];
+  for (const id of mutedIds) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ userId: id, name: dir.get(id) || feedNames.get(id) || fallback });
+  }
+  return out;
+}
+
+/** Returns what the holder keeps and empties it, so a tap routes once (a remount never replays it). */
+export function takePushTarget<T>(holder: { current: T | null }): T | null {
+  const v = holder.current;
+  holder.current = null;
+  return v;
+}
+
 export type ChatPrefRow = { channelId: string; name: string; on: boolean };
 
 /** The "שיחות" group: one row per conversation channel in the caller's audience; off unless listed in `chatChannels`. */

@@ -209,6 +209,7 @@
     "chat": "Conversations",
     "chatOff": "You will see the messages in the app, without a notification",
     "chatNone": "No conversations are available to you.",
+    "chatMax": "Notifications can be on for at most {n} conversations. Turn one off to turn another on.",
     "noChannels": "No channels to show."
   },
   "topbar": {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PUSH_TOKEN_KEY, chatPrefRows, registerPush, routeFromPush, toggleId } from '../src/client/push.ts';
+import { PUSH_TOKEN_KEY, chatPrefRows, mutedMemberRows, registerPush, routeFromPush, takePushTarget, toggleId } from '../src/client/push.ts';
 import { createStore } from '../src/client/store.ts';
 import { localSignOut } from '../src/auth/signout.ts';
 import type { Channel, Kehila, NotifyPrefs } from '../src/client/types.ts';
@@ -96,5 +96,40 @@ test('setNotify is optimistic and reverts only the changed fields on error', asy
   await store.setNotify({ membersBroadcasts: 'management_only' });
   assert.equal(store.getState().kehila!.notify.membersBroadcasts, 'management_only');
   assert.deepEqual(sent, [{ mutedTypes: ['event'] }, { membersBroadcasts: 'management_only' }]);
+  store.reset();
+});
+
+test('mutedMemberRows: directory, then feed names, then fallback; no duplicates', () => {
+  const feed = new Map([['u2', 'שם מההודעות'], ['u3', 'שם אחר']]);
+  const dir = [{ userId: 'u1', displayName: 'משפחת בדיוני' }, { userId: 'u2', displayName: 'משפחת לדוגמה' }];
+  assert.deepEqual(mutedMemberRows(['u1', 'u2', 'u3', 'u4', 'u1'], dir, feed, 'חבר'), [
+    { userId: 'u1', name: 'משפחת בדיוני' }, { userId: 'u2', name: 'משפחת לדוגמה' }, { userId: 'u3', name: 'שם אחר' }, { userId: 'u4', name: 'חבר' },
+  ]);
+  // Listener or failed directory: feed names only.
+  assert.deepEqual(mutedMemberRows(['u2', 'u9'], null, feed, 'חבר'), [{ userId: 'u2', name: 'שם מההודעות' }, { userId: 'u9', name: 'חבר' }]);
+});
+
+test('takePushTarget returns the tap once', () => {
+  const h = { current: { messageId: 'm1' } as { messageId: string } | null };
+  assert.deepEqual(takePushTarget(h), { messageId: 'm1' });
+  assert.equal(takePushTarget(h), null);
+});
+
+test('a failed change does not restore over a newer change to the same field', async () => {
+  const k0: Kehila = { kehilaId: 'k1', name: 'x', role: 'member', notify: notify(), settings: { pollSeconds: 60 } } as any;
+  let n = 0;
+  const api = {
+    me: async () => ({ userId: 'u1', email: 'e', profile: { firstName: 'a', lastName: 'b', lang: 'he' }, kehilot: [{ kehilaId: 'k1', name: 'x', role: 'member', logoVersion: null }] }),
+    kehila: async () => k0, channels: async () => [], changes: async () => ({ changes: [], cursor: '' }), messages: async () => [],
+    putNotify: async () => { if (n++ === 0) { await new Promise(r => setTimeout(r, 20)); throw new Error('boom'); } return {}; },
+  } as any;
+  const mem = new Map<string, string>();
+  const store = createStore(api, { get: async k => mem.get(k) ?? null, set: async (k, v) => { mem.set(k, v); }, remove: async k => { mem.delete(k); } });
+  await store.loadMe(); await store.selectKehila('k1');
+  const a = store.setNotify({ mutedChannels: ['a'] });
+  const b = store.setNotify({ mutedChannels: ['a', 'b'] });
+  await assert.rejects(a);
+  await b;
+  assert.deepEqual(store.getState().kehila!.notify.mutedChannels, ['a', 'b']);
   store.reset();
 });

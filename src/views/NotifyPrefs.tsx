@@ -1,8 +1,8 @@
 import React from 'react';
 import { AppState, Linking, Pressable, ScrollView, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
-import { chatPrefRows, pushPermission, toggleId } from '../client/push.ts';
-import type { MessageType, NotifyPrefs as Prefs } from '../client/types.ts';
+import { MAX_CHAT_CHANNELS, chatPrefRows, mutedMemberRows, pushPermission, toggleId } from '../client/push.ts';
+import type { DirectoryEntry, MessageType, NotifyPrefs as Prefs } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Card, Toggle, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
@@ -18,7 +18,7 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
   const { t, dir } = useI18n();
   const k = useTokens();
   const errText = useErrorText();
-  const { state, setNotify } = useSession();
+  const { state, setNotify, directory } = useSession();
   const { kehila, channels, feed } = state;
   const [perm, setPerm] = React.useState<'granted' | 'denied' | 'unsupported'>('granted');
 
@@ -30,6 +30,17 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
     const sub = AppState.addEventListener('change', s => { if (s === 'active') read(); });
     return () => { live = false; sub.remove(); };
   }, []);
+
+  // Muted members are IDs on the server: names come from the directory (members and gabbaim only; a listener gets 403).
+  const [members, setDir] = React.useState<DirectoryEntry[] | null>(null);
+  const canDirectory = kehila?.role === 'member' || kehila?.role === 'gabbai';
+  const hasMuted = (kehila?.notify.mutedMembers.length ?? 0) > 0;
+  React.useEffect(() => {
+    if (!canDirectory || !hasMuted) return;
+    let live = true;
+    directory().then(d => { if (live) setDir(d); }, () => {});
+    return () => { live = false; };
+  }, [canDirectory, hasMuted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!kehila) return null;
   const n: Prefs = kehila.notify;
@@ -75,8 +86,7 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
           <Toggle label={t('prefs.membersLabel')} value={n.membersBroadcasts === 'all'} offNote={t('prefs.membersOff')}
             onChange={on => change({ membersBroadcasts: on ? 'all' : 'management_only' })} />
           <Txt bold size="small">{t('prefs.muted')}</Txt>
-          {n.mutedMembers.length === 0 ? <Txt size="small" color={k.muted}>{t('prefs.mutedNone')}</Txt> : n.mutedMembers.map(id => {
-            const name = names.get(id) ?? t('prefs.unknownMember');
+          {n.mutedMembers.length === 0 ? <Txt size="small" color={k.muted}>{t('prefs.mutedNone')}</Txt> : mutedMemberRows(n.mutedMembers, members, names, t('prefs.unknownMember')).map(({ userId: id, name }) => {
             return (
               <View key={id} style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <Txt style={{ flex: 1 }}>{name}</Txt>
@@ -90,10 +100,15 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
         </>
       ))}
 
-      {group(t('prefs.chat'), chat.length === 0 ? <Txt color={k.muted}>{t('prefs.chatNone')}</Txt> : chat.map(r => (
-        <Toggle key={r.channelId} label={r.name} value={r.on} offNote={t('prefs.chatOff')}
-          onChange={on => change({ chatChannels: toggleId(n.chatChannels, r.channelId, on) })} />
-      )))}
+      {group(t('prefs.chat'), chat.length === 0 ? <Txt color={k.muted}>{t('prefs.chatNone')}</Txt> : (
+        <>
+          {chat.map(r => (
+            <Toggle key={r.channelId} label={r.name} value={r.on} offNote={t('prefs.chatOff')}
+              onChange={on => { if (on && n.chatChannels.length >= MAX_CHAT_CHANNELS) return; change({ chatChannels: toggleId(n.chatChannels, r.channelId, on) }); }} />
+          ))}
+          {n.chatChannels.length >= MAX_CHAT_CHANNELS ? <Txt size="small" color={k.muted}>{t('prefs.chatMax', { n: MAX_CHAT_CHANNELS })}</Txt> : null}
+        </>
+      ))}
 
       <View style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Txt>🔒</Txt>

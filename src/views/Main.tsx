@@ -47,7 +47,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
 }
 
 /** The signed-in app for members and gabbaim: top bar, the open screen, and the bottom tabs. */
-export function Main({ onOpenSwitcher, banner, pushOpen }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** A tapped push: open this message, or Home (screens that do not exist yet). `n` makes a repeat tap count. */ pushOpen?: { n: number; messageId?: string } | null }) {
+export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string } | null }) {
   const { t } = useI18n();
   const k = useTokens();
   const { state } = useSession();
@@ -64,9 +64,10 @@ export function Main({ onOpenSwitcher, banner, pushOpen }: { onOpenSwitcher: () 
   }, []);
   // A tapped push opens the message, or Home when there is none (the approvals screens come later).
   React.useEffect(() => {
-    if (!pushOpen) return;
-    setNav(pushOpen.messageId ? { tab: 'detail', id: pushOpen.messageId, from: 'messages' } : { tab: 'home' });
-  }, [pushOpen]);
+    const target = takePush?.();
+    if (!target) return;
+    setNav(target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
+  }, [pushSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   const jumped = React.useRef(false);
   const [searchQ, setSearchQ] = React.useState(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''));
 
