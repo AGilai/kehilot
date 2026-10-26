@@ -133,6 +133,34 @@ added) live in `us-east-1` by AWS rule.
 - A `post-confirmation` trigger is not needed: the API creates the user's profile item lazily on first call.
 - Platform admins (the user and Noam) are a Cognito group `platform-admin`; that is the only use of groups.
 
+### 4.2a Onboarding and social sign-in (user's decisions, 2026-10-26)
+- **Two directions into a Kehila.**
+  - *Pull:* a member's invite link makes the newcomer a `listener` at once (as built in plan 2a).
+  - *Push:* an invite created by a gabbai lets the gabbai choose `listener` or `member` (with classification). A
+    member-role invite joins the person already approved, with no membership request.
+- **Kehila onboarding from the gabbaim's list.** The gabbai (or a platform admin) imports an Excel/CSV with one
+  row per person: first name, last name, email, role (listener/member/gabbai), classification. The import:
+  - creates the people records;
+  - pre-creates a Cognito account per email (`AdminCreateUser` with the invitation message suppressed). Each
+    account gets a random password nobody knows (`AdminSetUserPassword`, permanent) and `email_verified=true`,
+    so it is `CONFIRMED`;
+  - pre-creates the Kehila membership with the role from the row.
+
+  People then sign in through "forgot password" (a code by email) or with Google/Apple. **No shared default
+  password**, by the user's choice.
+  - An email that already has an account just gets the membership added.
+  - A re-import is idempotent by email.
+  - People without email are out of scope (user: everyone with a smartphone has one).
+- **Google and Apple sign-in in plan 3**, next to email + password, through Cognito federation.
+  - This needs a Cognito domain (an `amazoncognito.com` prefix until plan 4's own domain), a Google OAuth client,
+    and an Apple Services ID + key. The user creates the Google and Apple credentials; they go to SSM, never git.
+  - On iOS, Google requires Sign in with Apple too (App Store rule 4.8), so the two always come together.
+  - A pre-sign-up trigger links a federated login to an existing account with the same verified email
+    (`AdminLinkProviderForUser`), so a pre-loaded person who taps "Continue with Google" lands in the same
+    account and memberships.
+  - The app opens the provider through the system browser sheet (`expo-auth-session`), or native Apple sign-in
+    on iOS. Email + password stays on the in-app Hebrew screens.
+
 ### 4.3 API
 - **API Gateway HTTP API** with a Cognito JWT authorizer on all routes except `GET /health` and
   `GET /v1/invites/{code}` (shows the Kehila name for an invite link before sign-up).
