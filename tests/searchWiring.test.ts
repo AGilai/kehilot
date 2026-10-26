@@ -76,3 +76,19 @@ test('a Kehila missing from me() is wiped from the cache', async () => {
   assert.ok(![...cacheStore.data.keys()].some(k => k.startsWith('u1/k1/')));
   store.reset();
 });
+
+test('results and offline copies only come from channels the user can read now', async () => {
+  const { store, state } = setup();
+  await store.start(); await idle();
+  assert.equal((await titles(store)).length, 2);
+  assert.equal((await store.cachedMessage('01H0000000000000000000000B'))?.title, 'שיעור חדש');
+  state.channels = []; // lost every channel; ensureChannels has not run yet
+  state.history = [];
+  const api = (store as any);
+  void api;
+  // channels(k) answers, state.channels is updated, but the cache is not yet wiped: the filter hides hits at once.
+  await store.refreshChannels();
+  assert.deepEqual(await titles(store), []);
+  assert.equal(await store.cachedMessage('01H0000000000000000000000B'), null);
+  store.reset();
+});

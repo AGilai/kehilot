@@ -45,8 +45,8 @@ export type SessionApi = {
   /** Offline search over the on-phone cache of the open Kehila. */
   search(q: string, o?: { channelId?: string }): Promise<CachedMessage[]>;
   cacheStatus(): Promise<{ complete: boolean; count: number }>;
-  /** Makes sure a (possibly old) message is loaded so the detail screen can show it; false when it could not be. */
-  openMessage(messageId: string): Promise<boolean>;
+  /** A cached message for the read-only offline copy (older than the loaded feed), or null. */
+  cachedMessage(messageId: string): Promise<CachedMessage | null>;
 };
 
 const SessionContext = React.createContext<SessionApi | null>(null);
@@ -121,7 +121,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     removeMessage: m => store.removeMessage(m),
     search: (q, o) => store.search(q, o),
     cacheStatus: () => store.cacheStatus(),
-    openMessage: m => store.openMessage(m),
+    cachedMessage: m => store.cachedMessage(m),
     imageUrl: async (m, fresh) => { const k = store.getState().kehilaId; return k ? images.get(k, m, { fresh }) : null; },
   }), [state, route, logo, store, images]);
 

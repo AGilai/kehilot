@@ -13,12 +13,11 @@ import type { CachedMessage } from '../search/cache.ts';
 export function Search({ onBack, onOpen, initialQuery = '', onQuery }: { onBack: () => void; onOpen: (id: string) => void; initialQuery?: string; onQuery?: (q: string) => void }) {
   const { t, lang, dir } = useI18n();
   const k = useTokens();
-  const { state, search, cacheStatus, openMessage } = useSession();
+  const { state, search, cacheStatus } = useSession();
   const [q, setQ] = React.useState(initialQuery);
   const [channelId, setChannelId] = React.useState<string | null>(null);
   const [hits, setHits] = React.useState<CachedMessage[]>([]);
   const [status, setStatus] = React.useState({ complete: true, count: 0 });
-  const [openError, setOpenError] = React.useState(false);
   const channels = state.channels;
   const nameOf = (id: string) => channels.find(c => c.channelId === id)?.name ?? '';
 
@@ -44,11 +43,6 @@ export function Search({ onBack, onOpen, initialQuery = '', onQuery }: { onBack:
     const ms = ulidTime(id);
     return Number.isFinite(ms) ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(ms)) : messageDay(id);
   };
-  async function open(id: string) {
-    setOpenError(false);
-    if (await openMessage(id)) onOpen(id); else setOpenError(true);
-  }
-
   return (
     <View style={{ flex: 1 }}>
       <FlatList
@@ -72,11 +66,10 @@ export function Search({ onBack, onOpen, initialQuery = '', onQuery }: { onBack:
               ))}
             </ScrollView>
             {!status.complete ? <Txt size="small" color={k.muted} accessibilityRole="alert">{t('search.loading', { n: status.count })}</Txt> : null}
-            {openError ? <Txt size="small" color={k.danger} accessibilityRole="alert">{t('search.openError')}</Txt> : null}
           </View>
         )}
         renderItem={({ item }) => (
-          <Pressable accessibilityRole="button" onPress={() => void open(item.messageId)}
+          <Pressable accessibilityRole="button" onPress={() => onOpen(item.messageId)}
             style={{ backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, padding: 14, gap: 6 }}>
             <Txt size="caption" color={k.muted} numberOfLines={1}>{nameOf(item.channelId)} · {dateOf(item.messageId)}</Txt>
             {item.title ? <Txt serif size="heading" numberOfLines={1}>{item.title}</Txt> : null}

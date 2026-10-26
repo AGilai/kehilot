@@ -113,6 +113,8 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
   let monthList: string[] | undefined;
   const months = new Map<string, Record<string, CachedMessage>>();
   const removed = new Set<string>();
+  /** Bumped by every wipe; a backfill page started before a wipe must not write into the fresh cache. */
+  let wipes = 0;
 
   async function loadMeta(): Promise<Meta | null> {
     if (meta !== undefined) return meta;
@@ -142,7 +144,7 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
 
   async function wipeNow(): Promise<void> {
     if (!dead()) await store.removePrefix(`${base}/`);
-    meta = null; monthList = []; months.clear(); removed.clear();
+    meta = null; monthList = []; months.clear(); removed.clear(); wipes++;
     await withIndexLock(store, async () => {
       const index = await readIndex(store, userId);
       if (index.includes(k)) await put(indexKey(userId), JSON.stringify(index.filter(x => x !== k)));
@@ -151,10 +153,10 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
 
   return {
     /** Stores messages of readable channels; anything else (and anything removed this session) is skipped. */
-    upsert(messages: Message[]): Promise<void> {
+    upsert(messages: Message[], wipeGen?: number): Promise<void> {
       return run(async () => {
         const m = await loadMeta();
-        if (!m || dead()) return;
+        if (!m || dead() || (wipeGen !== undefined && wipeGen !== wipes)) return;
         const allowed = new Set(m.channels ? m.channels.split(',') : []);
         const byMonth = new Map<string, Message[]>();
         for (const msg of messages) {
@@ -230,6 +232,11 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
       });
     },
 
+    /** One cached message (offline copy for the detail screen), or null. */
+    get(id: string): Promise<CachedMessage | null> {
+      return run(async () => ((await loadMeta()) ? ((await loadMonth(monthOf(id)))[id] ?? null) : null));
+    },
+
     status(): Promise<{ complete: boolean; count: number }> {
       return run(async () => {
         const m = await loadMeta();
@@ -238,17 +245,17 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
     },
 
     /** Where the backfill stands: the oldest message id fetched so far. */
-    backfillState(): Promise<{ before: string | null; complete: boolean }> {
+    backfillState(): Promise<{ before: string | null; complete: boolean; wipeGen: number }> {
       return run(async () => {
         const m = await loadMeta();
-        return { before: m?.before ?? null, complete: m?.complete ?? false };
+        return { before: m?.before ?? null, complete: m?.complete ?? false, wipeGen: wipes };
       });
     },
     /** Saved after every page. Does nothing when the cache was wiped meanwhile. */
-    saveBackfill(s: { before: string | null; complete: boolean }): Promise<void> {
+    saveBackfill(s: { before: string | null; complete: boolean; wipeGen?: number }): Promise<void> {
       return run(async () => {
         const m = await loadMeta();
-        if (!m || dead()) return;
+        if (!m || dead() || (s.wipeGen !== undefined && s.wipeGen !== wipes)) return;
         m.before = s.before; m.complete = s.complete;
         await saveMeta(m);
       });

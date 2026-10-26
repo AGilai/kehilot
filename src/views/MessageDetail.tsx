@@ -1,7 +1,8 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View, useColorScheme } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
-import { canReply, joinLabel, replierChip, timeOfDay, visibleReplies } from '../client/messageView.ts';
+import type { CachedMessage } from '../search/cache.ts';
+import { canReply, joinLabel, replierChip, timeOfDay, ulidTime, visibleReplies } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
 import { Composer } from '../kit/Composer.tsx';
@@ -17,11 +18,11 @@ const HIDES_BOX = ['cannot_reply_to_own', 'replies_not_allowed', 'target_left'];
  * or to their own author (their own). A gabbai who is neither sees the replier chip and no text.
  */
 export function MessageDetail({ messageId, onBack }: { messageId: string; onBack: () => void }) {
-  const { t, dir } = useI18n();
+  const { t, dir, lang } = useI18n();
   const k = useTokens();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const errText = useErrorText();
-  const { state, markRead, loadReplies, sendReply, join, removeMessage } = useSession();
+  const { state, markRead, loadReplies, sendReply, join, removeMessage, cachedMessage } = useSession();
   const { feed, kehila, me, channels } = state;
   const message = feed.messages[messageId];
   const [draft, setDraft] = React.useState('');
@@ -32,6 +33,14 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const [joining, setJoining] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
   const targeted = !!message?.targetMemberId;
+  // An older message (e.g. a search hit) is not in the feed: show the on-phone copy, read-only.
+  const [copy, setCopy] = React.useState<CachedMessage | null | undefined>(undefined);
+  React.useEffect(() => {
+    if (message) return;
+    let live = true;
+    cachedMessage(messageId).then(c => { if (live) setCopy(c); }, () => { if (live) setCopy(null); });
+    return () => { live = false; };
+  }, [messageId, !!message, cachedMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     if (!message) return;
@@ -46,8 +55,26 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
       <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'} {t('detail.back')}</Txt>
     </Pressable>
   );
+  if (!message && copy) {
+    const date = Number.isFinite(ulidTime(messageId))
+      ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ulidTime(messageId))) : '';
+    const channel = channels.find(c => c.channelId === copy.channelId)?.name ?? '';
+    return (
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+        {back}
+        <Banner text={t('detail.offlineCopy')} />
+        <Card edgeColor={edge(copy.type, scheme)}>
+          <Txt size="caption" color={k.muted}>{channel} · {date}</Txt>
+          {copy.title ? <Txt serif size="title" accessibilityRole="header">{copy.title}</Txt> : null}
+          {copy.body ? <Txt>{copy.body}</Txt> : null}
+          <Txt size="small" color={k.muted}>{t('detail.from', { name: copy.authorName })}</Txt>
+          {copy.targetName ? <Txt size="small" color={k.muted}>{copy.targetName}</Txt> : null}
+        </Card>
+      </ScrollView>
+    );
+  }
   if (!message) {
-    return <View style={{ padding: 16, gap: 12 }}>{back}{feed.loaded ? <Txt>{t('detail.notFound')}</Txt> : <ActivityIndicator color={k.tekhelet} />}</View>;
+    return <View style={{ padding: 16, gap: 12 }}>{back}{feed.loaded && copy !== undefined ? <Txt>{t('detail.notFound')}</Txt> : <ActivityIndicator color={k.tekhelet} />}</View>;
   }
 
   const role = kehila.role;

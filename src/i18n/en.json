@@ -286,7 +286,8 @@
     "lock": "Goes to the {name} family only. Not shown to the rest of the community.",
     "send": "Send",
     "familyGone": "The family is no longer in the Kehila, so a blessing cannot be sent.",
-    "notAllowed": "A private blessing cannot be sent for this message."
+    "notAllowed": "A private blessing cannot be sent for this message.",
+    "offlineCopy": "Offline copy: shown from this device, without replies or actions."
   },
   "chip": {
     "celebration": "{n} members sent a private blessing to the {name} family",
@@ -313,7 +314,6 @@
     "hint": "Search titles, text and names. It works offline too.",
     "empty": "No messages found.",
     "loading": "The archive is still loading ({n} messages so far)",
-    "back": "Back to messages",
-    "openError": "This message can't be opened without a connection."
+    "back": "Back to messages"
   }
 }

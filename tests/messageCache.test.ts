@@ -207,3 +207,32 @@ test('5000 messages search under 200 ms', async () => {
   assert.equal(hits, 1);
   assert.ok(best < 200, `best of 5 took ${best.toFixed(1)} ms`);
 });
+
+test('a backfill page that was in flight during a wipe writes neither messages nor cursor', async () => {
+  const { cache } = await ready();
+  const { api } = pagedApi(120);
+  let stop = false;
+  const slow = { messages: async (k: string, o: { before?: string; limit?: number }) => {
+    const page = await api.messages(k, o);
+    await cache.ensureChannels(['c1', 'c2', 'c3']); // a focus check wipes while the page is in flight
+    return page;
+  } };
+  await runBackfill({ api: slow, cache, k: 'k1', isActive: () => true, sleep: async () => { stop = true; }, guard: () => !stop }).catch(() => {});
+  const st = await cache.backfillState();
+  assert.equal(st.before, null);
+  assert.equal(st.complete, false);
+  assert.equal((await cache.status()).count, 0);
+  // The next run starts from the newest message.
+  const next = pagedApi(60);
+  await runBackfill({ api: next.api, cache, k: 'k1', isActive: () => true, sleep: noSleep, guard: () => true });
+  assert.equal(next.calls[0]!.before, undefined);
+  assert.deepEqual(await cache.status(), { complete: true, count: 60 });
+});
+
+test('get returns one cached message', async () => {
+  const { cache } = await ready();
+  const a = msg(T0, { title: 'שיעור' }, 1);
+  await cache.upsert([a]);
+  assert.equal((await cache.get(a.messageId))?.title, 'שיעור');
+  assert.equal(await cache.get(msg(T0, {}, 9).messageId), null);
+});

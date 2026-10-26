@@ -31,10 +31,11 @@ export async function runBackfill(d: BackfillDeps): Promise<void> {
     if (state.complete) return;
     const page = await d.api.messages(d.k, state.before ? { before: state.before, limit: PAGE } : { limit: PAGE });
     if (!d.guard()) return;
-    await d.cache.upsert(page);
+    await d.cache.upsert(page, state.wipeGen);
     const oldest = page.reduce<string | null>((o, m) => (o === null || m.messageId < o ? m.messageId : o), state.before);
     const complete = page.length < PAGE;
-    await d.cache.saveBackfill({ before: oldest, complete });
+    if (!d.guard()) return;
+    await d.cache.saveBackfill({ before: oldest, complete, wipeGen: state.wipeGen });
     if (complete) return;
     await d.sleep(PAGE_PAUSE_MS);
     if (!d.guard()) return;

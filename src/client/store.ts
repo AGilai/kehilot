@@ -224,29 +224,26 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     syncCache(mine, c.k);
   }
 
-  /** Offline search over the cache of the open Kehila. */
+  /** Offline search over the cache of the open Kehila; only channels the user can read now (state.channels). */
   async function search(q: string, o: { channelId?: string } = {}): Promise<CachedMessage[]> {
     const c = current();
     const mine = cache;
     if (!c || !mine) return [];
     const hits = await mine.search(q, o);
-    return still(c) && cache === mine ? hits : [];
+    const readable = new Set(readableIds());
+    return still(c) && cache === mine ? hits.filter(h => readable.has(h.channelId)) : [];
   }
   async function cacheStatus(): Promise<{ complete: boolean; count: number }> {
     return cache ? cache.status() : { complete: false, count: 0 };
   }
 
-  /** A search hit can be older than the loaded feed: fetch it once so the detail screen can show it. */
-  async function openMessage(m: string): Promise<boolean> {
+  /** A cached message for the read-only offline copy; never put in the feed. */
+  async function cachedMessage(id: string): Promise<CachedMessage | null> {
     const c = current();
-    if (!c) return false;
-    if (state.feed.messages[m]) return true;
-    try {
-      const item = await api.message(c.k, m);
-      if (!still(c)) return false;
-      set({ feed: applyChanges(state.feed, [{ kind: 'message', id: m, item }]) });
-      return true;
-    } catch { return false; }
+    const mine = cache;
+    if (!c || !mine) return null;
+    const m = await mine.get(id);
+    return m && still(c) && cache === mine && readableIds().includes(m.channelId) ? m : null;
   }
 
   /** Message actions on the open Kehila. Each drops its result if the Kehila changed or the store was reset. */
@@ -306,7 +303,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   return {
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, openMessage, reset, guard,
+    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, cachedMessage, reset, guard,
     markRead, loadReplies, sendReply, join, removeMessage,
     pollNow: () => poller.pollNow(),
   };

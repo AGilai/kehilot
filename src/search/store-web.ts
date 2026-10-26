@@ -32,7 +32,7 @@ export function createWebStore(): CacheStore {
       const db = await open();
       await new Promise<void>((resolve, reject) => {
         const t = db.transaction(STORE, 'readwrite');
-        const req = t.objectStore(STORE).openKeyCursor();
+        const req = t.objectStore(STORE).openKeyCursor(prefix ? IDBKeyRange.bound(prefix, prefix + '\uffff') : undefined);
         req.onsuccess = () => {
           const c = req.result;
           if (!c) return;
