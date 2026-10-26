@@ -7,6 +7,7 @@ import { useErrorText } from './views/auth/Frame.tsx';
 import { AuthProvider, useAuth } from './auth/AuthProvider.tsx';
 import { config } from './config.ts';
 import { fixtureParams } from './client/fixtures.ts';
+import { rememberOnIntent } from './client/links.ts';
 import { pendingInvite } from './client/pendingStore.ts';
 import { SessionProvider, useSession } from './client/SessionProvider.tsx';
 import { I18nProvider, useI18n } from './i18n/I18nProvider.tsx';
@@ -84,7 +85,7 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   if (code) {
     return <Join code={code} onAccept={() => acceptInvite(code).then(() => { setTyped(null); link.clear(); })} onClose={() => { setTyped(null); link.clear(); }} />;
   }
-  if (route === 'none') return <NoKehila onCode={setTyped} />;
+  if (route === 'none') return <NoKehila onCode={setTyped} error={state.joinError ? errText({ code: state.joinError }) : null} onDismissError={dismissJoinError} />;
   return (
     <Screen>
       <TopBar onOpenSwitcher={() => setSwitcher(true)} />
@@ -113,15 +114,13 @@ function Shell() {
   const k = useTokens();
   const link = useIncomingLink();
   const [after, setAfter] = React.useState<'register' | 'signin' | null>(null);
-  // Signed out: the invite waits until sign-in or the profile step accepts it.
-  React.useEffect(() => { if (link.code && status === 'signedOut') void pendingInvite.set(link.code); }, [link.code, status]);
   if (status === 'loading') {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
   if (status === 'offline') return <Offline />;
   if (status === 'signedIn') return <SessionProvider><SessionFlow link={link} /></SessionProvider>;
   if (link.code && !after) {
-    return <Join code={link.code} onRegister={() => { setAfter('register'); link.clear(); }} onSignIn={() => { setAfter('signin'); link.clear(); }} onClose={() => { link.clear(); }} />;
+    return <Join code={link.code} onRegister={() => { void rememberOnIntent(pendingInvite, link.code!, 'register').then(a => { setAfter(a); link.clear(); }); }} onSignIn={() => { void rememberOnIntent(pendingInvite, link.code!, 'signin').then(a => { setAfter(a); link.clear(); }); }} onClose={() => { link.clear(); }} />;
   }
   return <SignedOutFlow start={after ?? undefined} />;
 }

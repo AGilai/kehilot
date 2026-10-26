@@ -12,6 +12,7 @@ import { signInSrp } from './srp.ts';
 import { REFRESH_KEY, createTokenManager } from './tokens.ts';
 import type { KeyValue } from './tokens.ts';
 import { localSignOut, resolveStart, signOutSequence } from './signout.ts';
+import { pendingInvite } from '../client/pendingStore.ts';
 import { normEmail } from './validate.ts';
 
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn' | 'offline';
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // One local clean-up for every sign-out path (user, forced, account deleted).
   const cleanup = React.useCallback(() => localSignOut({
     clear: () => (core.fixtures ? Promise.resolve() : core.tokens.clear()),
+    clearPending: () => pendingInvite.clear(),
     reset: () => { setPendingNames(null); resetSessionStore(); },
     done: () => setStatus('signedOut'),
   }), [core]);
@@ -141,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try { rt = await core.storage.get(REFRESH_KEY); } catch { /* ignore */ }
         await signOutSequence({
           deleteDevice: (t) => core.api.deleteDevice(t), revoke: cognito.revoke,
-          clear: () => core.tokens.clear(), reset: () => { setPendingNames(null); resetSessionStore(); }, done: () => setStatus('signedOut'),
+          clear: () => core.tokens.clear(), clearPending: () => pendingInvite.clear(), reset: () => { setPendingNames(null); resetSessionStore(); }, done: () => setStatus('signedOut'),
         }, pushToken, rt);
       },
       async retry() { setStatus('loading'); await start(); },

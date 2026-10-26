@@ -6,17 +6,17 @@ import { Button, Card, Field, Txt } from '../kit/components.tsx';
 import { AuthFrame } from './auth/Frame.tsx';
 
 /** The user belongs to no Kehila: join with a typed code or a pasted link. */
-export function NoKehila({ onCode }: { onCode: (code: string) => void }) {
+export function NoKehila({ onCode, error, onDismissError }: { onCode: (code: string) => void; error?: string | null; onDismissError?: () => void }) {
   const { t } = useI18n();
   const { signOut } = useAuth();
   const [text, setText] = React.useState('');
   const [bad, setBad] = React.useState(false);
   function submit() {
     const l = parseLink(text);
-    if (l?.kind === 'join') { setBad(false); onCode(l.code); } else setBad(true);
+    if (l?.kind === 'join') { setBad(false); onDismissError?.(); onCode(l.code); } else setBad(true);
   }
   return (
-    <AuthFrame title={t('noKehila.title')}>
+    <AuthFrame title={t('noKehila.title')} error={error}>
       <Txt>{t('noKehila.body')}</Txt>
       <Card>
         <Field label={t('noKehila.codeLabel')} value={text} onChangeText={v => { setText(v); setBad(false); }} autoCapitalize="characters" autoCorrect={false}

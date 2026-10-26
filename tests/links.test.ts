@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { localSignOut } from '../src/auth/signout.ts';
 import { createStore } from '../src/client/store.ts';
 import { ApiCodeError } from '../src/client/errors.ts';
-import { PENDING_INVITE_KEY, PENDING_TTL_MS, createPendingInvite, inviteUrl, normalizeCode, parseLink } from '../src/client/links.ts';
+import { PENDING_INVITE_KEY, PENDING_TTL_MS, createPendingInvite, inviteUrl, normalizeCode, parseLink, rememberOnIntent } from '../src/client/links.ts';
 import type { KeyValue } from '../src/auth/tokens.ts';
 import type { Kehila, KehilaSummary, Me } from '../src/client/types.ts';
 
@@ -167,4 +168,31 @@ test('approval shows without re-login: syncRole reloads the Kehila when me() cha
   assert.equal(await store.syncRole(), true);
   assert.equal(store.getState().kehila?.role, 'member');
   store.reset();
+});
+
+test('sign-out clears the pending invite, so the next sign-in does not accept it', async () => {
+  const storage = memory();
+  const pending = createPendingInvite(storage, () => 1000);
+  await pending.set(CODE);
+  const log: string[] = [];
+  await localSignOut({ clear: async () => { log.push('clear'); }, clearPending: () => pending.clear(), reset: () => log.push('reset'), done: () => log.push('done') });
+  assert.deepEqual(log, ['clear', 'reset', 'done']);
+  assert.equal(storage.data.has(PENDING_INVITE_KEY), false);
+  // A failing clearPending must not block the sign-out.
+  const log2: string[] = [];
+  await localSignOut({ clear: async () => {}, clearPending: async () => { throw new Error('x'); }, reset: () => log2.push('reset'), done: () => log2.push('done') });
+  assert.deepEqual(log2, ['reset', 'done']);
+  const { api, accepted } = fakeApi({ me: async () => ({ userId: 'u2', email: 'b@example.invalid', profile: { firstName: 'ב', lastName: '', lang: 'he' }, kehilot: [] }) });
+  const store = createStore(api, storage, { pending, isActive: () => false });
+  assert.equal(await store.start(), 'none');
+  assert.deepEqual(accepted, []);
+  store.reset();
+});
+
+test('a link opened signed-out stores nothing until the user taps Register or sign-in', async () => {
+  const storage = memory();
+  const pending = createPendingInvite(storage, () => 1000);
+  assert.equal(storage.data.has(PENDING_INVITE_KEY), false);
+  assert.equal(await rememberOnIntent(pending, CODE, 'signin'), 'signin');
+  assert.equal(await pending.get(), CODE);
 });

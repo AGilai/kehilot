@@ -2,6 +2,8 @@ export type SignOutDeps = {
   deleteDevice: (token: string) => Promise<void>;
   revoke: (refreshToken: string) => Promise<void>;
   clear: () => Promise<void>;
+  /** Drops the pending invite code (kehilot.pendingInvite) so the next account cannot accept it. */
+  clearPending?: () => Promise<void>;
   /** Task 9 session store reset. */
   reset: () => void;
   /** Sets the UI status to signedOut. */
@@ -9,8 +11,11 @@ export type SignOutDeps = {
 };
 
 /** Every sign-out path ends here: tokens cleared (errors ignored), session store reset, status signedOut. */
-export async function localSignOut(d: Pick<SignOutDeps, 'clear' | 'reset' | 'done'>): Promise<void> {
-  try { await d.clear(); } catch { /* storage failure must not block the sign-out */ } finally { d.reset(); d.done(); }
+export async function localSignOut(d: Pick<SignOutDeps, 'clear' | 'clearPending' | 'reset' | 'done'>): Promise<void> {
+  try {
+    try { await d.clear(); } catch { /* storage failure must not block the sign-out */ }
+    try { await d.clearPending?.(); } catch { /* ditto */ }
+  } finally { d.reset(); d.done(); }
 }
 
 /** User-initiated sign-out: device, revoke (both best effort), then the local cleanup. */

@@ -115,3 +115,9 @@ export function createPendingInvite(storage: KeyValue, now: () => number = Date.
 }
 
 export type PendingInvite = ReturnType<typeof createPendingInvite>;
+
+/** Signed-out Join screen: the invite is stored only when the user taps Register or "I already have an account". */
+export async function rememberOnIntent(pending: PendingInvite, code: string, intent: 'register' | 'signin'): Promise<'register' | 'signin'> {
+  await pending.set(code);
+  return intent;
+}
