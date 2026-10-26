@@ -114,5 +114,9 @@ def handler(event, context):
     except ApiError as error:
         return _response(error.status, {'error': error.code})
     except Exception as error:  # never leak details to the client or the log
-        log.error('unhandled %s request=%s', type(error).__name__, getattr(context, 'aws_request_id', '-'))
+        # an AWS error's code and operation name carry no user data and name the failing call
+        detail = ''
+        if hasattr(error, 'operation_name') and isinstance(getattr(error, 'response', None), dict):
+            detail = f" {error.response.get('Error', {}).get('Code', '?')} {error.operation_name}"
+        log.error('unhandled %s%s request=%s', type(error).__name__, detail, getattr(context, 'aws_request_id', '-'))
         return _response(500, {'error': 'internal'})

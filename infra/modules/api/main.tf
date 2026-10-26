@@ -24,8 +24,8 @@ data "aws_iam_policy_document" "api" {
   statement {
     actions = [
       "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem",
-      "dynamodb:Query", "dynamodb:TransactWriteItems", "dynamodb:BatchGetItem",
-      # ConditionCheck inside transactions; Scan in repo_members.purge_user (account deletion)
+      "dynamodb:Query", "dynamodb:TransactWriteItems", "dynamodb:BatchGetItem", "dynamodb:BatchWriteItem",
+      # ConditionCheck inside transactions; Scan + BatchWriteItem in repo_members.purge_user (account deletion)
       "dynamodb:ConditionCheckItem", "dynamodb:Scan",
     ]
     resources = [var.table_arn, "${var.table_arn}/index/*"]

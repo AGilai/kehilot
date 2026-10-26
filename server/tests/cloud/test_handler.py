@@ -86,3 +86,14 @@ class HandlerTest(unittest.TestCase):
             status, body = self.call('GET', '/v1/me')
         self.assertEqual((status, body), (500, {'error': 'internal'}))
         self.assertNotIn('secret', ' '.join(logs.output))
+
+    def test_aws_error_logs_code_and_operation_only(self):
+        from botocore.exceptions import ClientError
+        error = ClientError({'Error': {'Code': 'AccessDeniedException', 'Message': 'secret arn'}}, 'BatchWriteItem')
+        with mock.patch.object(Repo, 'list_memberships', side_effect=error), self.assertLogs(level='ERROR') as logs:
+            status, _ = self.call('GET', '/v1/me')
+        output = ' '.join(logs.output)
+        self.assertEqual(status, 500)
+        self.assertIn('AccessDeniedException', output)
+        self.assertIn('BatchWriteItem', output)
+        self.assertNotIn('secret', output)
