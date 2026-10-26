@@ -2,6 +2,8 @@
 import functools
 import secrets
 
+from .errors import ApiError
+
 
 @functools.cache
 def cognito_client():
@@ -26,20 +28,28 @@ def _find(client, pool_id, email):
 
 
 def _normalise(client, pool_id, email, user):
-    """Make a user who cannot use "forgot password" able to. A CONFIRMED user is never touched.
+    """Repair a user who cannot use "forgot password". A CONFIRMED, verified user is never touched.
 
-    An UNCONFIRMED user's password may have been chosen by whoever typed the email at sign-up, so it is always
-    replaced by a random one nobody knows (otherwise confirming would hand them a live account).
+    - Not CONFIRMED (FORCE_CHANGE_PASSWORD, RESET_REQUIRED, UNCONFIRMED): replace the password by a random one
+      nobody knows FIRST, then set email_verified, then confirm if the user is still UNCONFIRMED. An
+      UNCONFIRMED user's password may have been chosen by whoever typed the email at sign-up, so it must never
+      be live on a confirmed account. Every step is repeated by the next import if one fails.
+    - CONFIRMED but email_verified != 'true': only email_verified is set; the password is not touched.
     """
+    attributes = {a['Name']: a['Value'] for a in user['UserAttributes']}
+    verified = attributes.get('email_verified') == 'true'
     status = user.get('UserStatus')
-    if status not in ('FORCE_CHANGE_PASSWORD', 'RESET_REQUIRED', 'UNCONFIRMED'):
+    if status == 'CONFIRMED' and verified:
         return
-    if status == 'UNCONFIRMED':
+    if status != 'CONFIRMED':
+        client.admin_set_user_password(UserPoolId=pool_id, Username=email, Permanent=True,
+                                       Password=_random_password())
+    if not verified:
+        client.admin_update_user_attributes(UserPoolId=pool_id, Username=email,
+                                            UserAttributes=[{'Name': 'email_verified', 'Value': 'true'}])
+    if status == 'UNCONFIRMED' and client.admin_get_user(UserPoolId=pool_id,
+                                                         Username=email).get('UserStatus') == 'UNCONFIRMED':
         client.admin_confirm_sign_up(UserPoolId=pool_id, Username=email)
-    client.admin_set_user_password(UserPoolId=pool_id, Username=email, Permanent=True,
-                                   Password=_random_password())
-    client.admin_update_user_attributes(UserPoolId=pool_id, Username=email,
-                                        UserAttributes=[{'Name': 'email_verified', 'Value': 'true'}])
 
 
 def ensure_account(client, pool_id, email):
@@ -53,14 +63,19 @@ def ensure_account(client, pool_id, email):
     if user:
         _normalise(client, pool_id, email, user)
         return _sub(user['UserAttributes']), False
-    try:
-        created = client.admin_create_user(
-            UserPoolId=pool_id, Username=email, MessageAction='SUPPRESS',
-            UserAttributes=[{'Name': 'email', 'Value': email}, {'Name': 'email_verified', 'Value': 'true'}])
-    except client.exceptions.UsernameExistsException:  # created by a concurrent import or sign-up
-        user = _find(client, pool_id, email)
-        _normalise(client, pool_id, email, user)
-        return _sub(user['UserAttributes']), False
+    for _ in range(2):
+        try:
+            created = client.admin_create_user(
+                UserPoolId=pool_id, Username=email, MessageAction='SUPPRESS',
+                UserAttributes=[{'Name': 'email', 'Value': email}, {'Name': 'email_verified', 'Value': 'true'}])
+            break
+        except client.exceptions.UsernameExistsException:  # created by a concurrent import or sign-up
+            user = _find(client, pool_id, email)
+            if user:
+                _normalise(client, pool_id, email, user)
+                return _sub(user['UserAttributes']), False
+    else:
+        raise ApiError(409, 'try_again')  # exists but not readable (yet): the client may retry
     try:
         client.admin_set_user_password(UserPoolId=pool_id, Username=email, Permanent=True,
                                        Password=_random_password())

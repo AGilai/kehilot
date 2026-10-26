@@ -329,3 +329,93 @@ class ImportTest(unittest.TestCase):
         with mock.patch.object(self.repo.table.meta.client, 'transact_write_items', side_effect=err):
             status, body = self.do_import([row(role='member')])
         self.assertEqual(body['results'], [{'index': 0, 'status': 'exists'}])
+
+    def failing(self, name, times=1):
+        """Wrap a moto client method so that its first `times` calls raise (no PII in the error)."""
+        real = getattr(self.cognito, name)
+        state = {'n': 0}
+
+        def wrapper(**kwargs):
+            state['n'] += 1
+            if state['n'] <= times:
+                raise self.cognito.exceptions.InternalErrorException(
+                    {'Error': {'Code': 'InternalErrorException', 'Message': 'x'}}, name)
+            return real(**kwargs)
+        return mock.patch.object(self.cognito, name, side_effect=wrapper)
+
+    def attrs_of(self):
+        return {a['Name']: a['Value'] for a in self.user_by_email('dana@example.test')['UserAttributes']}
+
+    def test_normalise_order_password_then_verified_then_confirm(self):
+        self.make_user('UNCONFIRMED')
+        calls = []
+        for name in ('admin_set_user_password', 'admin_update_user_attributes', 'admin_confirm_sign_up'):
+            real = getattr(self.cognito, name)
+            patcher = mock.patch.object(self.cognito, name, side_effect=(
+                lambda n, r: lambda **kw: (calls.append(n), r(**kw))[1])(name, real))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.do_import([row()])
+        self.assertEqual(calls[:2], ['admin_set_user_password', 'admin_update_user_attributes'])
+        self.assertIn(calls[2:], ([], ['admin_confirm_sign_up']))
+        self.assertEqual(self.user_by_email('dana@example.test')['UserStatus'], 'CONFIRMED')
+
+    def test_unconfirmed_set_password_failure_leaves_user_unconfirmed_then_repaired(self):
+        self.make_user('UNCONFIRMED')
+        with self.failing('admin_set_user_password'), \
+                mock.patch.object(self.cognito, 'admin_confirm_sign_up') as confirm:
+            self.assertEqual(self.do_import([row()])[0], 500)
+        confirm.assert_not_called()  # the stranger's password never became a live login
+        self.assertEqual(self.user_by_email('dana@example.test')['UserStatus'], 'UNCONFIRMED')
+        with mock.patch.object(self.cognito, 'admin_set_user_password',
+                               wraps=self.cognito.admin_set_user_password) as setpw:
+            self.assertEqual(self.do_import([row()])[1]['results'][0]['status'], 'added')
+        self.assertEqual(setpw.call_count, 1)
+        self.assertEqual(self.user_by_email('dana@example.test')['UserStatus'], 'CONFIRMED')
+        self.assertEqual(self.attrs_of()['email_verified'], 'true')
+
+    def test_attribute_update_failure_is_repaired_by_next_import(self):
+        self.make_user('FORCE_CHANGE_PASSWORD')
+        with self.failing('admin_update_user_attributes'):
+            self.assertEqual(self.do_import([row()])[0], 500)
+        self.assertNotEqual(self.attrs_of().get('email_verified'), 'true')
+        with mock.patch.object(self.cognito, 'admin_set_user_password') as setpw:
+            self.assertEqual(self.do_import([row()])[1]['results'][0]['status'], 'added')
+        setpw.assert_not_called()  # already CONFIRMED with a random password: only the attribute is repaired
+        self.assertEqual(self.attrs_of()['email_verified'], 'true')
+
+    def test_confirmed_unverified_user_gets_only_email_verified(self):
+        self.make_user('FORCE_CHANGE_PASSWORD')
+        self.cognito.admin_set_user_password(UserPoolId=self.pool, Username='dana@example.test',
+                                             Password='Working-Pass1!', Permanent=True)
+        self.assertEqual(self.user_by_email('dana@example.test')['UserStatus'], 'CONFIRMED')
+        self.assertNotEqual(self.attrs_of().get('email_verified'), 'true')
+        with mock.patch.object(self.cognito, 'admin_set_user_password') as setpw, \
+                mock.patch.object(self.cognito, 'admin_confirm_sign_up') as confirm:
+            self.do_import([row()])
+        setpw.assert_not_called()
+        confirm.assert_not_called()
+        self.assertEqual(self.attrs_of()['email_verified'], 'true')
+
+    def test_username_exists_but_not_found_retries_create_once_then_try_again(self):
+        exists = self.cognito.exceptions.UsernameExistsException(
+            {'Error': {'Code': 'UsernameExistsException', 'Message': 'x'}}, 'AdminCreateUser')
+        with mock.patch.object(self.cognito, 'admin_create_user', side_effect=exists) as create:
+            self.assertEqual(self.do_import([row()]), (409, {'error': 'try_again'}))
+        self.assertEqual(create.call_count, 2)
+        self.assertEqual(self.cognito_users(), [])
+
+    def test_username_exists_not_found_then_create_succeeds_on_retry(self):
+        exists = self.cognito.exceptions.UsernameExistsException(
+            {'Error': {'Code': 'UsernameExistsException', 'Message': 'x'}}, 'AdminCreateUser')
+        real = self.cognito.admin_create_user
+        calls = []
+
+        def once(**kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                raise exists
+            return real(**kwargs)
+        with mock.patch.object(self.cognito, 'admin_create_user', side_effect=once):
+            sub, created = accounts.ensure_account(self.cognito, self.pool, 'dana@example.test')
+        self.assertEqual(created, True)
