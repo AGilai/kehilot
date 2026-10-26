@@ -1,4 +1,4 @@
-# Kehilot on AWS: architecture, Terraform and deployment (draft 2, 2026-10-26)
+# Kehilot on AWS: architecture, Terraform and deployment (approved (2026-10-26), 2026-10-26)
 
 Status: draft 2 (after builder check) for review on branch `redesign`. Nothing is deployed. The UX is being designed in parallel
 (`docs/UX-DESIGN.md`, `design/mockups/`); this document covers the backend, infrastructure and delivery.
@@ -301,13 +301,12 @@ Exact DynamoDB attribute names and any extra GSIs; Lambda memory/timeout sizes; 
 inputs/outputs; the Cognito client library; the order of porting endpoints.
 
 ## 9. Open questions for the user
-1. **Family details across Kehilot**: is a person's family profile (spouse, children, Hebrew dates,
-   yahrzeits) entered once and shared with every Kehila they join, or kept separately per Kehila?
-   Recommendation: entered once, and each Kehila sees it only after the member is approved there.
-   Kehila-specific data (classification, seat allocation, aliyah history) is always per Kehila.
+1. ~~Family details~~ — answered (user approved default, 2026-10-26): entered once per family and shared
+   with every Kehila it joins, visible to a Kehila only after approval there. Seating, classification and
+   aliyah history stay per Kehila.
 2. ~~AWS account~~ — answered: existing account, dev and prod together, movable later (§7a).
 3. ~~Region~~ — answered: Tel Aviv (`il-central-1`), enabled 2026-10-26.
 4. ~~Domain~~ — answered: `meyodea.com`, Route 53 in the same account; app under `kehilot.meyodea.com`.
-5. **Web builds in CI**: Noam's rule forbids cloud build services. Does building the *web* bundle in
-   GitHub Actions count, or must web deploys also run from a developer machine?
-6. **Who administers AWS**: the user only, or Noam too (an SSO user each)?
+5. ~~Web builds in CI~~ — answered: the web bundle is built and deployed by GitHub Actions; Noam's
+   no-cloud-build rule covers native iOS/Android builds only (confirm with Noam).
+6. ~~Who administers AWS~~ — answered: the user only for now; an SSO user for Noam later.
