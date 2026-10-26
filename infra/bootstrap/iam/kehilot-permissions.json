@@ -1,0 +1,202 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Identity",
+      "Effect": "Allow",
+      "Action": ["sts:GetCallerIdentity"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadOnlyDescribe",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:ListTables", "dynamodb:DescribeLimits",
+        "lambda:ListFunctions", "lambda:ListEventSourceMappings", "lambda:GetAccountSettings",
+        "sqs:ListQueues", "sns:ListTopics", "logs:DescribeLogGroups",
+        "ssm:DescribeParameters", "scheduler:ListSchedules", "scheduler:ListScheduleGroups",
+        "cloudwatch:DescribeAlarms", "budgets:ViewBudget", "s3:ListAllMyBuckets",
+        "iam:ListRoles", "iam:ListPolicies", "iam:ListOpenIDConnectProviders",
+        "cognito-idp:ListUserPools", "apigateway:GET", "acm:ListCertificates", "acm:DescribeCertificate",
+        "cloudfront:List*", "cloudfront:Get*", "account:GetRegionOptStatus", "account:ListRegions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DynamoDB",
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": [
+        "arn:aws:dynamodb:*:ACCOUNT_ID:table/kehilot-*",
+        "arn:aws:dynamodb:*:ACCOUNT_ID:table/kehilot-*/*"
+      ]
+    },
+    {
+      "Sid": "Lambda",
+      "Effect": "Allow",
+      "Action": "lambda:*",
+      "Resource": [
+        "arn:aws:lambda:*:ACCOUNT_ID:function:kehilot-*",
+        "arn:aws:lambda:*:ACCOUNT_ID:event-source-mapping:*"
+      ]
+    },
+    {
+      "Sid": "LambdaEventSourceMappings",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateEventSourceMapping", "lambda:GetEventSourceMapping",
+        "lambda:UpdateEventSourceMapping", "lambda:DeleteEventSourceMapping"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Sqs",
+      "Effect": "Allow",
+      "Action": "sqs:*",
+      "Resource": "arn:aws:sqs:*:ACCOUNT_ID:kehilot-*"
+    },
+    {
+      "Sid": "Sns",
+      "Effect": "Allow",
+      "Action": "sns:*",
+      "Resource": "arn:aws:sns:*:ACCOUNT_ID:kehilot-*"
+    },
+    {
+      "Sid": "S3",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": ["arn:aws:s3:::kehilot-*", "arn:aws:s3:::kehilot-*/*"]
+    },
+    {
+      "Sid": "Logs",
+      "Effect": "Allow",
+      "Action": "logs:*",
+      "Resource": [
+        "arn:aws:logs:*:ACCOUNT_ID:log-group:/aws/lambda/kehilot-*",
+        "arn:aws:logs:*:ACCOUNT_ID:log-group:/aws/lambda/kehilot-*:*",
+        "arn:aws:logs:*:ACCOUNT_ID:log-group:/kehilot/*",
+        "arn:aws:logs:*:ACCOUNT_ID:log-group:/kehilot/*:*"
+      ]
+    },
+    {
+      "Sid": "LogDeliveryForApiGateway",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogDelivery", "logs:GetLogDelivery", "logs:UpdateLogDelivery",
+        "logs:DeleteLogDelivery", "logs:ListLogDeliveries",
+        "logs:PutResourcePolicy", "logs:DescribeResourcePolicies"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Ssm",
+      "Effect": "Allow",
+      "Action": "ssm:*",
+      "Resource": "arn:aws:ssm:*:ACCOUNT_ID:parameter/kehilot/*"
+    },
+    {
+      "Sid": "Scheduler",
+      "Effect": "Allow",
+      "Action": "scheduler:*",
+      "Resource": [
+        "arn:aws:scheduler:*:ACCOUNT_ID:schedule/*/kehilot-*",
+        "arn:aws:scheduler:*:ACCOUNT_ID:schedule-group/kehilot-*",
+        "arn:aws:scheduler:*:ACCOUNT_ID:schedule-group/default"
+      ]
+    },
+    {
+      "Sid": "Alarms",
+      "Effect": "Allow",
+      "Action": "cloudwatch:*",
+      "Resource": "arn:aws:cloudwatch:*:ACCOUNT_ID:alarm:kehilot-*"
+    },
+    {
+      "Sid": "Budgets",
+      "Effect": "Allow",
+      "Action": "budgets:*",
+      "Resource": "arn:aws:budgets::ACCOUNT_ID:budget/kehilot-*"
+    },
+    {
+      "Sid": "ServicesWithoutNameScopedArnsInAllowedRegions",
+      "Effect": "Allow",
+      "Action": ["cognito-idp:*", "apigateway:*", "acm:*"],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {"aws:RequestedRegion": ["eu-central-1", "il-central-1", "us-east-1"]}
+      }
+    },
+    {
+      "Sid": "CloudFrontGlobal",
+      "Effect": "Allow",
+      "Action": "cloudfront:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamRolesUnderKehilotPathWithBoundary",
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:PutRolePermissionsBoundary"],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/kehilot/*",
+      "Condition": {
+        "StringEquals": {"iam:PermissionsBoundary": "arn:aws:iam::ACCOUNT_ID:policy/kehilot/kehilot-boundary"}
+      }
+    },
+    {
+      "Sid": "IamManageKehilotRolesAndPolicies",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole", "iam:DeleteRole", "iam:UpdateRole", "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
+        "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole",
+        "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy",
+        "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+        "iam:CreatePolicy", "iam:GetPolicy", "iam:GetPolicyVersion", "iam:ListPolicyVersions",
+        "iam:CreatePolicyVersion", "iam:DeletePolicyVersion", "iam:DeletePolicy", "iam:TagPolicy"
+      ],
+      "Resource": [
+        "arn:aws:iam::ACCOUNT_ID:role/kehilot/*",
+        "arn:aws:iam::ACCOUNT_ID:policy/kehilot/app/*"
+      ]
+    },
+    {
+      "Sid": "PassKehilotRolesToServices",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/kehilot/*",
+      "Condition": {
+        "StringEquals": {"iam:PassedToService": ["lambda.amazonaws.com", "scheduler.amazonaws.com", "apigateway.amazonaws.com", "cognito-idp.amazonaws.com"]}
+      }
+    },
+    {
+      "Sid": "ServiceLinkedRoles",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {"iam:AWSServiceName": ["ops.apigateway.amazonaws.com", "replication.dynamodb.amazonaws.com", "email.cognito-idp.amazonaws.com"]}
+      }
+    },
+    {
+      "Sid": "GithubOidcProvider",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateOpenIDConnectProvider", "iam:GetOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider",
+        "iam:TagOpenIDConnectProvider", "iam:UpdateOpenIDConnectProviderThumbprint"
+      ],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+    },
+    {
+      "Sid": "NeverTouchTheGuardrails",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreatePolicyVersion", "iam:DeletePolicy", "iam:DeletePolicyVersion", "iam:SetDefaultPolicyVersion",
+        "iam:DeleteRolePermissionsBoundary", "iam:CreateUser", "iam:CreateAccessKey", "iam:CreateLoginProfile",
+        "iam:AttachUserPolicy", "iam:PutUserPolicy", "iam:AddUserToGroup"
+      ],
+      "Resource": [
+        "arn:aws:iam::ACCOUNT_ID:policy/kehilot/kehilot-boundary",
+        "arn:aws:iam::ACCOUNT_ID:policy/kehilot/kehilot-deployer",
+        "arn:aws:iam::ACCOUNT_ID:role/kehilot/kehilot-deployer",
+        "arn:aws:iam::ACCOUNT_ID:user/*"
+      ]
+    }
+  ]
+}
