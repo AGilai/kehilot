@@ -68,6 +68,26 @@ The user prefers AWS. Noam knows about and accepts the move.
   only". They affect pushes only; the API returns every message the caller may see, and the app filters
   "My messages / Everything" on the device.
 
+## 3b. Languages (user's requirement, 2026-10-26)
+
+- The app is **multi-language**: **Hebrew and English** first, more later. The language is chosen in
+  **Settings**; the default on first launch follows the device (Hebrew if the device is Hebrew, otherwise English).
+- **[call]** The choice is stored on the user's profile (`U#<userId>` / `PROFILE`, attribute `lang`) and cached
+  on the device, so it follows the user to every device and the server knows it for pushes and emails.
+  Before sign-in, the device setting is used.
+- **[call]** Layout direction follows the language: RTL for Hebrew, LTR for English, switched at runtime
+  (`I18nManager` on native, `dir` on web). Screens use logical start/end properties only.
+- **[call]** All UI text lives in translation files (`src/i18n/he.json`, `src/i18n/en.json`); no literal UI
+  strings in components. A missing key falls back to Hebrew and is caught by a test that compares key sets.
+- **[call]** The API returns **error codes** (`{"error": "kehila_not_found"}`), not sentences; the app
+  translates them. (Plan 1 returns Hebrew sentences; plan 2 switches to codes.)
+- **[call]** Push text and Cognito/SES emails use the recipient's `lang` (push-worker picks the text per
+  user; a Cognito custom-message trigger picks the email template).
+- **Not translated:** content people write (messages, blessings, names). Hebrew dates, parasha and zmanim
+  are shown in both languages (e.g. "Parashat Noach", "15 Cheshvan 5787"), using pyluach's English names.
+- Kehila setting **[call]**: a default language for new members of that Kehila (an English-speaking
+  community can default to English).
+
 ## 4. Architecture
 
 ```

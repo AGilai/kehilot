@@ -145,7 +145,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 
 ## 7. Decisions and assumptions to confirm
 
-- Hebrew-only UI, dark mode follows the device.
+- ~~Hebrew-only UI~~ — changed by the user (2026-10-26): Hebrew and English, chosen in Settings (default from the device); layout flips RTL/LTR with the language. Mockups stay Hebrew; English layouts are mirrored. Dark mode follows the device.
 - Mazal tov and condolence use one shared message layout; extra types (event, lesson) get their own hue later.
 - ~~Private replies~~ — confirmed by the user (2026-10-26): visible only to the family and the author; gabbaim have no access.
 - Channels carry a "visible to guests" flag; listeners see only flagged channels.
