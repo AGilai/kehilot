@@ -33,7 +33,11 @@ def backoff(receive_count):
 def recipients(repo, kind, kehila, ref):
     """User IDs to push for this job."""
     if kind == 'request':
-        return [m['userId'] for m in repo.list_members(kehila) if m['role'] == 'gabbai']
+        return [m['userId'] for m in repo.list_members(kehila) if visibility.is_gabbai(m)]
+    if kind == 'group_request':  # ref = the group ID: appointed admins, else every gabbai
+        members = repo.list_members(kehila)
+        admins = [m['userId'] for m in members if visibility.is_group_admin(m, ref) and m['role'] == 'member']
+        return admins or [m['userId'] for m in members if visibility.is_gabbai(m)]
     message = repo.get_message(kehila, ref)
     if not message or message.get('removed'):
         return []
@@ -65,6 +69,8 @@ def recipients(repo, kind, kehila, ref):
 def _data(kind, kehila, ref):
     if kind == 'request':
         return {'kehila': kehila, 'screen': 'requests'}
+    if kind == 'group_request':
+        return {'kehila': kehila, 'screen': 'group_requests'}  # the group ID stays out of the payload
     return {'kehila': kehila, 'messageId': ref}
 
 

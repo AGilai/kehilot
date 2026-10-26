@@ -368,8 +368,8 @@ class AdminRepo:
     def list_members(self, k):
         return self._query_prefix(k, 'M#')
 
-    def _query_prefix(self, k, prefix):
-        items, kwargs = [], {}
+    def _query_prefix(self, k, prefix, condition=None):
+        items, kwargs = [], ({'FilterExpression': condition} if condition is not None else {})
         while True:
             page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').begins_with(prefix),
                                     **kwargs)
@@ -467,7 +467,68 @@ class AdminRepo:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise
 
+    # group admins, members and join requests (spec 3c)
+    def _update_member_item(self, k, user_id, expression, values, names=None):
+        """Update an existing membership; 404 member_not_found when it has gone."""
+        try:
+            self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression=expression,
+                                   ConditionExpression='attribute_exists(sk)',
+                                   ExpressionAttributeValues=values, **(
+                                       {'ExpressionAttributeNames': names} if names else {}))
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            raise ApiError(404, 'member_not_found')
+
+    def set_group_admin(self, k, group_id, user_id, admin):
+        if admin:  # an admin is always also in the group
+            self._update_member_item(k, user_id, 'ADD adminGroups :g, #grp :g', {':g': {group_id}},
+                                      {'#grp': 'groups'})
+        else:
+            self._update_member_item(k, user_id, 'DELETE adminGroups :g', {':g': {group_id}})
+
+    def remove_member_group(self, k, user_id, group_id):
+        self._update_member_item(k, user_id, 'DELETE #grp :g, adminGroups :g', {':g': {group_id}},
+                                  {'#grp': 'groups'})
+
+    def put_group_request(self, k, group_id, user_id):
+        """Create the join request; True when it is new (also when an expired one was still lying around).
+        A repeat while one is live changes nothing and returns False."""
+        now = int(time.time())
+        try:
+            self.table.put_item(Item={**self._key(k, f'GR#{group_id}#{user_id}'), 'userId': user_id,
+                                      'groupId': group_id, 'createdAt': now, 'expiresAt': now + 30 * 86400},
+                                ConditionExpression='attribute_not_exists(sk) OR expiresAt <= :now',
+                                ExpressionAttributeValues={':now': now})
+            return True
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            return False
+
+    def get_group_request(self, k, group_id, user_id):
+        item = self._get(f'K#{k}', f'GR#{group_id}#{user_id}')
+        return item if item and int(item['expiresAt']) > time.time() else None
+
+    def delete_group_request(self, k, group_id, user_id):
+        self.table.delete_item(Key=self._key(k, f'GR#{group_id}#{user_id}'))
+
+    def list_group_requests(self, k, group_id):
+        return self._query_prefix(k, f'GR#{group_id}#', Attr('expiresAt').gt(int(time.time())))
+
+    def list_group_requests_all(self, k):
+        return self._query_prefix(k, 'GR#', Attr('expiresAt').gt(int(time.time())))
+
+    def list_my_group_requests(self, k, user_id):
+        return self._query_prefix(k, 'GR#', Attr('userId').eq(user_id) & Attr('expiresAt').gt(int(time.time())))
+
+    def list_group_members(self, k, group_id):
+        return self._query_prefix(k, 'M#', Attr('groups').contains(group_id))
+
     # groups (spec 3c)
+    def get_group(self, k, group_id):
+        return self._get(f'K#{k}', f'G#{group_id}')
+
     def list_groups(self, k):
         return self._query_prefix(k, 'G#')
 

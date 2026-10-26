@@ -1,7 +1,7 @@
 """Push notifications: the request path only enqueues a small job; push_worker does the sending.
 
 The job is {"kind", "kehila", "ref"} on the SQS queue in env PUSH_QUEUE_URL. ref is a messageId for
-'message' and 'reply', and the screen name for 'request'. No message content ever enters the queue.
+'message' and 'reply', the screen name for 'request' and the group ID for 'group_request'. No message content ever enters the queue.
 """
 import json
 import logging
@@ -19,12 +19,13 @@ PUSH_TEXT = {
     'message': {'he': 'הודעה חדשה בקהילה', 'en': 'New message in your community'},
     'reply': {'he': 'ברכה חדשה', 'en': 'New blessing'},
     'request': {'he': 'בקשת הצטרפות חדשה', 'en': 'New membership request'},
+    'group_request': {'he': 'בקשת הצטרפות לקבוצה', 'en': 'New group join request'},
 }
 MESSAGE_TYPES = ('weekly', 'celebration', 'condolence', 'event')
 
 
 def enqueue(kind, kehila, ref) -> None:
-    """Queue a push of `kind` ('message' | 'reply' | 'request') for `kehila`.
+    """Queue a push of `kind` ('message' | 'reply' | 'request' | 'group_request') for `kehila`.
 
     No-op when PUSH_QUEUE_URL is unset. A queue failure is logged and swallowed: the message or request
     is already saved, and a missed push must not turn it into an error for the caller."""

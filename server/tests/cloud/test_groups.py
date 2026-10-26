@@ -75,14 +75,15 @@ class GroupsTest(test_messages.MessagesTest):
                          (404, {'error': 'message_not_found'}))
         self.assertEqual(self.post('women-only', sub='other-sub')[0], 404)
 
-    def test_listener_never_reads_group_channel(self):
-        self.repo.table.put_item(Item={'pk': f'K#{self.k}', 'sk': 'C#01ARZ3NDEKTSV4RRFFQ69G5FAV', 'name': 'sneaky',
-                                       'listenersCanRead': True, 'postPolicy': 'management',
-                                       'groups': {self.women}})
+    def test_listener_reads_group_channel_only_when_in_the_group(self):
         mid = self.post('women-only')[1]['messageId']
         self.assertEqual(self.channel_names('listener-sub').keys(), {'announcements'})
         self.assertEqual(self.listed('listener-sub'), [])
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{mid}', sub='listener-sub')[0], 404)
+        self.set_groups(self.listener, [self.women])
+        self.assertEqual(self.channel_names('listener-sub').keys(), {'announcements', 'women-only'})
+        self.assertEqual(self.listed('listener-sub'), [mid])
+        self.assertEqual(self.call('GET', f'{self.base()}/messages/{mid}', sub='listener-sub')[0], 200)
 
     def test_gabbai_reads_group_channel_but_not_private_replies(self):
         status, msg = self.post('women-only', type='celebration', targetMemberId=self.quiet)
@@ -213,8 +214,10 @@ class GroupsTest(test_messages.MessagesTest):
     def test_groups_listing_counts_and_sorting(self):
         status, rows = self.call('GET', f'{self.base()}/admin/groups')
         self.assertEqual(status, 200)
-        self.assertEqual(rows, [{'groupId': self.men, 'name': 'Men', 'memberCount': 1, 'channelCount': 0},
-                                {'groupId': self.women, 'name': 'Women', 'memberCount': 2, 'channelCount': 1}])
+        self.assertEqual(rows, [{'groupId': self.men, 'name': 'Men', 'memberCount': 1, 'channelCount': 0,
+                                 'adminCount': 0, 'pendingCount': 0},
+                                {'groupId': self.women, 'name': 'Women', 'memberCount': 2, 'channelCount': 1,
+                                 'adminCount': 0, 'pendingCount': 0}])
 
     def test_rename_group(self):
         status, body = self.call('PUT', f'{self.base()}/admin/groups/{self.women}', body={'name': ' Ladies '})

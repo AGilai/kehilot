@@ -50,16 +50,19 @@ class GroupTruthTable(unittest.TestCase):
                                           ('g2', 'g9') if in_group else ('g9',))
             if role == 'gabbai':
                 can_read = True
+            elif has_groups:
+                can_read = in_group  # group membership decides, whatever the role
             elif role == 'listener':
-                can_read = readable and not has_groups
+                can_read = readable
             else:
-                can_read = not has_groups or in_group
+                can_read = True
             audience = can_read and (not has_groups or in_group)
             label = (role, in_group, has_groups, readable)
             self.assertEqual(visibility.can_read_channel(membership, channel), can_read, label)
             self.assertEqual(visibility.in_audience(membership, channel), audience, label)
             self.assertEqual(visibility.reply_target_ok(membership, channel),
                              role in ('member', 'gabbai') and can_read, label)
+            self.assertEqual(visibility.can_post(membership, channel), role == 'gabbai', label)  # management policy
 
     def test_membership_without_groups_and_missing_inputs(self):
         membership, channel = grouped('member', ('g1',))
@@ -67,3 +70,22 @@ class GroupTruthTable(unittest.TestCase):
         self.assertFalse(visibility.in_audience(None, channel))
         self.assertFalse(visibility.reply_target_ok(None, channel))
         self.assertFalse(visibility.reply_target_ok(membership, None))
+
+
+class GroupAdminRules(unittest.TestCase):
+    def test_is_group_admin(self):
+        self.assertTrue(visibility.is_group_admin({'role': 'gabbai'}, 'g1'))
+        self.assertTrue(visibility.is_group_admin({'role': 'member', 'adminGroups': {'g1'}}, 'g1'))
+        self.assertFalse(visibility.is_group_admin({'role': 'member', 'adminGroups': {'g1'}}, 'g2'))
+        self.assertFalse(visibility.is_group_admin({'role': 'member'}, 'g1'))
+        self.assertFalse(visibility.is_group_admin({'role': 'listener', 'adminGroups': {'g1'}}, 'g1'))
+        self.assertFalse(visibility.is_group_admin(None, 'g1'))
+
+    def test_is_channel_admin(self):
+        admin = {'role': 'member', 'adminGroups': {'g2'}}
+        self.assertTrue(visibility.is_channel_admin({'role': 'gabbai'}, {'groups': {'g1'}}))
+        self.assertTrue(visibility.is_channel_admin({'role': 'gabbai'}, {}))
+        self.assertTrue(visibility.is_channel_admin(admin, {'groups': {'g1', 'g2'}}))
+        self.assertFalse(visibility.is_channel_admin(admin, {'groups': {'g1'}}))
+        self.assertFalse(visibility.is_channel_admin(admin, {}))
+        self.assertFalse(visibility.is_channel_admin({'role': 'listener', 'adminGroups': {'g2'}}, {'groups': {'g2'}}))

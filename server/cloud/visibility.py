@@ -6,22 +6,41 @@ def _shares_group(membership, channel):
 
 
 def can_read_channel(membership, channel):
-    """Gabbaim read every channel (to moderate). A channel with groups is members-only: listeners never read
-    it, whatever `listenersCanRead` says. A member reads it when they share at least one of its groups."""
+    """Gabbaim read every channel (to moderate). A channel with groups is read by whoever shares one of its
+    groups, whatever their role (listeners included). Otherwise a listener needs `listenersCanRead`."""
     if not membership or not channel:
         return False
     role = membership['role']
     if role == 'gabbai':
         return True
-    if role == 'listener':
-        return bool(channel.get('listenersCanRead')) and not channel.get('groups')
-    return not channel.get('groups') or _shares_group(membership, channel)
+    if channel.get('groups'):
+        return _shares_group(membership, channel)
+    return role != 'listener' or bool(channel.get('listenersCanRead'))
 
 
 def in_audience(membership, channel):
     """Readable and addressed to this person: a gabbai outside a channel's groups reads it but is not in its
     audience (no push, not in "mine")."""
     return can_read_channel(membership, channel) and (not channel.get('groups') or _shares_group(membership, channel))
+
+
+def is_gabbai(membership):
+    return bool(membership) and membership['role'] == 'gabbai'
+
+
+def is_group_admin(membership, group_id):
+    """A gabbai is an implicit admin of every group; otherwise an appointed admin, who must be a member."""
+    if not membership:
+        return False
+    return membership['role'] == 'gabbai' or (
+        membership['role'] == 'member' and group_id in (membership.get('adminGroups') or ()))
+
+
+def is_channel_admin(membership, channel):
+    """May this person administer the channel: a gabbai, or an admin of at least one of its groups."""
+    if is_gabbai(membership):
+        return True
+    return bool(membership) and any(is_group_admin(membership, g) for g in channel.get('groups') or ())
 
 
 def reply_target_ok(target_membership, channel):

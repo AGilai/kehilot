@@ -299,7 +299,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/v1/kehilot/{k}` | any | - | 200 `{kehilaId, name, role, classification, logoVersion, canBroadcast, pendingRequest, notify:{mutedChannels, mutedTypes, membersBroadcasts, mutedMembers}, settings:{pollSeconds, maxListeners?}, listenerCount?}` (`maxListeners` (effective value, default 500) and `listenerCount` are returned to gabbaim only; other roles get neither key) (`canBroadcast`: the caller's flag; `pendingRequest`: a membership request of the caller is waiting; `notify`: the caller's push preferences with defaults `[]`, `[]`, `"all"`, `[]` filled in) (`logoVersion` is a string that changes with every logo upload, or null when the Kehila has no logo: the app caches the logo by it) (`pollSeconds` default 30, 5 in dev: how often the app polls `/changes`) | 400 `invalid_kehila_id`, 404 `kehila_not_found` |
+| GET | `/v1/kehilot/{k}` | any | - | 200 `{kehilaId, name, role, classification, logoVersion, canBroadcast, pendingRequest, notify:{mutedChannels, mutedTypes, membersBroadcasts, mutedMembers}, groups: [groupId], adminGroups: [groupId], settings:{pollSeconds, maxListeners?}, listenerCount?}` (`maxListeners` (effective value, default 500) and `listenerCount` are returned to gabbaim only; other roles get neither key) (`canBroadcast`: the caller's flag; `pendingRequest`: a membership request of the caller is waiting; `notify`: the caller's push preferences with defaults `[]`, `[]`, `"all"`, `[]` filled in) (`logoVersion` is a string that changes with every logo upload, or null when the Kehila has no logo: the app caches the logo by it) (`pollSeconds` default 30, 5 in dev: how often the app polls `/changes`) | 400 `invalid_kehila_id`, 404 `kehila_not_found` |
 | GET | `/v1/kehilot/{k}/logo` | any | - | 200 `{logoVersion, contentType: "image/png", data}` where `data` is the base64 PNG (square, 64-512 px, at most 64 KB). Fetch it again only when `logoVersion` changes | 400 `invalid_kehila_id`, 404 `kehila_not_found` (not a member, same as the Kehila route), 404 `not_found` (no logo set) |
 | POST | `/v1/kehilot/{k}/invites` | member, gabbai | `{uses?: 1-50 (10), days?: 1-30 (7), role?: "listener"\|"member" (listener), classification?: ""\|"א"\|"קבוע"}` or no body | 201 `{code, expiresAt}`; the code makes a **listener** or a **member**. `role: "member"` needs a gabbai; `classification` only with `member` | 400 `invalid_uses`, `invalid_days`, `invalid_role`, `invalid_classification`, 403 `forbidden` (a member asking for a member invite), 404, 409 `too_many_invites` (a **member** already holds 3 unexpired listener links; gabbaim have no limit; exhausted links count until they expire; the check is soft, parallel creates may overshoot by a few), `try_again` |
 | GET | `/v1/kehilot/{k}/invites` | member, gabbai | - | 200 `[{code, role, usesLeft, expiresAt, mine}]`, unexpired invites, newest first. A gabbai sees every invite of the Kehila, a member only their own. No inviter names | 403 (listener), 404 |
@@ -326,14 +326,34 @@ Invite codes are 10 characters, Crockford base32, case-insensitive (`I`, `L` rea
 | PUT | `/v1/kehilot/{k}/admin/broadcast` | `{allow: bool}` | 200 `{}`; sets `canBroadcast` on every member | 400 `invalid_allow` |
 | POST | `/v1/kehilot/{k}/admin/channels` | `{name, listenersCanRead: bool, postPolicy: "management"\|"broadcasters", groups?: [groupId]}` (`groups` defaults to `[]` = the whole Kehila) | 201 `{channelId, name, listenersCanRead, postPolicy, groups}` | 400 `invalid_name`, `invalid_listeners_can_read`, `invalid_post_policy`, `invalid_groups` (not a list, more than 20, an unknown group, or non-empty together with `listenersCanRead: true`) |
 | PUT | `/v1/kehilot/{k}/admin/channels/{c}` | same as create; **a missing `groups` keeps the stored groups**, `[]` removes them (the channel opens to all members) | 200 channel (with `groups`) | 400 as create (also when `listenersCanRead: true` meets stored groups), 404 `channel_not_found` |
-| GET | `/v1/kehilot/{k}/admin/groups` | - | 200 `[{groupId, name, memberCount, channelCount}]`, sorted by name | 403 |
+| GET | `/v1/kehilot/{k}/admin/groups` | - | 200 `[{groupId, name, memberCount, channelCount, adminCount, pendingCount}]`, sorted by name | 403 |
 | POST | `/v1/kehilot/{k}/admin/groups` | `{name}` (1-60 code points) | 201 `{groupId, name}` | 400 `invalid_name`, 409 `group_name_taken` (same name after trimming, ignoring case), `too_many_groups` (20 per Kehila) |
 | PUT | `/v1/kehilot/{k}/admin/groups/{g}` | `{name}` | 200 `{groupId, name}` | 400 `invalid_name`, 404 `group_not_found`, 409 `group_name_taken` |
 | DELETE | `/v1/kehilot/{k}/admin/groups/{g}` | - | 204. Memberships keep the stale ID: it matches no channel, and responses list only existing groups | 404 `group_not_found`, 409 `group_in_use` (a channel lists it) |
+| PUT | `/v1/kehilot/{k}/admin/groups/{g}/admins/{u}` | - | 204. Appoints a group admin: the target must have role `member` (it also adds them to the group). A gabbai target: 204, nothing changes (a gabbai already administers every group) | 400 `invalid_role` (a listener), 403, 404 `group_not_found`, `member_not_found` |
+| DELETE | `/v1/kehilot/{k}/admin/groups/{g}/admins/{u}` | - | 204. Removes admin status only; the person stays in the group | 403, 404 `group_not_found`, `member_not_found` |
 
-**Groups (spec 3c).** A channel with `groups` is readable by members who share at least one of its groups. Listeners never read it (and the API refuses `listenersCanRead` together with groups). Gabbaim read every channel, but a gabbai outside a channel's groups is not in its *audience*: no push for it, and the app's "mine" view leaves it out. Private blessings and replies stay hidden from gabbaim as before. Removing a member from a group takes the channel away at once (the next read is `message_not_found`).
+**Groups (spec 3c).** A channel with `groups` is readable by whoever shares at least one of its groups, **whatever their role** (listeners included; a listener never posts, replies, joins or becomes a blessing target, and still gets 403 on the member directory). The API still refuses `listenersCanRead` together with groups. Gabbaim read every channel, but a gabbai outside a channel's groups is not in its *audience*: no push for it, and the app's "mine" view leaves it out. Private blessings and replies stay hidden from gabbaim as before. Removing a member from a group takes the channel away at once (the next read is `message_not_found`).
 
 A new Kehila (admin CLI) has the channels `announcements` (listeners can read, management posts), `simchas` and `condolences` (members only; members with `canBroadcast` may post).
+
+#### Group join requests and group admins (spec 3c)
+
+Group admins are gabbaim (implicit, every group) and `member`s appointed per group (`adminGroups`). Requests expire after 30 days. Nothing here returns member counts or names to someone who is not an admin of the group.
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/v1/kehilot/{k}/groups` | any (listeners too) | - | 200 `[{groupId, name, isMember, isAdmin, requested}]`, sorted by name | 404 |
+| POST | `/v1/kehilot/{k}/groups/{g}/requests` | any | - | 202 `{}`. Pushes the group's admins (`group_request`; every gabbai when it has none) only for a new request, not a repeat | 404 `group_not_found` (also another Kehila's group), 409 `already_in_group` |
+| DELETE | `/v1/kehilot/{k}/groups/{g}/requests/me` | any | - | 204 (withdraw; idempotent) | 404 |
+| GET | `/v1/kehilot/{k}/groups/{g}/requests` | group admin | - | 200 `[{userId, displayName, role, createdAt}]`, oldest first; requests of people who left are skipped | 403, 404 `group_not_found` |
+| POST | `/v1/kehilot/{k}/groups/{g}/requests/{u}/approve` | group admin | - | 200 `{}`: adds the person to the group (their role does not change) | 403, 404 `group_not_found`, `request_not_found`, `member_not_found` (the person left; the request is dropped) |
+| DELETE | `/v1/kehilot/{k}/groups/{g}/requests/{u}` | group admin | - | 204 (reject; no record is kept, the person may ask again) | 403, 404 `group_not_found` |
+| GET | `/v1/kehilot/{k}/groups/{g}/members` | group admin | - | 200 `[{userId, displayName, role, isAdmin}]`, sorted by name | 403, 404 `group_not_found` |
+| DELETE | `/v1/kehilot/{k}/groups/{g}/members/{u}` | group admin | - | 204. Also drops that person's admin status for the group. Removing another admin needs a gabbai | 403 (another admin, by a non-gabbai), 404 `group_not_found`, `member_not_found` (not in the group) |
+| DELETE | `/v1/kehilot/{k}/groups/{g}/members/me` | any | - | 204 (leave the group, admin status included; idempotent) | 404 |
+
+The push `group_request` (he "בקשת הצטרפות לקבוצה", en "New group join request") carries `{kehila, screen: "group_requests"}`; the group ID never enters the payload.
 
 #### Channels and messages
 
@@ -381,7 +401,7 @@ A change is skipped if the object is no longer visible to the caller. The feed i
 
 ### Push notifications
 
-Posting a message, a reply or a membership request queues a job (SQS); a worker sends it through Expo. Payload data carries `{kehila, messageId}` or `{kehila, screen}` only; the title is the Kehila's name and the text is generic and in the recipient's language. A device Expo reports as `DeviceNotRegistered` is removed. A message pushes only people in the channel's audience (a gabbai outside its groups is not); a reply pushes its target only while the target can read the channel.
+Posting a message, a reply, a membership request or a group join request queues a job (SQS); a worker sends it through Expo. Payload data carries `{kehila, messageId}` or `{kehila, screen}` only; the title is the Kehila's name and the text is generic and in the recipient's language. A device Expo reports as `DeviceNotRegistered` is removed. A message pushes only people in the channel's audience (a gabbai outside its groups is not); a reply pushes its target only while the target can read the channel.
 
 ### Error codes
 
@@ -395,6 +415,7 @@ Posting a message, a reply or a membership request queues a job (SQS); a worker 
 | 404 | `kehila_not_found`, `channel_not_found`, `group_not_found`, `message_not_found`, `member_not_found`, `request_not_found`, `invite_not_found` | missing, or hidden from the caller |
 | 405 | `method_not_allowed` | the path exists with another method |
 | 409 | `try_again` | transaction conflict: retry the same request (also returned as 503 by a batch read that stayed incomplete) |
+| 409 | `already_in_group` | asked to join a group the caller is already in |
 | 409 | `already_member`, `already_requested`, `not_a_listener` | state conflicts when joining or approving |
 | 409 | `kehila_full` | the Kehila is at its listener cap (soft cap, see accept) |
 | 409 | `too_many_invites` | a member already has 3 unexpired listener links |

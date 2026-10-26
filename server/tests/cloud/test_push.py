@@ -151,7 +151,7 @@ class PushTest(unittest.TestCase):
         self.run_message(m)
         self.assertTrue(self.sent)
         texts = {t for langs in PUSH_TEXT.values() for t in langs.values()}
-        self.assertEqual(len(PUSH_TEXT), 7)
+        self.assertEqual(len(PUSH_TEXT), 8)
         for s in self.sent:
             self.assertLessEqual(set(s['data']), {'kehila', 'messageId', 'screen'})
             self.assertIn(s['body'], texts)

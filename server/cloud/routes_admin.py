@@ -8,11 +8,10 @@ from . import accounts, importer, inputs, push
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
-from .routes_groups import group_ids
+from .routes_groups import GABBAI, group_ids
 
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 ROLES = ('listener', 'member', 'gabbai')
-GABBAI = ('gabbai',)
 IMPORT_MAX_ROWS = 10
 IMPORT_MAX_BODY = 64 * 1024
 

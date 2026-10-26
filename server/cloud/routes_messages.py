@@ -37,7 +37,7 @@ def _visible_message(ctx, k, membership, message_id):
 
 def list_channels(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
-    is_gabbai = membership['role'] == 'gabbai'
+    is_gabbai = visibility.is_gabbai(membership)
     channels = [{**_channel_json(c, is_gabbai), 'canPost': visibility.can_post(membership, c),
                  'inAudience': visibility.in_audience(membership, c)}
                 for c in ctx.repo.list_channels(params['k']) if visibility.can_read_channel(membership, c)]
