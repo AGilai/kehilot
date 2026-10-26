@@ -19,5 +19,7 @@ def me(ctx, params):
 def kehila(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'], ROLES)
     item = ctx.repo.get_kehila(params['k'])
+    settings = item.get('settings', {})
     return 200, {'kehilaId': item['kehilaId'], 'name': item['name'], 'role': membership['role'],
-                 'classification': membership.get('classification', '')}
+                 'classification': membership.get('classification', ''),
+                 'settings': {'pollSeconds': int(settings.get('pollSeconds', 30))}}

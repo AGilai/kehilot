@@ -71,6 +71,46 @@ class MessagesRepo:
             item['visibleTo'] = list(visible_to)
         self.table.put_item(Item=item)
 
+    def list_changes_after(self, k, since, limit):
+        """Up to `limit` change items with an ID greater than `since`, oldest first."""
+        items, kwargs = [], {}
+        key = Key('pk').eq(f'K#{k}') & Key('sk').between(f'CHG#{since}0', 'CHG#~')  # '0' sorts just after `since`
+        while len(items) < limit:
+            page = self.table.query(KeyConditionExpression=key, Limit=limit - len(items), ConsistentRead=True,
+                                    **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                break
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+        return items
+
+    def latest_change_id(self, k):
+        page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').between('CHG#', 'CHG#~'),
+                                ScanIndexForward=False, Limit=1, ConsistentRead=True)
+        return page['Items'][0]['sk'][len('CHG#'):] if page['Items'] else None
+
+    def batch_get(self, keys):
+        """{(pk, sk): item} for the keys that exist, in BatchGetItem chunks of 100."""
+        unique = list(dict.fromkeys(keys))
+        found, client, name = {}, self.table.meta.client, self.table.name
+        for start in range(0, len(unique), 100):
+            request = {name: {'Keys': [{'pk': pk, 'sk': sk} for pk, sk in unique[start:start + 100]],
+                              'ConsistentRead': True}}
+            for _ in range(5):  # unprocessed keys come back under throttling
+                response = client.batch_get_item(RequestItems=request)
+                for item in response['Responses'].get(name, []):
+                    found[(item['pk'], item['sk'])] = item
+                request = response.get('UnprocessedKeys')
+                if not request:
+                    break
+            else:
+                raise ApiError(503, 'try_again')
+        return found
+
+    def set_notify(self, k, user_id, notify):
+        self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'M#{user_id}'}, UpdateExpression='SET notify = :n',
+                               ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':n': notify})
+
     # broadcast counter
     def count_broadcast(self, k, user_id, day, limit):
         """Conditional ADD: the limit holds under concurrency. Raises 429 broadcast_limit."""

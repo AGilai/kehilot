@@ -26,3 +26,11 @@ def reply_visible(user_id, message, reply):
     if not user_id:
         return False
     return user_id == reply.get('authorId') or user_id == message.get('targetMemberId')
+
+
+def change_visible(user_id, membership, channels_by_id, change):
+    """May this user learn of this change item at all? The feed also applies the per-item checks."""
+    visible_to = change.get('visibleTo')
+    if visible_to is not None:
+        return user_id in visible_to and can_read_channel(membership, channels_by_id.get(change.get('channelId')))
+    return can_read_channel(membership, channels_by_id.get(change.get('channelId')))

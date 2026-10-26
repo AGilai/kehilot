@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_core, routes_invites, routes_me, routes_messages
+from . import routes_admin, routes_changes, routes_core, routes_invites, routes_me, routes_messages
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -45,6 +45,8 @@ ROUTES = [
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/read$'), routes_messages.read),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/replies$'), routes_messages.post_reply),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/replies$'), routes_messages.list_replies),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/changes$'), routes_changes.changes),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/notify$'), routes_changes.put_notify),
 ]
 PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 
