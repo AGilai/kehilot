@@ -8,7 +8,7 @@ export function shouldDismiss({ dy, vy, scale }: { dy: number; vy: number; scale
   return scale <= 1.01 && (dy > 120 || vy > 800);
 }
 
-export const doubleTapScale = (scale: number): number => (scale === 1 ? 2.5 : 1);
+export const doubleTapScale = (scale: number): number => (scale <= 1.01 ? 2.5 : 1);
 
 type Size = { width: number; height: number };
 
@@ -21,4 +21,12 @@ export function clampPan(p: { x: number; y: number }, scale: number, box: Size, 
   const mx = lim(image.width, box.width); const my = lim(image.height, box.height);
   const c = (v: number, m: number) => (m === 0 ? 0 : Math.min(m, Math.max(-m, v)));
   return { x: c(p.x, mx), y: c(p.y, my) };
+}
+
+/** Pinch: the scale at the gesture's start times the gesture's scale. The start is the pinch's own, never the pan's. */
+export const pinchUpdate = (startScale: number, gestureScale: number): number => clampScale(startScale * gestureScale);
+
+/** Pan while zoomed: the offset at the pan's start plus its translation, clamped. Never touches the scale. */
+export function panUpdate(startPan: { x: number; y: number }, t: { x: number; y: number }, scale: number, box: Size, image: Size): { x: number; y: number } {
+  return clampPan({ x: startPan.x + t.x, y: startPan.y + t.y }, scale, box, image);
 }

@@ -24,6 +24,7 @@ import { ProfileSetup } from './views/ProfileSetup.tsx';
 import { TopBar } from './views/TopBar.tsx';
 import { Register } from './views/auth/Register.tsx';
 import { SignIn } from './views/auth/SignIn.tsx';
+import { ViewerHost } from './views/ViewerHost.tsx';
 import { Verify } from './views/auth/Verify.tsx';
 
 type AuthScreen =
@@ -123,7 +124,7 @@ function Shell() {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
   if (status === 'offline') return <Offline />;
-  if (status === 'signedIn') return <SessionProvider><SessionFlow link={link} /></SessionProvider>;
+  if (status === 'signedIn') return <SessionProvider><ViewerHost><SessionFlow link={link} /></ViewerHost></SessionProvider>;
   if (link.code && !after) {
     return <Join code={link.code} onRegister={() => { void rememberOnIntent(pendingInvite, link.code!, 'register').then(a => { setAfter(a); link.clear(); }); }} onSignIn={() => { void rememberOnIntent(pendingInvite, link.code!, 'signin').then(a => { setAfter(a); link.clear(); }); }} onClose={() => { link.clear(); }} />;
   }

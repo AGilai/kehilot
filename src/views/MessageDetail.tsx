@@ -117,7 +117,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
         <Txt size="caption" color={k.muted}>{channelName} · {timeOfDay(messageId)}</Txt>
         {message.title ? <Txt serif size="title" accessibilityRole="header">{message.title}</Txt> : null}
         {message.body ? <Txt>{message.body}</Txt> : null}
-        {message.image ? <ImageThumb messageId={messageId} /> : null}
+        {message.image ? <ImageThumb messageId={messageId} contentType={message.image.contentType} /> : null}
         <Txt size="small" color={k.muted}>{t('detail.from', { name: message.authorName })}</Txt>
       </Card>
 

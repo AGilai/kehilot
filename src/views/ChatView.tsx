@@ -63,7 +63,7 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
           return (
             <View key={m.messageId} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '85%', gap: 4, padding: 10, borderRadius: 14, backgroundColor: mine ? k.tekhelet : k.surface, borderWidth: mine ? 0 : 1, borderColor: k.line }}>
               {!mine ? <Txt size="caption" bold color={k.muted}>{m.authorName}</Txt> : null}
-              {m.image ? <ImageThumb messageId={m.messageId} /> : null}
+              {m.image ? <ImageThumb messageId={m.messageId} contentType={m.image.contentType} /> : null}
               {m.body ? <Txt color={mine ? k.onAction : k.ink}>{m.body}</Txt> : null}
               <Txt size="caption" color={mine ? k.onAction : k.muted} style={{ alignSelf: 'flex-end' }}>{timeOfDay(m.messageId)}</Txt>
             </View>

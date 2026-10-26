@@ -26,8 +26,8 @@ export const printHtml = (dataUri: string): string =>
   + 'img{max-width:100%;max-height:100vh;object-fit:contain}</style></head>'
   + `<body><img src="${dataUri}"></body></html>`;
 
-async function withTemp<T>(deps: NativeDeps, url: string, messageId: string, fn: (f: TempFile, mime: string) => Promise<T>): Promise<T> {
-  const mime = mimeOf(url);
+async function withTemp<T>(deps: NativeDeps, url: string, messageId: string, fn: (f: TempFile, mime: string) => Promise<T>, contentType?: string): Promise<T> {
+  const mime = contentType === 'image/png' || contentType === 'image/jpeg' ? contentType : mimeOf(url);
   const f = await deps.download(url, imageFileName(messageId, mime));
   try { return await fn(f, mime); }
   finally { try { f.delete(); } catch { /* already gone */ } }
@@ -44,7 +44,10 @@ function nativeDeps(): NativeDeps {
     async download(url, name) {
       const dir = new Directory(Paths.cache, 'share');
       if (!dir.exists) dir.create({ idempotent: true });
-      const f = await File.downloadFileAsync(url, new File(dir, name), { idempotent: true });
+      const target = new File(dir, name);
+      let f: InstanceType<typeof File>;
+      try { f = await File.downloadFileAsync(url, target, { idempotent: true }); }
+      catch (e) { try { if (target.exists) target.delete(); } catch { /* ignore */ } throw e; }
       return { uri: f.uri, base64: () => f.base64(), delete: () => { if (f.exists) f.delete(); } };
     },
     async share(uri, mimeType) {
@@ -72,7 +75,7 @@ async function fetchBlob(url: string): Promise<Blob> {
 }
 
 /** Returns false when the photos permission was denied (native). */
-export async function saveToPhone(url: string, messageId: string, deps?: NativeDeps): Promise<boolean> {
+export async function saveToPhone(url: string, messageId: string, deps?: NativeDeps, contentType?: string): Promise<boolean> {
   if (!deps && isWeb()) {
     const blob = await fetchBlob(url);
     const a = document.createElement('a');
@@ -84,7 +87,7 @@ export async function saveToPhone(url: string, messageId: string, deps?: NativeD
     return true;
   }
   const d = deps ?? nativeDeps();
-  return withTemp(d, url, messageId, f => d.saveToLibrary(f.uri));
+  return withTemp(d, url, messageId, f => d.saveToLibrary(f.uri), contentType);
 }
 
 /** Native always can; on the web only when the browser can share files. */
@@ -96,7 +99,7 @@ export function canShareImage(): boolean {
   } catch { return false; }
 }
 
-export async function shareImage(url: string, messageId: string, deps?: NativeDeps): Promise<void> {
+export async function shareImage(url: string, messageId: string, deps?: NativeDeps, contentType?: string): Promise<void> {
   if (!deps && isWeb()) {
     const blob = await fetchBlob(url);
     const type = blob.type || mimeOf(url);
@@ -105,10 +108,10 @@ export async function shareImage(url: string, messageId: string, deps?: NativeDe
     return;
   }
   const d = deps ?? nativeDeps();
-  await withTemp(d, url, messageId, (f, mime) => d.share(f.uri, mime));
+  await withTemp(d, url, messageId, (f, mime) => d.share(f.uri, mime), contentType);
 }
 
-export async function printImage(url: string, messageId: string, deps?: NativeDeps): Promise<void> {
+export async function printImage(url: string, messageId: string, deps?: NativeDeps, contentType?: string): Promise<void> {
   if (!deps && isWeb()) {
     const blob = await fetchBlob(url);
     const href = URL.createObjectURL(blob);
@@ -131,5 +134,5 @@ export async function printImage(url: string, messageId: string, deps?: NativeDe
     return;
   }
   const d = deps ?? nativeDeps();
-  await withTemp(d, url, messageId, async (f, mime) => d.print(printHtml(`data:${mime};base64,${await f.base64()}`)));
+  await withTemp(d, url, messageId, async (f, mime) => d.print(printHtml(`data:${mime};base64,${await f.base64()}`)), contentType);
 }

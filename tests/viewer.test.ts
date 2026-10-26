@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { clampPan, clampScale, doubleTapScale, shouldDismiss } from '../src/media/viewerMath.ts';
+import { clampPan, clampScale, doubleTapScale, panUpdate, pinchUpdate, shouldDismiss } from '../src/media/viewerMath.ts';
 import { imageFileName, printHtml, printImage, shareImage, saveToPhone, type NativeDeps, type TempFile } from '../src/media/saveShare.ts';
 
 test('swipe down closes only at base zoom', () => {
@@ -99,4 +99,25 @@ test('temp file removed after print even on error', async () => {
   const { deps, files } = fakes({ print: async () => { throw new Error('boom'); } });
   await assert.rejects(printImage(URL_SECRET, MESSAGE, deps), /boom/);
   assert.equal(files.size, 0);
+});
+
+import { closeViewerState, openViewerState } from '../src/views/viewerHostState.ts';
+test('host: one viewer at a time, open and close', () => {
+  const a = openViewerState(null, { k: 'k1', messageId: 'm1' });
+  assert.deepEqual(a, { k: 'k1', messageId: 'm1' });
+  assert.deepEqual(openViewerState(a, { k: 'k1', messageId: 'm2', contentType: 'image/png' }), { k: 'k1', messageId: 'm2', contentType: 'image/png' });
+  assert.equal(closeViewerState(a), null);
+});
+test('pinch then pan mid-gesture does not compound the scale', () => {
+  const box = { width: 400, height: 800 }; const image = { width: 400, height: 300 };
+  const pinchStart = 1.5;
+  const s1 = pinchUpdate(pinchStart, 1.2);
+  assert.ok(Math.abs(s1 - 1.8) < 1e-9);
+  // A pan starts now (its own start offset); the pinch keeps going from its own start, not from s1.
+  const p = panUpdate({ x: 10, y: 0 }, { x: 20, y: 5 }, s1, box, image);
+  assert.deepEqual(p, { x: 30, y: 0 });
+  const s2 = pinchUpdate(pinchStart, 1.4);
+  assert.ok(Math.abs(s2 - 2.1) < 1e-9);
+  assert.equal(pinchUpdate(3, 2), 4);
+  assert.equal(doubleTapScale(1.003), 2.5);
 });

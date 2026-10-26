@@ -7,7 +7,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Txt } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { canShareImage, printImage, saveToPhone, shareImage } from '../media/saveShare.ts';
-import { clampPan, clampScale, doubleTapScale, shouldDismiss } from '../media/viewerMath.ts';
+import { doubleTapScale, panUpdate, pinchUpdate, shouldDismiss, clampPan } from '../media/viewerMath.ts';
 
 type Action = 'save' | 'share' | 'print';
 
@@ -16,7 +16,7 @@ type Action = 'save' | 'share' | 'print';
  * The presigned URL is requested from `imageUrl` (in-memory reuse) and renewed once if the load fails
  * (an expired URL answers 403, which expo-image reports only as an error).
  */
-export function ImageViewer({ messageId, onClose }: { messageId: string; onClose: () => void }) {
+export function ImageViewer({ messageId, contentType, onClose }: { messageId: string; contentType?: string; onClose: () => void }) {
   const { t, dir } = useI18n();
   const { imageUrl, state } = useSession();
   const kehilaId = state.kehilaId ?? '';
@@ -46,7 +46,8 @@ export function ImageViewer({ messageId, onClose }: { messageId: string; onClose
   const ty = React.useRef(new Animated.Value(0)).current;
   const fade = React.useRef(new Animated.Value(1)).current;
   const cur = React.useRef({ s: 1, x: 0, y: 0 });
-  const start = React.useRef({ s: 1, x: 0, y: 0 });
+  const pinchStart = React.useRef(1);
+  const panStart = React.useRef({ x: 0, y: 0 });
   const fittedRef = React.useRef(fitted); fittedRef.current = fitted;
   const boxRef = React.useRef(box); boxRef.current = box;
 
@@ -60,9 +61,9 @@ export function ImageViewer({ messageId, onClose }: { messageId: string; onClose
   };
 
   const pinch = Gesture.Pinch().runOnJS(true)
-    .onStart(() => { start.current = { ...cur.current }; })
+    .onStart(() => { pinchStart.current = cur.current.s; })
     .onUpdate(e => {
-      const s = clampScale(start.current.s * e.scale);
+      const s = pinchUpdate(pinchStart.current, e.scale);
       const p = clampPan({ x: cur.current.x, y: cur.current.y }, s, boxRef.current, fittedRef.current);
       apply(s, p.x, p.y);
     })
@@ -71,11 +72,11 @@ export function ImageViewer({ messageId, onClose }: { messageId: string; onClose
       settle(cur.current.s, p.x, p.y);
     });
 
-  const pan = Gesture.Pan().runOnJS(true).maxPointers(2)
-    .onStart(() => { start.current = { ...cur.current }; })
+  const pan = Gesture.Pan().runOnJS(true).maxPointers(1)
+    .onStart(() => { panStart.current = { x: cur.current.x, y: cur.current.y }; })
     .onUpdate(e => {
       if (cur.current.s > 1.01) {
-        const p = clampPan({ x: start.current.x + e.translationX, y: start.current.y + e.translationY }, cur.current.s, boxRef.current, fittedRef.current);
+        const p = panUpdate(panStart.current, { x: e.translationX, y: e.translationY }, cur.current.s, boxRef.current, fittedRef.current);
         apply(cur.current.s, p.x, p.y);
       } else {
         const dy = Math.max(0, e.translationY);
@@ -106,9 +107,9 @@ export function ImageViewer({ messageId, onClose }: { messageId: string; onClose
     if (busy || !url) return;
     setBusy(a); setNote(null);
     try {
-      if (a === 'save') setNote((await saveToPhone(url, messageId)) ? t('viewer.saved') : t('viewer.denied'));
-      else if (a === 'share') await shareImage(url, messageId);
-      else await printImage(url, messageId);
+      if (a === 'save') setNote((await saveToPhone(url, messageId, undefined, contentType)) ? t('viewer.saved') : t('viewer.denied'));
+      else if (a === 'share') await shareImage(url, messageId, undefined, contentType);
+      else await printImage(url, messageId, undefined, contentType);
     } catch (e) {
       // A cancelled share sheet is not an error.
       if ((e as { name?: string } | null)?.name !== 'AbortError') setNote(t('viewer.failed'));
@@ -149,7 +150,7 @@ export function ImageViewer({ messageId, onClose }: { messageId: string; onClose
               {btn('print', t('viewer.print'), '⎙', () => void run('print'), !url || !!busy)}
             </View>
           </View>
-          {note ? <View style={styles.note} pointerEvents="none"><Txt color="#FFFFFF" size="small" style={{ textAlign: "center" }}>{note}</Txt></View> : null}
+          {note ? <View style={styles.note} pointerEvents="none"><Txt color="#FFFFFF" size="small" style={{ textAlign: 'center' }}>{note}</Txt></View> : null}
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
