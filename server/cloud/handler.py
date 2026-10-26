@@ -1,4 +1,6 @@
 """Lambda entry point for API Gateway HTTP API (payload v2.0): routing and JSON responses."""
+import base64
+import binascii
 import functools
 import json
 import logging
@@ -6,8 +8,8 @@ import os
 import re
 from dataclasses import dataclass
 
-from ..validation import APIError
-from . import routes_core
+from . import routes_core, routes_me
+from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
 
@@ -16,6 +18,9 @@ log = logging.getLogger(__name__)
 ROUTES = [
     ('GET', re.compile(r'^/health$'), routes_core.health),
     ('GET', re.compile(r'^/v1/me$'), routes_core.me),
+    ('PUT', re.compile(r'^/v1/me/profile$'), routes_me.put_profile),
+    ('PUT', re.compile(r'^/v1/me/devices$'), routes_me.put_device),
+    ('DELETE', re.compile(r'^/v1/me/devices/(?P<token>[^/]+)$'), routes_me.delete_device),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)$'), routes_core.kehila),
 ]
 PUBLIC = {routes_core.health}
@@ -26,7 +31,7 @@ class Ctx:
     repo: Repo
     caller: Caller
     user_id: str
-    body: dict
+    body: str | None  # raw text; inputs.body_object parses it
 
 
 @functools.cache
@@ -37,7 +42,7 @@ def _repo():
 
 def _response(status, body):
     return {'statusCode': status, 'headers': {'content-type': 'application/json; charset=utf-8'},
-            'body': json.dumps(body, ensure_ascii=False)}
+            'body': '' if status == 204 else json.dumps(body, ensure_ascii=False)}
 
 
 def _match(method, path):
@@ -48,7 +53,17 @@ def _match(method, path):
             path_matched = True
             if route_method == method:
                 return func, found.groupdict()
-    raise APIError(405 if path_matched else 404, 'method_not_allowed' if path_matched else 'not_found')
+    raise ApiError(405 if path_matched else 404, 'method_not_allowed' if path_matched else 'not_found')
+
+
+def _body(event):
+    body = event.get('body') or None
+    if body and event.get('isBase64Encoded'):
+        try:
+            body = base64.b64decode(body, validate=True).decode('utf-8')
+        except (binascii.Error, ValueError):
+            raise ApiError(400, 'invalid_body')
+    return body
 
 
 def handler(event, context):
@@ -58,14 +73,11 @@ def handler(event, context):
             return _response(*func(None, params))
         repo = _repo()
         caller = caller_from_event(event)
-        try:
-            body = json.loads(event['body']) if event.get('body') else None
-        except ValueError:
-            raise APIError(400, 'גוף הבקשה אינו JSON תקין.')
+        body = _body(event)
         status, payload = func(Ctx(repo, caller, resolve_user_id(repo, caller), body), params)
         return _response(status, payload)
-    except APIError as error:
-        return _response(error.status, {'error': error.message})
+    except ApiError as error:
+        return _response(error.status, {'error': error.code})
     except Exception as error:  # never leak details to the client or the log
         log.error('unhandled %s request=%s', type(error).__name__, getattr(context, 'aws_request_id', '-'))
         return _response(500, {'error': 'internal'})

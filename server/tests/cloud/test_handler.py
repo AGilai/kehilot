@@ -10,7 +10,7 @@ from server.cloud.identity import Caller, resolve_user_id
 from server.cloud.ids import new_id
 from server.cloud.repo import Repo
 from server.tests.cloud.helpers import make_table
-from server.validation import APIError
+from server.cloud.errors import ApiError
 
 
 class Context:
@@ -59,26 +59,26 @@ class HandlerTest(unittest.TestCase):
     def test_other_kehila_is_404(self):
         other = self.call('GET', f'/v1/kehilot/{self.kb}')
         missing = self.call('GET', f'/v1/kehilot/{new_id()}')
-        self.assertEqual(other[0], 404)
+        self.assertEqual(other, (404, {'error': 'kehila_not_found'}))
         self.assertEqual(other, missing)
 
     def test_bad_kehila_id_is_400(self):
         for k in ('A%23B', 'abc', '0' * 27, self.ka.lower()):
-            self.assertEqual(self.call('GET', f'/v1/kehilot/{k}')[0], 400, k)
+            self.assertEqual(self.call('GET', f'/v1/kehilot/{k}'), (400, {'error': 'invalid_kehila_id'}), k)
 
     def test_listener_blocked_by_role_filter(self):
-        with self.assertRaises(APIError) as caught:
+        with self.assertRaises(ApiError) as caught:
             require(self.repo, self.user_id, self.ka, ('gabbai',))
-        self.assertEqual(caught.exception.status, 403)
+        self.assertEqual((caught.exception.status, caught.exception.code), (403, 'forbidden'))
 
     def test_malformed_json_body_is_400(self):
-        self.assertEqual(self.call('GET', '/v1/me', body='{not json')[0], 400)
+        self.assertEqual(self.call('PUT', '/v1/me/profile', body='{not json'), (400, {'error': 'invalid_json'}))
 
     def test_unknown_route_is_json_404(self):
         self.assertEqual(self.call('GET', '/v1/nope'), (404, {'error': 'not_found'}))
 
     def test_wrong_method_is_405(self):
-        self.assertEqual(self.call('POST', '/v1/me')[0], 405)
+        self.assertEqual(self.call('POST', '/v1/me'), (405, {'error': 'method_not_allowed'}))
 
     def test_unexpected_error_is_500_without_details(self):
         with mock.patch.object(Repo, 'list_memberships', side_effect=RuntimeError('secret')), \

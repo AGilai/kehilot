@@ -1,5 +1,5 @@
 """The one tenant guard every Kehila route calls before touching data."""
-from ..validation import APIError
+from .errors import ApiError
 from .ids import ID_RE
 
 ROLES = ('listener', 'member', 'gabbai')
@@ -7,10 +7,10 @@ ROLES = ('listener', 'member', 'gabbai')
 
 def require(repo, user_id, k, roles=ROLES):
     if not ID_RE.fullmatch(k):
-        raise APIError(400, 'מזהה קהילה לא תקין.')
+        raise ApiError(400, 'invalid_kehila_id')
     membership = repo.get_membership(k, user_id)
     if not membership or not repo.get_kehila(k):
-        raise APIError(404, 'הקהילה לא נמצאה.')
+        raise ApiError(404, 'kehila_not_found')
     if membership['role'] not in roles:
-        raise APIError(403, 'אין הרשאה לפעולה זו.')
+        raise ApiError(403, 'forbidden')
     return membership

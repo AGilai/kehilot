@@ -12,7 +12,8 @@ def me(ctx, params):
         kehila = ctx.repo.get_kehila(membership['kehilaId'])
         if kehila:
             kehilot.append({'kehilaId': kehila['kehilaId'], 'name': kehila['name'], 'role': membership['role']})
-    return 200, {'userId': ctx.user_id, 'email': ctx.caller.email, 'kehilot': kehilot}
+    return 200, {'userId': ctx.user_id, 'email': ctx.caller.email,
+                 'profile': ctx.repo.get_profile(ctx.user_id), 'kehilot': kehilot}
 
 
 def kehila(ctx, params):
