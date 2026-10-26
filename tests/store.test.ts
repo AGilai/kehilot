@@ -144,11 +144,25 @@ test('selectKehila starts one poller; switching and reset stop it', async () => 
   await store.selectKehila('k1');
   await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
   assert.deepEqual(store.getState().feed.order, ['M-k1']);
+  assert.equal(store.getState().feed.loaded, true);
   await store.selectKehila('k2');
   await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
   assert.deepEqual(store.getState().feed.order, ['M-k2']);
   assert.equal(timers.size, 1);
   store.reset();
   assert.equal(timers.size, 0);
-  assert.deepEqual(store.getState().feed, { messages: {}, order: [], replies: {} });
+  assert.deepEqual(store.getState().feed, { messages: {}, order: [], replies: {}, loaded: false });
+});
+
+test('feed.loaded stays false while the initial load fails', async () => {
+  const sleep = (_ms: number, signal: AbortSignal) => new Promise<void>(res => signal.addEventListener('abort', () => res()));
+  const { api } = fakeApi(meOf(['k1']), {
+    changes: async () => ({ cursor: 'C', more: false, changes: [] }),
+    messages: async () => { throw new Error('down'); },
+  });
+  const store = createStore(api, memory(), { sleep });
+  await store.start();
+  await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+  assert.equal(store.getState().feed.loaded, false);
+  store.reset();
 });

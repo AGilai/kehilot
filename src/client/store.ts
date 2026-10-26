@@ -34,7 +34,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   /** The one change-feed poller; started by selectKehila, stopped by reset and on switching away. */
   const poller = createPoller({
     api: { changes: (k, since) => api.changes(k, since) },
-    apply: u => set({ feed: 'replace' in u ? feedFromMessages(u.replace) : applyChanges(state.feed, u.changes) }),
+    apply: u => set({ feed: 'clear' in u ? emptyFeed : 'replace' in u ? feedFromMessages(u.replace) : applyChanges(state.feed, u.changes) }),
     reload: k => api.messages(k, { limit: 50 }),
     sleep: opts.sleep ?? realSleep,
     isActive: opts.isActive ?? (() => true),

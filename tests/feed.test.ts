@@ -238,3 +238,46 @@ test('feedFromMessages sorts newest first', () => {
   const s: FeedState = feedFromMessages([msg('M1'), msg('M3'), msg('M2')]);
   assert.deepEqual(s.order, ['M3', 'M2', 'M1']);
 });
+
+test('resync clears the feed before reloading; a failed reload leaves it empty', async () => {
+  const log: string[] = [];
+  let resync = false, failReload = false;
+  const api = { changes: async (_k: string, since?: string) => (since && resync ? { resync: true as const } : page(since ? 'C1' : 'C0')) };
+  const timers: (() => void)[] = [];
+  const poller = createPoller({
+    api,
+    apply: u => log.push('clear' in u ? 'clear' : 'replace' in u ? 'replace' : 'changes'),
+    reload: async () => { log.push('reload'); if (failReload) throw new Error('x'); return []; },
+    sleep: (_ms, signal) => new Promise<void>(res => { timers.push(res); signal.addEventListener('abort', () => res()); }),
+    isActive: () => true,
+  });
+  await poller.start('k1', 30);
+  resync = true; failReload = true;
+  log.length = 0;
+  await poller.pollNow();
+  assert.deepEqual(log, ['clear', 'reload']);
+  poller.stop();
+});
+
+test('loaded is false until the first load, and after a clear', () => {
+  assert.equal(emptyFeed.loaded, false);
+  const s = feedFromMessages([]);
+  assert.equal(s.loaded, true);
+  assert.equal(applyChanges(s, [added(msg('M1'))]).loaded, true);
+});
+
+test('start works destructured; pollNow success resets backoff', async () => {
+  let fail = false;
+  const h = harness(since => since ? (fail ? new Error('b') : page('C1')) : page('C0'));
+  const { start, stop } = h.poller;
+  await start('k1', 10);
+  fail = true;
+  await h.tick();
+  assert.equal(h.sleeps.at(-1), 20000);
+  fail = false;
+  await h.poller.pollNow();
+  await h.tick();
+  await h.tick();
+  assert.equal(h.sleeps.at(-1), 10000);
+  stop();
+});

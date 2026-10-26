@@ -5,16 +5,18 @@ export type FeedState = {
   /** Message IDs, newest first (ULIDs sort by time). */
   order: string[];
   replies: Record<string, Reply[]>;
+  /** False until the initial (or resync) load succeeds, so the UI can tell loading from empty. */
+  loaded: boolean;
 };
 
-export const emptyFeed: FeedState = { messages: {}, order: [], replies: {} };
+export const emptyFeed: FeedState = { messages: {}, order: [], replies: {}, loaded: false };
 
 const byNewest = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
 
 export function feedFromMessages(list: Message[]): FeedState {
   const messages: Record<string, Message> = {};
   for (const m of list) messages[m.messageId] = m;
-  return { messages, order: Object.keys(messages).sort(byNewest), replies: {} };
+  return { messages, order: Object.keys(messages).sort(byNewest), replies: {}, loaded: true };
 }
 
 /** Applies a page in order. Pure and idempotent: a repeated page gives the same state. */
@@ -51,11 +53,11 @@ export function applyChanges(state: FeedState, changes: Change[]): FeedState {
       }
     }
   }
-  return { messages, order, replies };
+  return { messages, order, replies, loaded: state.loaded };
 }
 
 /** What the poller hands to the store: a full replacement (initial load, resync) or a page of changes. */
-export type Update = { replace: Message[] } | { changes: Change[] };
+export type Update = { replace: Message[] } | { clear: true } | { changes: Change[] };
 
 export type Sleep = (ms: number, signal: AbortSignal) => Promise<void>;
 
@@ -85,6 +87,8 @@ export function createPoller(deps: PollerDeps) {
   let cursor: string | null = null;
   let abort: AbortController | null = null;
   let inflight: Promise<void> | null = null;
+  let healthy = true;
+  let delay = 0;
 
   /** One poll (or the initial load when there is no cursor). Throws on error; drops stale results. */
   async function runOnce(g: number, k: string): Promise<void> {
@@ -103,7 +107,7 @@ export function createPoller(deps: PollerDeps) {
     for (;;) {
       const res = await deps.api.changes(k, cursor);
       if (stale()) return;
-      if ('resync' in res) { cursor = null; return loadFresh(); }
+      if ('resync' in res) { cursor = null; deps.apply({ clear: true }); return loadFresh(); }
       deps.apply({ changes: res.changes });
       cursor = res.cursor;
       if (!res.more) return;
@@ -120,22 +124,28 @@ export function createPoller(deps: PollerDeps) {
   }
 
   async function loop(g: number, k: string, baseMs: number, signal: AbortSignal, first: Promise<boolean>) {
-    let delay = baseMs;
-    let ok = await first;
+    delay = baseMs;
+    healthy = await first;
     for (;;) {
       if (g !== gen) return;
-      delay = ok ? baseMs : Math.min(delay * 2, MAX_BACKOFF_MS);
+      delay = healthy ? baseMs : Math.min(delay * 2, MAX_BACKOFF_MS);
       await deps.sleep(delay, signal);
       if (g !== gen) return;
-      if (!deps.isActive()) { ok = true; continue; }
-      ok = await poll(g, k).then(() => true, () => false);
+      if (!deps.isActive()) { healthy = true; continue; }
+      healthy = await poll(g, k).then(() => true, () => false);
     }
+  }
+
+  function stop(): void {
+    gen++;
+    abort?.abort();
+    abort = null; kehila = null; cursor = null; inflight = null;
   }
 
   return {
     /** Starts for a Kehila (stopping any previous run); resolves after the first load attempt. */
     start(k: string, pollSeconds: number): Promise<void> {
-      this.stop();
+      stop();
       const g = gen;
       kehila = k; cursor = null;
       abort = new AbortController();
@@ -143,16 +153,12 @@ export function createPoller(deps: PollerDeps) {
       void loop(g, k, Math.max(1, pollSeconds) * 1000, abort.signal, first);
       return first.then(() => undefined);
     },
-    stop(): void {
-      gen++;
-      abort?.abort();
-      abort = null; kehila = null; cursor = null; inflight = null;
-    },
+    stop,
     /** Poll now (focus, push). Joins a poll in flight; does nothing when not started. */
     async pollNow(): Promise<void> {
       if (kehila === null) return;
       const g = gen;
-      try { await poll(g, kehila); } catch { /* the loop's own schedule retries */ }
+      try { await poll(g, kehila); if (g === gen) healthy = true; } catch { /* the loop's own schedule retries */ }
     },
   };
 }
