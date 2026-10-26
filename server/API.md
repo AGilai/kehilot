@@ -263,3 +263,132 @@ Categories: `weekly`, `celebration`, `condolence`, `event`. Title max 200 charac
 Self-registration creates only unclassified member accounts; there are no administrator default credentials. Gabbai creation, optional member provisioning and password reset use local CLI commands. Passwords use PBKDF2-HMAC-SHA256 with 600,000 iterations and per-account salts; session tokens are random and stored hashed in SQLite, expire after 30 days, and are revoked on password reset. Native clients keep the session in SecureStore; the optional browser client uses tab-scoped sessionStorage. Login limits are persisted for both IP and account. The HTTP handler ignores forwarded IP headers. Apply additional request limits at the deployment proxy before production use.
 
 The stdlib HTTP server is a development/pilot entry point. Keep it behind HTTPS for remote use. One server process owns the optional push worker. SQLite and WAL files contain member data; keep the database directory private and back it up consistently. API and push tests use temporary databases and mocked Expo transport; they do not prove delivery through APNs/FCM.
+
+---
+
+## v2 (cloud)
+
+The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everything above this heading is the v1 local server and is kept until it is retired. v2 is the contract for the multi-community app.
+
+### Conventions
+
+- Base URL: the `api_url` Terraform output. All paths below start with `/v1` except `/health`. Bodies are JSON objects (max 16 KB; `isBase64Encoded` bodies are decoded). Responses are JSON; 204 has an empty body.
+- Authentication: `Authorization: <Cognito ID token>` (the `Bearer ` prefix is accepted). A missing or invalid token is rejected by API Gateway with 401 before the Lambda runs (that body is API Gateway's own, not an error code). Public routes: `GET /health` and `GET /v1/invites/{code}`.
+- Errors are codes only: `{"error": "<snake_case_code>"}`. The server never sends prose; the app translates the code. IDs (`kehilaId`, `userId`, `channelId`, `messageId`, `replyId`) are 26-character ULIDs.
+- Roles: `listener`, `member`, `gabbai`. A caller who is not in the Kehila gets 404 `kehila_not_found` (a Kehila's existence is not revealed); a caller whose role is too low gets 403 `forbidden`. Listeners see only channels with `listenersCanRead = true`, and cannot post, reply, join, create invites or see the member list.
+- Text limits: names 60 characters, title 120, body 4000, reply 1000. Supported `lang`: `he`, `en`.
+- **Retry on `try_again`**: HTTP 409 (or 503 from a batch read) with `{"error": "try_again"}` means a DynamoDB transaction conflicted. Nothing was changed; the client should retry the same request after a short delay (about 0.5 s, a few attempts).
+- **Change feed hold-back**: `GET /changes` never returns changes younger than 2 seconds (`HOLD_BACK_MS = 2000`), because IDs are generated on several containers and a change can commit after a later one. A change written now appears in the feed after about 2 s plus the next poll. The `cursor` the feed returns never passes the hold-back line.
+
+### Routes
+
+"Any" means listener, member or gabbai of that Kehila. `{k}` is the Kehila ID.
+
+#### Health and profile
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/health` | public | - | 200 `{ok:true}` | - |
+| GET | `/v1/me` | signed in | - | 200 `{userId, email, profile, kehilot:[{kehilaId, name, role}]}`; `profile` is `{firstName, lastName, lang}` or null | - |
+| PUT | `/v1/me/profile` | signed in | `{firstName (required), lastName?, lang: "he"\|"en"}` | 200 `{firstName, lastName, lang}` | 400 `invalid_body`, `invalid_json`, `invalid_first_name`, `invalid_last_name`, `invalid_lang` |
+| PUT | `/v1/me/devices` | signed in | `{token: "ExponentPushToken[...]", platform: "ios"\|"android"\|"web"}` | 204; a token already registered to another user moves to the caller | 400 `invalid_token`, `invalid_platform`, `invalid_body` |
+| DELETE | `/v1/me/devices/{token}` | signed in | the token in the path, percent-encoded (`ExponentPushToken%5Bxxxx%5D`) | 204, also when it was not registered | - |
+| DELETE | `/v1/me` | signed in | - | 204; deletes the account's data (names on messages are blanked, counts are kept) and the Cognito user | 409 `last_gabbai` (sole gabbai of any Kehila: hand over first) |
+
+#### Kehila, invites and joining
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/v1/kehilot/{k}` | any | - | 200 `{kehilaId, name, role, classification, settings:{pollSeconds}}` (`pollSeconds` default 30, 5 in dev: how often the app polls `/changes`) | 400 `invalid_kehila_id`, 404 `kehila_not_found` |
+| POST | `/v1/kehilot/{k}/invites` | member, gabbai | `{uses?: 1-50 (10), days?: 1-30 (7)}` or no body | 201 `{code, expiresAt}`; the code makes a **listener** | 400 `invalid_uses`, `invalid_days`, 403, 404 |
+| GET | `/v1/invites/{code}` | **public** | - | 200 `{kehilaName}` | 404 `invite_not_found`, 410 `invite_expired` |
+| POST | `/v1/invites/{code}/accept` | signed in | - | 200 `{kehilaId, role}` (`listener`, or `gabbai` for an admin-CLI code) | 404 `invite_not_found`, 409 `profile_required`, `already_member`, `try_again`, 410 `invite_expired` |
+| POST | `/v1/kehilot/{k}/membership-request` | listener | - | 202 `{}`; gabbaim get a push | 403, 404, 409 `already_requested` |
+| DELETE | `/v1/kehilot/{k}/membership` | any | - | 204 (leave) | 409 `last_gabbai`, `try_again` |
+
+Invite codes are 10 characters, Crockford base32, case-insensitive (`I`, `L` read as 1, `O` as 0). Gabbai codes are created only by `tools/kehila_admin.py`.
+
+#### Management (gabbai)
+
+| Method | Path | Request | Response | Errors |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/kehilot/{k}/admin/requests` | - | 200 `[{userId, displayName, createdAt, previouslyRejected}]`, oldest first | - |
+| POST | `/v1/kehilot/{k}/admin/requests/{userId}/approve` | `{classification: "" \| "א" \| "קבוע"}` | 200 `{}`; the listener becomes a member (`canBroadcast` = the Kehila's `memberBroadcastDefault`) | 400 `invalid_classification`, 404 `request_not_found`, 409 `not_a_listener`, `try_again` |
+| POST | `/v1/kehilot/{k}/admin/requests/{userId}/reject` | - | 200 `{}`; the user stays a listener and may ask again | 404 `request_not_found`, 409 `try_again` |
+| GET | `/v1/kehilot/{k}/admin/members` | - | 200 `[{userId, displayName, role, classification, canBroadcast}]` | - |
+| PUT | `/v1/kehilot/{k}/admin/members/{userId}` | any of `{role, classification, canBroadcast}` | 200 `{}` | 400 `invalid_body`, `invalid_role`, `invalid_classification`, `invalid_can_broadcast`, 404 `member_not_found`, 409 `role_change_not_allowed` (roles change only between member and gabbai; to or from listener is refused), `last_gabbai`, `try_again` |
+| DELETE | `/v1/kehilot/{k}/admin/members/{userId}` | - | 204 | 404 `member_not_found`, 409 `last_gabbai`, `try_again` |
+| PUT | `/v1/kehilot/{k}/admin/broadcast` | `{allow: bool}` | 200 `{}`; sets `canBroadcast` on every member | 400 `invalid_allow` |
+| POST | `/v1/kehilot/{k}/admin/channels` | `{name, listenersCanRead: bool, postPolicy: "management"\|"broadcasters"}` | 201 `{channelId, name, listenersCanRead, postPolicy}` | 400 `invalid_name`, `invalid_listeners_can_read`, `invalid_post_policy` |
+| PUT | `/v1/kehilot/{k}/admin/channels/{c}` | same as create | 200 channel | 400 as create, 404 `channel_not_found` |
+
+A new Kehila (admin CLI) has the channels `announcements` (listeners can read, management posts), `simchas` and `condolences` (members only; members with `canBroadcast` may post).
+
+#### Channels and messages
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/v1/kehilot/{k}/channels` | any | - | 200 `[{channelId, name, listenersCanRead, postPolicy, canPost}]`, only channels the caller can read | - |
+| POST | `/v1/kehilot/{k}/messages` | gabbai, or member with `canBroadcast` where `postPolicy` is `broadcasters` | `{channelId, type: "weekly"\|"celebration"\|"condolence"\|"event", title, body?, targetMemberId?}` | 201 message (below) | 400 `invalid_channel_id`, `invalid_type`, `invalid_title`, `invalid_body`, `invalid_target_member_id` (target only on `celebration` and `condolence`, and must be a member or gabbai of this Kehila), 403 `forbidden`, 404 `channel_not_found`, 429 `broadcast_limit` (members only, `broadcastDailyLimit` per day, default 3) |
+| GET | `/v1/kehilot/{k}/messages?limit=&before=` | any | `limit` 1-50 (20), `before` = a messageId | 200 `[message]`, newest first, only visible ones | 400 `invalid_limit`, `invalid_before` |
+| GET | `/v1/kehilot/{k}/messages/{m}` | any | - | 200 message | 404 `message_not_found` (hidden and missing look the same) |
+| DELETE | `/v1/kehilot/{k}/messages/{m}` | gabbai or the author | - | 204 | 403 `forbidden`, 404 `message_not_found`, 409 `try_again` |
+| POST | `/v1/kehilot/{k}/messages/{m}/join` | member, gabbai | - | 200 `{joinCount, joined:true}`; idempotent per user | 404 `message_not_found`, 409 `try_again` |
+| POST | `/v1/kehilot/{k}/messages/{m}/read` | any | - | 204; idempotent; a private read marker (only that user's feed sees it) | 404 `message_not_found` |
+
+Message object: `{messageId, channelId, type, title, body, authorId, authorName, authorKind: "management"\|"member", joinCount}`. When the message has a target it also carries `targetMemberId`, `targetName` (the family's display name) and `replierCount` (the number of distinct repliers: a count only, never who replied or what they wrote).
+
+#### Private replies (blessings)
+
+A reply can be posted only to a message that has a `targetMemberId`. Replies are **private**: only the reply's author and the message's target can read them. Gabbaim have no exception; they see `replierCount` on the message and nothing more.
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/v1/kehilot/{k}/messages/{m}/replies` | member, gabbai | `{body}` (1-1000) | 201 `{replyId, authorId, authorName, body, createdAt}` | 400 `invalid_body`, 404 `message_not_found`, 409 `replies_not_allowed` (no target), `cannot_reply_to_own` (the target), `try_again` |
+| GET | `/v1/kehilot/{k}/messages/{m}/replies` | any | - | 200 `[reply]`, only the ones the caller may see (empty for everyone else) | 404 `message_not_found` |
+
+#### Change feed and notification preferences
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/v1/kehilot/{k}/changes?since=<cursor>` | any | no `since`: ask for the starting cursor | 200 `{cursor, more, changes:[{kind, id, item}]}`; without `since`, `changes` is empty and `cursor` is the point to start from | 400 `invalid_since`; 200 `{resync:true}` when `since` is older than 30 days (reload everything with the list routes, then start a new feed) |
+| PUT | `/v1/kehilot/{k}/me/notify` | any | any of `{mutedChannels:[channelId], mutedTypes:[type], membersBroadcasts:"all"\|"management_only", mutedMembers:[userId]}`; only the fields sent change | 200 `{}`; push preferences only, they never change what lists or the feed return | 400 `invalid_body`, `invalid_muted_channels`, `invalid_muted_types`, `invalid_members_broadcasts`, `invalid_muted_members` |
+
+Feed use: call without `since`, store `cursor`, then every `pollSeconds` call with `since=<stored cursor>`, apply the changes, and store the returned `cursor`. While `more` is true call again at once. Up to 200 changes per page. Changes are applied by `kind`:
+
+| kind | `item` | Meaning |
+| --- | --- | --- |
+| `message` | message object | new message in a channel the caller can read |
+| `message_removed` | `{id}` | the message was removed |
+| `join` | message object (new `joinCount`) | someone joined |
+| `reply_count` | message object (new `replierCount`) | a new distinct replier. Channel-wide, so gabbaim and others learn the count only |
+| `reply` | reply object plus `messageId` | a new private reply. Only the reply's author and the target receive it |
+| `read` | `{messageId}` | the caller read it (only the caller's own feed) |
+
+A change is skipped if the object is no longer visible to the caller. The feed is subject to the 2 s hold-back above.
+
+### Push notifications
+
+Posting a message, a reply or a membership request queues a job (SQS); a worker sends it through Expo. Payload data carries `{kehila, messageId}` or `{kehila, screen}` only; the title is the Kehila's name and the text is generic and in the recipient's language. A device Expo reports as `DeviceNotRegistered` is removed.
+
+### Error codes
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| 400 | `invalid_body`, `invalid_json` | body missing, not an object, over 16 KB, or not JSON |
+| 400 | `invalid_<field>` | a field is missing or malformed (`invalid_first_name`, `invalid_title`, `invalid_channel_id`, `invalid_kehila_id`, `invalid_target_member_id`, `invalid_token`, `invalid_since`, `invalid_limit`, `invalid_before`, ...) |
+| 403 | `forbidden` | role is too low for this route |
+| 404 | `not_found` | no such route |
+| 404 | `kehila_not_found`, `channel_not_found`, `message_not_found`, `member_not_found`, `request_not_found`, `invite_not_found` | missing, or hidden from the caller |
+| 405 | `method_not_allowed` | the path exists with another method |
+| 409 | `try_again` | transaction conflict: retry the same request (also returned as 503 by a batch read that stayed incomplete) |
+| 409 | `already_member`, `already_requested`, `not_a_listener` | state conflicts when joining or approving |
+| 409 | `profile_required` | save a profile before accepting an invite |
+| 409 | `last_gabbai` | the action would leave the Kehila with no gabbai |
+| 409 | `role_change_not_allowed` | role changes are only member and gabbai |
+| 409 | `replies_not_allowed`, `cannot_reply_to_own` | reply rules |
+| 410 | `invite_expired` | expired or used up |
+| 429 | `broadcast_limit` | a member's daily message limit |
+| 500 | `internal` | unexpected failure; nothing is leaked, retry later |
+
+`witness_changed` is internal (retried by the server) and never reaches clients.
