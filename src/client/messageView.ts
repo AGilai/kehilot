@@ -15,7 +15,8 @@ export function isMuted(m: Message, notify: NotifyPrefs, channels: Channel[]): b
   if (notify.mutedTypes.includes(m.type)) return true;
   if (m.authorKind === 'member') {
     if (notify.mutedMembers.includes(m.authorId)) return true;
-    if (notify.membersBroadcasts === 'management_only') return true;
+    // Chat is not a broadcast: opting into a chat channel is the member's own choice.
+    if (m.type !== 'chat' && notify.membersBroadcasts === 'management_only') return true;
   }
   const ch = channels.find(c => c.channelId === m.channelId);
   if (ch) {
@@ -40,9 +41,9 @@ export function visibleList(feed: FeedState, o: ListOptions): Message[] {
   return out;
 }
 
-/** "Mine" view only; muted messages are never counted. A message without `read` counts as unread. */
+/** "Mine" view only; muted messages are never counted. A message without `read` counts as unread; chat messages are not tracked. */
 export function unreadCount(feed: FeedState, notify: NotifyPrefs, channels: Channel[]): number {
-  return visibleList(feed, { mode: 'mine', notify, channels }).filter(m => !m.read).length;
+  return visibleList(feed, { mode: 'mine', notify, channels }).filter(m => m.type !== 'chat' && !m.read).length;
 }
 
 /** Whether the private reply box shows: targeted celebration/condolence, not a listener, not the target. */

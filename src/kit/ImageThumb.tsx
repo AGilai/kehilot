@@ -19,7 +19,7 @@ export function ImageThumb({ messageId, onPress }: { messageId: string; onPress?
   const [attempt, setAttempt] = React.useState(0);
   React.useEffect(() => {
     let live = true;
-    imageUrl(messageId).then(u => { if (live) setUrl(u); }, () => { if (live) setUrl(null); });
+    imageUrl(messageId, attempt > 0).then(u => { if (live) setUrl(u); }, () => { if (live) setUrl(null); });
     return () => { live = false; };
   }, [messageId, imageUrl, attempt]);
   const box = { width: '100%', maxWidth: 360, aspectRatio: 1.6, borderRadius: 10, overflow: 'hidden', backgroundColor: k.line } as const;

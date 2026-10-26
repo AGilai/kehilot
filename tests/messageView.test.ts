@@ -103,3 +103,16 @@ test('days group by Israel day', () => {
   assert.deepEqual(groups.map(g => g.day), ['2026-10-27', '2026-10-26']);
   assert.equal(groups[1]!.items.length, 2);
 });
+
+test('chat messages add nothing to the unread count', () => {
+  const chs = [channel('c1', { conversation: true })];
+  const feed = feedFromMessages([msg('01A', { type: 'chat', authorKind: 'member' }), msg('01B', { channelId: 'c2' })]);
+  assert.equal(unreadCount(feed, notify({ chatChannels: ['c1'] }), [...chs, channel('c2')]), 1);
+});
+
+test('management_only does not mute chat messages of an opted-in channel', () => {
+  const chs = [channel('c1', { conversation: true })];
+  const m = msg('m1', { type: 'chat', authorKind: 'member' });
+  assert.equal(isMuted(m, notify({ chatChannels: ['c1'], membersBroadcasts: 'management_only' }), chs), false);
+  assert.equal(isMuted(m, notify({ chatChannels: ['c1'], mutedMembers: ['a1'] }), chs), true);
+});

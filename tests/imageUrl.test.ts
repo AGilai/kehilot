@@ -36,3 +36,10 @@ test('other errors surface and are not cached', async () => {
   await assert.rejects(urls.get('k', 'm'));
   assert.equal(await urls.get('k', 'm'), 'https://s3.invalid/img-2');
 });
+
+test('fresh: true drops the cached url', async () => {
+  let n = 0;
+  const urls = createImageUrls({ messageImage: async () => grant(++n) }, () => T0);
+  assert.equal(await urls.get('k', 'm'), 'https://s3.invalid/img-1');
+  assert.equal(await urls.get('k', 'm', { fresh: true }), 'https://s3.invalid/img-2');
+});

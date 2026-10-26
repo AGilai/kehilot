@@ -193,3 +193,23 @@ test('reply posted is appended at once, kept in memory only, deduplicated; markR
   assert.ok(![...storage.data.values()].some(v => v.includes('מזל טוב')), 'reply text must not be stored');
   store.reset();
 });
+
+test('markRead keeps the message unread when the server call fails, so the next open retries', async () => {
+  const msg = { messageId: 'M1', channelId: 'c1', type: 'weekly', title: 't', body: 'b', authorId: 'a', authorName: 'x', authorKind: 'management', joinCount: 0 };
+  let fail = true; let calls = 0;
+  const { api } = fakeApi(meOf(['k1']), {
+    changes: async () => ({ cursor: 'c', more: false, changes: [] }),
+    messages: async () => [msg],
+    markRead: async () => { calls++; if (fail) throw new Error('down'); },
+  });
+  const store = createStore(api, memory(), { isActive: () => false });
+  await store.start();
+  await new Promise(r => setTimeout(r, 20));
+  await store.markRead('M1');
+  assert.equal(store.getState().feed.messages.M1!.read, undefined);
+  fail = false;
+  await store.markRead('M1');
+  assert.equal(store.getState().feed.messages.M1!.read, true);
+  assert.equal(calls, 2);
+  store.reset();
+});

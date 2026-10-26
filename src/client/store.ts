@@ -152,12 +152,12 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   }
   const still = (c: { gen: number; k: string }) => guard(c.gen) && state.kehilaId === c.k;
 
-  /** Marks a message read at once on screen, then tells the server (a failure is retried on the next open). */
+  /** Tells the server, then marks the message read on screen; a failed call leaves it unread so the next open retries. */
   async function markRead(m: string): Promise<void> {
     const c = current();
     if (!c || state.feed.messages[m]?.read) return;
-    set({ feed: markReadLocal(state.feed, m) });
-    try { await api.markRead(c.k, m); } catch { /* the next open tries again */ }
+    try { await api.markRead(c.k, m); } catch { return; /* stays unread; the next open tries again */ }
+    if (still(c)) set({ feed: markReadLocal(state.feed, m) });
   }
 
   /** Replies live in memory only (feed.replies); never written to storage. */

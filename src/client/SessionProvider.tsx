@@ -39,7 +39,7 @@ export type SessionApi = {
   join(messageId: string): Promise<void>;
   removeMessage(messageId: string): Promise<void>;
   /** A fresh-enough presigned URL for a message image, or null when it has none. Memory only. */
-  imageUrl(messageId: string): Promise<string | null>;
+  imageUrl(messageId: string, fresh?: boolean): Promise<string | null>;
 };
 
 const SessionContext = React.createContext<SessionApi | null>(null);
@@ -111,7 +111,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     sendReply: (m, body) => store.sendReply(m, body),
     join: m => store.join(m),
     removeMessage: m => store.removeMessage(m),
-    imageUrl: async m => { const k = store.getState().kehilaId; return k ? images.get(k, m) : null; },
+    imageUrl: async (m, fresh) => { const k = store.getState().kehilaId; return k ? images.get(k, m, { fresh }) : null; },
   }), [state, route, logo, store, images]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

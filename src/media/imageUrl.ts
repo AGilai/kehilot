@@ -12,8 +12,9 @@ export function createImageUrls(api: { messageImage(k: string, m: string): Promi
   const cache = new Map<string, { url: string; until: number }>();
   const inflight = new Map<string, Promise<string | null>>();
   return {
-    get(k: string, m: string): Promise<string | null> {
+    get(k: string, m: string, o: { fresh?: boolean } = {}): Promise<string | null> {
       const key = `${k}:${m}`;
+      if (o.fresh) cache.delete(key);
       const hit = cache.get(key);
       if (hit && now() < hit.until) return Promise.resolve(hit.url);
       const running = inflight.get(key);

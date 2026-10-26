@@ -24,7 +24,7 @@ export function MessageRow({ message, channelName, muted, onPress }: { message: 
   const { t } = useI18n();
   const k = useTokens();
   const chip = replierChip(message, t);
-  const unread = !message.read;
+  const unread = message.type !== 'chat' && !message.read;
   return (
     <Pressable accessibilityRole="button" onPress={onPress}
       style={{ flexDirection: 'row', backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, overflow: 'hidden', opacity: muted ? 0.7 : 1 }}>
