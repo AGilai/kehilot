@@ -77,3 +77,36 @@ test('clear removes the stored token', async () => {
   await m.clear();
   assert.equal(storage.data.size, 0);
 });
+
+test('a refresh that resolves after clear() does not restore the session', async () => {
+  const storage = memory();
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  const m = createTokenManager({
+    storage, now: () => 0,
+    refresh: async () => { await gate; return { idToken: jwt(), expiresIn: 3600 }; },
+    onSignedOut: () => {},
+  });
+  await m.setSession(session(1000));
+  const p = m.idToken();
+  const settled = p.then(() => 'ok', (e: unknown) => (e instanceof AuthError ? e.code : 'other'));
+  await m.clear();
+  release();
+  assert.equal(await settled, 'signed_out');
+  assert.deepEqual(m.claims(), { sub: '', email: '' });
+  await assert.rejects(m.idToken(), (e: unknown) => e instanceof AuthError && e.code === 'signed_out');
+  assert.equal(storage.data.size, 0);
+});
+
+test('after a network failure the next idToken() retries', async () => {
+  let calls = 0;
+  const m = createTokenManager({
+    storage: memory(), now: () => 0,
+    refresh: async () => { calls++; if (calls === 1) throw new AuthError('network'); return { idToken: jwt(), expiresIn: 3600 }; },
+    onSignedOut: () => {},
+  });
+  await m.setSession(session(1000));
+  await assert.rejects(m.idToken(), (e: unknown) => e instanceof AuthError && e.code === 'network');
+  await m.idToken();
+  assert.equal(calls, 2);
+});

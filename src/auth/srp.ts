@@ -16,8 +16,25 @@ function mapError(err: unknown): AuthError {
   return new AuthError(code || 'unknown');
 }
 
+// The library persists tokens and the email in its Storage. Give it a throwaway in-memory one.
+export function createMemoryStorage(): Storage {
+  const m = new Map<string, string>();
+  return {
+    get length() { return m.size; },
+    key: (i: number) => [...m.keys()][i] ?? null,
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => { m.set(k, String(v)); },
+    removeItem: (k: string) => { m.delete(k); },
+    clear: () => { m.clear(); },
+  };
+}
+
+export function createPool(storage: Storage, poolId = config.poolId, clientId = config.clientId): CognitoUserPool {
+  return new CognitoUserPool({ UserPoolId: poolId, ClientId: clientId, Storage: storage });
+}
+
 export function signInSrp(email: string, password: string): Promise<Tokens> {
-  const pool = new CognitoUserPool({ UserPoolId: config.poolId, ClientId: config.clientId });
+  const pool = createPool(createMemoryStorage());
   const user = new CognitoUser({ Username: email, Pool: pool });
   const details = new AuthenticationDetails({ Username: email, Password: password });
   return new Promise((resolve, reject) => {
@@ -29,6 +46,10 @@ export function signInSrp(email: string, password: string): Promise<Tokens> {
       }),
       onFailure: (err) => reject(mapError(err)),
       newPasswordRequired: () => reject(new AuthError('NotAuthorizedException')),
+      mfaRequired: () => reject(new AuthError('NotAuthorizedException')),
+      totpRequired: () => reject(new AuthError('NotAuthorizedException')),
+      customChallenge: () => reject(new AuthError('NotAuthorizedException')),
+      selectMFAType: () => reject(new AuthError('NotAuthorizedException')),
     });
   });
 }

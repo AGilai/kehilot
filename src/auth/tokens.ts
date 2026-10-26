@@ -43,8 +43,13 @@ export function createTokenManager(opts: {
   let id: string | null = null;
   let expiresAt = 0;
   let inflight: Promise<string> | null = null;
+  // Bumped by clear() and setSession(). A refresh result is applied only if the generation is unchanged;
+  // otherwise the late result is dropped and its callers get AuthError('signed_out').
+  let generation = 0;
 
   async function clear(): Promise<void> {
+    generation++;
+    inflight = null;
     refreshToken = null;
     id = null;
     expiresAt = 0;
@@ -54,14 +59,17 @@ export function createTokenManager(opts: {
   function doRefresh(): Promise<string> {
     if (inflight) return inflight;
     const rt = refreshToken;
+    const gen = generation;
     if (!rt) return Promise.reject(new AuthError('signed_out'));
     inflight = (async () => {
       try {
         const r = await opts.refresh(rt);
+        if (gen !== generation) throw new AuthError('signed_out');
         id = r.idToken;
         expiresAt = now() + r.expiresIn * 1000;
         return r.idToken;
       } catch (e) {
+        if (gen !== generation && !(e instanceof AuthError && e.code === 'signed_out')) throw new AuthError('signed_out');
         if (e instanceof AuthError && e.code === 'NotAuthorizedException') {
           await clear();
           opts.onSignedOut();
@@ -69,7 +77,7 @@ export function createTokenManager(opts: {
         }
         throw e;
       } finally {
-        inflight = null;
+        if (gen === generation) inflight = null;
       }
     })();
     return inflight;
@@ -77,6 +85,8 @@ export function createTokenManager(opts: {
 
   return {
     async setSession(t) {
+      generation++;
+      inflight = null;
       refreshToken = t.refreshToken;
       id = t.idToken;
       expiresAt = t.expiresAt;
