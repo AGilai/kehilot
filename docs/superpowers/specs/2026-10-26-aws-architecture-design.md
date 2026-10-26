@@ -88,8 +88,8 @@ The user prefers AWS. Noam knows about and accepts the move.
 ```
 
 ### 4.1 Region
-**[call]** `il-central-1` (Tel Aviv). It is an **opt-in region**: it must be enabled in every account
-used (dev and prod) before Terraform runs. IAM Identity Center has its own home region that cannot be
+**[decided by the user, 2026-10-26]** `il-central-1` (Tel Aviv). It is an **opt-in region**; it was enabled in
+account 180521634103 (dev and prod) on 2026-10-26. A future account must enable it before Terraform runs. IAM Identity Center has its own home region that cannot be
 changed later; it may live in another region (e.g. `eu-central-1`) without affecting the workload. Use it for everything regional: lowest latency for users, data stays in
 Israel. The builder must confirm that every service used here is available in `il-central-1` (Cognito,
 HTTP API, Lambda arm64 Python 3.12, DynamoDB, SQS, EventBridge Scheduler, SSM). If any is missing, use
@@ -299,7 +299,7 @@ inputs/outputs; the Cognito client library; the order of porting endpoints.
    Recommendation: entered once, and each Kehila sees it only after the member is approved there.
    Kehila-specific data (classification, seat allocation, aliyah history) is always per Kehila.
 2. ~~AWS account~~ — answered: existing account, dev and prod together, movable later (§7a).
-3. **Region**: confirm Tel Aviv (`il-central-1`).
+3. ~~Region~~ — answered: Tel Aviv (`il-central-1`), enabled 2026-10-26.
 4. ~~Domain~~ — answered: the user's existing domain. Still needed: which domain, and is its DNS in
    Route 53 in the same account?
 5. **Web builds in CI**: Noam's rule forbids cloud build services. Does building the *web* bundle in
