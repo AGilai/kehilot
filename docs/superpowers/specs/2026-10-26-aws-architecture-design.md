@@ -1,6 +1,6 @@
-# Kehilot on AWS: architecture, Terraform and deployment (approved (2026-10-26), 2026-10-26)
+# Kehilot on AWS: architecture, Terraform and deployment (2026-10-26)
 
-Status: draft 2 (after builder check) for review on branch `redesign`. Nothing is deployed. The UX is being designed in parallel
+Status: **approved by the user, 2026-10-26** (draft 2 after builder check), on branch `redesign`. Nothing is deployed. The UX is being designed in parallel
 (`docs/UX-DESIGN.md`, `design/mockups/`); this document covers the backend, infrastructure and delivery.
 Items marked **[call]** are the author's decisions, open to change. Items marked **[open]** need the user.
 
