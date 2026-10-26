@@ -62,9 +62,11 @@ class MessagesRepo:
             raise ApiError(404, 'channel_not_found')
 
     # changes (the /changes feed reads these)
-    def put_change(self, k, kind, ref_id, channel_id, visible_to=None):
+    def put_change(self, k, kind, ref_id, channel_id, visible_to=None, message_id=None):
         item = {'pk': f'K#{k}', 'sk': f'CHG#{new_id()}', 'kind': kind, 'refId': ref_id, 'channelId': channel_id,
                 'expiresAt': int(time.time()) + CHANGE_TTL}
+        if message_id is not None:  # replies: the reply lives under the message's partition (ruling P6)
+            item['messageId'] = message_id
         if visible_to is not None:
             item['visibleTo'] = list(visible_to)
         self.table.put_item(Item=item)
@@ -149,3 +151,21 @@ class MessagesRepo:
     def put_read(self, k, message_id, user_id):
         self.table.put_item(Item={'pk': f'K#{k}#U#{user_id}', 'sk': f'READ#{message_id}',
                                   'at': int(time.time())})
+
+    # replies
+    def put_reply(self, k, message_id, author_id, author_name, body):
+        item = {'pk': f'K#{k}#MSG#{message_id}', 'sk': f'R#{new_id()}', 'authorId': author_id,
+                'authorName': author_name, 'body': body, 'createdAt': int(time.time())}
+        self.table.put_item(Item=item)
+        return item
+
+    def list_replies(self, k, message_id):
+        """Every reply of the message, oldest first. Callers filter with visibility.reply_visible."""
+        items, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}#MSG#{message_id}')
+                                    & Key('sk').begins_with('R#'), **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']

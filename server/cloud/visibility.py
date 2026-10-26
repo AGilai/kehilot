@@ -19,3 +19,10 @@ def can_post(membership, channel):
 
 def message_visible(membership, channel, message):
     return can_read_channel(membership, channel) and not message.get('removed')
+
+
+def reply_visible(user_id, message, reply):
+    """Private replies: only the reply's author and the message's target. Gabbaim get no exception."""
+    if not user_id:
+        return False
+    return user_id == reply.get('authorId') or user_id == message.get('targetMemberId')

@@ -9,6 +9,7 @@ from .routes_admin import _channel_json
 TYPES = ('weekly', 'celebration', 'condolence', 'event')
 TARGET_TYPES = ('celebration', 'condolence')
 DEFAULT_LIMIT, MAX_LIMIT = 20, 50
+REPLY_MAX = 1000
 
 
 def _message_json(item):
@@ -131,3 +132,34 @@ def read(ctx, params):
     ctx.repo.put_read(k, params['m'], ctx.user_id)
     ctx.repo.put_change(k, 'read', params['m'], message['channelId'], [ctx.user_id])
     return 204, None
+
+
+def _reply_json(item):
+    return {'replyId': item['sk'][len('R#'):], 'authorId': item['authorId'], 'authorName': item['authorName'],
+            'body': item['body'], 'createdAt': int(item.get('createdAt', 0))}
+
+
+def post_reply(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    message, _ = _visible_message(ctx, k, membership, params['m'])
+    target = message.get('targetMemberId')
+    if not target:
+        raise ApiError(409, 'replies_not_allowed')
+    if target == ctx.user_id:
+        raise ApiError(409, 'cannot_reply_to_own')
+    body = inputs.text(inputs.body_object(ctx), 'body', REPLY_MAX, required=True)
+    item = ctx.repo.put_reply(k, params['m'], ctx.user_id, membership.get('displayName', ''), body)
+    reply = _reply_json(item)
+    ctx.repo.put_change(k, 'reply', reply['replyId'], message['channelId'], [ctx.user_id, target],
+                        message_id=params['m'])
+    push.enqueue('reply', k, params['m'])  # ref = messageId: the target is on the message
+    return 201, reply
+
+
+def list_replies(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k)
+    message, _ = _visible_message(ctx, k, membership, params['m'])
+    return 200, [_reply_json(r) for r in ctx.repo.list_replies(k, params['m'])
+                 if visibility.reply_visible(ctx.user_id, message, r)]

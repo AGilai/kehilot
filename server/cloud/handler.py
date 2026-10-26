@@ -43,6 +43,8 @@ ROUTES = [
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)$'), routes_messages.remove_message),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/join$'), routes_messages.join),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/read$'), routes_messages.read),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/replies$'), routes_messages.post_reply),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/replies$'), routes_messages.list_replies),
 ]
 PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 
