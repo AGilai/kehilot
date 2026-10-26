@@ -1,7 +1,10 @@
 """Routes: membership requests, approval, member management and broadcast rights."""
+import logging
+import os
 import time
+from collections import Counter
 
-from . import inputs, push
+from . import accounts, importer, inputs, push
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -9,6 +12,10 @@ from .ids import ID_RE
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 ROLES = ('listener', 'member', 'gabbai')
 GABBAI = ('gabbai',)
+IMPORT_MAX_ROWS = 25
+IMPORT_MAX_BODY = 64 * 1024
+
+log = logging.getLogger(__name__)
 
 
 def _target(ctx, params, missing):
@@ -123,3 +130,20 @@ def update_channel(ctx, params):
     if not ID_RE.fullmatch(params['c']):
         raise ApiError(404, 'channel_not_found')
     return 200, _channel_json(ctx.repo.update_channel(params['k'], params['c'], *fields))
+
+
+def import_list(ctx, params):
+    """Pre-create accounts and memberships from the gabbai's list. Idempotent by email; logs only counts."""
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    rows = inputs.body_object(ctx, IMPORT_MAX_BODY).get('rows')
+    if not isinstance(rows, list) or not 1 <= len(rows) <= IMPORT_MAX_ROWS or not all(isinstance(r, dict) for r in rows):
+        raise ApiError(400, 'invalid_rows')
+    pool_id = os.environ.get('USER_POOL_ID')
+    if not pool_id:
+        raise RuntimeError('USER_POOL_ID not set')
+    results = importer.import_rows(ctx.repo, accounts.cognito_client(), pool_id, k, rows)
+    counts = Counter(r['status'] for r in results)
+    log.info('import k=%s %s', k, ' '.join(f'{s}={counts.get(s, 0)}'
+                                          for s in ('created', 'added', 'upgraded', 'exists', 'invalid')))
+    return 200, {'results': results}

@@ -35,6 +35,49 @@ class MembersRepo:
         self.table.put_item(Item={'pk': f'U#{user_id}', 'sk': 'PROFILE',
                                   'firstName': first, 'lastName': last, 'lang': lang})
 
+    def put_profile_if_absent(self, user_id, first, last, lang):
+        """Never overwrites a profile the person already saved."""
+        try:
+            self.table.put_item(Item={'pk': f'U#{user_id}', 'sk': 'PROFILE', 'firstName': first,
+                                      'lastName': last, 'lang': lang},
+                                ConditionExpression='attribute_not_exists(pk)')
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+
+    def import_membership(self, k, user_id, display_name, role, classification, broadcast_default):
+        """Gabbai's list import. Returns 'added' (new membership), 'upgraded' (a listener becomes member or
+        gabbai and the pending request goes, one transaction) or 'exists' (anything else is left as it is)."""
+        can_broadcast = bool(broadcast_default) if role == 'member' else False
+        membership = {'pk': f'K#{k}', 'sk': f'M#{user_id}', 'gsi1pk': f'U#{user_id}', 'gsi1sk': f'K#{k}',
+                      'kehilaId': k, 'userId': user_id, 'role': role, 'classification': classification,
+                      'canBroadcast': can_broadcast, 'notify': {}, 'displayName': display_name}
+        try:
+            self.table.put_item(Item=membership, ConditionExpression='attribute_not_exists(sk)',
+                                ReturnValuesOnConditionCheckFailure='ALL_OLD')
+            return 'added'
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            existing = error.response.get('Item', {}).get('role', {}).get('S')
+        if existing != 'listener' or role == 'listener':
+            return 'exists'
+        upgrade = {'Update': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': f'M#{user_id}'},
+                              'UpdateExpression': 'SET #r = :role, classification = :c, canBroadcast = :b',
+                              'ConditionExpression': '#r = :listener',
+                              'ExpressionAttributeNames': {'#r': 'role'},
+                              'ExpressionAttributeValues': {':role': role, ':listener': 'listener',
+                                                            ':c': classification, ':b': can_broadcast}}}
+        drop_request = {'Delete': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': f'REQ#{user_id}'}}}
+        try:
+            self.table.meta.client.transact_write_items(TransactItems=[upgrade, drop_request])
+        except ClientError as error:
+            reasons = _cancel_reasons(error, 2)
+            if reasons[0] == 'ConditionalCheckFailed':
+                return 'exists'  # changed meanwhile: not a listener any more
+            raise ApiError(409, 'try_again')
+        return 'upgraded'
+
     def put_device(self, user_id, token, platform):
         # A device token belongs to one user: whoever registered it last owns it.
         page = self.table.query(IndexName='gsi1', KeyConditionExpression=Key('gsi1pk').eq(f'TOK#{token}'))

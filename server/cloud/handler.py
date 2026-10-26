@@ -36,6 +36,7 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members$'), routes_admin.list_members),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.update_member),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.remove_member),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/import$'), routes_admin.import_list),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/broadcast$'), routes_admin.set_broadcast),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels$'), routes_admin.create_channel),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels/(?P<c>[^/]+)$'), routes_admin.update_channel),

@@ -11,11 +11,11 @@ def _code(field):
     return 'invalid_' + re.sub(r'(?<!^)(?=[A-Z])', '_', field).lower()
 
 
-def body_object(ctx):
+def body_object(ctx, limit=MAX_BODY_BYTES):
     raw = ctx.body
     if raw is None or raw == '':
         raise ApiError(400, 'invalid_body')
-    if len(raw.encode('utf-8')) > MAX_BODY_BYTES:
+    if len(raw.encode('utf-8')) > limit:
         raise ApiError(400, 'invalid_body')
     try:
         value = json.loads(raw)
