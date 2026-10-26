@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View, useColorScheme } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
-import type { CachedMessage } from '../search/cache.ts';
+import type { Hit } from '../search/hit.ts';
 import { canReply, joinLabel, replierChip, timeOfDay, ulidTime, visibleReplies } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
@@ -22,9 +22,12 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const k = useTokens();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const errText = useErrorText();
-  const { state, markRead, loadReplies, sendReply, join, removeMessage, cachedMessage } = useSession();
+  const { state, markRead, loadReplies, sendReply, join, removeMessage, loadHit } = useSession();
   const { feed, kehila, me, channels } = state;
-  const message = feed.messages[messageId];
+  // An older message (a search hit) is not in the feed: it is fetched and held here, never added to the list.
+  const [hit, setHit] = React.useState<Hit | undefined>(undefined);
+  const inFeed = feed.messages[messageId];
+  const message = inFeed ?? (hit?.kind === 'full' ? hit.message : undefined);
   const [draft, setDraft] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -33,14 +36,12 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const [joining, setJoining] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
   const targeted = !!message?.targetMemberId;
-  // An older message (e.g. a search hit) is not in the feed: show the on-phone copy, read-only.
-  const [copy, setCopy] = React.useState<CachedMessage | null | undefined>(undefined);
   React.useEffect(() => {
-    if (message) return;
+    if (inFeed || !feed.loaded) return;
     let live = true;
-    cachedMessage(messageId).then(c => { if (live) setCopy(c); }, () => { if (live) setCopy(null); });
+    loadHit(messageId).then(h => { if (live) setHit(h); }, () => { if (live) setHit({ kind: 'notFound' }); });
     return () => { live = false; };
-  }, [messageId, !!message, cachedMessage]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [messageId, !!inFeed, feed.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     if (!message) return;
@@ -55,6 +56,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
       <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'} {t('detail.back')}</Txt>
     </Pressable>
   );
+  const copy = hit?.kind === 'copy' ? hit.copy : null;
   if (!message && copy) {
     const date = Number.isFinite(ulidTime(messageId))
       ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ulidTime(messageId))) : '';
@@ -74,7 +76,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
     );
   }
   if (!message) {
-    return <View style={{ padding: 16, gap: 12 }}>{back}{feed.loaded && copy !== undefined ? <Txt>{t('detail.notFound')}</Txt> : <ActivityIndicator color={k.tekhelet} />}</View>;
+    return <View style={{ padding: 16, gap: 12 }}>{back}{hit?.kind === 'notFound' ? <Txt>{t('detail.notFound')}</Txt> : <ActivityIndicator color={k.tekhelet} />}</View>;
   }
 
   const role = kehila.role;

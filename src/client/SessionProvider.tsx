@@ -10,6 +10,7 @@ import { createImageUrls } from '../media/imageUrl.ts';
 import { createStore } from './store.ts';
 import { cacheStore } from '../search/platform.ts';
 import type { CachedMessage } from '../search/cache.ts';
+import type { Hit } from '../search/hit.ts';
 import type { Route, StoreState } from './store.ts';
 import type { Lang, Reply } from './types.ts';
 
@@ -45,8 +46,8 @@ export type SessionApi = {
   /** Offline search over the on-phone cache of the open Kehila. */
   search(q: string, o?: { channelId?: string }): Promise<CachedMessage[]>;
   cacheStatus(): Promise<{ complete: boolean; count: number }>;
-  /** A cached message for the read-only offline copy (older than the loaded feed), or null. */
-  cachedMessage(messageId: string): Promise<CachedMessage | null>;
+  /** An older message (a search hit): full online, the read-only offline copy without a connection. */
+  loadHit(messageId: string): Promise<Hit>;
 };
 
 const SessionContext = React.createContext<SessionApi | null>(null);
@@ -121,7 +122,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     removeMessage: m => store.removeMessage(m),
     search: (q, o) => store.search(q, o),
     cacheStatus: () => store.cacheStatus(),
-    cachedMessage: m => store.cachedMessage(m),
+    loadHit: m => store.loadHit(m),
     imageUrl: async (m, fresh) => { const k = store.getState().kehilaId; return k ? images.get(k, m, { fresh }) : null; },
   }), [state, route, logo, store, images]);
 

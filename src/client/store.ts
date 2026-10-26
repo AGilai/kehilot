@@ -6,6 +6,8 @@ import type { FeedState, Sleep, Update } from './feed.ts';
 import type { PendingInvite } from './links.ts';
 import { runBackfill } from '../search/backfill.ts';
 import { createMessageCache, pruneKehilot } from '../search/cache.ts';
+import { resolveHit } from '../search/hit.ts';
+import type { Hit } from '../search/hit.ts';
 import type { CacheStore, CachedMessage, MessageCache } from '../search/cache.ts';
 import type { Change, Channel, Message, Kehila, Lang, Me, Reply } from './types.ts';
 
@@ -237,6 +239,17 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return cache ? cache.status() : { complete: false, count: 0 };
   }
 
+  /** An older message opened from search: full online (held by the detail view, not put in the feed), else the offline copy. */
+  async function loadHit(id: string): Promise<Hit> {
+    const c = current();
+    if (!c) return { kind: 'notFound' };
+    return resolveHit(id, {
+      fetch: () => api.message(c.k, id),
+      cached: () => cachedMessage(id),
+      forget: async () => { await cache?.remove([id]); },
+    });
+  }
+
   /** A cached message for the read-only offline copy; never put in the feed. */
   async function cachedMessage(id: string): Promise<CachedMessage | null> {
     const c = current();
@@ -303,7 +316,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   return {
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, cachedMessage, reset, guard,
+    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, cachedMessage, loadHit, reset, guard,
     markRead, loadReplies, sendReply, join, removeMessage,
     pollNow: () => poller.pollNow(),
   };
