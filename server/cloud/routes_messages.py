@@ -1,10 +1,10 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
 from datetime import datetime, timezone
 
-from . import inputs, push, visibility
+from . import inputs, media, push, visibility
 from .authz import require
 from .errors import ApiError
-from .ids import ID_RE
+from .ids import ID_RE, new_id
 from .repo_messages import local_date
 from .routes_admin import _channel_json
 
@@ -26,6 +26,8 @@ def _message_json(item, read=None):
         out['targetMemberId'] = item['targetMemberId']
         out['targetName'] = item.get('targetName', '')
         out['replierCount'] = int(item.get('replierCount', 0))  # a count only: never who or what
+    if item.get('image'):  # metadata only: the URL comes from GET .../image after a visibility check
+        out['image'] = {'contentType': item['image']['contentType'], 'bytes': int(item['image']['bytes'])}
     if read is not None:
         out['read'] = read
     return out
@@ -49,6 +51,21 @@ def list_channels(ctx, params):
     return 200, channels
 
 
+def _image_upload_id(d):
+    if 'imageUploadId' not in d:
+        return None
+    value = d['imageUploadId']
+    if not isinstance(value, str) or not ID_RE.fullmatch(value):
+        raise ApiError(400, 'invalid_image_upload_id')
+    return value
+
+
+def _attach(k, user_id, upload_id):
+    """(message_id, image) for put_message: a new ID, and the claimed upload when there is one."""
+    message_id = new_id()
+    return message_id, (media.claim_upload(k, user_id, upload_id, message_id) if upload_id else None)
+
+
 def post_message(ctx, params):
     k = params['k']
     membership = require(ctx.repo, ctx.user_id, k)
@@ -59,6 +76,7 @@ def post_message(ctx, params):
     channel = ctx.repo.get_channel(k, channel_id)
     if channel and channel.get('conversation'):
         return _post_chat(ctx, k, membership, channel_id, channel, d)
+    upload_id = _image_upload_id(d)
     type_ = inputs.choice(d, 'type', TYPES)
     title = inputs.text(d, 'title', 120, required=True)
     body = inputs.text(d, 'body', 4000)
@@ -80,9 +98,11 @@ def post_message(ctx, params):
     if membership['role'] != 'gabbai':
         limit = ctx.repo.get_kehila(k).get('settings', {}).get('broadcastDailyLimit', 3)
         ctx.repo.count_broadcast(k, ctx.user_id, local_date(), int(limit))
+    message_id, image = _attach(k, ctx.user_id, upload_id)
     item = ctx.repo.put_message(k, channel_id, type_, title, body, ctx.user_id, membership.get('displayName', ''),
                                 'management' if membership['role'] == 'gabbai' else 'member', target,
-                                target_membership.get('displayName', '') if target else '')
+                                target_membership.get('displayName', '') if target else '',
+                                message_id=message_id, image=image)
     message = _message_json(item)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
@@ -98,14 +118,17 @@ def _post_chat(ctx, k, membership, channel_id, channel, d):
         raise ApiError(400, 'invalid_title')
     if d.get('targetMemberId') is not None:
         raise ApiError(400, 'invalid_target_member_id')
-    body = inputs.text(d, 'body', CHAT_MAX, required=True)
+    upload_id = _image_upload_id(d)
+    body = inputs.text(d, 'body', CHAT_MAX, required=upload_id is None)
     if not visibility.can_post(membership, channel):
         raise ApiError(403, 'forbidden')
     if not visibility.is_channel_admin(membership, channel):
         hour = datetime.now(timezone.utc).strftime('%Y%m%d%H')
         ctx.repo.count_chat(k, channel_id, ctx.user_id, hour, visibility.chat_hourly_limit(channel))
+    message_id, image = _attach(k, ctx.user_id, upload_id)
     item = ctx.repo.put_message(k, channel_id, CHAT, '', body, ctx.user_id, membership.get('displayName', ''),
-                                'management' if membership['role'] == 'gabbai' else 'member', None)
+                                'management' if membership['role'] == 'gabbai' else 'member', None,
+                                message_id=message_id, image=image)
     message = _message_json(item)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
@@ -186,6 +209,8 @@ def remove_message(ctx, params):
     message, _ = _visible_message(ctx, k, membership, params['m'])
     if membership['role'] != 'gabbai' and message['authorId'] != ctx.user_id:
         raise ApiError(403, 'forbidden')
+    if message.get('image'):  # first: a failure leaves the message, so a retry still finds the image to delete
+        media.delete_image(k, params['m'])
     ctx.repo.remove_message(k, params['m'])
     ctx.repo.put_change(k, 'message_removed', params['m'], message['channelId'])
     return 204, None

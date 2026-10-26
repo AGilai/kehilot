@@ -146,6 +146,20 @@ class MessagesRepo:
                 raise
             raise ApiError(429, 'broadcast_limit')
 
+    def count_uploads(self, k, user_id, hour, limit):
+        """Conditional ADD per user and UTC hour (yyyymmddhh). Raises 429 rate_limited."""
+        try:
+            self.table.update_item(
+                Key={'pk': f'K#{k}', 'sk': f'UPL#{user_id}#{hour}'},
+                UpdateExpression='ADD #c :one SET expiresAt = :e',
+                ConditionExpression='attribute_not_exists(#c) OR #c < :limit',
+                ExpressionAttributeNames={'#c': 'count'},
+                ExpressionAttributeValues={':one': 1, ':limit': limit, ':e': int(time.time()) + CHAT_COUNTER_TTL})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+            raise ApiError(429, 'rate_limited')
+
     def set_chat_limit(self, k, channel_id, limit):
         try:
             self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'C#{channel_id}'},
@@ -172,13 +186,15 @@ class MessagesRepo:
 
     # messages
     def put_message(self, k, channel_id, type_, title, body, author_id, author_name, author_kind, target,
-                    target_name=''):
-        item = {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{new_id()}', 'channelId': channel_id, 'type': type_,
+                    target_name='', message_id=None, image=None):
+        item = {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id or new_id()}', 'channelId': channel_id, 'type': type_,
                 'title': title, 'body': body, 'authorId': author_id, 'authorName': author_name,
                 'authorKind': author_kind, 'joinCount': 0, 'removed': False}
         if target:
             item['targetMemberId'] = target
             item['targetName'] = target_name
+        if image:
+            item['image'] = {'contentType': image['contentType'], 'bytes': image['bytes']}
         self.table.put_item(Item=item)
         return item
 
@@ -203,7 +219,7 @@ class MessagesRepo:
     def remove_message(self, k, message_id):
         try:
             self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
-                                   UpdateExpression='SET removed = :t', ConditionExpression='attribute_exists(sk)',
+                                   UpdateExpression='SET removed = :t REMOVE image', ConditionExpression='attribute_exists(sk)',
                                    ExpressionAttributeValues={':t': True})
         except ClientError as error:
             if not _failed(error, 'ConditionalCheckFailedException'):
