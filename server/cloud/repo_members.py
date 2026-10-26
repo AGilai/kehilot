@@ -438,10 +438,10 @@ class AdminRepo:
         sets, removes, values = [], [], {':seen': seen_role}
         for i, (name, value) in enumerate(fields.items()):
             names[f'#f{i}'] = name
-            if name == 'groups' and not value:  # a string set cannot be empty
+            if name in ('groups', 'adminGroups') and not value:  # a string set cannot be empty
                 removes.append(f'#f{i}')
                 continue
-            values[f':v{i}'] = set(value) if name == 'groups' else value
+            values[f':v{i}'] = set(value) if name in ('groups', 'adminGroups') else value
             sets.append(f'#f{i} = :v{i}')
         expression = ('SET ' + ', '.join(sets) if sets else '') + (' REMOVE ' + ', '.join(removes) if removes else '')
         update = {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),

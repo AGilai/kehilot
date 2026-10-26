@@ -133,6 +133,18 @@ class GroupAdminsTest(test_groups.GroupsTest):
         item = self.repo.get_membership(self.k, self.other)
         self.assertEqual((item['adminGroups'], item['groups']), ({self.women}, {self.men, self.women}))
 
+    def test_admin_put_groups_drops_admin_rights(self):
+        self.appoint(self.member)
+        self.appoint(self.member, self.men)
+        self.set_groups(self.member, [self.men])
+        item = self.repo.get_membership(self.k, self.member)
+        self.assertEqual(item['adminGroups'], {self.men})
+        self.assertEqual(self.call('GET', f'{self.g()}/requests', sub='member-sub'), (403, {'error': 'forbidden'}))
+        status, body = self.call('GET', self.base(), sub='member-sub')
+        self.assertEqual(body['adminGroups'], [self.men])
+        self.set_groups(self.member, [])
+        self.assertNotIn('adminGroups', self.repo.get_membership(self.k, self.member))
+
     def test_unappoint_keeps_membership(self):
         self.appoint(self.member)
         status, body = self.call('DELETE', f'{self.base()}/admin/groups/{self.women}/admins/{self.member}')

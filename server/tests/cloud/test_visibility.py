@@ -75,14 +75,15 @@ class GroupTruthTable(unittest.TestCase):
 class GroupAdminRules(unittest.TestCase):
     def test_is_group_admin(self):
         self.assertTrue(visibility.is_group_admin({'role': 'gabbai'}, 'g1'))
-        self.assertTrue(visibility.is_group_admin({'role': 'member', 'adminGroups': {'g1'}}, 'g1'))
-        self.assertFalse(visibility.is_group_admin({'role': 'member', 'adminGroups': {'g1'}}, 'g2'))
+        self.assertTrue(visibility.is_group_admin({'role': 'member', 'adminGroups': {'g1'}, 'groups': {'g1'}}, 'g1'))
+        self.assertFalse(visibility.is_group_admin({'role': 'member', 'adminGroups': {'g1'}}, 'g1'))  # stale ID
+        self.assertFalse(visibility.is_group_admin({'role': 'member', 'adminGroups': {'g1'}, 'groups': {'g1'}}, 'g2'))
         self.assertFalse(visibility.is_group_admin({'role': 'member'}, 'g1'))
         self.assertFalse(visibility.is_group_admin({'role': 'listener', 'adminGroups': {'g1'}}, 'g1'))
         self.assertFalse(visibility.is_group_admin(None, 'g1'))
 
     def test_is_channel_admin(self):
-        admin = {'role': 'member', 'adminGroups': {'g2'}}
+        admin = {'role': 'member', 'adminGroups': {'g2'}, 'groups': {'g2'}}
         self.assertTrue(visibility.is_channel_admin({'role': 'gabbai'}, {'groups': {'g1'}}))
         self.assertTrue(visibility.is_channel_admin({'role': 'gabbai'}, {}))
         self.assertTrue(visibility.is_channel_admin(admin, {'groups': {'g1', 'g2'}}))

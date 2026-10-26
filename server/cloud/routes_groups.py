@@ -48,7 +48,7 @@ def list_groups(ctx, params):
     members = Counter(g for m in ctx.repo.list_members(k) for g in m.get('groups') or ())
     channels = Counter(g for c in ctx.repo.list_channels(k) for g in c.get('groups') or ())
     admins = Counter(g for m in ctx.repo.list_members(k) if m['role'] == 'member'
-                     for g in m.get('adminGroups') or ())
+                     for g in m.get('adminGroups') or () if visibility.is_group_admin(m, g))
     pending = Counter(r['groupId'] for r in ctx.repo.list_group_requests_all(k))
     rows = [{'groupId': g['sk'][len('G#'):], 'name': g['name'], 'memberCount': members[g['sk'][len('G#'):]],
              'channelCount': channels[g['sk'][len('G#'):]], 'adminCount': admins[g['sk'][len('G#'):]],

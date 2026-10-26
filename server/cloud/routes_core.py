@@ -38,7 +38,7 @@ def kehila(ctx, params):
                  'logoVersion': item.get('logoVersion'),
                  'canBroadcast': bool(membership.get('canBroadcast')), 'pendingRequest': pending, 'notify': notify,
                  'settings': shown, 'groups': sorted(membership.get('groups') or ()),
-                 'adminGroups': sorted(membership.get('adminGroups') or ()) if membership['role'] == 'member' else [],
+                 'adminGroups': sorted(set(membership.get('adminGroups') or ()) & set(membership.get('groups') or ())) if membership['role'] == 'member' else [],
                  **extra}
 
 

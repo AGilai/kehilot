@@ -86,6 +86,8 @@ def update_member(ctx, params):
     target = _target(ctx, params, 'member_not_found')
     if 'role' in fields and 'listener' in (fields['role'], target['role']):
         raise ApiError(409, 'role_change_not_allowed')  # listeners become members only through approve
+    if 'groups' in fields:  # admin rights follow group membership
+        fields['adminGroups'] = set(target.get('adminGroups') or ()) & fields['groups']
     ctx.repo.update_member(k, params['userId'], target['role'], fields)
     return 200, {}
 

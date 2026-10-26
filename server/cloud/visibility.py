@@ -29,11 +29,13 @@ def is_gabbai(membership):
 
 
 def is_group_admin(membership, group_id):
-    """A gabbai is an implicit admin of every group; otherwise an appointed admin, who must be a member."""
+    """A gabbai is an implicit admin of every group; otherwise an appointed admin, who must be a member
+    of the group (a stale adminGroups ID grants nothing)."""
     if not membership:
         return False
     return membership['role'] == 'gabbai' or (
-        membership['role'] == 'member' and group_id in (membership.get('adminGroups') or ()))
+        membership['role'] == 'member' and group_id in (membership.get('adminGroups') or ())
+        and group_id in (membership.get('groups') or ()))
 
 
 def is_channel_admin(membership, channel):
