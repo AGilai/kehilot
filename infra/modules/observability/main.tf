@@ -36,3 +36,45 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
+
+resource "aws_cloudwatch_metric_alarm" "push_dlq" {
+  alarm_name          = "${var.name_prefix}-push-dlq"
+  namespace           = "AWS/SQS"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  dimensions          = { QueueName = var.dlq_name }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+}
+
+# push.enqueue swallows SQS failures and logs "push enqueue failed ..."; without this pushes stop silently.
+resource "aws_cloudwatch_log_metric_filter" "push_enqueue_failed" {
+  name           = "${var.name_prefix}-push-enqueue-failed"
+  log_group_name = var.api_log_group_name
+  pattern        = "\"push enqueue failed\""
+
+  metric_transformation {
+    name          = "PushEnqueueFailed"
+    namespace     = "Kehilot/${var.name_prefix}"
+    value         = "1"
+    default_value = "0"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "push_enqueue_failed" {
+  alarm_name          = "${var.name_prefix}-push-enqueue-failed"
+  namespace           = "Kehilot/${var.name_prefix}"
+  metric_name         = "PushEnqueueFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  depends_on          = [aws_cloudwatch_log_metric_filter.push_enqueue_failed]
+}

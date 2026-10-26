@@ -27,6 +27,7 @@ class BuildLambdaTest(unittest.TestCase):
         names = zipfile.ZipFile(self.zip_path).namelist()
         self.assertIn('server/cloud/handler.py', names)
         self.assertIn('pyluach/__init__.py', names)
+        self.assertIn('tzdata/zoneinfo/Asia/Jerusalem', names)
         for unwanted in ('tests/', '__pycache__', 'server/app.py', 'server/store.py'):
             self.assertFalse([n for n in names if unwanted in n], unwanted)
 

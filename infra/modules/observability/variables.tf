@@ -13,3 +13,12 @@ variable "function_names" {
 variable "api_id" {
   type = string
 }
+
+variable "dlq_name" {
+  type = string
+}
+
+variable "api_log_group_name" {
+  description = "API Lambda log group; scanned for failed push enqueues"
+  type        = string
+}

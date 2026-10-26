@@ -25,8 +25,18 @@ data "aws_iam_policy_document" "api" {
     actions = [
       "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem",
       "dynamodb:Query", "dynamodb:TransactWriteItems", "dynamodb:BatchGetItem",
+      # ConditionCheck inside transactions; Scan in repo_members.purge_user (account deletion)
+      "dynamodb:ConditionCheckItem", "dynamodb:Scan",
     ]
     resources = [var.table_arn, "${var.table_arn}/index/*"]
+  }
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [var.push_queue_arn]
+  }
+  statement {
+    actions   = ["cognito-idp:AdminDeleteUser"]
+    resources = [var.user_pool_arn]
   }
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
@@ -57,7 +67,11 @@ resource "aws_lambda_function" "api" {
   timeout          = 10
 
   environment {
-    variables = { TABLE_NAME = var.table_name }
+    variables = {
+      TABLE_NAME     = var.table_name
+      PUSH_QUEUE_URL = var.push_queue_url
+      USER_POOL_ID   = var.user_pool_id
+    }
   }
 
   depends_on = [aws_cloudwatch_log_group.api, aws_iam_role_policy.api]

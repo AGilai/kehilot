@@ -1,4 +1,4 @@
-"""Build the API Lambda zip: server/cloud and the domain modules it needs, plus vendored pyluach.
+"""Build the Lambda zip (API, push worker and jobs share it): server/cloud and the domain modules it needs, plus vendored pyluach and tzdata.
 
 Deterministic: sorted entries and fixed timestamps, so the same source gives the same bytes and
 Terraform only redeploys when code changes. Usage: python3 tools/build_lambda.py [out.zip]
@@ -12,7 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = ROOT / 'dist' / 'lambda' / 'api.zip'
 SERVER_FILES = ['server/__init__.py', 'server/validation.py', 'server/hebrew_calendar.py']
-VENDORED = ['pyluach==2.3.0']
+# tzdata: Lambda's Python has no system tz database; zoneinfo (Asia/Jerusalem) falls back to this package.
+VENDORED = ['pyluach==2.3.0', 'tzdata==2026.5']
 FIXED_TIME = (1980, 1, 1, 0, 0, 0)
 
 

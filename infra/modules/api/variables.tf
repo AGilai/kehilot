@@ -41,3 +41,19 @@ variable "throttle_burst" {
   type    = number
   default = 50
 }
+
+variable "push_queue_url" {
+  type = string
+}
+
+variable "push_queue_arn" {
+  type = string
+}
+
+variable "user_pool_id" {
+  type = string
+}
+
+variable "user_pool_arn" {
+  type = string
+}
