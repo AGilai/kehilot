@@ -54,6 +54,9 @@ export type Channel = {
   groups?: string[];
 };
 
+/** Response of create channel (`updateChannel` returns the same shape). */
+export type ChannelCreated = Pick<Channel, 'channelId' | 'name' | 'listenersCanRead' | 'postPolicy'> & { groups: string[] };
+
 export type ChannelFields = {
   name: string;
   listenersCanRead: boolean;

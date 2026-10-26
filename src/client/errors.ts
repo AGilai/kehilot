@@ -1,5 +1,3 @@
-import he from '../i18n/he.json' with { type: 'json' };
-
 export class ApiCodeError extends Error {
   status: number;
   code: string;
@@ -11,9 +9,10 @@ export class ApiCodeError extends Error {
   }
 }
 
-const known = he.errors as Record<string, string>;
-
-/** i18n key for an error code; unknown codes fall back to `errors.generic`. */
-export function errorKey(code: string): string {
-  return Object.prototype.hasOwnProperty.call(known, code) ? `errors.${code}` : 'errors.generic';
+/**
+ * i18n key for an error code; unknown codes fall back to `errors.generic`.
+ * `errors` is the `errors` object of the translation dictionary (the I18n layer passes it in).
+ */
+export function errorKey(code: string, errors: Record<string, string>): string {
+  return Object.prototype.hasOwnProperty.call(errors, code) ? `errors.${code}` : 'errors.generic';
 }

@@ -37,18 +37,38 @@ export function createHttp(o: Opts): Http {
         signal: ctrl.signal,
       });
       if (res.status === 204) return { status: 204, data: undefined };
-      let data: any;
+      const ok = res.status >= 200 && res.status < 300;
+      let text: string;
       try {
-        data = await res.json();
+        text = await res.text();
       } catch {
-        data = undefined;
+        throw new ApiCodeError(0, 'network');
       }
-      return { status: res.status, data };
-    } catch {
+      if (!text) {
+        return { status: res.status, data: undefined };
+      }
+      try {
+        return { status: res.status, data: JSON.parse(text) };
+      } catch {
+        if (ok) throw new ApiCodeError(res.status, 'internal');
+        return { status: res.status, data: undefined };
+      }
+    } catch (e) {
+      if (e instanceof ApiCodeError) throw e;
       throw new ApiCodeError(0, 'network');
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  // Only a real sign-out signs out; transient auth failures (throttling, network) keep the session.
+  function tokenFailure(e: unknown): ApiCodeError {
+    const code = (e as { code?: unknown } | null)?.code;
+    if (code === 'signed_out') {
+      o.onSignedOut();
+      return new ApiCodeError(401, 'unauthorized');
+    }
+    return new ApiCodeError(0, typeof code === 'string' && code ? code : 'network');
   }
 
   async function request<T>(method: string, path: string, body?: unknown, opts?: { auth?: boolean }): Promise<T> {
@@ -57,10 +77,8 @@ export function createHttp(o: Opts): Http {
     if (auth) {
       try {
         token = await o.tokens.idToken();
-      } catch (e: any) {
-        if (e?.code === 'network') throw new ApiCodeError(0, 'network');
-        o.onSignedOut();
-        throw new ApiCodeError(401, 'unauthorized');
+      } catch (e) {
+        throw tokenFailure(e);
       }
     }
     let retries = 0;
@@ -83,10 +101,8 @@ export function createHttp(o: Opts): Http {
           refreshed = true;
           try {
             token = await o.tokens.forceRefresh();
-          } catch (e: any) {
-            if (e?.code === 'network') throw new ApiCodeError(0, 'network');
-            o.onSignedOut();
-            throw new ApiCodeError(401, 'unauthorized');
+          } catch (e) {
+            throw tokenFailure(e);
           }
           continue;
         }

@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createHttp } from '../src/client/http.ts';
-import { ApiCodeError } from '../src/client/errors.ts';
-import { errorKey } from '../src/client/errors.ts';
+import { readFileSync } from 'node:fs';
+import { AuthError } from '../src/auth/cognito.ts';
+import { ApiCodeError, errorKey } from '../src/client/errors.ts';
 import { endpoints } from '../src/client/endpoints.ts';
 
 type Call = { url: string; init: RequestInit };
@@ -156,7 +157,56 @@ test('endpoints use the documented methods and paths', async () => {
 });
 
 test('errorKey falls back to generic', () => {
-  assert.equal(errorKey('UsernameExistsException'), 'errors.UsernameExistsException');
-  assert.equal(errorKey('forbidden'), 'errors.forbidden');
-  assert.equal(errorKey('something_new'), 'errors.generic');
+  const dict = JSON.parse(readFileSync(new URL('../src/i18n/he.json', import.meta.url), 'utf8')).errors;
+  assert.equal(errorKey('UsernameExistsException', dict), 'errors.UsernameExistsException');
+  assert.equal(errorKey('forbidden', dict), 'errors.forbidden');
+  assert.equal(errorKey('unauthorized', dict), 'errors.unauthorized');
+  assert.equal(errorKey('something_new', dict), 'errors.generic');
+  assert.equal(errorKey('toString', dict), 'errors.generic');
+});
+
+test('timeout during body read maps to network', async () => {
+  const slow = async (_u: string, init: RequestInit) => ({
+    status: 200,
+    text: () => new Promise((_, rej) => init.signal!.addEventListener('abort', () => rej(new Error('aborted')))),
+  });
+  const { http } = setup([], { fetch: slow, timeoutMs: 10 });
+  await assert.rejects(http.request('GET', '/v1/me'), (e: any) => e.code === 'network' && e.status === 0);
+});
+
+test('200 with invalid JSON is internal', async () => {
+  const { http } = setup([new Response('<html>', { status: 200 })]);
+  await assert.rejects(http.request('GET', '/v1/me'), (e: any) => e.code === 'internal' && e.status === 200);
+});
+
+test('refresh failing with a non-sign-out AuthError does not sign out', async () => {
+  const { http, log } = setup([json(401, { message: 'Unauthorized' })], {
+    tokens: { idToken: async () => 'id-1', forceRefresh: async () => { throw new AuthError('LimitExceededException'); } },
+  });
+  await assert.rejects(http.request('GET', '/v1/me'), (e: any) => e instanceof ApiCodeError && e.code === 'LimitExceededException');
+  assert.equal(log.signedOut, 0);
+});
+
+test('refresh failing with network does not sign out', async () => {
+  const { http, log } = setup([json(401, { message: 'Unauthorized' })], {
+    tokens: { idToken: async () => 'id-1', forceRefresh: async () => { throw new AuthError('network'); } },
+  });
+  await assert.rejects(http.request('GET', '/v1/me'), (e: any) => e.code === 'network');
+  assert.equal(log.signedOut, 0);
+});
+
+test('signed_out from the token manager signs out', async () => {
+  const { http, log } = setup([], {
+    tokens: { idToken: async () => { throw new AuthError('signed_out'); }, forceRefresh: async () => 'x' },
+  });
+  await assert.rejects(http.request('GET', '/v1/me'), (e: any) => e.code === 'unauthorized');
+  assert.equal(log.signedOut, 1);
+});
+
+test('idToken failing with another AuthError does not sign out', async () => {
+  const { http, log } = setup([], {
+    tokens: { idToken: async () => { throw new AuthError('InternalErrorException'); }, forceRefresh: async () => 'x' },
+  });
+  await assert.rejects(http.request('GET', '/v1/me'), (e: any) => e.code === 'InternalErrorException');
+  assert.equal(log.signedOut, 0);
 });

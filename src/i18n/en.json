@@ -73,6 +73,7 @@
     "network": "Cannot reach the server. Check your connection and try again",
     "unknown": "Something went wrong. Try again",
     "UsernameExistsException": "This email already has an account. Use 'Forgot password' to set a password.",
+    "unauthorized": "Please sign in again",
     "generic": "Something went wrong. Try again"
   },
   "app": {

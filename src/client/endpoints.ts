@@ -1,8 +1,8 @@
 import type { Http } from './http.ts';
 import type {
-  Channel, ChannelFields, ChangesPage, Classification, DirectoryEntry, Group, GroupMemberRow, GroupMembership,
+  Channel, ChannelCreated, ChannelFields, ChangesPage, Classification, DirectoryEntry, Group, GroupMemberRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
-  MemberFields, MemberRow, Message, NotifyPrefs, PostMessageBody, Profile, Reply, RequestRow, UploadGrant,
+  MemberFields, MemberRow, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply, RequestRow, UploadGrant,
 } from './types.ts';
 
 const e = encodeURIComponent;
@@ -32,7 +32,7 @@ export function endpoints(http: Http) {
     invites: (k: string) => r<InviteRow[]>('GET', `${K(k)}/invites`),
     revokeInvite: (k: string, code: string) => r<void>('DELETE', `${K(k)}/invites/${e(code)}`),
     previewInvite: (code: string) => r<InvitePreview>('GET', `/v1/invites/${e(code)}`, undefined, { auth: false }),
-    acceptInvite: (code: string) => r<{ kehilaId: string; role: string }>('POST', `/v1/invites/${e(code)}/accept`),
+    acceptInvite: (code: string) => r<{ kehilaId: string; role: Role }>('POST', `/v1/invites/${e(code)}/accept`),
     requestMembership: (k: string) => r<Record<string, never>>('POST', `${K(k)}/membership-request`),
     leave: (k: string) => r<void>('DELETE', `${K(k)}/membership`),
 
@@ -76,9 +76,9 @@ export function endpoints(http: Http) {
     importRows: (k: string, rows: ImportRow[]) =>
       r<{ results: ImportResult[] }>('POST', `${A(k)}/import`, { rows }),
     createChannel: (k: string, f: ChannelFields) =>
-      r<Channel>('POST', `${A(k)}/channels`, f),
+      r<ChannelCreated>('POST', `${A(k)}/channels`, f),
     updateChannel: (k: string, c: string, f: Partial<ChannelFields>) =>
-      r<Channel>('PUT', `${A(k)}/channels/${e(c)}`, f),
+      r<ChannelCreated>('PUT', `${A(k)}/channels/${e(c)}`, f),
 
     // groups: admin
     groups: (k: string) => r<Group[]>('GET', `${A(k)}/groups`),
