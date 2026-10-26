@@ -24,18 +24,20 @@ class Repo:
         return self.table.get_item(Key={'pk': pk, 'sk': sk}).get('Item')
 
     def get_user_id(self, sub):
-        item = self._get(f'U#{sub}', 'SUB')
+        item = self.table.get_item(Key={'pk': f'U#{sub}', 'sk': 'SUB'}, ConsistentRead=True).get('Item')
         return item['userId'] if item else None
 
-    def create_user_id(self, sub, user_id, email):
+    def create_user_id(self, sub, user_id):
+        # Email is not stored: it comes from the ID token on every request, so it never goes stale.
         try:
-            self.table.put_item(Item={'pk': f'U#{sub}', 'sk': 'SUB', 'userId': user_id, 'email': email},
-                                ConditionExpression='attribute_not_exists(pk)')
+            self.table.put_item(Item={'pk': f'U#{sub}', 'sk': 'SUB', 'userId': user_id},
+                                ConditionExpression='attribute_not_exists(pk)',
+                                ReturnValuesOnConditionCheckFailure='ALL_OLD')
             return user_id
         except ClientError as error:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise
-            return self.get_user_id(sub)
+            return error.response['Item']['userId']['S']  # the winner of a concurrent first login
 
     def get_kehila(self, k):
         return self._get(f'K#{k}', 'META')

@@ -103,6 +103,8 @@ added) live in `us-east-1` by AWS rule.
 - One public app client (no secret) used by both phone and web, `USER_SRP_AUTH` + refresh tokens.
   **[call]** In-app Hebrew login/register screens calling Cognito directly (e.g. `amazon-cognito-identity-js`
   or Amplify Auth), not the hosted login page, so the RTL design from the UX work is kept.
+- **[call, 2026-10-26]** The app sends the Cognito **ID token** as `Authorization: Bearer` (it carries `email`;
+  API Gateway checks its `aud` against the client ID). The API never stores email; it reads it from the token.
 - **Roles are not stored in Cognito.** Roles, classification and `can_broadcast` are per Kehila and live
   in DynamoDB. The API loads the caller's membership for the Kehila in the path on every request (one
   `GetItem`), so a role change takes effect immediately with no token refresh. **[call]**

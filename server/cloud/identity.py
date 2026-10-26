@@ -20,4 +20,4 @@ def caller_from_event(event):
 
 
 def resolve_user_id(repo, caller):
-    return repo.get_user_id(caller.sub) or repo.create_user_id(caller.sub, new_id(), caller.email)
+    return repo.get_user_id(caller.sub) or repo.create_user_id(caller.sub, new_id())

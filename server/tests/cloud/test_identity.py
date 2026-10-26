@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 
 from moto import mock_aws
 
@@ -27,8 +28,18 @@ class IdentityTest(unittest.TestCase):
         self.assertEqual(resolve_user_id(self.repo, self.caller), resolve_user_id(self.repo, self.caller))
 
     def test_concurrent_first_login_keeps_one_user_id(self):
-        self.repo.create_user_id('sub-1', 'A' * 26, 'a@example.test')
-        self.assertEqual(self.repo.create_user_id('sub-1', 'B' * 26, 'a@example.test'), 'A' * 26)
+        self.repo.create_user_id('sub-1', 'A' * 26)
+        self.assertEqual(self.repo.create_user_id('sub-1', 'B' * 26), 'A' * 26)
+
+    def test_lost_race_returns_winner_even_if_read_is_stale(self):
+        self.repo.create_user_id('sub-1', 'A' * 26)
+        with mock.patch.object(Repo, 'get_user_id', return_value=None):  # eventually consistent read lagging
+            self.assertEqual(self.repo.create_user_id('sub-1', 'B' * 26), 'A' * 26)
+
+    def test_user_mapping_stores_no_email(self):
+        resolve_user_id(self.repo, self.caller)
+        item = self.repo.table.get_item(Key={'pk': 'U#sub-1', 'sk': 'SUB'})['Item']
+        self.assertNotIn('email', item)
 
     def test_groups_claim_formats(self):
         base = {'sub': 's', 'email': 'e@example.test'}
