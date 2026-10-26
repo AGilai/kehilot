@@ -1,0 +1,133 @@
+"""Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
+from . import inputs, push, visibility
+from .authz import require
+from .errors import ApiError
+from .ids import ID_RE
+from .repo_messages import local_date
+from .routes_admin import _channel_json
+
+TYPES = ('weekly', 'celebration', 'condolence', 'event')
+TARGET_TYPES = ('celebration', 'condolence')
+DEFAULT_LIMIT, MAX_LIMIT = 20, 50
+
+
+def _message_json(item):
+    out = {'messageId': item['sk'][len('MSG#'):], 'channelId': item['channelId'], 'type': item['type'],
+           'title': item['title'], 'body': item['body'], 'authorId': item['authorId'],
+           'authorName': item['authorName'], 'authorKind': item['authorKind'],
+           'joinCount': int(item.get('joinCount', 0))}
+    if item.get('targetMemberId'):
+        out['targetMemberId'] = item['targetMemberId']
+    return out
+
+
+def _visible_message(ctx, k, membership, message_id):
+    """The message and its channel, or 404 message_not_found: hidden and missing look the same."""
+    message = ctx.repo.get_message(k, message_id) if ID_RE.fullmatch(message_id) else None
+    channel = ctx.repo.get_channel(k, message['channelId']) if message else None
+    if not message or not visibility.message_visible(membership, channel, message):
+        raise ApiError(404, 'message_not_found')
+    return message, channel
+
+
+def list_channels(ctx, params):
+    membership = require(ctx.repo, ctx.user_id, params['k'])
+    channels = [{**_channel_json(c), 'canPost': visibility.can_post(membership, c)}
+                for c in ctx.repo.list_channels(params['k']) if visibility.can_read_channel(membership, c)]
+    return 200, channels
+
+
+def post_message(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k)
+    d = inputs.body_object(ctx)
+    channel_id = d.get('channelId')
+    if not isinstance(channel_id, str) or not ID_RE.fullmatch(channel_id):
+        raise ApiError(400, 'invalid_channel_id')
+    type_ = inputs.choice(d, 'type', TYPES)
+    title = inputs.text(d, 'title', 120, required=True)
+    body = inputs.text(d, 'body', 4000)
+    target = d.get('targetMemberId')
+    if target is not None:
+        if type_ not in TARGET_TYPES or not isinstance(target, str) or not ID_RE.fullmatch(target):
+            raise ApiError(400, 'invalid_target_member_id')
+        target_membership = ctx.repo.get_membership(k, target)
+        if not target_membership or target_membership['role'] not in ('member', 'gabbai'):
+            raise ApiError(400, 'invalid_target_member_id')
+    channel = ctx.repo.get_channel(k, channel_id)
+    if not visibility.can_read_channel(membership, channel):
+        raise ApiError(404, 'channel_not_found')
+    if not visibility.can_post(membership, channel):
+        raise ApiError(403, 'forbidden')
+    if membership['role'] != 'gabbai':
+        limit = ctx.repo.get_kehila(k).get('settings', {}).get('broadcastDailyLimit', 3)
+        ctx.repo.count_broadcast(k, ctx.user_id, local_date(), int(limit))
+    item = ctx.repo.put_message(k, channel_id, type_, title, body, ctx.user_id, membership.get('displayName', ''),
+                                'management' if membership['role'] == 'gabbai' else 'member', target)
+    message = _message_json(item)
+    ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
+    push.enqueue('message', k, message['messageId'])
+    return 201, message
+
+
+def _limit(query):
+    raw = query.get('limit')
+    if raw is None:
+        return DEFAULT_LIMIT
+    if not raw.isascii() or not raw.isdigit() or not 1 <= int(raw) <= MAX_LIMIT:
+        raise ApiError(400, 'invalid_limit')
+    return int(raw)
+
+
+def list_messages(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k)
+    limit = _limit(ctx.query)
+    before = ctx.query.get('before')
+    if before is not None and not ID_RE.fullmatch(before):
+        raise ApiError(400, 'invalid_before')
+    channels, page = {}, []
+    for item in ctx.repo.iter_messages(k, before):
+        cid = item['channelId']
+        if cid not in channels:
+            channels[cid] = ctx.repo.get_channel(k, cid)
+        if visibility.message_visible(membership, channels[cid], item):
+            page.append(_message_json(item))
+            if len(page) == limit:
+                break
+    return 200, page
+
+
+def get_message(ctx, params):
+    membership = require(ctx.repo, ctx.user_id, params['k'])
+    return 200, _message_json(_visible_message(ctx, params['k'], membership, params['m'])[0])
+
+
+def remove_message(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k)
+    message, _ = _visible_message(ctx, k, membership, params['m'])
+    if membership['role'] != 'gabbai' and message['authorId'] != ctx.user_id:
+        raise ApiError(403, 'forbidden')
+    ctx.repo.remove_message(k, params['m'])
+    ctx.repo.put_change(k, 'message_removed', params['m'], message['channelId'])
+    return 204, None
+
+
+def join(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    message, _ = _visible_message(ctx, k, membership, params['m'])
+    count, joined = ctx.repo.join_message(k, params['m'], ctx.user_id)
+    if joined:
+        ctx.repo.put_change(k, 'join', params['m'], message['channelId'])
+    return 200, {'joinCount': count, 'joined': True}
+
+
+def read(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k)
+    message, _ = _visible_message(ctx, k, membership, params['m'])
+    ctx.repo.put_read(k, params['m'], ctx.user_id)
+    ctx.repo.put_change(k, 'read', params['m'], message['channelId'], [ctx.user_id])
+    return 204, None

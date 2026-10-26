@@ -96,3 +96,30 @@ def leave(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
     ctx.repo.remove_member(params['k'], ctx.user_id, membership['role'])
     return 204, None
+
+
+POST_POLICIES = ('management', 'broadcasters')
+
+
+def _channel_fields(ctx):
+    d = inputs.body_object(ctx)
+    return (inputs.text(d, 'name', 60, required=True), inputs.boolean(d, 'listenersCanRead'),
+            inputs.choice(d, 'postPolicy', POST_POLICIES))
+
+
+def _channel_json(item):
+    return {'channelId': item['sk'][len('C#'):], 'name': item['name'],
+            'listenersCanRead': item['listenersCanRead'], 'postPolicy': item['postPolicy']}
+
+
+def create_channel(ctx, params):
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    return 201, _channel_json(ctx.repo.put_channel(params['k'], *_channel_fields(ctx)))
+
+
+def update_channel(ctx, params):
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    fields = _channel_fields(ctx)
+    if not ID_RE.fullmatch(params['c']):
+        raise ApiError(404, 'channel_not_found')
+    return 200, _channel_json(ctx.repo.update_channel(params['k'], params['c'], *fields))

@@ -3,6 +3,7 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from .repo_members import AdminRepo, MembersRepo
+from .repo_messages import MessagesRepo
 
 TABLE_SCHEMA = dict(
     KeySchema=[{'AttributeName': 'pk', 'KeyType': 'HASH'}, {'AttributeName': 'sk', 'KeyType': 'RANGE'}],
@@ -18,7 +19,7 @@ TABLE_SCHEMA = dict(
 )
 
 
-class Repo(MembersRepo, AdminRepo):
+class Repo(MembersRepo, AdminRepo, MessagesRepo):
     def __init__(self, table):
         self.table = table
 

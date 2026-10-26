@@ -6,9 +6,9 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from . import routes_admin, routes_core, routes_invites, routes_me
+from . import routes_admin, routes_core, routes_invites, routes_me, routes_messages
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -34,6 +34,15 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.update_member),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.remove_member),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/broadcast$'), routes_admin.set_broadcast),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels$'), routes_admin.create_channel),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels/(?P<c>[^/]+)$'), routes_admin.update_channel),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/channels$'), routes_messages.list_channels),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.post_message),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.list_messages),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)$'), routes_messages.get_message),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)$'), routes_messages.remove_message),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/join$'), routes_messages.join),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/read$'), routes_messages.read),
 ]
 PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 
@@ -44,6 +53,7 @@ class Ctx:
     caller: Caller
     user_id: str
     body: str | None  # raw text; inputs.body_object parses it
+    query: dict = field(default_factory=dict)  # query string parameters (strings)
 
 
 @functools.cache
@@ -86,7 +96,8 @@ def handler(event, context):
         repo = _repo()
         caller = caller_from_event(event)
         body = _body(event)
-        status, payload = func(Ctx(repo, caller, resolve_user_id(repo, caller), body), params)
+        status, payload = func(
+            Ctx(repo, caller, resolve_user_id(repo, caller), body, event.get('queryStringParameters') or {}), params)
         return _response(status, payload)
     except ApiError as error:
         return _response(error.status, {'error': error.code})
