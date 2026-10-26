@@ -227,6 +227,18 @@ class InviteLimitsTest(unittest.TestCase):
         self.check_links_revoked(lambda: self.assertEqual(
             self.call('DELETE', f'{self.base}/admin/members/{self.member}')[0], 204))
 
+    def test_orphaned_link_is_refused(self):
+        code = self.invite()
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.member}'})  # revocation "failed"
+        self.user('l9')
+        self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='l9'), (410, {'error': 'invite_expired'}))
+        self.assertIsNone(self.repo.get_membership(self.k, self.repo.get_user_id('l9')))
+
+    def test_admin_cli_invite_has_no_member_behind_it(self):
+        code = self.repo.create_invite(self.k, 'admin-cli', 'gabbai', 1, 7)
+        self.user('l9')
+        self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='l9')[0], 200)
+
     # 4. CLI
     def test_cli_gabbai_invite(self):
         import io

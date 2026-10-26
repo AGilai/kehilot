@@ -57,6 +57,8 @@ def accept(ctx, params):
     code = normalize_code(params['code'])
     invite = _live_invite(ctx.repo, code)
     k = invite['kehilaId']
+    if invite['inviterId'] != 'admin-cli' and not ctx.repo.get_membership(k, invite['inviterId']):
+        raise ApiError(410, 'invite_expired')  # the inviter left or was removed: same answer as an expired link
     settings = (ctx.repo.get_kehila(k) or {}).get('settings', {})
     if invite['role'] == 'listener' and not ctx.repo.get_membership(k, ctx.user_id):
         # Soft cap: the count is read, not reserved, so concurrent accepts may overshoot by a few.
