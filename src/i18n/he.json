@@ -74,7 +74,14 @@
     "unknown": "משהו השתבש. נסו שוב",
     "UsernameExistsException": "לכתובת הדוא״ל הזו כבר יש חשבון. השתמשו ב״שכחתי סיסמה״ כדי להגדיר סיסמה",
     "unauthorized": "נא להתחבר מחדש",
-    "generic": "משהו השתבש. נסו שוב"
+    "generic": "משהו השתבש. נסו שוב",
+    "CodeMismatchException": "הקוד שגוי. בדקו ונסו שוב",
+    "ExpiredCodeException": "הקוד פג תוקף. בקשו קוד חדש",
+    "NotAuthorizedException": "כתובת הדוא״ל או הסיסמה שגויות",
+    "InvalidPasswordException": "הסיסמה אינה עומדת בדרישות (לפחות 12 תווים)",
+    "LimitExceededException": "יותר מדי ניסיונות. נסו שוב מאוחר יותר",
+    "password_short": "הסיסמה חייבת להכיל לפחות 12 תווים",
+    "signed_out": "יש להיכנס מחדש"
   },
   "app": {
     "name": "קהילות"
@@ -101,5 +108,50 @@
   },
   "channel": {
     "replierChip": "{n} חברים שלחו ברכה פרטית למשפחת {name}"
+  },
+  "auth": {
+    "emailLabel": "כתובת דוא״ל",
+    "passwordLabel": "סיסמה",
+    "newPasswordLabel": "סיסמה חדשה",
+    "firstNameLabel": "שם פרטי",
+    "lastNameLabel": "שם משפחה",
+    "passwordHint": "לפחות 12 תווים",
+    "codeLabel": "קוד אימות",
+    "back": "חזרה לכניסה",
+    "switchLang": "החלפת שפה",
+    "signin": {
+      "title": "כניסה לקהילה",
+      "submit": "כניסה",
+      "register": "משתמש חדש? הרשמה",
+      "forgot": "שכחתי סיסמה"
+    },
+    "register": {
+      "title": "הרשמה",
+      "submit": "הרשמה",
+      "haveAccount": "כבר יש לי חשבון"
+    },
+    "exists": {
+      "cta": "לאיפוס הסיסמה"
+    },
+    "verify": {
+      "title": "אימות כתובת הדוא״ל",
+      "body": "שלחנו קוד אימות בן 6 ספרות לכתובת {email}.",
+      "submit": "אימות",
+      "resend": "שליחת קוד חדש",
+      "resent": "נשלח קוד חדש",
+      "done": "הכתובת אומתה. אפשר להיכנס"
+    },
+    "forgot": {
+      "title": "שחזור סיסמה",
+      "send": "שליחת קוד",
+      "codeBody": "אם יש חשבון בכתובת {email}, נשלח אליה קוד. הזינו אותו עם סיסמה חדשה.",
+      "submit": "הגדרת סיסמה",
+      "done": "הסיסמה עודכנה. אפשר להיכנס"
+    },
+    "profile": {
+      "title": "השלמת הפרטים",
+      "body": "הכניסה הצליחה. השלמת הפרטים האישיים תתווסף בשלב הבא.",
+      "signOut": "יציאה"
+    }
   }
 }

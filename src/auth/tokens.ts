@@ -17,7 +17,7 @@ export type TokenManager = {
   clear(): Promise<void>;
 };
 
-const KEY = 'kehilot.refresh.v1';
+export const REFRESH_KEY = 'kehilot.refresh.v1';
 const SKEW_MS = 60_000;
 
 function decodeClaims(idToken: string): { sub: string; email: string } {
@@ -53,7 +53,7 @@ export function createTokenManager(opts: {
     refreshToken = null;
     id = null;
     expiresAt = 0;
-    await opts.storage.remove(KEY);
+    await opts.storage.remove(REFRESH_KEY);
   }
 
   function doRefresh(): Promise<string> {
@@ -90,10 +90,10 @@ export function createTokenManager(opts: {
       refreshToken = t.refreshToken;
       id = t.idToken;
       expiresAt = t.expiresAt;
-      await opts.storage.set(KEY, t.refreshToken);
+      await opts.storage.set(REFRESH_KEY, t.refreshToken);
     },
     async restore() {
-      const stored = await opts.storage.get(KEY);
+      const stored = await opts.storage.get(REFRESH_KEY);
       if (!stored) return false;
       refreshToken = stored;
       try {

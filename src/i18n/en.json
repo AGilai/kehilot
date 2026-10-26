@@ -74,7 +74,14 @@
     "unknown": "Something went wrong. Try again",
     "UsernameExistsException": "This email already has an account. Use 'Forgot password' to set a password.",
     "unauthorized": "Please sign in again",
-    "generic": "Something went wrong. Try again"
+    "generic": "Something went wrong. Try again",
+    "CodeMismatchException": "That code is wrong. Check it and try again",
+    "ExpiredCodeException": "The code has expired. Request a new one",
+    "NotAuthorizedException": "The email or password is wrong",
+    "InvalidPasswordException": "The password does not meet the requirements (at least 12 characters)",
+    "LimitExceededException": "Too many attempts. Try again later",
+    "password_short": "The password must be at least 12 characters",
+    "signed_out": "Please sign in again"
   },
   "app": {
     "name": "Kehilot"
@@ -101,5 +108,50 @@
   },
   "channel": {
     "replierChip": "{n} members sent a private blessing to the {name} family"
+  },
+  "auth": {
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "newPasswordLabel": "New password",
+    "firstNameLabel": "First name",
+    "lastNameLabel": "Last name",
+    "passwordHint": "At least 12 characters",
+    "codeLabel": "Verification code",
+    "back": "Back to sign in",
+    "switchLang": "Change language",
+    "signin": {
+      "title": "Sign in to your community",
+      "submit": "Sign in",
+      "register": "New here? Create an account",
+      "forgot": "Forgot password"
+    },
+    "register": {
+      "title": "Create an account",
+      "submit": "Create account",
+      "haveAccount": "I already have an account"
+    },
+    "exists": {
+      "cta": "Reset the password"
+    },
+    "verify": {
+      "title": "Verify your email",
+      "body": "We sent a 6-digit code to {email}.",
+      "submit": "Verify",
+      "resend": "Send a new code",
+      "resent": "A new code was sent",
+      "done": "Email verified. You can sign in"
+    },
+    "forgot": {
+      "title": "Reset password",
+      "send": "Send code",
+      "codeBody": "If an account exists for {email}, a code was sent. Enter it with a new password.",
+      "submit": "Set password",
+      "done": "Password updated. You can sign in"
+    },
+    "profile": {
+      "title": "Complete your profile",
+      "body": "You are signed in. Completing your personal details comes in the next step.",
+      "signOut": "Sign out"
+    }
   }
 }
