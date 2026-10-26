@@ -202,7 +202,9 @@
     "haveAccount": "I already have an account",
     "accept": "Join",
     "later": "Not now",
-    "back": "Back"
+    "back": "Back",
+    "celebration": "Joining the blessings ({n})",
+    "condolence": "Sharing in the grief"
   },
   "guest": {
     "requestTitle": "Request membership",
@@ -217,5 +219,91 @@
     "lockedChat": "Chats and group channels",
     "lockedDirectory": "The member directory",
     "lockedPosting": "Posting messages in channels"
+  },
+  "tabs": {
+    "home": "Home",
+    "messages": "Messages"
+  },
+  "home": {
+    "greeting": "Hello, {name}",
+    "greetingAnon": "Good to be in the community",
+    "zmanimTitle": "Today's times · Petah Tikva",
+    "next": "Next time today",
+    "nextCached": "Next time today · saved on this device",
+    "offlineNote": "No connection to the times source. Showing the times saved for today.",
+    "zmanimError": "Today's times could not be loaded. Check the connection and try again.",
+    "shabbat": "Coming Shabbat",
+    "shabbatToday": "Shabbat begins today",
+    "shabbatError": "Shabbat times cannot be loaded right now.",
+    "candles": "Candle lighting",
+    "petahTikva": "Petah Tikva",
+    "telAviv": "Tel Aviv",
+    "latest": "What's new",
+    "allMessages": "All messages",
+    "noMessages": "Messages from the gabbaim will appear here.",
+    "signOut": "Sign out"
+  },
+  "zmanim": {
+    "sunrise": "Sunrise",
+    "sofZmanShma": "Latest Shema",
+    "sofZmanTfilla": "Latest morning prayer",
+    "minchaGedola": "Mincha Gedola",
+    "plagHaMincha": "Plag HaMincha",
+    "sunset": "Sunset",
+    "nightfall": "Nightfall"
+  },
+  "messages": {
+    "title": "Messages",
+    "filterMine": "Mine",
+    "filterAll": "Everything",
+    "allChannels": "All channels",
+    "muted": "Muted",
+    "unread": "Unread",
+    "empty": "New messages from the gabbaim will appear here.",
+    "loading": "Loading messages…",
+    "new": "New message",
+    "today": "Today",
+    "chat": "Chat",
+    "imageLoadError": "The image could not be loaded",
+    "imageAlt": "Attached image",
+    "chatEmpty": "No messages in this chat yet.",
+    "chatPlaceholder": "Write a message",
+    "me": "Me"
+  },
+  "detail": {
+    "back": "Back to messages",
+    "from": "From {name}",
+    "delete": "Delete",
+    "deleteTitle": "Delete this message?",
+    "deleteBody": "The message will be deleted for the whole community.",
+    "deleteYes": "Delete",
+    "joined": "You joined",
+    "notFound": "This message no longer exists.",
+    "received": "Blessings received",
+    "sent": "Sent to the family only",
+    "replyTitle": "A private blessing for the family",
+    "replyPlaceholder": "Write a blessing for the family",
+    "lock": "Goes to the {name} family only. Not shown to the rest of the community.",
+    "send": "Send",
+    "familyGone": "The family is no longer in the Kehila, so a blessing cannot be sent.",
+    "notAllowed": "A private blessing cannot be sent for this message."
+  },
+  "chip": {
+    "celebration": "{n} members sent a private blessing to the {name} family",
+    "condolence": "{n} members sent a private blessing to the {name} family",
+    "formerMember": "former member"
+  },
+  "composer": {
+    "send": "Send",
+    "emoji": "Emoji",
+    "emojiTitle": "Choose an emoji",
+    "emojiGroup": {
+      "smileys": "Smileys",
+      "hearts": "Hearts",
+      "celebration": "Celebration",
+      "hands": "Hands",
+      "nature": "Nature and flowers",
+      "symbols": "Symbols"
+    }
   }
 }

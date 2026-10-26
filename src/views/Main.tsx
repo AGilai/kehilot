@@ -1,0 +1,100 @@
+import React from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { config } from '../config.ts';
+import { fixtureParams } from '../client/fixtures.ts';
+import { useSession } from '../client/SessionProvider.tsx';
+import { unreadCount } from '../client/messageView.ts';
+import { useI18n } from '../i18n/I18nProvider.tsx';
+import { Txt, useTokens } from '../kit/components.tsx';
+import { TOUCH } from '../kit/theme.ts';
+import { ChatView } from './ChatView.tsx';
+import { Home } from './Home.tsx';
+import { MessageDetail } from './MessageDetail.tsx';
+import { Messages } from './Messages.tsx';
+import type { Filter } from './Messages.tsx';
+import { TopBar } from './TopBar.tsx';
+
+type Nav =
+  | { tab: 'home' }
+  | { tab: 'messages' }
+  | { tab: 'detail'; id: string; from: 'home' | 'messages' }
+  | { tab: 'chat'; channelId: string };
+
+/** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat opens that screen. */
+function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter } | null {
+  if (!config.fixtures) return null;
+  const s = fixtureParams().screen;
+  const byType = (type: string) => state.feed.order.map(id => state.feed.messages[id]!).find(m => m.type === type && m.targetMemberId);
+  if (s === 'messages') return { nav: { tab: 'messages' } };
+  if (s === 'messages-all') return { nav: { tab: 'messages' }, filter: 'all' };
+  if (s === 'm3' || s === 'm3target') { const m = byType('celebration'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
+  if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
+  if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
+  return null;
+}
+
+/** The signed-in app for members and gabbaim: top bar, the open screen, and the bottom tabs. */
+export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; banner?: React.ReactNode }) {
+  const { t } = useI18n();
+  const k = useTokens();
+  const { state } = useSession();
+  const [nav, setNav] = React.useState<Nav>({ tab: 'home' });
+  const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
+  const jumped = React.useRef(false);
+
+  // Fixtures: jump to the requested screen once the messages have loaded.
+  React.useEffect(() => {
+    if (jumped.current || !state.feed.loaded) return;
+    const j = fixtureNav(state);
+    jumped.current = true;
+    if (j) { setNav(j.nav); setFilter(j.filter); }
+  }, [state]);
+
+  const kehila = state.kehila;
+  const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
+  const active: 'home' | 'messages' = nav.tab === 'home' || (nav.tab === 'detail' && nav.from === 'home') ? 'home' : 'messages';
+  const tabs = [
+    { key: 'home' as const, label: t('tabs.home'), icon: '⌂', badge: 0 },
+    { key: 'messages' as const, label: t('tabs.messages'), icon: '✉', badge: unread },
+  ];
+
+  let body: React.ReactNode;
+  switch (nav.tab) {
+    case 'home':
+      body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />;
+      break;
+    case 'messages':
+      body = <Messages initialFilter={filter} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} />;
+      break;
+    case 'detail':
+      body = <MessageDetail key={nav.id} messageId={nav.id} onBack={() => setNav({ tab: nav.from })} />;
+      break;
+    case 'chat':
+      body = <ChatView channelId={nav.channelId} onBack={() => setNav({ tab: 'messages' })} />;
+      break;
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
+      <View style={{ paddingHorizontal: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+        <TopBar onOpenSwitcher={onOpenSwitcher} />
+        {banner}
+      </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>{body}</KeyboardAvoidingView>
+      <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
+        {tabs.map(tab => (
+          <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected: active === tab.key }}
+            accessibilityLabel={tab.badge ? `${tab.label} (${tab.badge})` : tab.label} onPress={() => setNav({ tab: tab.key })}
+            style={{ flex: 1, minHeight: TOUCH + 8, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Txt size="heading" color={active === tab.key ? k.tekhelet : k.muted}>{tab.icon}</Txt>
+              <Txt size="small" bold color={active === tab.key ? k.tekhelet : k.muted}>{tab.label}</Txt>
+              {tab.badge ? <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: k.pomegranate, alignItems: 'center', justifyContent: 'center' }}><Txt size="caption" bold color="#FFFFFF" style={{ textAlign: 'center', lineHeight: 18 }}>{tab.badge}</Txt></View> : null}
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    </SafeAreaView>
+  );
+}

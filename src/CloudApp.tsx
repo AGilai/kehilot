@@ -16,6 +16,7 @@ import { ForgotPassword } from './views/auth/ForgotPassword.tsx';
 import { AuthFrame } from './views/auth/Frame.tsx';
 import { GuestHome } from './views/GuestHome.tsx';
 import { Join } from './views/Join.tsx';
+import { Main } from './views/Main.tsx';
 import { useIncomingLink } from './views/useIncomingLink.ts';
 import { KehilaSwitcher } from './views/KehilaSwitcher.tsx';
 import { NoKehila } from './views/NoKehila.tsx';
@@ -86,14 +87,18 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
     return <Join code={code} onAccept={() => acceptInvite(code).then(() => { setTyped(null); link.clear(); })} onClose={() => { setTyped(null); link.clear(); }} />;
   }
   if (route === 'none') return <NoKehila onCode={setTyped} error={state.joinError ? errText({ code: state.joinError }) : null} onDismissError={dismissJoinError} />;
+  const banner = state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null;
+  const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} />;
+  if (route === 'ready' && state.kehila && state.kehila.role !== 'listener') {
+    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} />{sheet}</>;
+  }
   return (
     <Screen>
       <TopBar onOpenSwitcher={() => setSwitcher(true)} />
-      {state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null}
+      {banner}
       {route === 'ready' && state.kehila?.role === 'listener' ? <GuestHome /> : null}
-      {route === 'ready' && state.kehila && state.kehila.role !== 'listener' ? <Txt>{t('session.home')}</Txt> : null}
       <Button kind="secondary" title={t('auth.profile.signOut')} onPress={() => void signOut()} />
-      <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} />
+      {sheet}
     </Screen>
   );
 }

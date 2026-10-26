@@ -281,3 +281,20 @@ test('start works destructured; pollNow success resets backoff', async () => {
   assert.equal(h.sleeps.at(-1), 10000);
   stop();
 });
+
+import { markReadLocal, mergeReplies } from '../src/client/feed.ts';
+
+test('mergeReplies dedupes by replyId and keeps order', () => {
+  const r = (id: string) => ({ replyId: id, authorId: 'u1', authorName: 'דנה בדויה', body: id, createdAt: '2026-10-26T10:00:00Z' });
+  const s0 = { ...feedFromMessages([]), replies: { m1: [r('r1')] } };
+  const s1 = mergeReplies(s0, 'm1', [r('r1'), r('r2')]);
+  assert.deepEqual(s1.replies.m1!.map(x => x.replyId), ['r1', 'r2']);
+  assert.deepEqual(mergeReplies(s1, 'm1', [r('r2')]).replies.m1!.map(x => x.replyId), ['r1', 'r2']);
+});
+
+test('markReadLocal sets read once and ignores unknown messages', () => {
+  const m = { messageId: 'm1', channelId: 'c', type: 'weekly' as const, title: '', body: '', authorId: 'a', authorName: 'x', authorKind: 'management' as const, joinCount: 0 };
+  const s = markReadLocal(feedFromMessages([m]), 'm1');
+  assert.equal(s.messages.m1!.read, true);
+  assert.equal(markReadLocal(s, 'zz'), s);
+});

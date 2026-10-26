@@ -202,7 +202,9 @@
     "haveAccount": "כבר יש לי חשבון",
     "accept": "הצטרפות",
     "later": "לא עכשיו",
-    "back": "חזרה"
+    "back": "חזרה",
+    "celebration": "מצטרף לברכות ({n})",
+    "condolence": "משתתף בצער"
   },
   "guest": {
     "requestTitle": "בקשת חברות",
@@ -217,5 +219,91 @@
     "lockedChat": "שיחות וערוצי קבוצות",
     "lockedDirectory": "מדריך החברים",
     "lockedPosting": "פרסום הודעות בערוצים"
+  },
+  "tabs": {
+    "home": "בית",
+    "messages": "הודעות"
+  },
+  "home": {
+    "greeting": "שלום, {name}",
+    "greetingAnon": "טוב להיות בקהילה",
+    "zmanimTitle": "זמני היום · פתח תקווה",
+    "next": "הזמן הבא היום",
+    "nextCached": "הזמן הבא היום · נשמר במכשיר",
+    "offlineNote": "אין חיבור למקור הזמנים. מוצגים זמנים שנשמרו להיום.",
+    "zmanimError": "לא ניתן לטעון את זמני היום. בדקו את החיבור ונסו שוב.",
+    "shabbat": "לקראת שבת",
+    "shabbatToday": "היום מקבלים את השבת",
+    "shabbatError": "לא ניתן לטעון את זמני כניסת השבת כרגע.",
+    "candles": "הדלקת נרות",
+    "petahTikva": "פתח תקווה",
+    "telAviv": "תל אביב",
+    "latest": "מה חדש בקהילה",
+    "allMessages": "לכל ההודעות",
+    "noMessages": "כאן יופיעו ההודעות מהגבאים.",
+    "signOut": "יציאה"
+  },
+  "zmanim": {
+    "sunrise": "הנץ החמה",
+    "sofZmanShma": "סוף זמן קריאת שמע",
+    "sofZmanTfilla": "סוף זמן תפילה",
+    "minchaGedola": "מנחה גדולה",
+    "plagHaMincha": "פלג המנחה",
+    "sunset": "שקיעה",
+    "nightfall": "צאת הכוכבים"
+  },
+  "messages": {
+    "title": "הודעות",
+    "filterMine": "שלי",
+    "filterAll": "הכול",
+    "allChannels": "כל הערוצים",
+    "muted": "מושתק",
+    "unread": "לא נקראה",
+    "empty": "הודעות חדשות מהגבאים יופיעו כאן.",
+    "loading": "טוען הודעות…",
+    "new": "הודעה חדשה",
+    "today": "היום",
+    "chat": "שיחה",
+    "imageLoadError": "לא ניתן לטעון את התמונה",
+    "imageAlt": "תמונה מצורפת",
+    "chatEmpty": "אין עדיין הודעות בשיחה.",
+    "chatPlaceholder": "כתיבת הודעה",
+    "me": "אני"
+  },
+  "detail": {
+    "back": "חזרה להודעות",
+    "from": "מאת {name}",
+    "delete": "מחק",
+    "deleteTitle": "למחוק את ההודעה?",
+    "deleteBody": "ההודעה תימחק לכל הקהילה.",
+    "deleteYes": "מחיקה",
+    "joined": "הצטרפתם",
+    "notFound": "ההודעה כבר לא קיימת.",
+    "received": "ברכות שהגיעו",
+    "sent": "נשלחה למשפחה בלבד",
+    "replyTitle": "ברכה אישית למשפחה",
+    "replyPlaceholder": "כתבו ברכה למשפחה",
+    "lock": "יגיע למשפחת {name} בלבד. לא יוצג לשאר הקהילה.",
+    "send": "שליחה",
+    "familyGone": "המשפחה כבר לא בקהילה, ולכן אי אפשר לשלוח ברכה.",
+    "notAllowed": "אי אפשר לשלוח ברכה פרטית להודעה הזאת."
+  },
+  "chip": {
+    "celebration": "{n} חברים שלחו ברכה פרטית למשפחת {name}",
+    "condolence": "{n} חברים שלחו ברכה פרטית למשפחת {name}",
+    "formerMember": "חבר שעזב"
+  },
+  "composer": {
+    "send": "שליחה",
+    "emoji": "אימוג׳י",
+    "emojiTitle": "בחירת אימוג׳י",
+    "emojiGroup": {
+      "smileys": "פרצופים",
+      "hearts": "לבבות",
+      "celebration": "שמחה",
+      "hands": "ידיים",
+      "nature": "טבע ופרחים",
+      "symbols": "סמלים"
+    }
   }
 }

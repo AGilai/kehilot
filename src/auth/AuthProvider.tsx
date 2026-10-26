@@ -5,7 +5,7 @@ import { config } from '../config.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { createHttp } from '../client/http.ts';
 import { endpoints } from '../client/endpoints.ts';
-import { assertFixturesAllowed, createFixtureApi, fixtureParams } from '../client/fixtures.ts';
+import { FIXTURE_APP_SCREENS, assertFixturesAllowed, createFixtureApi, fixtureParams } from '../client/fixtures.ts';
 import * as cognito from './cognito.ts';
 import { AuthError } from './cognito.ts';
 import { signInSrp } from './srp.ts';
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (config.fixtures) {
       assertFixturesAllowed();
       const p = fixtureParams();
-      return { fixtures: true as const, api: createFixtureApi(p.role, p.screen), startSignedIn: !p.screen || p.screen === 'profile' || p.screen === 'switcher' };
+      return { fixtures: true as const, api: createFixtureApi(p.role, p.screen, p.lang), startSignedIn: !p.screen || FIXTURE_APP_SCREENS.includes(p.screen) };
     }
     const storage = createStorage();
     const onOut = () => forcedOut.current();

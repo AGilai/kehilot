@@ -1,10 +1,10 @@
 import type { KeyValue } from '../auth/tokens.ts';
 import type { endpoints } from './endpoints.ts';
 import { ApiCodeError } from './errors.ts';
-import { applyChanges, createPoller, emptyFeed, feedFromMessages, realSleep } from './feed.ts';
+import { applyChanges, createPoller, emptyFeed, feedFromMessages, markReadLocal, mergeReplies, realSleep } from './feed.ts';
 import type { FeedState, Sleep } from './feed.ts';
 import type { PendingInvite } from './links.ts';
-import type { Channel, Kehila, Lang, Me } from './types.ts';
+import type { Channel, Kehila, Lang, Me, Reply } from './types.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -146,6 +146,52 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return true;
   }
 
+  /** Message actions on the open Kehila. Each drops its result if the Kehila changed or the store was reset. */
+  function current(): { gen: number; k: string } | null {
+    return state.kehilaId ? { gen: state.generation, k: state.kehilaId } : null;
+  }
+  const still = (c: { gen: number; k: string }) => guard(c.gen) && state.kehilaId === c.k;
+
+  /** Marks a message read at once on screen, then tells the server (a failure is retried on the next open). */
+  async function markRead(m: string): Promise<void> {
+    const c = current();
+    if (!c || state.feed.messages[m]?.read) return;
+    set({ feed: markReadLocal(state.feed, m) });
+    try { await api.markRead(c.k, m); } catch { /* the next open tries again */ }
+  }
+
+  /** Replies live in memory only (feed.replies); never written to storage. */
+  async function loadReplies(m: string): Promise<void> {
+    const c = current();
+    if (!c) return;
+    const list = await api.replies(c.k, m);
+    if (still(c)) set({ feed: mergeReplies(state.feed, m, list) });
+  }
+
+  /** The posted reply is added at once from the response; the feed bringing it again is deduplicated. */
+  async function sendReply(m: string, body: string): Promise<Reply | null> {
+    const c = current();
+    if (!c) return null;
+    const reply = await api.postReply(c.k, m, body);
+    if (still(c)) set({ feed: mergeReplies(state.feed, m, [reply]) });
+    return reply;
+  }
+
+  async function join(m: string): Promise<void> {
+    const c = current();
+    if (!c) return;
+    const r = await api.join(c.k, m);
+    const msg = state.feed.messages[m];
+    if (still(c) && msg) set({ feed: { ...state.feed, messages: { ...state.feed.messages, [m]: { ...msg, joinCount: r.joinCount } } } });
+  }
+
+  async function removeMessage(m: string): Promise<void> {
+    const c = current();
+    if (!c) return;
+    await api.removeMessage(c.k, m);
+    if (still(c)) set({ feed: applyChanges(state.feed, [{ kind: 'message_removed', id: m, item: { id: m } }]) });
+  }
+
   function reset(): void {
     poller.stop();
     state = empty(state.generation + 1);
@@ -156,6 +202,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
     loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, reset, guard,
+    markRead, loadReplies, sendReply, join, removeMessage,
     pollNow: () => poller.pollNow(),
   };
 }

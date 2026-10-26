@@ -166,3 +166,30 @@ test('feed.loaded stays false while the initial load fails', async () => {
   assert.equal(store.getState().feed.loaded, false);
   store.reset();
 });
+
+test('reply posted is appended at once, kept in memory only, deduplicated; markRead is local first', async () => {
+  const reply = { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'מזל טוב', createdAt: '2026-10-26T10:00:00Z' };
+  const msg = { messageId: 'M1', channelId: 'c1', type: 'celebration', title: 't', body: 'b', authorId: 'a', authorName: 'x', authorKind: 'management', joinCount: 0, targetMemberId: 'u9' };
+  const reads: string[] = [];
+  const { api } = fakeApi(meOf(['k1']), {
+    changes: async () => ({ cursor: 'c', more: false, changes: [] }),
+    messages: async () => [msg],
+    postReply: async () => reply,
+    markRead: async (_k: string, m: string) => { reads.push(m); },
+  });
+  const storage = memory();
+  const store = createStore(api, storage, { isActive: () => false });
+  await store.start();
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(store.getState().feed.loaded, true);
+  await store.sendReply('M1', 'מזל טוב');
+  await store.sendReply('M1', 'מזל טוב'); // the same reply arriving again
+  assert.deepEqual(store.getState().feed.replies.M1, [reply]);
+  await store.markRead('M1');
+  assert.equal(store.getState().feed.messages.M1!.read, true);
+  assert.deepEqual(reads, ['M1']);
+  await store.markRead('M1');
+  assert.deepEqual(reads, ['M1']);
+  assert.ok(![...storage.data.values()].some(v => v.includes('מזל טוב')), 'reply text must not be stored');
+  store.reset();
+});

@@ -6,9 +6,10 @@ import { setSessionStoreReset, useAuth } from '../auth/AuthProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { createLogoCache } from './logoCache.ts';
 import { pendingInvite } from './pendingStore.ts';
+import { createImageUrls } from '../media/imageUrl.ts';
 import { createStore } from './store.ts';
 import type { Route, StoreState } from './store.ts';
-import type { Lang } from './types.ts';
+import type { Lang, Reply } from './types.ts';
 
 const storage: KeyValue = {
   get: (k) => AsyncStorage.getItem(k),
@@ -31,6 +32,14 @@ export type SessionApi = {
   dismissJoinError(): void;
   /** Re-run the start sequence after an error. */
   retry(): void;
+  /** Message actions in the open Kehila (see the store). */
+  markRead(messageId: string): Promise<void>;
+  loadReplies(messageId: string): Promise<void>;
+  sendReply(messageId: string, body: string): Promise<Reply | null>;
+  join(messageId: string): Promise<void>;
+  removeMessage(messageId: string): Promise<void>;
+  /** A fresh-enough presigned URL for a message image, or null when it has none. Memory only. */
+  imageUrl(messageId: string): Promise<string | null>;
 };
 
 const SessionContext = React.createContext<SessionApi | null>(null);
@@ -39,7 +48,8 @@ const SessionContext = React.createContext<SessionApi | null>(null);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { api } = useAuth();
   const { setLang } = useI18n();
-  const store = React.useMemo(() => createStore(api, storage, { pending: pendingInvite }), [api]);
+  const store = React.useMemo(() => createStore(api, storage, { pending: pendingInvite, isActive: () => AppState.currentState === 'active' }), [api]);
+  const images = React.useMemo(() => createImageUrls(api), [api]);
   const logos = React.useMemo(() => createLogoCache(storage), []);
   const logo = React.useCallback((k: string, v: string | null) => logos.get(api, k, v), [logos, api]);
   const state = React.useSyncExternalStore(store.subscribe, store.getState, store.getState);
@@ -48,8 +58,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     setSessionStoreReset(() => store.reset());
-    return () => { setSessionStoreReset(() => {}); store.reset(); };
-  }, [store]);
+    return () => { setSessionStoreReset(() => {}); store.reset(); images.clear(); };
+  }, [store, images]);
 
   React.useEffect(() => {
     const gen = store.getState().generation;
@@ -65,6 +75,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const sub = AppState.addEventListener('change', async (s) => {
       if (s !== 'active') return;
+      void store.pollNow(); // catch up at once; the poll is paused while the app is in the background
       const gen = store.getState().generation;
       try {
         if (!(await store.loadMe())) return;
@@ -95,7 +106,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     requestMembership: () => store.requestMembership(),
     dismissJoinError: () => store.clearJoinError(),
     retry: () => setAttempt(a => a + 1),
-  }), [state, route, logo, store]);
+    markRead: m => store.markRead(m),
+    loadReplies: m => store.loadReplies(m),
+    sendReply: (m, body) => store.sendReply(m, body),
+    join: m => store.join(m),
+    removeMessage: m => store.removeMessage(m),
+    imageUrl: async m => { const k = store.getState().kehilaId; return k ? images.get(k, m) : null; },
+  }), [state, route, logo, store, images]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

@@ -56,6 +56,21 @@ export function applyChanges(state: FeedState, changes: Change[]): FeedState {
   return { messages, order, replies, loaded: state.loaded };
 }
 
+/** Adds replies fetched for one message; deduplicated by replyId, kept in the order they arrived. */
+export function mergeReplies(state: FeedState, messageId: string, list: Reply[]): FeedState {
+  const have = state.replies[messageId] ?? [];
+  const seen = new Set(have.map(r => r.replyId));
+  const fresh = list.filter(r => !seen.has(r.replyId) && seen.add(r.replyId));
+  if (fresh.length === 0 && messageId in state.replies) return state;
+  return { ...state, replies: { ...state.replies, [messageId]: [...have, ...fresh] } };
+}
+
+export function markReadLocal(state: FeedState, messageId: string): FeedState {
+  const m = state.messages[messageId];
+  if (!m || m.read) return state;
+  return { ...state, messages: { ...state.messages, [messageId]: { ...m, read: true } } };
+}
+
 /** What the poller hands to the store: a full replacement (initial load, resync) or a page of changes. */
 export type Update = { replace: Message[] } | { clear: true } | { changes: Change[] };
 
