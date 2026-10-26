@@ -187,6 +187,30 @@
     "codeSubmit": "Continue",
     "codeInvalid": "The code or link is not valid"
   },
+  "prefs": {
+    "title": "Notification preferences",
+    "back": "Back",
+    "banner": "Muting affects notifications only",
+    "permOff": "Notifications are off on this device. To receive them, allow them in the device settings.",
+    "openSettings": "Open device settings",
+    "channels": "Channels",
+    "channelOff": "You will not get a notification for messages in this channel. The messages still appear in the app.",
+    "types": "Message types",
+    "typeOff": "You will not get a notification for this type of message. The messages still appear in the app.",
+    "members": "Member broadcasts",
+    "membersLabel": "Notify me about member broadcasts",
+    "membersOff": "You will be notified only for messages from the management. Member broadcasts still appear in the app.",
+    "muted": "Muted members",
+    "mutedNone": "You have not muted any member.",
+    "unmute": "Unmute",
+    "unmuteOf": "Unmute {name}",
+    "unknownMember": "A community member",
+    "locked": "Private blessings to you always reach you",
+    "chat": "Conversations",
+    "chatOff": "You will see the messages in the app, without a notification",
+    "chatNone": "No conversations are available to you.",
+    "noChannels": "No channels to show."
+  },
   "topbar": {
     "switch": "Switch community",
     "bell": "Notifications",
@@ -290,6 +314,8 @@
     "send": "Send",
     "familyGone": "The family is no longer in the Kehila, so a blessing cannot be sent.",
     "notAllowed": "A private blessing cannot be sent for this message.",
+    "muteMember": "Mute notifications from this member",
+    "unmuteMember": "Unmute this member",
     "offlineCopy": "Offline copy: shown from this device, without replies or actions."
   },
   "chip": {

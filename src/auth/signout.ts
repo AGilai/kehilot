@@ -2,6 +2,8 @@ export type LocalSignOutDeps = {
   clearTokens: () => Promise<void>;
   /** Drops the pending invite code (kehilot.pendingInvite) so the next account cannot accept it. */
   clearPending?: () => Promise<void>;
+  /** Removes the stored push token (kehilot.pushToken). */
+  clearPush?: () => Promise<void>;
   /** The on-phone message cache, the image cache and the share files (Task 12b). */
   wipeCaches: () => Promise<void>;
   /** Session store reset. */
@@ -21,7 +23,7 @@ export type SignOutDeps = LocalSignOutDeps & {
  */
 export async function localSignOut(d: LocalSignOutDeps): Promise<void> {
   try {
-    for (const step of [d.clearTokens, d.clearPending, d.wipeCaches]) {
+    for (const step of [d.clearTokens, d.clearPending, d.clearPush, d.wipeCaches]) {
       try { await step?.(); } catch { /* storage failure must not block the sign-out */ }
     }
   } finally { d.resetStore(); d.done?.(); }

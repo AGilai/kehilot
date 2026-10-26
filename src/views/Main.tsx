@@ -12,6 +12,7 @@ import { Compose } from './Compose.tsx';
 import type { ComposeInitial } from './Compose.tsx';
 import { ChatView } from './ChatView.tsx';
 import { Home } from './Home.tsx';
+import { NotifyPrefs } from './NotifyPrefs.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
 import { Messages } from './Messages.tsx';
 import { Search } from './Search.tsx';
@@ -24,7 +25,8 @@ type Nav =
   | { tab: 'search' }
   | { tab: 'detail'; id: string; from: 'home' | 'messages' | 'search' }
   | { tab: 'chat'; channelId: string }
-  | { tab: 'compose' };
+  | { tab: 'compose' }
+  | { tab: 'prefs'; from: 'home' | 'messages' };
 
 /** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat opens that screen. */
 function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter; compose?: ComposeInitial } | null {
@@ -38,22 +40,33 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
+  if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetId: '01FIXTUREUSER00000000002' } };
   if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };
   return null;
 }
 
 /** The signed-in app for members and gabbaim: top bar, the open screen, and the bottom tabs. */
-export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; banner?: React.ReactNode }) {
+export function Main({ onOpenSwitcher, banner, pushOpen }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** A tapped push: open this message, or Home (screens that do not exist yet). `n` makes a repeat tap count. */ pushOpen?: { n: number; messageId?: string } | null }) {
   const { t } = useI18n();
   const k = useTokens();
   const { state } = useSession();
   const [nav, setNav] = React.useState<Nav>({ tab: 'home' });
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
   const [composeInitial, setComposeInitial] = React.useState<ComposeInitial | undefined>(undefined);
-  const [toast, setToast] = React.useState(false);
+  const [toast, setToast] = React.useState<string | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
+  const showToast = React.useCallback((text: string) => {
+    setToast(text);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+  }, []);
+  // A tapped push opens the message, or Home when there is none (the approvals screens come later).
+  React.useEffect(() => {
+    if (!pushOpen) return;
+    setNav(pushOpen.messageId ? { tab: 'detail', id: pushOpen.messageId, from: 'messages' } : { tab: 'home' });
+  }, [pushOpen]);
   const jumped = React.useRef(false);
   const [searchQ, setSearchQ] = React.useState(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''));
 
@@ -67,7 +80,7 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
 
   const kehila = state.kehila;
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const active: 'home' | 'messages' = nav.tab === 'home' || (nav.tab === 'detail' && nav.from === 'home') ? 'home' : 'messages';
+  const active: 'home' | 'messages' = nav.tab === 'home' || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = [
     { key: 'home' as const, label: t('tabs.home'), icon: '⌂', badge: 0 },
     { key: 'messages' as const, label: t('tabs.messages'), icon: '✉', badge: unread },
@@ -87,13 +100,14 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
     case 'detail':
       body = <MessageDetail key={nav.id} messageId={nav.id} onBack={() => setNav({ tab: nav.from })} />;
       break;
+    case 'prefs':
+      body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
+      break;
     case 'compose':
       body = <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
         onPublished={id => {
           setNav({ tab: 'detail', id, from: 'messages' });
-          setToast(true);
-          if (toastTimer.current) clearTimeout(toastTimer.current);
-          toastTimer.current = setTimeout(() => setToast(false), 2500);
+          showToast(t('compose.published'));
         }} />;
       break;
     case 'chat':
@@ -104,7 +118,7 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       <View style={{ paddingHorizontal: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        <TopBar onOpenSwitcher={onOpenSwitcher} />
+        <TopBar onOpenSwitcher={onOpenSwitcher} onBell={() => setNav({ tab: 'prefs', from: active })} />
         {banner}
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>{body}</KeyboardAvoidingView>
@@ -121,7 +135,7 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
           </Pressable>
         ))}
       </View>
-      <Toast text={t('compose.published')} visible={toast} />
+      <Toast text={toast ?? ''} visible={toast !== null} />
     </SafeAreaView>
   );
 }

@@ -13,7 +13,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image'];
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -56,7 +56,10 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   const kehila: Kehila = {
     kehilaId: '01FIXTUREKEHILA0000000001', name: 'קהילת בדיוני', role, classification: '', logoVersion: null,
     canBroadcast: role === 'gabbai', pendingRequest: false,
-    notify: { mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [] },
+    // ?screen=m5 shows M5 with some choices already made (one muted channel, type and member).
+    notify: screen === 'm5'
+      ? { mutedChannels: ['01FIXTURECHANNEL00000002'], mutedTypes: ['event'], membersBroadcasts: 'management_only', mutedMembers: ['m1'], chatChannels: [] }
+      : { mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [] },
     groups: [], adminGroups: [], settings: { pollSeconds: 60 },
   };
   const me = {
@@ -137,6 +140,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   // Invite previews (public): 7K3M9Q2XPA is valid, 4D8F2H6NRT has expired. Same codes as views/useIncomingLink.ts.
   routes['GET /v1/invites/7K3M9Q2XPA'] = { kehilaName: kehila.name, role: 'member', expiresAt: '2026-11-20T12:00:00.000Z' };
   routes[`POST /v1/kehilot/${kehila.kehilaId}/membership-request`] = {};
+  routes[`PUT /v1/kehilot/${kehila.kehilaId}/me/notify`] = {};
   const http: Http = {
     async request(method, path, body) {
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');

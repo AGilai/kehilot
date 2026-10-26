@@ -22,7 +22,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const k = useTokens();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const errText = useErrorText();
-  const { state, markRead, loadReplies, sendReply, join, removeMessage, loadHit } = useSession();
+  const { state, markRead, loadReplies, sendReply, join, removeMessage, loadHit, setNotify } = useSession();
   const { feed, kehila, me, channels } = state;
   // An older message (a search hit) is not in the feed: it is fetched and held here, never added to the list.
   const [hit, setHit] = React.useState<Hit | undefined>(undefined);
@@ -85,6 +85,9 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const chip = replierChip(message, t);
   const showBox = canReply(message, me.userId, role) && !blocked;
   const canJoin = (message.type === 'celebration' || message.type === 'condolence') && role !== 'listener' && !isTarget;
+  // Mute (or unmute) notifications from the member who broadcast this; it never hides the message.
+  const canMute = message.authorKind === 'member' && message.type !== 'chat' && message.authorId !== me.userId;
+  const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);
   const canDelete = message.authorId === me.userId || role === 'gabbai';
   const familyName = message.targetName?.trim() || t('chip.formerMember');
   const channelName = channels.find(c => c.channelId === message.channelId)?.name ?? '';
@@ -104,6 +107,11 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
       if (HIDES_BOX.includes(code)) setBlocked(code);
       else setError(errText(e));
     } finally { setBusy(false); }
+  }
+  async function doMute() {
+    setError(null);
+    const list = kehila!.notify.mutedMembers.filter(x => x !== message!.authorId);
+    try { await setNotify({ mutedMembers: authorMuted ? list : [...list, message!.authorId] }); } catch (e) { setError(errText(e)); }
   }
   async function doDelete() {
     setConfirm(false);
@@ -157,6 +165,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
         </View>
       ) : null}
 
+      {canMute ? <Button kind="secondary" title={authorMuted ? t('detail.unmuteMember') : t('detail.muteMember')} onPress={() => void doMute()} /> : null}
       {canDelete ? <Button kind="danger" title={t('detail.delete')} onPress={() => setConfirm(true)} /> : null}
       <Sheet visible={confirm} title={t('detail.deleteTitle')} onClose={() => setConfirm(false)}>
         <Txt>{t('detail.deleteBody')}</Txt>

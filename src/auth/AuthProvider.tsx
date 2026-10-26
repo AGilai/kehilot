@@ -15,6 +15,7 @@ import { createSignOut, localSignOut, resolveStart } from './signout.ts';
 import { wipeCaches } from '../search/platform.ts';
 import { pendingInvite } from '../client/pendingStore.ts';
 import { normEmail } from './validate.ts';
+import { PUSH_TOKEN_KEY } from '../client/push.ts';
 
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn' | 'offline';
 export type Api = ReturnType<typeof endpoints>;
@@ -26,7 +27,8 @@ export function setSessionStoreReset(fn: () => void): void {
   resetSessionStore = fn;
 }
 
-// Task 12 hook point: the push registration code reports the current device token (kept in memory only).
+// The push registration code (client/push.ts) reports the device token here; it is also stored under
+// kehilot.pushToken, which sign-out falls back to after an app restart.
 let pushToken: string | null = null;
 export function setPushToken(token: string | null): void {
   pushToken = token;
@@ -89,14 +91,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { fixtures: false as const, storage, tokens, api: endpoints(http) };
   }, []);
 
+  const clearPush = React.useCallback(async () => {
+    pushToken = null;
+    if (!core.fixtures) await core.storage.remove(PUSH_TOKEN_KEY);
+  }, [core]);
+
   // One local clean-up for every sign-out path (user, forced, account deleted).
   const cleanup = React.useCallback(() => localSignOut({
     clearTokens: () => (core.fixtures ? Promise.resolve() : core.tokens.clear()),
     clearPending: () => pendingInvite.clear(),
+    clearPush,
     wipeCaches,
     resetStore: () => { setPendingNames(null); resetSessionStore(); },
     done: () => setStatus('signedOut'),
-  }), [core]);
+  }), [core, clearPush]);
   forcedOut.current = () => { void cleanup(); };
 
   const start = React.useCallback(async () => {
@@ -141,18 +149,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async signOut() {
         if (core.fixtures) { await cleanup(); return; }
         await createSignOut({
-          deleteDevice: async () => { if (pushToken) await core.api.deleteDevice(pushToken); },
+          deleteDevice: async () => {
+            const token = pushToken ?? await core.storage.get(PUSH_TOKEN_KEY).catch(() => null);
+            if (token) await core.api.deleteDevice(token);
+          },
           revoke: async () => {
             const rt = await core.storage.get(REFRESH_KEY).catch(() => null);
             if (rt) await cognito.revoke(rt);
           },
-          clearTokens: () => core.tokens.clear(), clearPending: () => pendingInvite.clear(), wipeCaches,
+          clearTokens: () => core.tokens.clear(), clearPending: () => pendingInvite.clear(), clearPush, wipeCaches,
           resetStore: () => { setPendingNames(null); resetSessionStore(); }, done: () => setStatus('signedOut'),
         })();
       },
       async retry() { setStatus('loading'); await start(); },
     };
-  }, [core, status, pendingNames, cleanup, start]);
+  }, [core, status, pendingNames, cleanup, clearPush, start]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

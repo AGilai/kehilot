@@ -4,11 +4,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Banner } from './kit/components.tsx';
 import { useErrorText } from './views/auth/Frame.tsx';
-import { AuthProvider, useAuth } from './auth/AuthProvider.tsx';
+import { AuthProvider, setPushToken, useAuth } from './auth/AuthProvider.tsx';
 import { config } from './config.ts';
 import { fixtureParams } from './client/fixtures.ts';
 import { rememberOnIntent } from './client/links.ts';
 import { pendingInvite } from './client/pendingStore.ts';
+import { listenForPush, registerPush } from './client/push.ts';
 import { SessionProvider, useSession } from './client/SessionProvider.tsx';
 import { I18nProvider, useI18n } from './i18n/I18nProvider.tsx';
 import { Button, Screen, Txt, useAppFonts, useTokens } from './kit/components.tsx';
@@ -61,8 +62,8 @@ function SignedOutFlow({ start }: { start?: 'register' | 'signin' }) {
 /** Signed in: the session flow (profile, Kehila choice) and, once a Kehila is open, its screens. */
 function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const { t } = useI18n();
-  const { signOut } = useAuth();
-  const { route, retry, state, acceptInvite, dismissJoinError } = useSession();
+  const { signOut, api, fixtures } = useAuth();
+  const { route, retry, state, acceptInvite, dismissJoinError, select, pollNow } = useSession();
   const k = useTokens();
   const errText = useErrorText();
   const [switcher, setSwitcher] = React.useState(false);
@@ -72,6 +73,37 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   React.useEffect(() => {
     if (link.code && route === 'setup') { void pendingInvite.set(link.code).then(() => link.clear()); }
   }, [link, route]);
+  const ready = route === 'ready';
+  const hasKehila = state.kehilaId !== null;
+
+  // Push registration is offered once the first Kehila is open (never on the sign-in screens).
+  React.useEffect(() => {
+    if (!ready || !hasKehila || fixtures) return;
+    void registerPush(api, { onToken: setPushToken }).catch(() => { /* push is optional; M5 shows the state */ });
+  }, [ready, hasKehila, fixtures, api]);
+
+  // A push while the app is open polls at once; a tap opens its Kehila and message. Unknown Kehilot are ignored.
+  const live = React.useRef({ state, select, pollNow });
+  live.current = { state, select, pollNow };
+  const [pushOpen, setPushOpen] = React.useState<{ n: number; messageId?: string } | null>(null);
+  const pushCount = React.useRef(0);
+  React.useEffect(() => {
+    if (!ready || fixtures) return;
+    let off: (() => void) | undefined;
+    let stopped = false;
+    void listenForPush({
+      onReceive: () => { void live.current.pollNow(); },
+      onOpen: async r => {
+        const cur = live.current;
+        if (!r || !cur.state.me?.kehilot.some(x => x.kehilaId === r.kehila)) return;
+        try { if (cur.state.kehilaId !== r.kehila) await cur.select(r.kehila); } catch { return; }
+        // `screen` (requests, group_requests) has no screen yet: Home. Otherwise the message.
+        setPushOpen({ n: ++pushCount.current, messageId: r.screen ? undefined : r.messageId });
+      },
+    }).then(f => { if (stopped) f(); else off = f; }, () => {});
+    return () => { stopped = true; off?.(); };
+  }, [ready, fixtures]);
+
   if (route === 'loading') {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
@@ -91,7 +123,7 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const banner = state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null;
   const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} />;
   if (route === 'ready' && state.kehila && state.kehila.role !== 'listener') {
-    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} />{sheet}</>;
+    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushOpen={pushOpen} />{sheet}</>;
   }
   return (
     <Screen>

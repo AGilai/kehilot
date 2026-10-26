@@ -9,7 +9,7 @@ import { createMessageCache, pruneKehilot } from '../search/cache.ts';
 import { resolveHit } from '../search/hit.ts';
 import type { Hit } from '../search/hit.ts';
 import type { CacheStore, CachedMessage, MessageCache } from '../search/cache.ts';
-import type { Change, Channel, Message, Kehila, Lang, Me, PostMessageBody, Reply, UploadGrant } from './types.ts';
+import type { Change, Channel, Message, Kehila, Lang, Me, NotifyPrefs, PostMessageBody, Reply, UploadGrant } from './types.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -327,6 +327,28 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return api.requestUpload(c.k, o);
   }
 
+  /**
+   * Notification preferences (M5): shown at once, sent at once, and only the fields of this change go back to
+   * their old values when the server refuses (the error is rethrown for the toast).
+   */
+  async function setNotify(partial: Partial<NotifyPrefs>): Promise<void> {
+    const gen = state.generation;
+    const k = state.kehilaId;
+    const kehila = state.kehila;
+    if (!k || !kehila) return;
+    const prev = kehila.notify;
+    set({ kehila: { ...kehila, notify: { ...prev, ...partial } } });
+    try { await api.putNotify(k, partial); } catch (e) {
+      const cur = state.kehila;
+      if (guard(gen) && cur && state.kehilaId === k) {
+        const back = {} as Record<string, unknown>;
+        for (const f of Object.keys(partial) as (keyof NotifyPrefs)[]) back[f] = prev[f];
+        set({ kehila: { ...cur, notify: { ...cur.notify, ...back } } });
+      }
+      throw e;
+    }
+  }
+
   function reset(): void {
     poller.stop();
     stopBackfill.abort(); stopBackfill = new AbortController();
@@ -339,7 +361,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
     loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, cachedMessage, loadHit, reset, guard,
-    markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
+    setNotify, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };
 }

@@ -12,7 +12,7 @@ import { cacheStore } from '../search/platform.ts';
 import type { CachedMessage } from '../search/cache.ts';
 import type { Hit } from '../search/hit.ts';
 import type { Route, StoreState } from './store.ts';
-import type { DirectoryEntry, Lang, Message, PostMessageBody, Reply, UploadGrant } from './types.ts';
+import type { DirectoryEntry, Lang, Message, NotifyPrefs, PostMessageBody, Reply, UploadGrant } from './types.ts';
 
 const storage: KeyValue = {
   get: (k) => AsyncStorage.getItem(k),
@@ -35,6 +35,10 @@ export type SessionApi = {
   dismissJoinError(): void;
   /** Re-run the start sequence after an error. */
   retry(): void;
+  /** Poll the change feed now (a push arrived). */
+  pollNow(): Promise<void>;
+  /** M5: optimistic notification-preference change; rejects (after reverting) when the server refuses. */
+  setNotify(partial: Partial<NotifyPrefs>): Promise<void>;
   /** Message actions in the open Kehila (see the store). */
   markRead(messageId: string): Promise<void>;
   loadReplies(messageId: string): Promise<void>;
@@ -121,6 +125,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     requestMembership: () => store.requestMembership(),
     dismissJoinError: () => store.clearJoinError(),
     retry: () => setAttempt(a => a + 1),
+    pollNow: () => store.pollNow(),
+    setNotify: p => store.setNotify(p),
     markRead: m => store.markRead(m),
     loadReplies: m => store.loadReplies(m),
     sendReply: (m, body) => store.sendReply(m, body),
