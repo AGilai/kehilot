@@ -196,8 +196,14 @@ EventBridge Scheduler → `jobs` Lambda:
 - **[call]** One web app for members and the gabbai console (same Expo code; desktop layout for wide
   screens), so one distribution per environment. If the UX review decides the desktop console must be a
   separate app, add a second bucket/distribution; the module supports it.
-- Default `*.cloudfront.net` address until a domain exists **[open]**. With a domain: Route 53 zone, ACM
-  certificate in `us-east-1`, `app.<domain>` and `api.<domain>`.
+- **[decided by the user, 2026-10-26]** Domain `meyodea.com` (Route 53, same account; its apex already serves
+  another site through CloudFront and must not be touched). The app lives under the subdomain
+  `kehilot.meyodea.com`: prod `app.kehilot.meyodea.com` / `api.kehilot.meyodea.com`, dev
+  `dev.kehilot.meyodea.com` / `api.dev.kehilot.meyodea.com`. ACM certificates in `us-east-1` (CloudFront)
+  and `il-central-1` (API custom domain), validated by DNS in the subzone.
+- **[call]** The admin creates the `kehilot.meyodea.com` hosted zone once and adds its NS record to the
+  `meyodea.com` zone by hand. The deployer role gets Route 53 record rights on that one subzone only (by
+  zone ID), never on `meyodea.com`. Until then the `*.cloudfront.net` address works.
 
 ### 4.8 Observability and cost guard
 - CloudWatch log groups with 30-day retention (14 in dev).
@@ -300,8 +306,7 @@ inputs/outputs; the Cognito client library; the order of porting endpoints.
    Kehila-specific data (classification, seat allocation, aliyah history) is always per Kehila.
 2. ~~AWS account~~ — answered: existing account, dev and prod together, movable later (§7a).
 3. ~~Region~~ — answered: Tel Aviv (`il-central-1`), enabled 2026-10-26.
-4. ~~Domain~~ — answered: the user's existing domain. Still needed: which domain, and is its DNS in
-   Route 53 in the same account?
+4. ~~Domain~~ — answered: `meyodea.com`, Route 53 in the same account; app under `kehilot.meyodea.com`.
 5. **Web builds in CI**: Noam's rule forbids cloud build services. Does building the *web* bundle in
    GitHub Actions count, or must web deploys also run from a developer machine?
 6. **Who administers AWS**: the user only, or Noam too (an SSO user each)?
