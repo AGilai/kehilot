@@ -148,6 +148,49 @@ class AdminTest(unittest.TestCase):
         self.assertEqual((status, body), (409, {'error': 'last_gabbai'}))
         self.assertEqual(self.repo.get_membership(self.k, self.gabbai)['role'], 'gabbai')
 
+    def test_role_changes_only_between_member_and_gabbai(self):
+        path = f'{self.base()}/admin/members/{self.listener}'
+        self.call('POST', f'{self.base()}/membership-request', sub='listener-sub')
+        for role in ('member', 'gabbai', 'listener'):
+            self.assertEqual(self.call('PUT', path, body={'role': role}), (409, {'error': 'role_change_not_allowed'}))
+        self.assertEqual(self.repo.get_membership(self.k, self.listener)['role'], 'listener')
+        self.assertEqual(len(self.call('GET', f'{self.base()}/admin/requests')[1]), 1)
+        self.assertEqual(self.call('PUT', path, body={'role': 'boss'}), (400, {'error': 'invalid_role'}))
+        self.assertEqual(self.call('PUT', path, body={'canBroadcast': True})[0], 200)
+        member = self.user('m1')
+        self.repo.put_membership(self.k, member, 'member')
+        self.assertEqual(self.call('PUT', f'{self.base()}/admin/members/{member}', body={'role': 'listener'})[0], 409)
+        self.assertEqual(self.call('PUT', f'{self.base()}/admin/members/{member}', body={'role': 'gabbai'})[0], 200)
+
+    def test_role_change_condition_holds_in_the_write(self):
+        # the caller saw a member, but he became a listener meanwhile: the write itself refuses
+        member = self.user('m1')
+        self.repo.put_membership(self.k, member, 'listener')
+        with self.assertRaises(handler_module.ApiError) as ctx:
+            self.repo.update_member(self.k, member, 'listener', {'role': 'member'})
+        self.assertEqual(ctx.exception.code, 'try_again')
+        self.assertEqual(self.repo.get_membership(self.k, member)['role'], 'listener')
+
+    def test_bulk_broadcast_skips_member_that_changed_mid_loop(self):
+        from botocore.exceptions import ClientError
+        members = []
+        for sub in ('m1', 'm2', 'm3'):
+            user_id = self.user(sub)
+            self.repo.put_membership(self.k, user_id, 'member')
+            members.append(user_id)
+        real = self.repo.table.update_item
+        failing = f'M#{members[1]}'
+
+        def update_item(**kwargs):
+            if kwargs['Key']['sk'] == failing:
+                raise ClientError({'Error': {'Code': 'ConditionalCheckFailedException'}}, 'UpdateItem')
+            return real(**kwargs)
+        with mock.patch.object(self.repo.table, 'update_item', side_effect=update_item):
+            status, _ = self.call('PUT', f'{self.base()}/admin/broadcast', body={'allow': True})
+        self.assertEqual(status, 200)
+        flags = [bool(self.repo.get_membership(self.k, m).get('canBroadcast')) for m in members]
+        self.assertEqual(flags, [True, False, True])
+
     def test_remove_member_and_leave(self):
         member = self.user('member-sub')
         self.repo.put_membership(self.k, member, 'member')

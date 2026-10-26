@@ -200,10 +200,14 @@ class AdminRepo:
                                ExpressionAttributeValues={':a': allow})
         for item in self.list_members(k):
             if item['role'] == 'member':
-                self.table.update_item(Key=self._key(k, item['sk']), UpdateExpression='SET canBroadcast = :a',
-                                       ConditionExpression='#r = :member',
-                                       ExpressionAttributeNames={'#r': 'role'},
-                                       ExpressionAttributeValues={':a': allow, ':member': 'member'})
+                try:
+                    self.table.update_item(Key=self._key(k, item['sk']), UpdateExpression='SET canBroadcast = :a',
+                                           ConditionExpression='#r = :member',
+                                           ExpressionAttributeNames={'#r': 'role'},
+                                           ExpressionAttributeValues={':a': allow, ':member': 'member'})
+                except ClientError as error:  # removed or demoted meanwhile: skip, keep going
+                    if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                        raise
 
     # Changes to a membership. The target is checked against the role the caller saw, so a concurrent
     # change makes us answer try_again instead of overwriting it.
@@ -217,6 +221,9 @@ class AdminRepo:
         update = {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),
                   'UpdateExpression': 'SET ' + ', '.join(sets), 'ConditionExpression': '#r = :seen',
                   'ExpressionAttributeNames': names, 'ExpressionAttributeValues': values}
+        if 'role' in fields:  # never to or from listener, even if the role changed since the caller looked
+            update['ConditionExpression'] += ' AND #r IN (:member, :gabbai)'
+            values[':member'], values[':gabbai'] = 'member', 'gabbai'
         if seen_role == 'gabbai' and fields.get('role', 'gabbai') != 'gabbai':
             return self._without_last_gabbai(k, user_id, [{'Update': update}])
         self._run(k, [{'Update': update}])

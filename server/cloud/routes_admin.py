@@ -73,6 +73,8 @@ def update_member(ctx, params):
     if not fields:
         raise ApiError(400, 'invalid_body')
     target = _target(ctx, params, 'member_not_found')
+    if 'role' in fields and 'listener' in (fields['role'], target['role']):
+        raise ApiError(409, 'role_change_not_allowed')  # listeners become members only through approve
     ctx.repo.update_member(k, params['userId'], target['role'], fields)
     return 200, {}
 
