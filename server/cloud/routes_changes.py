@@ -100,7 +100,7 @@ def put_notify(ctx, params):
     k = params['k']
     membership = require(ctx.repo, ctx.user_id, k)
     d = inputs.body_object(ctx)
-    known = ('mutedChannels', 'mutedTypes', 'membersBroadcasts', 'mutedMembers')
+    known = ('mutedChannels', 'mutedTypes', 'membersBroadcasts', 'mutedMembers', 'chatChannels')
     if not any(f in d for f in known):
         raise ApiError(400, 'invalid_body')
     new = {}
@@ -109,6 +109,12 @@ def put_notify(ctx, params):
             readable = {c['sk'][2:] for c in ctx.repo.list_channels(k) if visibility.can_read_channel(membership, c)}
             return all(v in readable for v in values)
         new['mutedChannels'] = _id_list(d, 'mutedChannels', channels_ok)
+    if 'chatChannels' in d:
+        def chat_ok(values):
+            chats = {c['sk'][2:] for c in ctx.repo.list_channels(k)
+                     if c.get('conversation') and visibility.can_read_channel(membership, c)}
+            return all(v in chats for v in values)
+        new['chatChannels'] = _id_list(d, 'chatChannels', chat_ok)
     if 'mutedTypes' in d:
         new['mutedTypes'] = _id_list(d, 'mutedTypes', lambda values: all(v in TYPES for v in values))
     if 'membersBroadcasts' in d:

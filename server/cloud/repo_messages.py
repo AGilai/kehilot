@@ -10,6 +10,7 @@ from .ids import new_id
 
 CHANGE_TTL = 30 * 86400
 COUNTER_TTL = 2 * 86400
+CHAT_COUNTER_TTL = 2 * 3600
 MSG_PREFIX = 'MSG#'
 
 try:
@@ -40,19 +41,30 @@ class MessagesRepo:
     def list_channels(self, k):
         return self._query_prefix(k, 'C#')
 
-    def put_channel(self, k, name, listeners_can_read, post_policy, groups=frozenset()):
+    def put_channel(self, k, name, listeners_can_read, post_policy, groups=frozenset(), conversation=False,
+                    chat_hourly_limit=None):
         channel_id = new_id()
         item = {'pk': f'K#{k}', 'sk': f'C#{channel_id}', 'name': name,
-                'listenersCanRead': listeners_can_read, 'postPolicy': post_policy}
+                'listenersCanRead': listeners_can_read, 'postPolicy': post_policy, 'conversation': conversation}
+        if chat_hourly_limit is not None:
+            item['chatHourlyLimit'] = chat_hourly_limit
         if groups:  # a string set cannot be empty: absent means the whole Kehila
             item['groups'] = set(groups)
         self.table.put_item(Item=item)
         return item
 
-    def update_channel(self, k, channel_id, name, listeners_can_read, post_policy, groups=None):
-        """`groups=None` keeps the stored groups; an empty set removes them."""
+    def update_channel(self, k, channel_id, name, listeners_can_read, post_policy, groups=None, conversation=None,
+                       chat_hourly_limit=None):
+        """`groups=None` keeps the stored groups; an empty set removes them. `conversation=None` and
+        `chat_hourly_limit=None` keep the stored values."""
         sets = 'SET #n = :n, listenersCanRead = :l, postPolicy = :p'
         values = {':n': name, ':l': listeners_can_read, ':p': post_policy}
+        if conversation is not None:
+            sets += ', conversation = :cv'
+            values[':cv'] = conversation
+        if chat_hourly_limit is not None:
+            sets += ', chatHourlyLimit = :cl'
+            values[':cl'] = chat_hourly_limit
         if groups is not None and groups:
             sets += ', #g = :g'
             values[':g'] = set(groups)
@@ -133,6 +145,30 @@ class MessagesRepo:
             if not _failed(error, 'ConditionalCheckFailedException'):
                 raise
             raise ApiError(429, 'broadcast_limit')
+
+    def set_chat_limit(self, k, channel_id, limit):
+        try:
+            self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'C#{channel_id}'},
+                                   UpdateExpression='SET chatHourlyLimit = :l',
+                                   ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':l': limit})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+            raise ApiError(404, 'channel_not_found')
+
+    def count_chat(self, k, channel_id, user_id, hour, limit):
+        """Conditional ADD per channel, user and UTC hour (yyyymmddhh). Raises 429 rate_limited."""
+        try:
+            self.table.update_item(
+                Key={'pk': f'K#{k}', 'sk': f'CC#{channel_id}#{user_id}#{hour}'},
+                UpdateExpression='ADD #c :one SET expiresAt = :e',
+                ConditionExpression='attribute_not_exists(#c) OR #c < :limit',
+                ExpressionAttributeNames={'#c': 'count'},
+                ExpressionAttributeValues={':one': 1, ':limit': limit, ':e': int(time.time()) + CHAT_COUNTER_TTL})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+            raise ApiError(429, 'rate_limited')
 
     # messages
     def put_message(self, k, channel_id, type_, title, body, author_id, author_name, author_kind, target,

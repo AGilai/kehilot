@@ -92,6 +92,47 @@ class PushTest(unittest.TestCase):
         mgmt_msg = self.message(author='gab', kind='management')
         self.assertIn('eng', push_worker.recipients(self.repo, 'message', self.k, self.mid(mgmt_msg)))
 
+    def chat_channel(self, groups=()):
+        item = self.repo.put_channel(self.k, 'chat-room', False, 'management', groups)
+        self.repo.update_channel(self.k, item['sk'][2:], 'chat-room', False, 'management', conversation=True)
+        self.chan['chat-room'] = item['sk'][2:]
+
+    def test_chat_push_only_to_opted_in(self):
+        self.chat_channel()
+        item = self.message('chat-room', author='fam', kind='member', type_='chat')
+        ref = self.mid(item)
+        self.assertEqual(push_worker.recipients(self.repo, 'message', self.k, ref), [])
+        self.mute('eng', chatChannels=[self.chan['chat-room']])
+        self.mute('lis', chatChannels=[self.chan['chat-room']])  # a whole-Kehila channel: not readable by listeners
+        self.mute('gab', chatChannels=[self.chan['chat-room']], mutedChannels=[self.chan['chat-room']])
+        self.assertEqual(push_worker.recipients(self.repo, 'message', self.k, ref), ['eng'])
+        self.run_message(item)
+        self.assertEqual([s['to'] for s in self.sent], ['ExponentPushToken[eng]'])
+        self.assertEqual(self.sent[0]['body'], PUSH_TEXT['chat']['en'])
+        self.assertEqual(self.sent[0]['data'], {'kehila': self.k, 'messageId': ref})
+        self.mute('fam', chatChannels=[self.chan['chat-room']])
+        self.sent.clear()
+        self.run_message(self.message('chat-room', author='eng', kind='member', type_='chat'))
+        self.assertIn(PUSH_TEXT['chat']['he'], [s['body'] for s in self.sent])
+        self.assertEqual(PUSH_TEXT['chat'], {'he': 'הודעה חדשה בשיחה בקהילה', 'en': 'New chat message in your community'})
+
+    def test_chat_push_includes_group_listener(self):
+        self.chat_channel(groups={'grp1'})
+        ref = self.chan['chat-room']
+        for uid in ('lis', 'eng'):
+            self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{uid}'},
+                                        UpdateExpression='SET #g = :g, notify = :n',
+                                        ExpressionAttributeNames={'#g': 'groups'},
+                                        ExpressionAttributeValues={':g': {'grp1'}, ':n': {'chatChannels': [ref]}})
+        item = self.message('chat-room', author='fam', kind='member', type_='chat')
+        self.assertCountEqual(push_worker.recipients(self.repo, 'message', self.k, self.mid(item)), ['lis', 'eng'])
+
+    def test_chat_push_ignores_management_only(self):
+        self.chat_channel()
+        self.mute('eng', chatChannels=[self.chan['chat-room']], membersBroadcasts='management_only')
+        item = self.message('chat-room', author='fam', kind='member', type_='chat')
+        self.assertEqual(push_worker.recipients(self.repo, 'message', self.k, self.mid(item)), ['eng'])
+
     def test_reply_push_goes_to_target_only(self):
         m = self.message(author='gab', target='fam')
         self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid(m)), ['fam'])
@@ -151,7 +192,7 @@ class PushTest(unittest.TestCase):
         self.run_message(m)
         self.assertTrue(self.sent)
         texts = {t for langs in PUSH_TEXT.values() for t in langs.values()}
-        self.assertEqual(len(PUSH_TEXT), 8)
+        self.assertEqual(len(PUSH_TEXT), 9)
         for s in self.sent:
             self.assertLessEqual(set(s['data']), {'kehila', 'messageId', 'screen'})
             self.assertIn(s['body'], texts)

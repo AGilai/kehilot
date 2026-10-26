@@ -17,11 +17,12 @@ PUSH_TEXT = {
     'condolence': {'he': 'הודעת אבל בקהילה', 'en': 'Condolence notice in your community'},
     'event': {'he': 'אירוע חדש בקהילה', 'en': 'New event in your community'},
     'message': {'he': 'הודעה חדשה בקהילה', 'en': 'New message in your community'},
+    'chat': {'he': 'הודעה חדשה בשיחה בקהילה', 'en': 'New chat message in your community'},
     'reply': {'he': 'ברכה חדשה', 'en': 'New blessing'},
     'request': {'he': 'בקשת הצטרפות חדשה', 'en': 'New membership request'},
     'group_request': {'he': 'בקשת הצטרפות לקבוצה', 'en': 'New group join request'},
 }
-MESSAGE_TYPES = ('weekly', 'celebration', 'condolence', 'event')
+MESSAGE_TYPES = ('weekly', 'celebration', 'condolence', 'event', 'chat')
 
 
 def enqueue(kind, kehila, ref) -> None:

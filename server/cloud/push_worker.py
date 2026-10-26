@@ -56,11 +56,14 @@ def recipients(repo, kind, kehila, ref):
         notify = member.get('notify') or {}
         if uid == message['authorId'] or not visibility.in_audience(member, channel):
             continue
+        if channel.get('conversation') and message['channelId'] not in notify.get('chatChannels', ()):
+            continue  # a chat is pushed only to those who opted in to it
         if (message['channelId'] in notify.get('mutedChannels', ())
                 or message.get('type') in notify.get('mutedTypes', ())
                 or message['authorId'] in notify.get('mutedMembers', ())):
             continue
-        if message.get('authorKind') == 'member' and notify.get('membersBroadcasts') == 'management_only':
+        if (message.get('authorKind') == 'member' and not channel.get('conversation')
+                and notify.get('membersBroadcasts') == 'management_only'):
             continue
         out.append(uid)
     return out

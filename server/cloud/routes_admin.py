@@ -124,35 +124,46 @@ def _channel_fields(ctx, k):
     groups = group_ids(ctx, k, d['groups']) if 'groups' in d else None
     if groups and readable:  # group channels are members-only
         raise ApiError(400, 'invalid_groups')
-    return name, readable, policy, groups
+    conversation = inputs.boolean(d, 'conversation') if 'conversation' in d else None
+    if conversation and readable:  # a conversation is for members (and listeners admitted to its group)
+        raise ApiError(400, 'invalid_listeners_can_read')
+    limit = inputs.integer(d, 'chatHourlyLimit', 0, 200) if 'chatHourlyLimit' in d else None
+    return name, readable, policy, groups, conversation, limit
 
 
-def _channel_json(item, with_groups=False):
+def _channel_json(item, with_groups=False, is_admin=None):
     out = {'channelId': item['sk'][len('C#'):], 'name': item['name'],
-           'listenersCanRead': item['listenersCanRead'], 'postPolicy': item['postPolicy']}
+           'listenersCanRead': item['listenersCanRead'], 'postPolicy': item['postPolicy'],
+           'conversation': bool(item.get('conversation')), 'chatHourlyLimit': int(item.get('chatHourlyLimit', 30))}
     if with_groups:
         out['groups'] = sorted(item.get('groups') or ())
+    if is_admin is not None:
+        out['isAdmin'] = is_admin
     return out
 
 
 def create_channel(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)
-    name, readable, policy, groups = _channel_fields(ctx, k)
-    return 201, _channel_json(ctx.repo.put_channel(k, name, readable, policy, groups or frozenset()), True)
+    name, readable, policy, groups, conversation, limit = _channel_fields(ctx, k)
+    item = ctx.repo.put_channel(k, name, readable, policy, groups or frozenset(), bool(conversation), limit)
+    return 201, _channel_json(item, True, True)
 
 
 def update_channel(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)
-    name, readable, policy, groups = _channel_fields(ctx, k)
+    name, readable, policy, groups, conversation, limit = _channel_fields(ctx, k)
     if not ID_RE.fullmatch(params['c']):
         raise ApiError(404, 'channel_not_found')
-    if groups is None and readable:  # omitted groups keep the stored ones, which must not meet listenersCanRead
+    if readable and (groups is None or conversation is None):  # omitted fields keep the stored ones
         stored = ctx.repo.get_channel(k, params['c'])
-        if stored and stored.get('groups'):
+        if stored and groups is None and stored.get('groups'):
             raise ApiError(400, 'invalid_groups')
-    return 200, _channel_json(ctx.repo.update_channel(k, params['c'], name, readable, policy, groups), True)
+        if stored and conversation is None and stored.get('conversation'):
+            raise ApiError(400, 'invalid_listeners_can_read')
+    item = ctx.repo.update_channel(k, params['c'], name, readable, policy, groups, conversation, limit)
+    return 200, _channel_json(item, True, True)
 
 
 def import_list(ctx, params):

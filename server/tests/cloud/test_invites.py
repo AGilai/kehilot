@@ -264,7 +264,7 @@ class InvitesTest(unittest.TestCase):
         path = f'/v1/kehilot/{self.k}'
         body = self.call('GET', path, sub='member-sub')[1]
         self.assertEqual(body['notify'], {'mutedChannels': [], 'mutedTypes': [], 'membersBroadcasts': 'all',
-                                          'mutedMembers': []})
+                                          'mutedMembers': [], 'chatChannels': []})
         self.assertEqual((body['canBroadcast'], body['pendingRequest']), (False, False))
         listener = self.user('lis-sub')
         self.repo.put_membership(self.k, listener, 'listener')
@@ -273,7 +273,7 @@ class InvitesTest(unittest.TestCase):
         body = self.call('GET', path, sub='lis-sub')[1]
         self.assertTrue(body['pendingRequest'])
         self.assertEqual(body['notify'], {'mutedChannels': [], 'mutedTypes': ['event'],
-                                          'membersBroadcasts': 'all', 'mutedMembers': []})
+                                          'membersBroadcasts': 'all', 'mutedMembers': [], 'chatChannels': []})
 
 
 class AdminCliTest(unittest.TestCase):

@@ -1,4 +1,6 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
+from datetime import datetime, timezone
+
 from . import inputs, push, visibility
 from .authz import require
 from .errors import ApiError
@@ -10,6 +12,9 @@ TYPES = ('weekly', 'celebration', 'condolence', 'event')
 TARGET_TYPES = ('celebration', 'condolence')
 DEFAULT_LIMIT, MAX_LIMIT = 20, 50
 REPLY_MAX = 1000
+CHAT = 'chat'
+CHAT_MAX = 1000
+CHAT_HOURLY_LIMIT = 30
 
 
 def _message_json(item, read=None):
@@ -38,7 +43,7 @@ def _visible_message(ctx, k, membership, message_id):
 def list_channels(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
     is_gabbai = visibility.is_gabbai(membership)
-    channels = [{**_channel_json(c, is_gabbai), 'canPost': visibility.can_post(membership, c),
+    channels = [{**_channel_json(c, is_gabbai, visibility.is_channel_admin(membership, c)), 'canPost': visibility.can_post(membership, c),
                  'inAudience': visibility.in_audience(membership, c)}
                 for c in ctx.repo.list_channels(params['k']) if visibility.can_read_channel(membership, c)]
     return 200, channels
@@ -51,6 +56,9 @@ def post_message(ctx, params):
     channel_id = d.get('channelId')
     if not isinstance(channel_id, str) or not ID_RE.fullmatch(channel_id):
         raise ApiError(400, 'invalid_channel_id')
+    channel = ctx.repo.get_channel(k, channel_id)
+    if channel and channel.get('conversation'):
+        return _post_chat(ctx, k, membership, channel_id, channel, d)
     type_ = inputs.choice(d, 'type', TYPES)
     title = inputs.text(d, 'title', 120, required=True)
     body = inputs.text(d, 'body', 4000)
@@ -79,6 +87,44 @@ def post_message(ctx, params):
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
     return 201, message
+
+
+def _post_chat(ctx, k, membership, channel_id, channel, d):
+    if not visibility.can_read_channel(membership, channel):
+        raise ApiError(404, 'channel_not_found')
+    if d.get('type', CHAT) != CHAT:
+        raise ApiError(400, 'invalid_type')
+    if d.get('title', '') != '':
+        raise ApiError(400, 'invalid_title')
+    if d.get('targetMemberId') is not None:
+        raise ApiError(400, 'invalid_target_member_id')
+    body = inputs.text(d, 'body', CHAT_MAX, required=True)
+    if not visibility.can_post(membership, channel):
+        raise ApiError(403, 'forbidden')
+    if not visibility.is_channel_admin(membership, channel):
+        hour = datetime.now(timezone.utc).strftime('%Y%m%d%H')
+        ctx.repo.count_chat(k, channel_id, ctx.user_id, hour, visibility.chat_hourly_limit(channel))
+    item = ctx.repo.put_message(k, channel_id, CHAT, '', body, ctx.user_id, membership.get('displayName', ''),
+                                'management' if membership['role'] == 'gabbai' else 'member', None)
+    message = _message_json(item)
+    ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
+    push.enqueue('message', k, message['messageId'])
+    return 201, message
+
+
+def set_chat_settings(ctx, params):
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k)
+    channel = ctx.repo.get_channel(k, params['c']) if ID_RE.fullmatch(params['c']) else None
+    if not visibility.can_read_channel(membership, channel):
+        raise ApiError(404, 'channel_not_found')
+    if not visibility.is_channel_admin(membership, channel):
+        raise ApiError(403, 'forbidden')
+    limit = inputs.integer(inputs.body_object(ctx), 'chatHourlyLimit', 0, 200)
+    if not channel.get('conversation'):
+        raise ApiError(409, 'not_conversation')
+    ctx.repo.set_chat_limit(k, params['c'], limit)
+    return 200, {}
 
 
 def _limit(query):

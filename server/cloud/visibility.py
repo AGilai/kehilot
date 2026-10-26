@@ -15,7 +15,7 @@ def can_read_channel(membership, channel):
         return True
     if channel.get('groups'):
         return _shares_group(membership, channel)
-    return role != 'listener' or bool(channel.get('listenersCanRead'))
+    return role != 'listener' or (bool(channel.get('listenersCanRead')) and not channel.get('conversation'))
 
 
 def in_audience(membership, channel):
@@ -51,10 +51,18 @@ def reply_target_ok(target_membership, channel):
             and can_read_channel(target_membership, channel))
 
 
+def chat_hourly_limit(channel):
+    return int(channel.get('chatHourlyLimit', 30))
+
+
 def can_post(membership, channel):
     if not can_read_channel(membership, channel):
         return False
     role = membership['role']
+    if channel.get('conversation'):  # chat: postPolicy and canBroadcast do not apply
+        if role == 'listener' and not channel.get('groups'):
+            return False  # only a listener admitted to the group posts
+        return chat_hourly_limit(channel) > 0 or is_channel_admin(membership, channel)
     if role == 'gabbai':
         return True
     return (role == 'member' and channel.get('postPolicy') == 'broadcasters'

@@ -25,7 +25,7 @@ def kehila(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'], ROLES)
     item = ctx.repo.get_kehila(params['k'])
     settings = item.get('settings', {})
-    notify = {'mutedChannels': [], 'mutedTypes': [], 'membersBroadcasts': 'all', 'mutedMembers': [],
+    notify = {'mutedChannels': [], 'mutedTypes': [], 'membersBroadcasts': 'all', 'mutedMembers': [], 'chatChannels': [],
               **membership.get('notify', {})}
     pending = bool(ctx.repo.get_request(params['k'], ctx.user_id))
     shown = {'pollSeconds': int(settings.get('pollSeconds', 30))}

@@ -63,6 +63,8 @@ ROUTES = [
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/groups/(?P<g>[^/]+)/members/(?P<u>[^/]+)$'),
      routes_groups.remove_group_member),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/channels$'), routes_messages.list_channels),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/channels/(?P<c>[^/]+)/chat-settings$'),
+     routes_messages.set_chat_settings),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/members$'), routes_messages.list_directory),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.post_message),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.list_messages),
