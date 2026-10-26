@@ -129,3 +129,26 @@ test('logo lookups are memoised in memory, failures included', async () => {
   assert.equal(await logos.get(failing, 'k2', 'v1'), null);
   assert.equal(tries, 1);
 });
+
+test('selectKehila starts one poller; switching and reset stop it', async () => {
+  const timers = new Set<number>(); let id = 0;
+  const sleep = (_ms: number, signal: AbortSignal) => new Promise<void>(res => { const t = ++id; timers.add(t); signal.addEventListener('abort', () => { timers.delete(t); res(); }); });
+  const seen: string[] = [];
+  const { api } = fakeApi(meOf(['k1', 'k2']), {
+    kehila: async (k: string) => ({ ...kehilaOf(k), settings: { pollSeconds: 5 } }),
+    changes: async (k: string, since?: string) => { seen.push(`${k}:${since ?? ''}`); return { cursor: 'C', more: false, changes: [] }; },
+    messages: async (k: string) => [{ messageId: `M-${k}` }],
+  });
+  const store = createStore(api, memory(), { sleep });
+  await store.start();
+  await store.selectKehila('k1');
+  await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+  assert.deepEqual(store.getState().feed.order, ['M-k1']);
+  await store.selectKehila('k2');
+  await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+  assert.deepEqual(store.getState().feed.order, ['M-k2']);
+  assert.equal(timers.size, 1);
+  store.reset();
+  assert.equal(timers.size, 0);
+  assert.deepEqual(store.getState().feed, { messages: {}, order: [], replies: {} });
+});
