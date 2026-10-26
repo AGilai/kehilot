@@ -4,7 +4,7 @@ export default {
     slug: 'shul-regular',
     version: '0.1.0',
     orientation: 'portrait',
-    userInterfaceStyle: 'light',
+    userInterfaceStyle: 'automatic',
     scheme: 'shul',
     ios: {
       supportsTablet: true,

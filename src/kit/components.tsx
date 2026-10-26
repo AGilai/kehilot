@@ -120,11 +120,12 @@ export function Banner({ text, tone = 'info', action }: { text: string; tone?: '
 }
 
 export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const k = useTokens();
+  // A native Modal does not inherit the root View's direction, so set it again here.
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityLabel={t('common.close')} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(21,26,51,0.5)', justifyContent: 'flex-end' }}>
+      <Pressable accessibilityLabel={t('common.close')} onPress={onClose} style={{ flex: 1, direction: dir, backgroundColor: 'rgba(21,26,51,0.5)', justifyContent: 'flex-end' }}>
         <Pressable onPress={() => {}} style={{ backgroundColor: k.stone, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 12, maxHeight: '85%' }}>
           <Txt serif size="title" accessibilityRole="header">{title}</Txt>
           <ScrollView contentContainerStyle={{ gap: 12 }}>{children}</ScrollView>
