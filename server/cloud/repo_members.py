@@ -200,9 +200,9 @@ class MembersRepo:
             raise ApiError(409, 'try_again')  # a code collision or a conflict: the client retries
         return code
 
-    def _markers(self, k, prefix, role=None):
+    def _markers(self, k, prefix, role=None, expired_too=False):
         """Unexpired INVBY markers under `prefix` (TTL deletion lags, so expiresAt is always filtered)."""
-        condition = Attr('expiresAt').gt(int(time.time()))
+        condition = Attr('expiresAt').gt(0 if expired_too else int(time.time()))
         if role:
             condition &= Attr('role').eq(role)
         items, kwargs = [], {}
@@ -239,6 +239,17 @@ class MembersRepo:
             if _cancel_reasons(error, 2)[0] == 'ConditionalCheckFailed':
                 raise ApiError(404, 'invite_not_found')
             raise ApiError(409, 'try_again')
+
+    def revoke_member_invites(self, k, user_id):
+        """Delete every invite (and marker) a person made in Kehila k, expired ones too. Runs right after the
+        membership change, not in its transaction (a person may hold more than 100 links, and the last-gabbai
+        guard already uses the transaction's item budget). Idempotent: deletes need no condition, so a re-run
+        finishes a partial failure."""
+        markers = self._markers(k, f'INVBY#{user_id}#', expired_too=True)
+        with self.table.batch_writer() as batch:
+            for marker in markers:
+                batch.delete_item(Key={'pk': f'INV#{marker["sk"].rsplit("#", 1)[1]}', 'sk': 'META'})
+                batch.delete_item(Key={'pk': marker['pk'], 'sk': marker['sk']})
 
     def count_listeners(self, k):
         """Current listeners of the Kehila: a COUNT query over the membership items, following pagination.

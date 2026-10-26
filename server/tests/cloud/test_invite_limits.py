@@ -78,11 +78,19 @@ class InviteLimitsTest(unittest.TestCase):
         self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='l1'), (409, {'error': 'kehila_full'}))
 
     def test_cap_counts_across_pages_and_ignores_members(self):
-        with mock.patch.object(self.repo.table, 'query', wraps=self.repo.table.query) as query:
-            for n in range(3):
-                self.repo.put_membership(self.k, f'0000000000000000000000000{n}', 'listener')
+        for n in range(3):
+            self.repo.put_membership(self.k, f'0000000000000000000000000{n}', 'listener')
+        real = self.repo.table.query
+        calls = []
+
+        def one_at_a_time(**kwargs):
+            calls.append(kwargs)
+            return real(Limit=1, **kwargs)
+
+        with mock.patch.object(self.repo.table, 'query', side_effect=one_at_a_time):
             self.assertEqual(self.repo.count_listeners(self.k), 3)
-            self.assertEqual(query.call_args.kwargs['Select'], 'COUNT')
+        self.assertGreater(len(calls), 3)  # the gabbai, the member and 3 listeners took several pages
+        self.assertEqual(calls[0]['Select'], 'COUNT')
 
     def test_default_cap_is_500(self):
         status, body = self.call('GET', self.base)
@@ -180,11 +188,44 @@ class InviteLimitsTest(unittest.TestCase):
 
     def test_purge_removes_markers_and_invites(self):
         code = self.invite()
+        expired = self.invite()
+        self.expire(expired)
         other_code = self.invite(sub='gab-sub')
         self.repo.purge_user(self.member, 'member-sub')
-        self.assertIsNone(self.repo.get_invite(code))
-        self.assertIsNone(self.repo._get(f'K#{self.k}', f'INVBY#{self.member}#{code}'))
+        for gone in (code, expired):
+            self.assertIsNone(self.repo.get_invite(gone))
+            self.assertIsNone(self.repo._get(f'K#{self.k}', f'INVBY#{self.member}#{gone}'))
         self.assertIsNotNone(self.repo.get_invite(other_code))
+        self.assertIsNotNone(self.repo._get(f'K#{self.k}', f'INVBY#{self.gabbai}#{other_code}'))
+
+    # leaving or removal revokes the person's links
+    def other_member(self):
+        self.user('m2')
+        uid = self.repo.get_user_id('m2')
+        self.repo.put_membership(self.k, uid, 'member')
+        return uid
+
+    def check_links_revoked(self, act):
+        mine = [self.invite(), self.invite()]
+        m2 = self.other_member()
+        kept = self.invite(sub='m2')
+        act()
+        self.user('l9')
+        for code in mine:
+            status = self.call('POST', f'/v1/invites/{code}/accept', sub='l9')[0]
+            self.assertIn(status, (404, 410))
+            self.assertIsNone(self.repo._get(f'K#{self.k}', f'INVBY#{self.member}#{code}'))
+        self.assertEqual([r['code'] for r in self.call('GET', f'{self.base}/invites')[1]], [kept])
+        self.assertIsNotNone(self.repo._get(f'K#{self.k}', f'INVBY#{m2}#{kept}'))
+        self.assertEqual(self.call('POST', f'/v1/invites/{kept}/accept', sub='l9')[0], 200)
+
+    def test_leave_revokes_links(self):
+        self.check_links_revoked(lambda: self.assertEqual(
+            self.call('DELETE', f'{self.base}/membership', sub='member-sub')[0], 204))
+
+    def test_removal_revokes_links(self):
+        self.check_links_revoked(lambda: self.assertEqual(
+            self.call('DELETE', f'{self.base}/admin/members/{self.member}')[0], 204))
 
     # 4. CLI
     def test_cli_gabbai_invite(self):

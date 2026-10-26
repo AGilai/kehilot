@@ -96,12 +96,14 @@ def remove_member(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     target = _target(ctx, params, 'member_not_found')
     ctx.repo.remove_member(params['k'], params['userId'], target['role'])
+    ctx.repo.revoke_member_invites(params['k'], params['userId'])
     return 204, None
 
 
 def leave(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
     ctx.repo.remove_member(params['k'], ctx.user_id, membership['role'])
+    ctx.repo.revoke_member_invites(params['k'], ctx.user_id)
     return 204, None
 
 
