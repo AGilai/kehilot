@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 ROUTES = [
     ('GET', re.compile(r'^/health$'), routes_core.health),
     ('GET', re.compile(r'^/v1/me$'), routes_core.me),
+    ('DELETE', re.compile(r'^/v1/me$'), routes_me.delete_account),
     ('PUT', re.compile(r'^/v1/me/profile$'), routes_me.put_profile),
     ('PUT', re.compile(r'^/v1/me/devices$'), routes_me.put_device),
     ('DELETE', re.compile(r'^/v1/me/devices/(?P<token>[^/]+)$'), routes_me.delete_device),

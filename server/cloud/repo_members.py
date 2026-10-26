@@ -52,6 +52,67 @@ class MembersRepo:
         self.table.put_item(Item={'pk': 'PUSHTKT', 'sk': f'T#{ticket_id}', 'token': token, 'userId': user_id,
                                   'expiresAt': expires_at})
 
+    def list_push_tickets(self):
+        """Every PUSHTKT item (tickets live one day, so the partition stays small)."""
+        items, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq('PUSHTKT'), ConsistentRead=True, **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def delete_push_ticket(self, ticket_sk):
+        self.table.delete_item(Key={'pk': 'PUSHTKT', 'sk': ticket_sk})
+
+    def purge_user(self, user_id, sub):
+        """Remove everything of the user. Idempotent: a retry after a partial failure finishes the job.
+
+        Cost: one consistent Scan of the whole table (O(table size), paginated at 1 MB) with a filter. That is
+        the simplest correct way to find Join (J#) and reply-marker (RP#) items, Kehila memberships the user
+        already left and anything else carrying the ID in a key, without an index item per join. Acceptable
+        at current scale and for a rare operation; revisit with an index item if the table grows large.
+
+        Deletes every item with the userId or the sub in pk/sk/gsi1pk/gsi1sk, plus push tickets of the user;
+        blanks authorName on messages and replies the user wrote and targetName on messages aimed at them.
+        joinCount and replierCount stay unchanged (historic counts). The U#<sub> mapping goes last: until it
+        is gone a retry resolves to the same userId.
+        """
+        from boto3.dynamodb.conditions import Attr
+        key_fields = ('pk', 'sk', 'gsi1pk', 'gsi1sk')
+        condition = Attr('userId').eq(user_id) | Attr('authorId').eq(user_id) | Attr('targetMemberId').eq(user_id)
+        for needle in (user_id, sub):
+            for field in key_fields:
+                condition = condition | Attr(field).contains(needle)
+        sub_key = {'pk': f'U#{sub}', 'sk': 'SUB'}
+        kwargs = {'FilterExpression': condition, 'ConsistentRead': True}
+        deleted = blanked = 0
+        while True:
+            page = self.table.scan(**kwargs)
+            for item in page['Items']:
+                key = {'pk': item['pk'], 'sk': item['sk']}
+                if key == sub_key:
+                    continue
+                if any(needle in item.get(field, '') for needle in (user_id, sub) for field in key_fields) \
+                        or item.get('userId') == user_id:
+                    self.table.delete_item(Key=key)
+                    deleted += 1
+                    continue
+                sets = []
+                if item.get('authorId') == user_id and 'authorName' in item:
+                    sets.append('authorName = :empty')
+                if item.get('targetMemberId') == user_id and 'targetName' in item:
+                    sets.append('targetName = :empty')
+                if sets:
+                    self.table.update_item(Key=key, UpdateExpression='SET ' + ', '.join(sets),
+                                           ExpressionAttributeValues={':empty': ''})
+                    blanked += 1
+            if 'LastEvaluatedKey' not in page:
+                break
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+        self.table.delete_item(Key=sub_key)
+        return deleted, blanked
+
     def list_devices(self, user_id):
         items, kwargs = [], {}
         while True:

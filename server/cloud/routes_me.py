@@ -1,9 +1,13 @@
 """Routes: my profile, language and push devices."""
+import logging
+import os
 import re
 from urllib.parse import unquote
 
 from . import inputs
 from .errors import ApiError
+
+log = logging.getLogger(__name__)
 
 LANGS = ('he', 'en')
 PLATFORMS = ('ios', 'android', 'web')
@@ -30,4 +34,30 @@ def put_device(ctx, params):
 
 def delete_device(ctx, params):
     ctx.repo.delete_device(ctx.user_id, unquote(params['token']))
+    return 204, None
+
+
+def _delete_cognito_user(sub):
+    import boto3
+    client = boto3.client('cognito-idp')
+    try:
+        client.admin_delete_user(UserPoolId=os.environ['USER_POOL_ID'], Username=sub)
+    except client.exceptions.UserNotFoundException:  # a retry after the user was already removed
+        pass
+
+
+def delete_account(ctx, params):
+    """Refuse while last gabbai anywhere; then data first, Cognito last (a retry finishes either half)."""
+    if not os.environ.get('USER_POOL_ID'):
+        raise RuntimeError('USER_POOL_ID not set')  # misconfiguration: fail before deleting anything
+    memberships = ctx.repo.list_memberships(ctx.user_id)
+    gabbai_of = [m['kehilaId'] for m in memberships if m['role'] == 'gabbai']
+    for k in gabbai_of:
+        if not any(m['role'] == 'gabbai' and m['userId'] != ctx.user_id for m in ctx.repo.list_members(k)):
+            raise ApiError(409, 'last_gabbai')
+    for k in gabbai_of:  # guarded removal: re-checks the other gabbai atomically (409 last_gabbai on a race)
+        ctx.repo.remove_member(k, ctx.user_id, 'gabbai')
+    deleted, blanked = ctx.repo.purge_user(ctx.user_id, ctx.caller.sub)
+    _delete_cognito_user(ctx.caller.sub)
+    log.info('account deleted user=%s items=%d blanked=%d', ctx.user_id, deleted, blanked)
     return 204, None
