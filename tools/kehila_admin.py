@@ -71,9 +71,9 @@ def main(argv=None):
         parser.error('--name must be 1 to 60 characters')
     repo = open_repo(args.env)
     k, code = create_kehila(repo, name, args.lang, dev=args.env == 'dev')
+    print(f'Kehila ID: {k}\nGabbai invite code (one use, 7 days): {code}', flush=True)
     if logo:
         print(f'logoVersion: {repo.set_logo(k, logo)}')
-    print(f'Kehila ID: {k}\nGabbai invite code (one use, 7 days): {code}')
 
 
 if __name__ == '__main__':

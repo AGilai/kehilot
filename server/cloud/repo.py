@@ -45,7 +45,10 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo):
             return error.response['Item']['userId']['S']  # the winner of a concurrent first login
 
     def get_kehila(self, k):
-        return self._get(f'K#{k}', 'META')
+        # never the logo bytes: this is read on most requests
+        return self.table.get_item(
+            Key={'pk': f'K#{k}', 'sk': 'META'}, ProjectionExpression='pk, sk, kehilaId, #n, settings, logoVersion',
+            ExpressionAttributeNames={'#n': 'name'}).get('Item')
 
     def get_membership(self, k, user_id):
         return self._get(f'K#{k}', f'M#{user_id}')
@@ -78,7 +81,8 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo):
 
     def get_logo(self, k):
         """(logoVersion, png bytes), or None when the Kehila has no logo."""
-        item = self.get_kehila(k)
+        item = self.table.get_item(Key={'pk': f'K#{k}', 'sk': 'META'},
+                                   ProjectionExpression='logo, logoVersion').get('Item')
         if not item or 'logo' not in item:
             return None
         logo = item['logo']

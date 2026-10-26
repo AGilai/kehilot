@@ -61,6 +61,11 @@ class ValidateLogoTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '65536'):
             validate_logo(make_png(64, pad=65536))
 
+    def test_first_chunk_not_ihdr(self):
+        png = make_png(64)
+        with self.assertRaises(ValueError):
+            validate_logo(png[:12] + b'IDAT' + png[16:])
+
     def test_truncated_header(self):
         with self.assertRaises(ValueError):
             validate_logo(make_png(64)[:20])
@@ -122,7 +127,17 @@ class LogoRepoAndRouteTest(unittest.TestCase):
         version = self.repo.set_logo(self.k, make_png(64))
         self.assertEqual(self.call(f'/v1/kehilot/{self.k}')[1]['logoVersion'], version)
         self.assertEqual(self.call('/v1/me')[1]['kehilot'][0]['logoVersion'], version)
-        self.assertNotIn('logo', self.call(f'/v1/kehilot/{self.k}')[1])
+
+    def test_get_kehila_omits_logo_bytes(self):
+        version = self.repo.set_logo(self.k, make_png(64))
+        item = self.repo.get_kehila(self.k)
+        self.assertNotIn('logo', item)
+        self.assertEqual((item['logoVersion'], item['name'], item['kehilaId']), (version, 'Beit Logo', self.k))
+        self.assertIn('settings', item)
+        self.assertEqual(self.repo.get_logo(self.k)[1], make_png(64))
+
+    def test_logo_route_rejects_invalid_kehila_id(self):
+        self.assertEqual(self.call('/v1/kehilot/not-an-id/logo'), (400, {'error': 'invalid_kehila_id'}))
 
 
 @mock_aws
@@ -144,6 +159,17 @@ class LogoCliTest(unittest.TestCase):
                                    '--logo', self.png_file(make_png(64))])
         self.assertIn('does not exist', str(raised.exception))
 
+    def test_create_prints_ids_before_a_logo_write_failure(self):
+        import io
+        from contextlib import redirect_stdout
+        out = io.StringIO()
+        with mock.patch.object(kehila_admin, 'open_repo', return_value=self.repo), \
+                mock.patch.object(self.repo, 'set_logo', side_effect=RuntimeError('boom')), \
+                redirect_stdout(out), self.assertRaises(RuntimeError):
+            kehila_admin.main(['create', '--env', 'dev', '--name', 'Beit Logo', '--logo', self.png_file(make_png(64))])
+        self.assertIn('Kehila ID:', out.getvalue())
+        self.assertIn('invite code', out.getvalue())
+
     def test_invalid_logo_is_rejected_before_any_write(self):
         with mock.patch.object(kehila_admin, 'open_repo', return_value=self.repo):
             with self.assertRaises(SystemExit):
@@ -163,6 +189,12 @@ class LogoCliTest(unittest.TestCase):
 
 class LambdaLoggingTest(unittest.TestCase):
     def test_entry_modules_enable_info_logging(self):
+        import importlib
         import logging
-        from server.cloud import jobs, push_worker  # noqa: F401
-        self.assertLessEqual(logging.getLogger().level, logging.INFO)
+        from server.cloud import handler, jobs, push_worker
+        root = logging.getLogger()
+        self.addCleanup(root.setLevel, root.level)
+        for module in (handler, push_worker, jobs):
+            root.setLevel(logging.WARNING)
+            importlib.reload(module)
+            self.assertEqual(root.level, logging.INFO, module.__name__)
