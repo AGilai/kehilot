@@ -126,11 +126,27 @@ def _delay_retry(record, receive_count):
         log.exception('change_message_visibility failed')
 
 
+def _parse(record):
+    """The job dict of a record; ValueError, KeyError or TypeError for a poison record."""
+    job = json.loads(record['body'])
+    if not isinstance(job, dict):
+        raise TypeError('job is not an object')
+    for key in ('kind', 'kehila', 'ref'):
+        if not isinstance(job[key], str) or not job[key]:
+            raise ValueError(key)
+    return job
+
+
 def handler(event, context):
     repo, failures, token = _repo(), [], None
     for record in event.get('Records', []):
         try:
-            job = json.loads(record['body'])
+            job = _parse(record)
+        except (ValueError, KeyError, TypeError):  # can never succeed: drop it (no retry), log the ID only
+            log.warning('push record dropped as malformed id=%s',
+                        record.get('messageId') if isinstance(record, dict) else None)
+            continue
+        try:
             token = token or expo.access_token()
             _process(repo, job, token)
         except Exception:

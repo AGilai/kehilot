@@ -176,6 +176,23 @@ class PushTest(unittest.TestCase):
         client.return_value.change_message_visibility.assert_any_call(
             QueueUrl=url, ReceiptHandle=rec['receiptHandle'], VisibilityTimeout=240)
 
+    def test_poison_records_dropped_not_retried(self):
+        secret = 'SECRET-BODY-TEXT'
+        bad = [{'messageId': 'p1', 'body': secret + '{not json'},
+               {'messageId': 'p2', 'body': json.dumps({'kind': 'message', 'kehila': self.k})},
+               {'messageId': 'p3', 'body': json.dumps([secret])},
+               {'messageId': 'p4', 'body': json.dumps({'kind': 'message', 'kehila': 5, 'ref': secret})}]
+        good = record('request', self.k, 'requests', message_id='ok')
+        with self.assertLogs('server.cloud.push_worker', level='WARNING') as logs, \
+                mock.patch.object(push_worker, '_delay_retry') as delay:
+            out = push_worker.handler({'Records': [*bad, good]}, None)
+        self.assertEqual(out, {'batchItemFailures': []})
+        delay.assert_not_called()
+        self.assertTrue(self.sent)
+        self.assertEqual(len(logs.records), 4)
+        self.assertNotIn(secret, '\n'.join(logs.output))
+        self.assertIn('p1', logs.output[0])
+
     def test_visibility_backoff_capped(self):
         self.assertEqual([push_worker.backoff(n) for n in (1, 2, 3, 6, 9)], [60, 120, 240, 900, 900])
 
