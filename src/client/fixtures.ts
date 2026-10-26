@@ -28,7 +28,7 @@ export function fixtureParams(): FixtureParams {
 }
 
 // All names below are invented.
-export function createFixtureApi(role: Role) {
+export function createFixtureApi(role: Role, screen: string | null = null) {
   assertFixturesAllowed();
   const kehila: Kehila = {
     kehilaId: '01FIXTUREKEHILA0000000001', name: 'קהילת בדיוני', role, classification: '', logoVersion: null,
@@ -38,8 +38,15 @@ export function createFixtureApi(role: Role) {
   };
   const me = {
     userId: '01FIXTUREUSER00000000001', email: 'dana@example.invalid',
-    profile: { firstName: 'דנה', lastName: 'בדויה', lang: 'he' as Lang },
-    kehilot: [{ kehilaId: kehila.kehilaId, name: kehila.name, role, logoVersion: null }],
+    // ?screen=profile shows the profile form; ?screen=switcher gives three Kehilot and no remembered choice.
+    profile: screen === 'profile' ? null : { firstName: 'דנה', lastName: 'בדויה', lang: 'he' as Lang },
+    kehilot: [
+      { kehilaId: kehila.kehilaId, name: kehila.name, role, logoVersion: null },
+      ...(screen === 'switcher' ? [
+        { kehilaId: '01FIXTUREKEHILA0000000002', name: 'בית כנסת הדוגמה', role: 'gabbai' as Role, logoVersion: null },
+        { kehilaId: '01FIXTUREKEHILA0000000003', name: 'קהילת הנחל המצויר', role: 'listener' as Role, logoVersion: null },
+      ] : []),
+    ],
   };
   const channels = [{
     channelId: '01FIXTURECHANNEL00000001', name: 'הודעות הקהילה', listenersCanRead: true, postPolicy: 'management' as const,
@@ -51,10 +58,15 @@ export function createFixtureApi(role: Role) {
   }];
   const routes: Record<string, unknown> = {
     'GET /v1/me': me,
+    'PUT /v1/me/profile': { firstName: 'דנה', lastName: 'בדויה', lang: 'he' },
     [`GET /v1/kehilot/${kehila.kehilaId}`]: kehila,
     [`GET /v1/kehilot/${kehila.kehilaId}/channels`]: channels,
     [`GET /v1/kehilot/${kehila.kehilaId}/messages`]: messages,
   };
+  for (const x of me.kehilot.slice(1)) {
+    routes[`GET /v1/kehilot/${x.kehilaId}`] = { ...kehila, kehilaId: x.kehilaId, name: x.name, role: x.role };
+    routes[`GET /v1/kehilot/${x.kehilaId}/channels`] = channels;
+  }
   const http: Http = {
     async request(method, path) {
       const hit = routes[`${method} ${path.split('?')[0]}`];

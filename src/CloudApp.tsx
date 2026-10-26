@@ -5,10 +5,15 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './auth/AuthProvider.tsx';
 import { config } from './config.ts';
 import { fixtureParams } from './client/fixtures.ts';
+import { SessionProvider, useSession } from './client/SessionProvider.tsx';
 import { I18nProvider, useI18n } from './i18n/I18nProvider.tsx';
 import { Button, Screen, Txt, useAppFonts, useTokens } from './kit/components.tsx';
 import { ForgotPassword } from './views/auth/ForgotPassword.tsx';
 import { AuthFrame } from './views/auth/Frame.tsx';
+import { KehilaSwitcher } from './views/KehilaSwitcher.tsx';
+import { NoKehila } from './views/NoKehila.tsx';
+import { ProfileSetup } from './views/ProfileSetup.tsx';
+import { TopBar } from './views/TopBar.tsx';
 import { Register } from './views/auth/Register.tsx';
 import { SignIn } from './views/auth/SignIn.tsx';
 import { Verify } from './views/auth/Verify.tsx';
@@ -42,15 +47,33 @@ function SignedOutFlow() {
   }
 }
 
-/** Placeholder until Task 9 (profile and session store). */
-function ProfilePlaceholder() {
+/** Signed in: the session flow (profile, Kehila choice) and, once a Kehila is open, its screens. */
+function SessionFlow() {
   const { t } = useI18n();
   const { signOut } = useAuth();
+  const { route, retry, state } = useSession();
+  const k = useTokens();
+  const [switcher, setSwitcher] = React.useState(false);
+  if (route === 'loading') {
+    return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
+  }
+  if (route === 'error') {
+    return (
+      <AuthFrame title={t('auth.offline.title')}>
+        <Txt>{t('session.loadError')}</Txt>
+        <Button title={t('common.retry')} onPress={retry} />
+      </AuthFrame>
+    );
+  }
+  if (route === 'setup') return <ProfileSetup />;
+  if (route === 'none') return <NoKehila />;
   return (
-    <AuthFrame title={t('auth.profile.title')}>
-      <Txt>{t('auth.profile.body')}</Txt>
+    <Screen>
+      <TopBar onOpenSwitcher={() => setSwitcher(true)} />
+      {route === 'ready' ? <Txt>{t('session.home')}</Txt> : null}
       <Button kind="secondary" title={t('auth.profile.signOut')} onPress={() => void signOut()} />
-    </AuthFrame>
+      <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} />
+    </Screen>
   );
 }
 
@@ -72,7 +95,7 @@ function Shell() {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
   if (status === 'offline') return <Offline />;
-  return status === 'signedIn' ? <ProfilePlaceholder /> : <SignedOutFlow />;
+  return status === 'signedIn' ? <SessionProvider><SessionFlow /></SessionProvider> : <SignedOutFlow />;
 }
 
 export function CloudApp() {

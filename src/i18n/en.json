@@ -157,5 +157,33 @@
       "title": "No connection",
       "body": "Cannot reach the server. Your sign-in is saved. Check your connection and try again."
     }
+  },
+  "session": {
+    "loadError": "Could not load your data. Check your connection and try again.",
+    "home": "The home screen comes in the next step."
+  },
+  "profileSetup": {
+    "title": "Nice to meet you",
+    "body": "What should we call you? Community members will see your name.",
+    "langLabel": "App language",
+    "submit": "Continue"
+  },
+  "switcher": {
+    "title": "Switch community",
+    "current": "Current community",
+    "role": {
+      "listener": "Listener",
+      "member": "Member",
+      "gabbai": "Gabbai"
+    }
+  },
+  "noKehila": {
+    "title": "No community yet",
+    "body": "To get started, join with an invite code or link from your gabbai. Joining comes in the next step."
+  },
+  "topbar": {
+    "switch": "Switch community",
+    "bell": "Notifications",
+    "logo": "Community logo"
   }
 }
