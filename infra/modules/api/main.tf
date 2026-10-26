@@ -125,6 +125,13 @@ resource "aws_apigatewayv2_route" "invite_preview" {
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
+# CORS preflight: browsers send OPTIONS without a token, so it must not hit the JWT route below.
+resource "aws_apigatewayv2_route" "preflight" {
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "OPTIONS /v1/{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
 resource "aws_apigatewayv2_route" "v1" {
   api_id             = aws_apigatewayv2_api.http.id
   route_key          = "ANY /v1/{proxy+}"

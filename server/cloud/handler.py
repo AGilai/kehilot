@@ -103,6 +103,9 @@ def _body(event):
 
 def handler(event, context):
     try:
+        if event['requestContext']['http']['method'] == 'OPTIONS':
+            # CORS preflight (unauthenticated route): API Gateway adds the CORS headers to this response
+            return _response(204, None)
         func, params = _match(event['requestContext']['http']['method'], event['rawPath'])
         if func in PUBLIC:
             return _response(*func(Ctx(_repo(), None, None, None), params))

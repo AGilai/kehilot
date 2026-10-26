@@ -97,3 +97,11 @@ class HandlerTest(unittest.TestCase):
         self.assertIn('AccessDeniedException', output)
         self.assertIn('BatchWriteItem', output)
         self.assertNotIn('secret', output)
+
+
+class PreflightTest(unittest.TestCase):
+    def test_options_preflight_is_204_without_auth_or_repo(self):
+        with mock.patch.object(handler_module, '_repo', side_effect=AssertionError('no repo for preflight')):
+            response = handler_module.handler(
+                {'requestContext': {'http': {'method': 'OPTIONS'}}, 'rawPath': '/v1/me', 'headers': {}}, Context())
+        self.assertEqual(response['statusCode'], 204)
