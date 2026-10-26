@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [redesign, main]
+  pull_request:
+    branches: [redesign, main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r server/requirements.txt -r server/requirements-dev.txt
+      - run: python -m unittest discover -s server/tests -v
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.17.0"
+      - run: terraform fmt -check -recursive infra
+      - name: placeholder Lambda zip so filebase64sha256 resolves
+        run: mkdir -p dist/lambda && python3 -c "import zipfile; zipfile.ZipFile('dist/lambda/api.zip','w').close()"
+      - run: terraform -chdir=infra/envs/dev init -backend=false && terraform -chdir=infra/envs/dev validate
+      - run: terraform -chdir=infra/bootstrap/account init -backend=false && terraform -chdir=infra/bootstrap/account validate
