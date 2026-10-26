@@ -104,9 +104,18 @@ All four ship in plan 3. As everywhere, only `server/cloud/visibility.py` decide
   removes them.
 - A channel may be limited to one or more groups (`groups`, a string set on the Channel item; absent = the
   whole Kehila). A member reads a group channel when they are in **at least one** of its groups.
-- **[call] Group channels are members-only.** A channel with groups cannot have `listenersCanRead`; the API
-  refuses the combination (400 `invalid_groups`), and visibility denies listeners regardless. Reason:
-  listeners joined through a link nobody vetted, and "women only" is a promise about who reads.
+- **Group membership decides access, whatever the role** (user's decision 2026-10-26, replacing the earlier
+  "members-only" call). Like a WhatsApp group: a listener whom a group admin admitted reads that group's
+  channels (and posts in its conversation channels). `listenersCanRead` concerns whole-Kehila channels only;
+  a channel with groups refuses it (400 `invalid_groups`). Listeners still never see the member directory,
+  private-blessing rules are unchanged, blessing targets stay members/gabbaim, and the listener cap is
+  unaffected.
+- **Group admins.** A gabbai appoints admins per group (members or gabbaim; appointing also adds them to the
+  group); gabbaim are implicitly admins of every group. Stored as `adminGroups` (string set) on the
+  Membership. Any member or listener may ask to join a group (`K#<k>` / `GR#<g>#<user>`, TTL 30 days);
+  the group's admins approve, reject, list pending requests and the group's members, and remove people from
+  the group (removing another admin is for gabbaim only). Anyone may leave a group. A new request pushes the
+  group's appointed admins (all gabbaim when it has none), generic text, `data` `{kehila, screen}`.
 - **[call] Gabbaim read every channel**, group channels included, so they can moderate. Private blessings stay
   hidden from them as before. Push and the app's "mine" view use the **audience** instead: for a gabbai
   outside a channel's groups, that channel is readable but not in their audience, so it never pushes them and
@@ -121,9 +130,12 @@ All four ship in plan 3. As everywhere, only `server/cloud/visibility.py` decide
 - A per-channel switch `conversation`. In a conversation channel every **member or gabbai** who can read it
   posts short messages: type `chat`, no title, body 1–1000 code points, optionally one image. `canBroadcast`
   and the daily broadcast limit do not apply there; announcement channels are unchanged and never hold `chat`.
-- **[call] Conversation channels are members-only too** (no `listenersCanRead`), and listeners never post.
-- Rate limit **[call]**: 30 chat messages per user per Kehila per clock hour (UTC), for gabbaim too; a
-  conditional counter `K#<k>` / `CC#<user>#<yyyymmddhh>` (TTL 2 h). Over it: 429 `rate_limited`.
+- A whole-Kehila conversation channel is members-only (no `listenersCanRead`). In a group conversation
+  channel every reader posts, listeners admitted to the group included (user's decision 2026-10-26).
+- Rate limit, set per channel by its **admins** (the admins of its groups; gabbaim for every channel)
+  (user's decision 2026-10-26): `chatHourlyLimit` 0–200, default 30 chat messages per user per channel per
+  clock hour (UTC); 0 means only the channel's admins post. Admins are not limited. A conditional counter
+  `K#<k>` / `CC#<c>#<user>#<yyyymmddhh>` (TTL 2 h). Over it: 429 `rate_limited`.
 - Gabbaim delete any message; authors delete their own (as before).
 - Push: conversation channels are **off by default** per member. `notify.chatChannels` lists the
   conversation channels the member opted into. The push text is a generic `chat` text (§4.5).
@@ -263,11 +275,12 @@ On-demand billing, TTL enabled on attribute `expiresAt`, point-in-time recovery 
 | Item | PK | SK | Notes |
 |---|---|---|---|
 | Kehila | `K#<k>` | `META` | name, settings (member broadcasts default, poll seconds, broadcast daily limit) |
-| Membership | `K#<k>` | `M#<user>` | role (listener/member/gabbai), classification (''/א/קבוע), canBroadcast, notification prefs (incl. `chatChannels`, §3c), `groups` (string set of group IDs, §3c), `personId` (the member's own Person item in this Kehila). GSI1: `U#<user>` / `K#<k>` lists a user's Kehilot |
+| Membership | `K#<k>` | `M#<user>` | role (listener/member/gabbai), classification (''/א/קבוע), canBroadcast, notification prefs (incl. `chatChannels`, §3c), `groups` (string set of group IDs, §3c), `adminGroups` (groups this person administers, §3c), `personId` (the member's own Person item in this Kehila). GSI1: `U#<user>` / `K#<k>` lists a user's Kehilot |
 | Group | `K#<k>` | `G#<g>` | name (§3c) |
-| Channel | `K#<k>` | `C#<c>` | name, `listenersCanRead`, `postPolicy`, `groups` (string set; absent = everyone), `conversation` (bool) (§3c) |
+| Group join request | `K#<k>` | `GR#<g>#<user>` | createdAt, `expiresAt` 30 days (§3c) |
+| Channel | `K#<k>` | `C#<c>` | name, `listenersCanRead`, `postPolicy`, `groups` (string set; absent = everyone), `conversation` (bool), `chatHourlyLimit` (§3c) |
 | Message | `K#<k>` | `MSG#<ts>#<id>` | channel, type (incl. `chat`), author, authorKind (management/member), target family for blessings, `image` `{contentType, bytes}` (object at `m/<k>/<id>` in the media bucket) |
-| Chat / upload counters | `K#<k>` | `CC#<user>#<yyyymmddhh>` / `UPL#<user>#<yyyymmddhh>` | hourly rate limits, `expiresAt` 2 h (§3c) |
+| Chat / upload counters | `K#<k>` | `CC#<c>#<user>#<yyyymmddhh>` / `UPL#<user>#<yyyymmddhh>` | hourly rate limits, `expiresAt` 2 h (§3c) |
 | Private reply | `K#<k>#MSG#<id>` | `R#<ts>#<id>` | visible only to the author and the target family |
 | Read mark | `K#<k>#U#<user>` | `READ#<msgId>` | |
 | Invite | `INV#<code>` | `META` | Kehila, inviter, `expiresAt` (TTL), uses left |
