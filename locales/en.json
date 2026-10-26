@@ -1,6 +1,7 @@
 {
   "ios": {
     "NSPhotoLibraryUsageDescription": "The app needs access to your photos to attach one to a message.",
-    "NSCameraUsageDescription": "The app needs the camera to take a photo for a message."
+    "NSCameraUsageDescription": "The app needs the camera to take a photo for a message.",
+    "NSPhotoLibraryAddUsageDescription": "The app needs permission to save an image from a message to your photos."
   }
 }

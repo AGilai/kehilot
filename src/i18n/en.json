@@ -353,5 +353,16 @@
       "publishing": "Publishing…"
     },
     "permissionDenied": "No access to photos. You can allow it in the device settings."
+  },
+  "viewer": {
+    "close": "Close",
+    "save": "Save to phone",
+    "share": "Share",
+    "print": "Print",
+    "saved": "The image was saved to your phone",
+    "denied": "No permission to save photos. You can allow it in the device settings.",
+    "failed": "That did not work, try again",
+    "loadError": "The image could not be loaded",
+    "image": "Full-screen image"
   }
 }

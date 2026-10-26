@@ -27,6 +27,12 @@ export default {
         cameraPermission: 'The app needs the camera to take a photo for a message.',
         microphonePermission: false,
       }],
+      ['expo-media-library', {
+        // Add-only: the app saves a brochure image, it never reads the library. English default; he/en texts are in locales/.
+        photosPermission: false,
+        savePhotosPermission: 'The app needs permission to save an image from a message to your photos.',
+        isAccessMediaLocationEnabled: false,
+      }],
       ['expo-notifications', { defaultChannel: 'community', color: '#245E4F' }],
     ],
     extra: {
