@@ -1,4 +1,5 @@
-import type { CommunityMessage, HealingPrayer, MembershipRequest, MemberState, Preferences, Profile, Reply, SeatReport, SeatingStatus, Session, Shabbat, Zmanim } from './types.ts';
+import type { PhoneChallenge, AssociationMember } from './types';
+import type { Classification, ClassificationOption, AliyahInput, AliyahRecord, AliyahTemplate, PersonDetails, PersonUpdate, RosterPerson, CommunityMessage, HealingPrayer, MemberState, Preferences, Profile, Reply, SeatReport, SeatingStatus, Session, Shabbat, Zmanim } from './types.ts';
 import { upcomingFriday } from './dates.ts';
 import { applyYeshivaRules, candleLighting, timeOnDate, yeshivaReference } from './zmanim.ts';
 
@@ -25,10 +26,21 @@ export async function request<T>(path: string, token?: string, body?: unknown, m
   } finally { clearTimeout(timeout); }
 }
 export const api = {
-  register: (email: string, password: string, firstName: string, lastName: string) => request<Session>('/api/register', undefined, { email, password, firstName, lastName }),
-  membershipRequests: (token: string) => request<MembershipRequest[]>('/api/admin/membership-requests', token),
-  classifyMember: (token: string, id: string, classification: 'א' | 'קבוע') => request(`/api/admin/roster/${encodeURIComponent(id)}`, token, { classification }, 'PUT'),
-  login: (email: string, password: string) => request<Session>('/api/login', undefined, { email, password }),
+  roster: (token: string) => request<RosterPerson[]>('/api/admin/roster', token),
+  person: (token: string, id: string) => request<PersonDetails>(`/api/admin/people/${encodeURIComponent(id)}`, token),
+  savePerson: (token: string, id: string, value: PersonUpdate) => request<PersonDetails>(`/api/admin/people/${encodeURIComponent(id)}`, token, value, 'PUT'),
+  publish: (token: string, value: { category: string; title: string; body: string; pinned: boolean }) => request<CommunityMessage>('/api/admin/messages', token, value),
+  publishPdf: (token: string, value: { name: string; base64: string; title: string; body: string }) => request<CommunityMessage>('/api/admin/weekly-documents', token, value),
+  aliyahTemplate: (token: string, date: string) => request<AliyahTemplate>(`/api/admin/aliyah-template?date=${encodeURIComponent(date)}`, token),
+  aliyahRecords: (token: string) => request<AliyahRecord[]>('/api/admin/aliyah-services', token),
+  saveAliyot: (token: string, value: AliyahInput, id?: string) => request<AliyahRecord>(id ? `/api/admin/aliyah-records/${encodeURIComponent(id)}` : '/api/admin/aliyah-records', token, value, id ? 'PUT' : 'POST'),
+  requestPhoneCode: (phone: string) => request<PhoneChallenge>('/api/auth/phone/request', undefined, { phone }),
+  verifyPhoneCode: (challengeId: string, code: string) => request<Session>('/api/auth/phone/verify', undefined, { challengeId, code }),
+  associationMembers: (token: string) => request<AssociationMember[]>('/api/admin/association-members', token),
+  importMembers: (token: string, file: { name: string; base64: string }) => request<{ added: number; updated: number; total: number }>('/api/admin/association-members/import', token, { name: file.name, base64: file.base64 }),
+  classifications: (token: string) => request<ClassificationOption[]>('/api/admin/classifications', token),
+  addClassification: (token: string, name: string) => request<ClassificationOption>('/api/admin/classifications', token, { name }),
+  classifyMember: (token: string, id: string, classification: Classification) => request(`/api/admin/roster/${encodeURIComponent(id)}`, token, { classification }, 'PUT'),
   state: (token: string) => request<MemberState>('/api/me', token),
   profile: (token: string, profile: Profile) => request<Profile>('/api/profile', token, profile, 'PUT'),
   preferences: (token: string, preferences: Preferences) => request<Preferences>('/api/preferences', token, preferences, 'PUT'),

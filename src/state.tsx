@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import { api, API_URL, ApiError } from './api';
 import { createDemo } from './demo';
 import { validateProfile } from './dates';
-import { MemberState, Preferences, Profile, PrayerSeats, SeatingStatus, Session, normalizeMemberState, normalizeProfile } from './types';
+import { CLASSIFICATION_OPTIONS, ClassificationOption, CommunityMessage, MessageCategory, MemberState, Preferences, Profile, PrayerSeats, SeatingStatus, Session, normalizeMemberState, normalizeProfile } from './types';
 import { demoHealingPrayer, healingPrayerName } from './healingPrayers';
 import { demoSeating, demoSeatReport, seatReport } from './seating';
 
@@ -18,9 +18,11 @@ const sessionStorage = {
 };
 type Context = {
   data: MemberState | null; session: Session | null; loading: boolean; error: string | null;
-  isDemo: boolean; login: (email: string, password: string) => Promise<void>; register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>; logout: () => Promise<void>;
+  isDemo: boolean; verifyPhone: (challengeId: string, code: string) => Promise<void>; logout: () => Promise<void>;
   refresh: () => Promise<void>; saveProfile: (profile: Profile) => Promise<void>;
   savePreferences: (prefs: Preferences) => Promise<void>; addReply: (id: string, body: string) => Promise<void>;
+  addClassification: (name: string) => Promise<ClassificationOption>;
+  publishMessage: (value: { category: MessageCategory; title: string; body: string; pinned: boolean }, pdf?: { name: string; base64: string }) => Promise<CommunityMessage>;
   markRead: (id: string) => Promise<void>;
   addHealingPrayer: (name: string) => Promise<void>; deleteHealingPrayer: (id: string) => Promise<void>;
   saveSeating: (value: PrayerSeats, context: SeatingStatus) => Promise<void>;
@@ -114,12 +116,8 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     commits.current = pending.catch(() => {});
     await pending;
   }
-  async function login(email: string, password: string) {
-    const nextSession = await api.login(email, password);
-    await acceptSession(nextSession);
-  }
-  async function register(email: string, password: string, firstName: string, lastName: string) {
-    await acceptSession(await api.register(email, password, firstName, lastName));
+  async function verifyPhone(challengeId: string, code: string) {
+    await acceptSession(await api.verifyPhoneCode(challengeId, code));
   }
   async function acceptSession(nextSession: Session) {
     try {
@@ -158,6 +156,20 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     const reply = session ? await api.reply(session.token, id, text) : { id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`, author: dataRef.current?.profile.name || 'חבר/ת הקהילה', body: text, createdAt: new Date().toISOString() };
     await commit(value => ({ ...value, messages: value.messages.map(m => m.id === id ? { ...m, replies: [...m.replies.filter(r => r.id !== reply.id), reply] } : m) }), current);
   }
+  async function addClassification(name: string) {
+    if (!session || dataRef.current?.role !== 'gabbai') throw new Error('הוספת סיווג מיועדת לגבאים בלבד.');
+    const current = generation.current; dataVersion.current += 1;
+    const added = await api.addClassification(session.token, name.trim());
+    await commit(state => ({ ...state, classifications: [...(state.classifications?.length ? state.classifications : CLASSIFICATION_OPTIONS).filter(option => option.value !== added.value), added] }), current);
+    return added;
+  }
+  async function publishMessage(value: { category: MessageCategory; title: string; body: string; pinned: boolean }, pdf?: { name: string; base64: string }) {
+    if (!session || dataRef.current?.role !== 'gabbai') throw new Error('פרסום מיועד לגבאים בלבד.');
+    const current = generation.current; dataVersion.current += 1;
+    const added = pdf ? await api.publishPdf(session.token, { name: pdf.name, base64: pdf.base64, title: value.title, body: value.body }) : await api.publish(session.token, value);
+    await commit(state => ({ ...state, messages: [added, ...state.messages.filter(message => message.id !== added.id)] }), current);
+    return added;
+  }
   async function markRead(id: string) {
     if (dataRef.current?.readIds.includes(id)) return;
     const current = generation.current; dataVersion.current += 1;
@@ -184,7 +196,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     const saved = session ? await api.saveSeating(session.token, payload) : demoSeatReport(dataRef.current?.seating || demoSeating(), context, value);
     await commit(state => ({ ...state, seating: saved }), current);
   }
-  return <StateContext.Provider value={{ data, session, loading, error, isDemo, login, register, logout, refresh, saveProfile, savePreferences, addReply, markRead, addHealingPrayer, deleteHealingPrayer, saveSeating }}>{children}</StateContext.Provider>;
+  return <StateContext.Provider value={{ data, session, loading, error, isDemo, verifyPhone, logout, refresh, saveProfile, savePreferences, addReply, addClassification, publishMessage, markRead, addHealingPrayer, deleteHealingPrayer, saveSeating }}>{children}</StateContext.Provider>;
 }
 export function useCommunity() {
   const value = useContext(StateContext);

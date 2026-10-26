@@ -15,7 +15,7 @@ const TIMES = [
   ['plagHaMincha', 'פלג המנחה', '◴'], ['sunset', 'שקיעה', '◒'], ['nightfall', 'צאת הכוכבים', '✧'],
 ] as const;
 
-export function Home({ onMessage, onMessages, onProfile, onSeating, onMembership }: { onMessage: (id: string) => void; onMessages: () => void; onProfile: () => void; onSeating: () => void; onMembership: () => void }) {
+export function Home({ onMessage, onMessages, onProfile, onSeating, onGabbai }: { onMessage: (id: string) => void; onMessages: () => void; onProfile: () => void; onSeating: () => void; onGabbai: () => void }) {
   const { data, isDemo, refresh } = useCommunity();
   const [now, setNow] = useState(new Date());
   const date = israelDate(now);
@@ -63,9 +63,7 @@ export function Home({ onMessage, onMessages, onProfile, onSeating, onMembership
   function reload() { setRevision(n => n + 1); void refresh().catch(() => {}); }
   return <ScrollView style={s.page} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={busy} onRefresh={reload} tintColor={C.green} />}>
     <View style={{ gap: 6 }}><Text style={s.muted}>{displayDate(date)} · {hebrewDate(date)}</Text><Text style={s.title}>{firstName ? `שלום, ${firstName}` : 'טוב להיות בקהילה'}</Text><Text style={s.muted}>התפילות, הרגעים והאנשים שמחברים בינינו.</Text></View>
-    {data.role === 'gabbai' && <Pressable accessibilityRole="button" accessibilityLabel="מתפללים חדשים לסיווג" onPress={onMembership} style={[s.card, { backgroundColor: C.pale }]}><Text style={s.heading}>מתפללים חדשים לסיווג</Text><Text style={s.muted}>ממתינים לסיווג: {data.membershipRequests?.length || 0}</Text></Pressable>}
-    {!isDemo && !data.seating?.eligible && !data.profile.tribe && <Text style={s.muted}>יש להשלים ולשמור את הפרטים שלי כדי להעבירם לגבאי לסיווג.</Text>}
-    {!isDemo && data.classification === '' && !!data.profile.tribe && <Text style={s.muted}>הפרטים נשלחו לגבאי. ממתינים לסיווג החברות.</Text>}
+    {data.role === 'gabbai' && <Button title="כלי הגבאי" onPress={onGabbai} />}
     {data.seating?.eligible && <Pressable accessibilityRole="button" accessibilityLabel="עדכון מקומות לשבת" onPress={onSeating} style={[s.card, s.between, { backgroundColor: C.pale }]}><View style={{ flex: 1, gap: 5 }}><Text style={s.heading}>עדכון מקומות לשבת ולחג</Text><Text style={[s.muted, seatingNeedsReport && { color: C.red }]}>{seatingNeedsReport ? 'נדרש דיווח פעיל כדי לשמור מקומות למשפחה' : 'מקומות המשפחה בעזרת הגברים'}</Text></View><Text style={{ color: C.green, fontSize: 23 }}>←</Text></Pressable>}
     <View style={{ backgroundColor: C.green, borderRadius: 24, padding: 23, gap: 16 }}>
       <View style={s.between}><Text style={{ color: '#D8E8DC', fontSize: 14 }}>זמני היום · פתח תקווה</Text><Text style={{ color: '#D9C28B', fontSize: 24 }}>☀</Text></View>

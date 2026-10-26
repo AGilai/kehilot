@@ -1,6 +1,6 @@
 # הקהילה שלי · גרסת המתפללים
 
-אפליקציית React Native / Expo עבור iOS ואנדרואיד, בעברית, עם מסכי בית, הודעות, פרטים אישיים והעדפות. מצורף שרת Python ו־SQLite לקהילה אחת. אפליקציית הגבאים אינה חלק מהשלב הזה; השרת כולל הרשאת גבאי ונתיבים שישמשו אותה בהמשך.
+אפליקציית React Native / Expo עבור iOS ואנדרואיד, בעברית, עם מסכי בית, הודעות, פרטים אישיים והעדפות. מצורף שרת Python ו־SQLite לקהילה אחת. גבאים משתמשים באותה אפליקציה עם מסכי ניהול נוספים לעריכת מתפללים, פרסום הודעות ולו״ז PDF ורישום עליות לתורה.
 
 למעבר למחשב אחר ולהמשך מהנקודה הנוכחית, קרא את [HANDOFF.md](HANDOFF.md). הוא כולל הוראות התקנה, מצב הבדיקות, ההחלטות שהתקבלו ונוסח לפתיחת שיחת המשך.
 
@@ -24,7 +24,7 @@ Android SDK נמצא ב־`~/Library/Android/sdk`, עם platform 36, ‏build-too
 
 `npm install` הושלם ונוצר `package-lock.json`; יש לשמור אותו ולהשתמש ב־`npm ci` להתקנה חוזרת. נוספה `expo-system-ui` בגרסה התואמת ל־SDK 57 לצורך הגדרת התצוגה הבהירה ב־Android. תוקנה קריאת `messageId` כש־`data` חסר בהתראה. נוצרו פרויקטי `ios/` ו־`android/` מקומיים והותקנו תלויות CocoaPods; הם עדיין מוחרגים מבקרת גרסאות.
 
-עברו כאן: 50 בדיקות JavaScript, ‏81 בדיקות שרת עם Python החדש, ‏TypeScript ו־`npm run export` עבור iOS/Android/Web. גם `expo install --check`, כל 21 בדיקות Expo Doctor ו־`npm run check:local` עברו בשלב התקנת הסביבה. יצוא Metro אינו הוכחה לבניית native או לבדיקת ממשק.
+עברו כאן: 56 בדיקות JavaScript, ‏113 בדיקות שרת עם Python החדש, ‏TypeScript ו־`npm run export` עבור iOS/Android/Web. גם `expo install --check`, כל 21 בדיקות Expo Doctor ו־`npm run check:local` עברו בשלב התקנת הסביבה. יצוא Metro אינו הוכחה לבניית native או לבדיקת ממשק.
 
 בניית iOS מקומית באמצעות `npm run ios` הצליחה, והאפליקציה הותקנה ופעלה במצב הדגמה ב־iPhone Duo/iOS 27.1; הממשק וזמני היום נצפו בצילום מסך. הבדיקה הראשונית חשפה ש־iOS 27 דורש UIScene: נוספה `expo-build-properties` עם `ios.enableSceneSupport: true` ב־`app.config.ts`, לפי [מסלול התאימות הרשמי של Expo ל־SDK 57](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md#staying-on-sdk-57-with-xcode-27). ההגדרה תישמר גם ביצירה מחדש של פרויקט iOS. אין צורך לשדרג SDK או לערוך ידנית את AppDelegate. בדגם Duo יש לצלם את המסך הפעיל באמצעות `simctl io … screenshot --display=1`; ברירת המחדל עלולה לצלם את המסך השני, השחור.
 
@@ -36,11 +36,52 @@ The Android Debug APK has now been built locally with Gradle, installed in `Shul
 
 הסעיפים ההיסטוריים בהמשך על חסימת npm והכלים במחשב הקודם מתעדים את מצב ההעברה, ולא את ההתקנה במחשב הביתי.
 
-## Registration and household classification
+## Updated classification and aliyah choices
 
-New worshippers can register from the login screen, then complete and save their personal details. They start unclassified and cannot choose their own membership classification. A completed profile creates a durable, private gabbai review request and queues a generic push alert through the existing optional push service. The gabbai's Home card `מתפללים חדשים לסיווג` opens a review screen with two choices: `א` (association member) or `קבוע` (regular attendee). Actual phone push delivery still requires the existing physical-device/Expo/APNs/FCM setup; the review list works without push.
+Gabbaim can assign **any registered classification to any person**, including account holders, and add reusable custom classifications from the same dropdown area. The shared server list appears in the full person editor. Custom labels and classifications do not grant administrator roles; seating still requires `א`.
 
-Only household heads classified `א` see seating reporting and can submit it, for the whole family. `קבוע` and unclassified members are blocked by both UI and server. Gabbai classification also persists the eligible sons' derived `דור ב` / `דור ב-נשוי` classifications and automatically adds married daughters' husbands as `חתן`, reusing existing linked identities. Underage sons keep their community identity and receive the derived roster row at 13. Personal details and marriage changes continue to update those family classifications; members never edit them directly.
+The reading list distinguishes `א׳ ראש השנה` and `ב׳ ראש השנה`, with the correct day preselected from the calendar. Aliyah questions and history use `שלישי`, `רביעי`, `חמישי`, `שישי`, `שביעי`, then `שמיני`, `תשיעי` and further Hebrew numbers for extra aliyot. Historical person links and stored position keys remain intact.
+
+## Gabbai tools — October 26, 2026
+
+A user assigned the `gabbai` role has the regular member experience, initial classification `א` (which the gabbai may later change) and an additional **כלי הגבאי** Home button. The directory lists congregants and opens their personal/family details, yahrzeits, classification, seat allocation and rolling aliyah statistics. Changes synchronize with the original account/child/spouse data, preserving permanent IDs. Gabbaim can override a child's classification, including moving a son from `דור ב` to `דור ב-נשוי`; that also updates marriage in the family profile. Members cannot grant themselves membership or admin roles.
+
+The publishing screen sends text announcements in the existing categories or a weekly PDF schedule, selected through the phone's file picker (up to 10 MiB). The file appears as an authenticated attachment in members' feeds with an open/save/share action. Notifications use the existing preference-aware push queue; real phone delivery still requires configured APNs/FCM/Expo credentials. PDFs and private records stay in SQLite, outside Git.
+
+Morning aliyah entry chooses the date and reading, then a roster person or unnamed `אורח` for every slot. Ordinary Shabbat requires seven regular aliyot plus Maftir and permits extras. Weekday festivals require five plus Maftir; weekday Yom Kippur requires six plus Maftir. Festivals on Shabbat use seven plus Maftir and do not permit extras. The form enforces tribe-specific choices and complete records; corrections replace a service atomically. Guests do not affect member statistics. See [server/API.md](server/API.md) for the legacy-import distinction and exact contracts.
+
+The new native modules are `expo-document-picker`, `expo-file-system` and `expo-sharing`; after `npm ci`, rebuild locally using `npm run ios` / `npm run android`. Both local native builds have passed, along with 56 app tests, 113 server tests, TypeScript, all-platform Metro export and all 21 Expo Doctor checks. Android UI checks verified editing, publishing, the complete aliyah form, PDF selection/upload and the native share sheet; recipient download matched the original PDF bytes. Event/seat-summary administration, Mincha entry UI and broader household/account linking remain future work.
+
+## Phone sign-in and association membership
+
+Sign-in now uses an Israeli mobile number and a six-digit SMS code. Verified numbers on the server's imported association list receive `א` access; other new users register as `קבוע`. Users then complete their personal/family details. They cannot select their own classification. The gabbai edits classifications through the directory, and those decisions survive future imports and sign-ins. The former **מתפללים חדשים לסיווג** card, review screen and classification push alerts have been removed. Only `א` household heads report family seats; their seat quota still requires a gabbai setting.
+
+Prepare an Excel `.xlsx` file using [the blank membership template](server/association-members-template.xlsx), with **שם פרטי**, **שם משפחה**, **פלאפון** columns. `שם מלא` + `פלאפון` is also accepted without guessing name order. Under **כלי הגבאי → רשימת חברי העמותה — טעינת אקסל**, select the file and upload it to the server. Imports validate all rows before saving, normalize equivalent Israeli phone formats, reject duplicate phone numbers and add/update the list without deleting existing members or overriding gabbai decisions. Maximum 5 MiB / 10,000 rows. The list and its uploader/timestamps persist in the private SQLite database; no real membership file is bundled with the project.
+
+The import is also available locally:
+
+```sh
+.venv/bin/python -m server.manage import-members --author-email gabbai@example.com --file /path/to/members.xlsx
+```
+
+SMS delivery is configurable and **not yet connected to a real provider**. The supplied adapter supports [Twilio's Messages API](https://www.twilio.com/docs/messaging/api/message-resource); another provider can be added in `server/sms.py`. Copy `server/.env.example` to ignored `server/.env.local`, set the provider credentials and a persistent random `SHUL_OTP_SECRET` (at least 32 characters), and export those server-only values in the shell running the API:
+
+```sh
+set -a
+source server/.env.local
+set +a
+.venv/bin/python -m server.app --host 0.0.0.0 --port 8000
+```
+
+No SMS is sent without configuration. Missing configuration returns a clear error; there is no production fixed-code/bypass mode. Codes expire after five minutes, can be used once, allow five wrong attempts and have persisted send/verify limits. The login phone is locked after verification; editing contact details cannot claim another membership. SMS transport tests use an injected fake sender, not real delivery. See [server/API.md](server/API.md) for exact behavior and deployment limits.
+
+Before an **existing account** first signs in by phone, a trusted server operator must explicitly link its number. This keeps its permanent account/person IDs, family, classifications and aliyah history. Do this for the CLI-provisioned gabbai too:
+
+```sh
+.venv/bin/python -m server.manage link-phone --email gabbai@example.com --phone 0501234567
+```
+
+The app exposes only phone sign-in. Old editable profile phone fields are never used to claim existing accounts automatically; link existing accounts before rollout. Account/phone conflicts are rejected instead of merging people. Existing sessions remain valid. Unlinked legacy email/password authentication is retained only for migration; linked accounts require SMS. New public email registration returns 410. Self-service number changes and account merging are future work.
 
 ## Family seating reports
 
@@ -50,7 +91,7 @@ For ordinary events the numbers are seats **not** needed (`לא` stays bold/red)
 
 Only current-event reports are kept. They remain available throughout the event date even after reporting closes, and are deleted after it passes (for Shabbat: Sunday 00:00 Israel, checked every minute and on startup/access). Selecting another event also clears previous reports. Past event configurations are deleted; future queued configuration can remain. **No seating history is stored; aliyah history is retained separately.** Old single-number seat reports are cleared on upgrade instead of being copied into both prayers.
 
-The gabbai API exposes separate Arvit/Shacharit counts and totals, allocation settings, event selection and deadlines. Default weekly events calculate the Israeli parasha offline; known special Shabbat dates require active reporting. Weekday holidays/evening Megillah and additional special events must be scheduled/selected by the gabbai. Membership review UI is implemented; allocation/event/summary and aliyah management screens remain future work. See [server/API.md](server/API.md).
+The gabbai API exposes separate Arvit/Shacharit counts and totals, allocation settings, event selection and deadlines. Default weekly events calculate the Israeli parasha offline; known special Shabbat dates require active reporting. Weekday holidays/evening Megillah and additional special events must be scheduled/selected by the gabbai. Membership review, quota editing and morning aliyah UI are implemented; event/summary management remains future work. See [server/API.md](server/API.md).
 
 Validation: 50 app tests, 81 server tests, TypeScript and iOS/Android/web Metro exports pass. Android verified two independent counts and restart persistence against a disposable local API, and confirmed that `קבוע` has no seating option. Android also verified self-registration, personal-detail saving and gabbai approval before the seating option appears. Special-service Android checks required both choices and saved explicit zero independently. Screenshots: `.expo/seating-dual-services.png` and `.expo/seating-dual-special.png`. Physical push delivery remains unverified.
 
@@ -185,7 +226,7 @@ npm run android
 .venv/bin/python -m server.manage create-user --email gabbai@example.com --name "גבאי הקהילה" --role gabbai
 ```
 
-כל פקודה תבקש סיסמה ואימות שלה, באורך 12–128 תווים. אין הרשמה ציבורית בגרסה זו.
+פקודות יצירת החשבון יבקשו סיסמה ואימות שלה, באורך 12–128 תווים. הן מיועדות בעיקר ליצירת הגבאי או להעברת חשבונות קיימים; הרשמת מתפללים חדשים מתבצעת במספר פלאפון וקוד SMS. יש לקשר מספר מאומת לחשבון הגבאי לפי הסעיף לעיל לפני כניסה באפליקציה.
 
 ```sh
 .venv/bin/python -m server.app --host 0.0.0.0 --port 8000
@@ -222,7 +263,7 @@ The backend now maintains `roster_people`, `aliyah_services` and `aliyah_calls`.
 
 Kohen/Levi aliyah counts cover the preceding **6 Gregorian calendar months**; Yisrael counts cover **12**. They roll daily without a calendar-year reset. The latest aliyah is derived from all recorded history, rendered as Hebrew date plus the recorded Torah reading; absent history displays `לא נמצא`. Service corrections are atomic and cannot double-count duplicate records. Cancelled services remain recorded but do not count.
 
-The gabbai-only API supports the roster, separate first/surnames, the requested classifications, independent regular attendees/sons-in-law and service history. Existing full names are not guessed into separate names. A linked family profile remains authoritative for its personal fields. The roster and statistics are implemented in the server; the full roster/aliyah management UI and broader account linking remain future work; new-member classification has a gabbai screen. See [server/API.md](server/API.md) for the schema, date conventions, complete requests and authorization.
+The gabbai-only API supports the roster, separate first/surnames, the requested classifications, independent regular attendees/sons-in-law and service history. Existing full names are not guessed into separate names. A linked family profile remains authoritative for its personal fields. The roster and statistics are implemented in the server; the directory/editor and morning aliyah UI are implemented; broader account linking remains future work. See [server/API.md](server/API.md) for the schema, date conventions, complete requests and authorization.
 
 ## Kohen, Levi or Yisrael
 

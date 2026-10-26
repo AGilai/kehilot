@@ -86,7 +86,7 @@ class SeatingTest(unittest.TestCase):
         special = self.status()
         self.assertEqual((special['reported'], special['value'], special['neededSeats']['arvit'], special['releasedSeats']['arvit']), (False, None, 0, 4))
         summary = self.summary(event)
-        self.assertEqual((summary['totalNeeded']['arvit'], summary['totalReleased']['arvit'], summary['unreportedHouseholds']), (0, 7, 2))
+        self.assertEqual((summary['totalNeeded']['arvit'], summary['totalReleased']['arvit'], summary['unreportedHouseholds']), (0, 7, 3))
 
     def test_report_values_have_opposite_meanings_and_zero_is_an_explicit_report(self):
         normal = self.report(0)
@@ -98,7 +98,7 @@ class SeatingTest(unittest.TestCase):
         self.assertTrue(zero['reported'])
         self.assertEqual(zero['value'], dict(arvit=0, shacharit=0))
         self.assertEqual(zero['neededSeats']['arvit'], 0)
-        self.assertEqual(self.summary(event)['unreportedHouseholds'], 0)
+        self.assertEqual(self.summary(event)['unreportedHouseholds'], 1)
         for _ in range(2):
             saved = self.report(3)
         self.assertEqual((saved['neededSeats']['arvit'], saved['releasedSeats']['arvit']), (3, 1))
@@ -198,7 +198,7 @@ class SeatingTest(unittest.TestCase):
         unknown = self.status()
         self.assertTrue(unknown['eligible'])
         self.assertIsNone(unknown['neededSeats'])
-        self.assertEqual(self.summary(unknown['event'])['unconfiguredHouseholds'], 1)
+        self.assertEqual(self.summary(unknown['event'])['unconfiguredHouseholds'], 2)
         body = dict(eventId=unknown['event']['id'], revision=1, mode='unused', allocatedSeats=0, allocationRevision=unknown['allocationRevision'], arvit=0, shacharit=0)
         self.assertEqual(self.http('PUT', '/api/seating', body, 'member-token')[0], 409)
         self.allocate(self.member_id, 0)
@@ -206,7 +206,7 @@ class SeatingTest(unittest.TestCase):
         zero = self.report(0)
         self.assertTrue(zero['reported'])
         self.assertEqual(zero['neededSeats']['arvit'], 0)
-        self.assertEqual(self.summary(zero['event'])['unconfiguredHouseholds'], 0)
+        self.assertEqual(self.summary(zero['event'])['unconfiguredHouseholds'], 1)
 
     def test_allocation_changes_invalidate_old_reports_even_if_the_number_is_later_restored(self):
         original = self.status()

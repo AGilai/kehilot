@@ -1,4 +1,5 @@
 import argparse
+import base64
 import getpass
 import json
 import os
@@ -7,6 +8,7 @@ from pathlib import Path
 from .app import DEFAULT_DB
 from .store import Store
 from .validation import APIError
+from .member_import import template
 
 
 def main():
@@ -22,6 +24,14 @@ def main():
     publish = commands.add_parser('publish')
     publish.add_argument('--author-email', required=True)
     publish.add_argument('--file', type=Path, required=True, help='UTF-8 JSON: category, title, body, optional pinned')
+    link = commands.add_parser('link-phone', help='Link a trusted existing account before phone sign-in; preserves its permanent identity')
+    link.add_argument('--email', required=True)
+    link.add_argument('--phone', required=True)
+    members = commands.add_parser('import-members')
+    members.add_argument('--author-email', required=True)
+    members.add_argument('--file', type=Path, required=True)
+    sample = commands.add_parser('membership-template')
+    sample.add_argument('--file', type=Path, required=True)
     args = parser.parse_args()
     store = Store(args.db)
     try:
@@ -36,13 +46,24 @@ def main():
             else:
                 store.reset_password(args.email, password)
                 print('Password reset; existing sessions and device tokens revoked.')
-        elif args.command == 'publish':
+        elif args.command == 'membership-template':
+            template(args.file)
+            print('Excel template created.')
+        elif args.command == 'link-phone':
+            print('Phone linked to existing account: ' + store.link_phone(args.email, args.phone))
+        elif args.command in ('publish', 'import-members'):
             with store.db() as db:
                 user = db.execute('SELECT * FROM users WHERE email=?', (args.author_email.strip().lower(),)).fetchone()
             if not user:
                 parser.error('Author account does not exist')
-            result = store.publish(dict(user), json.loads(args.file.read_text(encoding='utf-8')))
-            print(f'Published message: {result["id"]}')
+            if args.command == 'import-members':
+                if args.file.stat().st_size > 5 * 1024 * 1024:
+                    parser.error('Excel file exceeds 5 MiB')
+                result = store.import_members(dict(user), dict(name=args.file.name, base64=base64.b64encode(args.file.read_bytes()).decode()))
+                print(f'Imported {result["added"]} new members; updated {result["updated"]} existing entries.')
+            else:
+                result = store.publish(dict(user), json.loads(args.file.read_text(encoding='utf-8')))
+                print(f'Published message: {result["id"]}')
     except (APIError, ValueError, OSError) as error:
         parser.exit(1, f'{error}\n')
 

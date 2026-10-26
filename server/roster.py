@@ -7,7 +7,7 @@ import threading
 from .hebrew_calendar import bar_mitzvah_date, hebrew_label, is_shabbat_or_festival, months_before
 from .validation import APIError, civil_date, israel_today, profile, text, tribe
 
-CLASSIFICATIONS = {'א', 'דור ב', 'חתן', 'דור ב-נשוי', 'קבוע'}
+from .classifications import classification_value, initialize as initialize_classifications
 
 
 def stamp():
@@ -42,6 +42,24 @@ def initialize(db):
         CREATE INDEX IF NOT EXISTS aliyah_calls_person ON aliyah_calls(person_id,service_id);
         CREATE INDEX IF NOT EXISTS aliyah_service_dates ON aliyah_services(service_date,cancelled);
     ''')
+
+    columns = {row['name'] for row in db.execute('PRAGMA table_info(roster_people)')}
+    if 'classification_override' not in columns:
+        db.execute('ALTER TABLE roster_people ADD COLUMN classification_override TEXT')
+    call_columns = {row['name']: row for row in db.execute('PRAGMA table_info(aliyah_calls)')}
+    if call_columns['person_id']['notnull']:
+        db.executescript('''
+            CREATE TABLE aliyah_calls_with_guests (
+                service_id TEXT NOT NULL REFERENCES aliyah_services(id), position TEXT NOT NULL,
+                person_id TEXT REFERENCES roster_people(id), person_name TEXT NOT NULL,
+                PRIMARY KEY(service_id,position));
+            INSERT INTO aliyah_calls_with_guests SELECT * FROM aliyah_calls;
+            DROP TABLE aliyah_calls;
+            ALTER TABLE aliyah_calls_with_guests RENAME TO aliyah_calls;
+            CREATE INDEX aliyah_calls_person ON aliyah_calls(person_id,service_id);
+        ''')
+
+    initialize_classifications(db)
 
 
 class RosterStore:
@@ -82,10 +100,11 @@ class RosterStore:
                  row['bar_mitzvah_parasha'], row['bar_mitzvah_date'], row['hebrew_birth_date'], yahrzeits,
                  eligible.isoformat() if eligible else None, timestamp, timestamp, first, last, row['relationship']))
 
-        db.execute("""UPDATE roster_people SET classification=COALESCE((
+        db.execute("UPDATE roster_people SET classification='א' WHERE classification='' AND id IN (SELECT id FROM users WHERE role='gabbai')")
+        db.execute("""UPDATE roster_people SET classification=COALESCE(classification_override,(
             SELECT CASE WHEN father.classification='א' THEN
                 CASE WHEN child.married=1 THEN 'דור ב-נשוי' ELSE 'דור ב' END
-                WHEN father.classification='קבוע' THEN 'קבוע' ELSE '' END
+                WHEN father.classification!='' THEN 'קבוע' ELSE '' END
             FROM community_people child LEFT JOIN roster_people father ON father.id=child.owner_user_id
             WHERE child.id=roster_people.source_person_id AND child.relationship='son'), classification)
             WHERE source_person_id IN (SELECT id FROM community_people WHERE relationship='son')""")
@@ -95,13 +114,15 @@ class RosterStore:
             FROM community_people c JOIN roster_people r ON r.id=c.owner_user_id
             WHERE c.relationship='daughter'""").fetchall()
         for child in daughters:
-            old = db.execute('SELECT id,classification FROM roster_people WHERE family_child_id=?', (child['id'],)).fetchone()
+            old = db.execute('SELECT id,classification,eligible_from FROM roster_people WHERE family_child_id=?', (child['id'],)).fetchone()
             should_create = child['active'] and child['married'] and child['spouse_name'] and child['household_classification'] == 'א'
             if not old and not should_create:
                 continue
             identifier = old['id'] if old else 'person-' + secrets.token_hex(16)
-            classification = 'חתן' if child['household_classification'] == 'א' else 'קבוע' if child['household_classification'] == 'קבוע' else old['classification'] if old else ''
-            active = int(bool(child['active'] and child['married'] and child['spouse_name']))
+            override = db.execute('SELECT classification_override FROM roster_people WHERE id=?', (identifier,)).fetchone()
+            classification = override[0] if override and override[0] else 'חתן' if child['household_classification'] == 'א' else 'קבוע' if child['household_classification'] else old['classification'] if old else ''
+            active = int(bool(child['active'] and child['married'] and child['spouse_name']) and
+                         (not old or not old['eligible_from'] or old['eligible_from'] <= today.isoformat()))
             timestamp = stamp()
             db.execute("""INSERT INTO roster_people
                 (id,family_child_id,display_name,tribe,torah_name,classification,active,created_at,updated_at)
@@ -184,16 +205,8 @@ class RosterStore:
                 data[key] = text(data[key], key, required=not old)
             status = tribe(data['tribe'], required=not old)
             classification = value.get('classification', old['classification'] if old else '')
-            if not isinstance(classification, str) or (classification not in CLASSIFICATIONS and (classification != '' or not old or 'classification' in value)):
-                raise APIError(400, 'יש לבחור סיווג תקין.')
-            if old and old['source_person_id']:
-                relation = db.execute('SELECT relationship FROM community_people WHERE id=?', (identifier,)).fetchone()[0]
-                if relation == 'self' and 'classification' in value and classification not in ('א', 'קבוע'):
-                    raise APIError(400, 'לראש משפחה יש לבחור א או קבוע.')
-                if relation == 'son' and 'classification' in value:
-                    raise APIError(400, 'סיווג הבן נקבע לפי ראש המשפחה ומצבו המשפחתי.')
-            if old and old['family_child_id'] and 'classification' in value:
-                raise APIError(400, 'סיווג החתן נקבע לפי ראש המשפחה.')
+            classification = classification_value(db, classification, allow_empty=bool(old) and 'classification' not in value)
+            data['classification'] = classification
             allocation = value.get('allocatedSeats', old['allocated_seats'] if old else None)
             if allocation is not None and (type(allocation) is not int or not 0 <= allocation <= 1000):
                 raise APIError(400, 'מכסת המקומות חייבת להיות מספר שלם בין 0 ל־1000.')
@@ -250,6 +263,8 @@ class RosterStore:
                  clean['barMitzvahParasha'], ceremony, json.dumps(clean['hebrewBirthDate']), json.dumps(clean['yahrzeits'], ensure_ascii=False),
                  classification, family, timestamp, timestamp, eligible_from, active))
             db.execute('UPDATE roster_people SET allocated_seats=?,seat_allocation_revision=? WHERE id=?', (allocation, allocation_revision, identifier))
+            if 'classification' in value:
+                self._set_family_classification(db, identifier, classification)
             self._refresh_roster(db, israel_today())
             return self._roster_value(db, db.execute('SELECT * FROM roster_people WHERE id=?', (identifier,)).fetchone(), israel_today())
 
@@ -267,10 +282,10 @@ class RosterStore:
             raise APIError(400, 'רשימת העליות אינה תקינה.')
         calls, positions = [], set()
         for item in value['calls']:
-            if not isinstance(item, dict) or set(item) != {'position', 'personId'}:
+            if not isinstance(item, dict) or set(item) not in ({'position', 'personId'}, {'position', 'guest'}) or ('guest' in item and item['guest'] is not True):
                 raise APIError(400, 'פרטי העלייה אינם תקינים.')
             position = text(item['position'], 'עלייה', 50, True)
-            person_id = text(item['personId'], 'מזהה מתפלל', 100, True)
+            person_id = None if item.get('guest') else text(item['personId'], 'מזהה מתפלל', 100, True)
             if position in positions:
                 raise APIError(400, 'אין לשייך שני מתפללים לאותה עלייה.')
             positions.add(position)
@@ -286,6 +301,9 @@ class RosterStore:
                 raise APIError(409, 'כבר קיימת רשומה לתפילה זו. יש לעדכן אותה.')
             participants = []
             for position, person_id in calls:
+                if person_id is None:
+                    participants.append((position, None, 'אורח'))
+                    continue
                 person = db.execute('SELECT * FROM roster_people WHERE id=?', (person_id,)).fetchone()
                 if not person:
                     raise APIError(400, 'המתפלל לא נמצא ברשימת המתפללים.')
@@ -311,7 +329,7 @@ class RosterStore:
         calls = db.execute('SELECT position,person_id,person_name FROM aliyah_calls WHERE service_id=? ORDER BY rowid', (identifier,)).fetchall()
         return dict(id=row['id'], date=row['service_date'], hebrewDate=hebrew_label(date.fromisoformat(row['service_date'])),
                     service=row['service'], reading=row['reading'], cancelled=bool(row['cancelled']),
-                    calls=[dict(position=call['position'], personId=call['person_id'], nameAtRecording=call['person_name']) for call in calls])
+                    calls=[dict(position=call['position'], personId=call['person_id'], nameAtRecording=call['person_name'], guest=call['person_id'] is None) for call in calls])
 
     def aliyah_services(self, user):
         self.require_gabbai(user)

@@ -19,13 +19,13 @@ export async function enablePush(token: string): Promise<void> {
   await api.push(token, pushToken.data);
 }
 
-export async function listenForNotifications(onReceive: () => void, onOpen: (id: string) => void, onMembership: () => void): Promise<() => void> {
+export async function listenForNotifications(onReceive: () => void, onOpen: (id: string) => void): Promise<() => void> {
   if (Platform.OS === 'web' || Constants.appOwnership === 'expo') return () => {};
   const Notifications = await import('expo-notifications');
   Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }) });
   const received = Notifications.addNotificationReceivedListener(onReceive);
   const open = (response: NotificationResponse) => {
-    if (response.notification.request.content.data?.screen === 'membership') { onMembership(); return; }
+    if (response.notification.request.content.data?.screen === 'membership') { onReceive(); return; }
     const id = response.notification.request.content.data?.messageId;
     if (typeof id === 'string') onOpen(id);
   };

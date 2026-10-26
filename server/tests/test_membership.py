@@ -28,44 +28,17 @@ class MembershipTest(unittest.TestCase):
         self.assertEqual(self.http('PUT', '/api/profile', profile, 'member-token')[0], 200)
         return profile
 
-    def test_self_registration_is_unclassified_and_cannot_request_seats_or_privileges(self):
-        body = dict(email='new@example.test', password=helpers.PASSWORD, firstName='שם פרטי', lastName='שם משפחה')
-        for extra in (dict(role='gabbai'), dict(classification='א'), dict(allocatedSeats=4)):
-            self.assertEqual(self.http('POST', '/api/register', {**body, **extra})[0], 400)
-        status, account, _ = self.http('POST', '/api/register', body)
-        self.assertEqual(status, 201, account)
-        token = account['token']
-        state = self.http('GET', '/api/me', token=token)[1]
-        self.assertEqual(state['role'], 'member')
-        self.assertFalse(state['seating']['eligible'])
-        self.assertEqual(state['profile']['firstName'], 'שם פרטי')
-        self.assertEqual(self.http('GET', '/api/admin/membership-requests', token=token)[0], 403)
-        self.assertEqual(self.store.membership_requests(self.gabbai), [])
-        profile = state['profile']
-        profile['tribe'] = 'levi'
-        self.assertEqual(self.http('PUT', '/api/profile', profile, token)[0], 200)
-        requests = self.store.membership_requests(self.gabbai)
-        self.assertEqual([r['id'] for r in requests], [account['user']['id']])
-        self.assertNotIn('password_hash', json.dumps(requests))
-        self.assertEqual(self.http('POST', '/api/register', body)[0], 409)
+    def test_email_registration_is_retired(self):
+        self.assertEqual(self.http('POST', '/api/register', dict(email='new@example.test', password=helpers.PASSWORD, firstName='שם', lastName='משפחה'))[0], 410)
 
-    def test_registration_is_rate_limited_and_password_policy_is_enforced(self):
-        body = dict(email='new@example.test', password='short', firstName='שם', lastName='משפחה')
-        for _ in range(5):
-            self.assertEqual(self.http('POST', '/api/register', body)[0], 400)
-        self.assertEqual(self.http('POST', '/api/register', body)[0], 429)
-
-    def test_new_profile_creates_one_durable_private_gabbai_alert(self):
-        profile = self.save_details()
-        self.store.save_profile(self.member, profile)
+    def test_profiles_no_longer_queue_classification_requests(self):
+        self.save_details()
+        self.save_details()
         with self.store.db() as db:
-            self.assertEqual(db.execute('SELECT COUNT(*) FROM membership_requests').fetchone()[0], 1)
-            self.assertEqual(db.execute('SELECT user_id,member_id FROM membership_outbox').fetchone()[:], (self.gabbai_id, self.member_id))
-            self.assertEqual(db.execute('SELECT COUNT(*) FROM messages').fetchone()[0], 0)
-        restarted = Store(self.store.path)
-        self.assertEqual(len(restarted.membership_requests(self.gabbai)), 1)
-        self.assertEqual(self.store.state(self.member)['membershipRequests'], [])
-        self.assertEqual(len(self.store.state(self.gabbai)['membershipRequests']), 1)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM membership_requests').fetchone()[0], 0)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM membership_outbox').fetchone()[0], 0)
+        self.assertNotIn('membershipRequests', self.store.state(self.gabbai))
+        self.assertEqual(self.http('GET', '/api/admin/membership-requests', token='gabbai-token')[0], 404)
 
     def test_classification_is_gabbai_only_and_regular_attendees_never_report(self):
         profile = self.save_details()
@@ -73,9 +46,8 @@ class MembershipTest(unittest.TestCase):
             self.assertEqual(self.http('PUT', '/api/profile', {**profile, field: value}, 'member-token')[0], 400)
         path = '/api/admin/roster/' + self.member_id
         self.assertEqual(self.http('PUT', path, dict(classification='א'), 'member-token')[0], 403)
-        self.assertEqual(self.http('PUT', path, dict(classification='דור ב'), 'gabbai-token')[0], 400)
+        self.assertEqual(self.http('PUT', path, dict(classification='דור ב'), 'gabbai-token')[0], 200)
         self.assertEqual(self.http('PUT', path, dict(classification='קבוע'), 'gabbai-token')[0], 200)
-        self.assertEqual(self.store.membership_requests(self.gabbai), [])
         state = self.store.seating(self.member)
         self.assertFalse(state['eligible'])
         event = state['event']
@@ -138,22 +110,14 @@ class MembershipTest(unittest.TestCase):
         with self.store.db() as db:
             self.assertEqual(db.execute("SELECT id,active FROM roster_people WHERE family_child_id='daughter'").fetchone()[:], (husband['id'], 1))
 
-    def test_gabbai_push_is_generic_private_and_opens_review_screen(self):
-        self.save_details()
-        self.store.set_push_token(self.gabbai, 'gabbai-token', dict(token='ExpoPushToken[testGabbaiToken123]'))
-        sent = []
-        def send(payload):
-            sent.extend(payload)
-            return dict(data=[dict(status='ok') for _ in payload])
-        self.assertTrue(process_one(self.store, send))
-        self.assertEqual(len(sent), 1)
-        self.assertEqual(sent[0]['data'], dict(screen='membership'))
-        self.assertNotIn('לדוגמה', json.dumps(sent))
-        self.assertEqual(sent[0]['to'], 'ExpoPushToken[testGabbaiToken123]')
-        self.assertFalse(process_one(self.store, send))
-
-    def test_pending_alert_is_skipped_after_classification(self):
-        self.save_details()
-        self.store.set_push_token(self.gabbai, 'gabbai-token', dict(token='ExpoPushToken[testGabbaiToken123]'))
-        self.store.save_roster_person(self.gabbai, dict(classification='קבוע'), self.member_id)
-        self.assertTrue(process_one(self.store, lambda payload: self.fail('Resolved requests should not send a push')))
+    def test_upgrade_retires_old_alerts_without_deleting_people(self):
+        with self.store.db() as db:
+            db.execute('INSERT INTO membership_requests VALUES (?,?)', (self.member_id, '2026-01-01'))
+            db.execute('INSERT INTO membership_outbox (id,user_id,member_id,available_at) VALUES (?,?,?,0)', ('legacy', self.gabbai_id, self.member_id))
+            identities = [tuple(row) for row in db.execute('SELECT id,created_at FROM community_people ORDER BY id')]
+        upgraded = Store(self.store.path)
+        with upgraded.db() as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM membership_requests').fetchone()[0], 0)
+            self.assertEqual(db.execute("SELECT status FROM membership_outbox WHERE id='legacy'").fetchone()[0], 'skipped')
+            self.assertEqual(identities, [tuple(row) for row in db.execute('SELECT id,created_at FROM community_people ORDER BY id')])
+        self.assertFalse(process_one(upgraded, lambda payload: self.fail('Retired alerts must not send')))

@@ -49,16 +49,16 @@ export type CommunityMessage = {
   createdAt: string;
   pinned: boolean;
   replies: Reply[];
+  attachment?: PdfAttachment | null;
 };
 export type HealingPrayer = { id: string; memberId: string; memberName: string; name: string; addedOn: string };
 export type SeatingMode = 'unused' | 'needed';
 export type SeatingEvent = { id: string; date: string; title: string; parasha: string | null; mode: SeatingMode; occasion: string; revision: number; reportingOpen: boolean; configuredOpen: boolean; closesAt: string | null; isCurrent: boolean; automatic: boolean };
 export type PrayerSeats = { arvit: number; shacharit: number };
-export type MembershipRequest = { id: string; email: string; submittedAt: string; profile: Profile };
 export type SeatingStatus = { event: SeatingEvent; eligible: boolean; allocatedSeats: number | null; allocationRevision: number | null; reported: boolean; value: PrayerSeats | null; neededSeats: PrayerSeats | null; releasedSeats: PrayerSeats | null; reportInvalidated: boolean; updatedAt: string | null };
 export type SeatReport = { eventId: string; revision: number; mode: SeatingMode; allocatedSeats: number; allocationRevision: number; arvit: number; shacharit: number };
-export type MemberState = { profile: Profile; preferences: Preferences; messages: CommunityMessage[]; readIds: string[]; healingPrayers: HealingPrayer[]; seating: SeatingStatus | null; classification?: string; role?: 'member' | 'gabbai'; membershipRequests?: MembershipRequest[] };
-export type Session = { token: string; user: { id: string; email: string } };
+export type MemberState = { profile: Profile; preferences: Preferences; messages: CommunityMessage[]; readIds: string[]; healingPrayers: HealingPrayer[]; seating: SeatingStatus | null; classification?: string; role?: 'member' | 'gabbai'; verifiedPhone?: string | null; classifications?: ClassificationOption[] };
+export type Session = { token: string; user: { id: string; email: string; phone?: string } };
 export type Zmanim = { date: string; times: Record<string, string>; source: string };
 export type Shabbat = { friday: string; parasha: string; petahTikva: string | null; telAviv: string | null };
 
@@ -103,3 +103,19 @@ const COMBINED_PARASHOT: Record<string, string> = {
 export const PARASHA_OPTIONS = [{ value: '', label: 'לא הוגדרה' }, ...PARASHOT.flatMap(value =>
   [value, ...(COMBINED_PARASHOT[value] ? [COMBINED_PARASHOT[value]] : [])]
 ).map(value => ({ value, label: value }))];
+
+export type Classification = string;
+export type ClassificationOption = { value: Classification; label: string };
+export const CLASSIFICATION_OPTIONS: { value: Classification; label: string }[] = ['א', 'דור ב', 'חתן', 'דור ב-נשוי', 'קבוע'].map(value => ({ value: value as Classification, label: value === 'א' ? 'א — חבר עמותה' : value }));
+export type PdfAttachment = { id: string; name: string; size: number; mimeType: 'application/pdf' };
+export type RosterPerson = { id: string; sourcePersonId: string | null; familyChildId: string | null; name: string; firstName: string; lastName: string; tribe: Tribe; classification: Classification | ''; torahName: string; wifePrayerName: string; barMitzvahDate: string; barMitzvahParasha: string; hebrewBirthDate: HebrewBirthDate | null; yahrzeits: Yahrzeit[]; allocatedSeats: number | null; aliyahCount: number | null; windowMonths: number | null; lastAliyah: string };
+export type PersonDetails = { person: RosterPerson; profile: Profile; kind: 'self' | 'son' | 'son_in_law' | 'independent'; ownerId: string | null; verifiedPhone?: string | null; account: { email: string; role: 'member' | 'gabbai' } | null };
+export type PersonUpdate = { profile: Profile; classification: Classification; allocatedSeats: number | null; barMitzvahDate: string };
+export type AliyahSlot = { position: string; tribe: Tribe | null };
+export type AliyahTemplate = { date: string; reading: string; regularCount: number; allowExtra: boolean; slots: AliyahSlot[] };
+export type AliyahCall = { position: string; personId?: string | null; guest?: boolean; nameAtRecording?: string };
+export type AliyahRecord = { id: string; date: string; hebrewDate: string; service: 'shacharit' | 'mincha'; reading: string; cancelled: boolean; calls: AliyahCall[] };
+export type AliyahInput = { date: string; reading: string; calls: AliyahCall[]; cancelled?: boolean };
+
+export type PhoneChallenge = { challengeId: string; expiresIn: number; retryAfter: number };
+export type AssociationMember = { phone: string; name: string; firstName: string; lastName: string; registered: boolean };

@@ -1,12 +1,14 @@
 # Community API v1
 
-Single-community member API, Python 3.11+, SQLite and pyluach (installed from server/requirements.txt). Audit timestamps are UTC ISO 8601; birthday, service and eligibility dates are date-only calendar values. All responses are JSON with `Cache-Control: no-store`. Authentication uses `Authorization: Bearer <token>`. Errors use `{ "error": "Hebrew message" }` and an appropriate HTTP status.
+Single-community member API, Python 3.11+, SQLite and pyluach (installed from server/requirements.txt). Audit timestamps are UTC ISO 8601; birthday, service and eligibility dates are date-only calendar values. Responses are JSON, except authenticated PDF downloads; both use `Cache-Control: no-store`. Authentication uses `Authorization: Bearer <token>`. Errors use `{ "error": "Hebrew message" }` and an appropriate HTTP status.
 
 | Method | Path | Access | Behavior |
 | --- | --- | --- | --- |
 | GET | `/health` | Public | Service health |
-| POST | `/api/register` | Public, rate limited | `{email,password,firstName,lastName}` → member session; no classification/role accepted |
-| POST | `/api/login` | Public, rate limited | `{email,password}` → `{token,user:{id,email}}` |
+| POST | `/api/register` | Retired | 410; use verified phone sign-in |
+| POST | `/api/auth/phone/request` | Public, rate limited | `{phone}` → `{challengeId,expiresIn:300,retryAfter:60}` |
+| POST | `/api/auth/phone/verify` | Public, rate limited | `{challengeId,code}` → session after SMS possession check |
+| POST | `/api/login` | Legacy unlinked accounts only | Existing email/password compatibility; linked accounts require SMS |
 | POST | `/api/logout` | Signed in | `{}`; revokes current session and its push registrations |
 | GET | `/api/me` | Signed in | Own profile, preferences, messages, read IDs, healing prayers and seating status |
 | PUT | `/api/profile` | Signed in | Replace own profile; no user ID or role accepted |
@@ -25,8 +27,18 @@ Single-community member API, Python 3.11+, SQLite and pyluach (installed from se
 | POST | `/api/messages/:id/replies` | Signed in | `{body}`; only celebrations and condolences; author derived from session |
 | POST | `/api/messages/:id/read` | Signed in | `{}`; idempotent per-member read status |
 | PUT | `/api/push-token` | Signed in | `{token}`; upsert this device's Expo token, max 20 per member |
-| GET | `/api/admin/membership-requests` | Gabbai | Unclassified members who saved their personal details |
+| GET | `/api/admin/association-members` | Gabbai | Imported association phone list and registration state |
+| POST | `/api/admin/association-members/import` | Gabbai | `{name,base64}` .xlsx; atomic additive import |
 | GET | `/api/admin/members` | Gabbai | Member directory and private profiles |
+| GET | `/api/admin/classifications` | Gabbai | Shared built-in and custom classification dropdown options |
+| POST | `/api/admin/classifications` | Gabbai | `{name}`; create a reusable classification |
+| GET | `/api/admin/people/{id}` | Gabbai | Full editable person/family details, classification, allocation and statistics |
+| PUT | `/api/admin/people/{id}` | Gabbai | Atomic personal-data edit with family synchronization |
+| GET | `/api/admin/aliyah-template?date=YYYY-MM-DD` | Gabbai | Israeli calendar reading and required morning slots |
+| POST | `/api/admin/aliyah-records` | Gabbai | Complete morning aliyot with guests and minimum validation |
+| PUT | `/api/admin/aliyah-records/{id}` | Gabbai | Correct a complete morning record atomically |
+| POST | `/api/admin/weekly-documents` | Gabbai | Publish a PDF weekly schedule and enqueue announcement notifications |
+| GET | `/api/documents/{id}` | Signed in | Authenticated PDF bytes; no public URL or token in URL |
 | GET | `/api/admin/roster` | Gabbai | Eligible congregants and derived aliyah statistics |
 | POST | `/api/admin/roster` | Gabbai | Add an independent congregant without a login |
 | PUT | `/api/admin/roster/{id}` | Gabbai | Update roster details/classification |
@@ -35,55 +47,57 @@ Single-community member API, Python 3.11+, SQLite and pyluach (installed from se
 | PUT | `/api/admin/aliyah-services/{id}` | Gabbai | Correct or cancel a recorded service |
 | POST | `/api/admin/messages` | Gabbai | Publish announcement and enqueue notifications |
 
-### Registration and classification review
+### Gabbai tools — October 26, 2026
 
-The login screen supports self-registration with separate `firstName`/`lastName`, email and a 12–128-character password. POST `/api/register` accepts exactly those four fields and returns a normal session (201). Accounts always start as `member` with no classification or seat allocation; requests cannot supply a role, classification or quota. Duplicate email returns 409. Registration attempts are persisted and limited to five per source IP per 15 minutes; login has its separate existing limits. Gabbai accounts and password resets still use the local CLI.
+A gabbai keeps the ordinary member tabs and gains `כלי הגבאי` on Home, containing the searchable congregant directory/editor, announcement/PDF publishing and morning aliyah recording. An unclassified gabbai initially defaults to `א`; explicit later classification changes are preserved. No seat quota is invented; the directory editor can configure it. Role creation remains a protected local CLI operation; neither registration nor profile edits can grant a gabbai role. Every new administrative endpoint checks the authenticated role independently of the UI.
 
-After registration, the app opens personal details. The first successful profile save with separate names and a Kohen/Levi/Yisrael selection records one durable `membership_requests` row and queues a private alert to each existing gabbai in `membership_outbox`. Repeated saves do not duplicate the request/alert. Profiles already classified do not generate a pending review. Pending requests appear via `/api/admin/membership-requests` and `/api/me.membershipRequests` for gabbaim only; ordinary users receive an empty list. Each request contains `{id,email,submittedAt,profile}` and never credentials. `/api/me` also returns the authenticated `role` and own `classification`.
+GET `/api/admin/people/{id}` returns `{person,profile,kind,ownerId,account,verifiedPhone}`. `verifiedPhone` is null unless the account is linked to a verified login number; it is read-only in the full editor. `person` is the roster DTO including current classifications, quota and derived aliyah statistics. `profile` follows the normal full profile schema; `kind` is `self`, `son`, `son_in_law` or `independent`. For an account holder, `account` contains only email and role for inspection; credentials are never returned. Non-account profiles have no child list or account phone fields. PUT accepts exactly `{profile,classification,allocatedSeats,barMitzvahDate}`. Personal dates/names/yahrzeits use existing validation. Derived statistics are read-only. Every person, including account holders and gabbaim, can receive any registered classification. Classification and administrative role are independent; only exact classification `א` grants seating eligibility.
 
-The gabbai's Home card `מתפללים חדשים לסיווג` opens a review screen with exactly `א` or `קבוע` as classification choices. It saves through the existing gabbai-only roster PUT. Account-holder classifications are restricted to those two values; profile and registration writes cannot set either. Classification removes the request from the pending list. All changes persist in the main roster. Only active `א` household heads see the seating card or can submit reports; `קבוע` and unclassified users are blocked by the API as well as the UI. An `א` household with an unknown quota must wait for the gabbai to configure it.
+Head edits update the owning account profile and permanent self/family rows. Son edits update the corresponding child in the father's profile; Kohen/Levi/Yisrael remains inherited, and a mismatching son status is rejected (edit the father instead). Linked-husband edits update the daughter's spouse details. Independent records update their existing roster row. The transaction validates before committing, refreshes eligibility and preserves IDs and historical aliyah name snapshots. Legacy combined names require explicit first/surname entry when using the editor; no order is guessed.
 
-Sons' classifications are persisted automatically from the father's classification and their own marriage: `דור ב` or `דור ב-נשוי` for `א`, otherwise `קבוע` for a regular-attendee household. They cannot independently become household heads through the roster endpoint. Underage sons retain their permanent community identity and receive the derived roster classification when they become eligible at 13. Married daughters' husbands are automatically added as `חתן` once the household is classified `א`; an already linked son-in-law row is reused. Their status/name comes from the daughter's spouse fields. Husband roster IDs and daughter/son IDs survive profile edits, marriage changes, reclassification and restart. Removing a daughter or marriage archives the linked husband's active status without deleting aliyah history. An already linked husband's classification follows a known household classification; legacy explicitly linked records in unclassified households are preserved.
+The nullable additive `classification_override` column preserves a gabbai's explicit person classification across profile refreshes. Without an override, automatic household/marriage classification continues. Choosing `דור ב-נשוי` for a son also sets marriage true in the family record. Choosing `דור ב` sets marriage false and clears spouse name/prayer details, as stated in the editor. Ordinary members still cannot submit any classification. Quota changes retain the existing monotonic allocation-revision behavior.
 
-The optional push worker sends a generic `מתפלל חדש ממתין לסיווג` alert only to registered gabbai devices, with `{screen:"membership"}` and no personal details. Opening it routes to the review screen; the pending list is available even with push disabled. Resolved requests and recipients who are no longer gabbaim are skipped. Push still requires the existing device registration, Expo/APNs/FCM configuration and `SHUL_ENABLE_PUSH=1`; physical delivery is not established by mocked tests.
+#### Weekly PDFs and announcements
 
-Profile:
+Text announcements use POST `/api/admin/messages`. The publishing screen can choose the existing category, title/body and pinning. For PDFs, the native picker accepts one PDF and copies it to app cache; the screen shows its filename/size before the separate publish action. POST `/api/admin/weekly-documents` accepts exactly `{name,base64,title,body}`. The decoded size limit is 10 MiB (HTTP JSON ceiling 14 MiB on this route only); `.pdf` filename, no path components, strict base64, PDF header and EOF marker are checked. This is a signature check, not a full PDF parser. Empty body uses a short schedule description. Invalid input creates neither attachment nor announcement.
 
-```json
-{
-  "name": "ישראל ישראלי",
-  "firstName": "ישראל",
-  "lastName": "ישראלי",
-  "tribe": "yisrael",
-  "phone": "050-1234567",
-  "wifePhone": "+972501234568",
-  "torahName": "ישראל בן אברהם",
-  "wifePrayerName": "",
-  "barMitzvahParasha": "לך לך",
-  "birthDate": "",
-  "hebrewBirthDate": { "day": 29, "month": "adar", "year": 5783 },
-  "children": [
-    {
-      "id": "child-stable-person-id",
-      "gender": "son",
-      "name": "יעקב ישראלי",
-      "birthDate": "",
-      "hebrewBirthDate": { "day": 30, "month": "adar_i", "year": 5774 },
-      "torahName": "יעקב בן ישראל",
-      "barMitzvahParasha": "נח",
-      "barMitzvahDate": "2018-10-13",
-      "married": true,
-      "spouseName": "שרה",
-      "spouseTribe": "",
-      "spouseTorahName": "",
-      "spousePrayerName": "שרה בת רבקה"
-    }
-  ],
-  "yahrzeits": [
-    { "id": "unique-per-member", "name": "אברהם", "relationship": "father", "day": 14, "month": "tishrei", "year": "5784" }
-  ]
-}
-```
+A successful upload atomically inserts a `weekly_documents` BLOB with member-independent ID, filename, size, uploader/time and linked weekly-category message, plus existing `weekly` outbox jobs for the other accounts. `/api/me` and message lists expose `attachment:{id,name,size,mimeType}` metadata. The PDF appears in all members' announcement feeds irrespective of notification preferences; push alerts honor their weekly preference. Push carries the existing generic notification/message ID, not the binary file or personal details. Download is on demand through GET `/api/documents/{id}` with the session Authorization header. The native viewer action opens the OS PDF/share/save sheet after authenticated cache download; web opens an authenticated blob preview. Nothing is uploaded to a cloud build service.
+
+PDF blobs live in the same private SQLite backup as the messages. There is no public attachment URL, attachment deletion/expiry UI or automatic offline-library synchronization in this version. Files and source are separate; the database and caches stay excluded from Git. Native picker/file-system/sharing modules require a new local development-client build after pulling these dependencies. Real APNs/FCM delivery still depends on the existing push configuration.
+
+#### Complete morning aliyot
+
+The date-only template uses the Israeli calendar: ordinary Shabbat has seven regular aliyot plus Maftir; weekday Yom Tov has five plus Maftir; weekday Yom Kippur has six plus Maftir. On Shabbat (including Yom Kippur) there are seven plus Maftir. Only ordinary Shabbat permits extras, inserted as additional Israel slots before Maftir; festivals including Shabbat Chol Hamoed prohibit extras in this workflow. Ordinary weekdays and weekday Chol Hamoed are outside this new morning-entry flow. Templates use offline pyluach readings; the UI can choose a parasha/festival label.
+
+POST `/api/admin/aliyah-records` and PUT `.../{id}` accept `{date,reading,calls,cancelled?}`. Calls must fill the complete ordered template: `כהן`, `לוי`, `ישראל 1` through the required count, optional further numbered Israel slots, then `מפטיר`. The maximum is 100 slots. Each slot is either `{position,personId}` with a permanent roster ID or `{position,guest:true}` with no guest name or ID. Server and picker enforce tribe for Kohen/Levi/Israel slots; Maftir allows any tribe. All fields must be chosen before save. Missing, reordered, wrongly typed or extra festival slots return 400. Duplicate date/morning records return 409; corrections replace the same complete record atomically.
+
+An additive migration makes `aliyah_calls.person_id` nullable while copying all previous calls, IDs, FK links and recorded-name snapshots unchanged. NULL represents an unnamed guest and the stored label is `אורח`. Guests never create congregant identities or contribute to anyone's rolling statistics. Existing historical partial records remain readable. The legacy `/api/admin/aliyah-services` write API remains available for partial historical imports/Mincha; the new gabbai morning screen uses the complete-record endpoints and requires completing any old partial record before resaving it there.
+
+### Shared custom classifications — October 26, 2026
+
+The `classifications` table persists dropdown names/order, creator and creation time. Startup seeds `א`, `דור ב`, `חתן`, `דור ב-נשוי`, `קבוע` and retains existing roster/override labels without replacing people. GET `/api/admin/classifications` returns `{value,label}` options; `/api/me.classifications` supplies the same list only to gabbaim. POST accepts exactly `{name}`, trims/collapses whitespace, permits 1–60 characters and rejects controls. Duplicate names (including case-only English variants and quoted aliases of built-ins) return 409; malformed input returns 400; ordinary members receive 403. This version adds names without rename/delete operations.
+
+The full person editor uses the shared selector with every option and `+ הוספת סיווג חדש`. Adding a name immediately selects it for the current draft and updates the shared available list; saving the person's details/classification commits the assignment. Both roster PUT and full-person PUT require a registered name and allow every registered option for any person. Ordinary profile/registration writes still cannot classify anyone. Custom labels do not confer gabbai role, seating rights or inferred association privileges. Automatic family defaults use association-derived categories only for `א`, `קבוע` for other known household categories, and preserve explicit child overrides.
+
+The aliyah reading dropdown now offers `א׳ ראש השנה` and `ב׳ ראש השנה`. The calendar template chooses the corresponding exact label on Tishrei 1/2, preserving the existing Shabbat/festival slot counts. Existing stored reading labels are never rewritten; an older generic `ראש השנה` record remains editable as historical data.
+
+The visible Israel aliyah labels are now `שלישי`, `רביעי`, `חמישי`, `שישי`, `שביעי`, with extras `שמיני`, `תשיעי`, `עשירי` and further Hebrew numbers. Kohen/Levi/Maftir keep their labels. Form errors and saved-record displays use these same names. Internal `ישראל 1` etc. position keys remain stable in API payloads/SQLite, so guest markers, person links, historical records and statistics require no migration.
+
+### Phone verification and association list
+
+The app uses a phone → SMS code → session flow. Israeli mobile formats `05…`, `+9725…`, and `009725…` normalize to one E.164 identity. POST `/api/auth/phone/request` accepts exactly `{phone}`. The response is the same for listed/unlisted numbers and contains no code, membership status or profile. SMS transport is configurable through `server/sms.py`; the supplied adapter uses [Twilio Messages](https://www.twilio.com/docs/messaging/api/message-resource). It is disabled until `SHUL_SMS_BACKEND=twilio`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` and a persistent `SHUL_OTP_SECRET` of at least 32 characters are configured. See `server/.env.example`. Provider failures/missing configuration return 503 without provider details. An accepted SMS request is not proof of handset delivery.
+
+Codes have six cryptographically random digits, five-minute expiry, a 60-second resend cooldown and at most five wrong submissions. Only a keyed HMAC bound to challenge/phone/code is stored; raw codes are never returned/logged. A resend invalidates the preceding challenge. Limits survive restart: 5 requests/phone/hour, 20/IP/hour, 200 total/day; 20 verification submissions/phone/15 minutes and 60/IP/15 minutes. The source IP is the socket peer, not a client-supplied forwarded header. The daily ceiling is a pilot safeguard; review these values in `phone_auth.py` for deployment scale/proxy configuration. A new 256-bit challenge ID prevents guessing another user's challenge. Verification, single-use consumption, account creation/link lookup and session issue share one immediate transaction; replay/concurrent reuse cannot create a second account. Invalid/expired/used codes return 401; exhausted limits return 429.
+
+Successful verification looks up `verified_phones`, never the editable contact-phone field. A new account gets role `member`, the same permanent self/roster ID, and a stored login phone. Numbers in `association_members` get classification `א`; other new numbers get `קבוע`. Imported split names prefill the profile; unsplit full names are preserved until the user supplies their own separate name parts. Missing tribe opens the normal details form. The server never invents an allocation; `א` has seating access but needs a gabbai-configured quota. `/api/me.verifiedPhone` is the canonical verified phone. Profile and full-person PUT cannot replace it with another number. Session `user` adds `phone`; internal phone-account email placeholders are omitted from the UI/session email value. Role remains independent of membership.
+
+An explicit gabbai classification save sets `classification_override` for account holders as well as family rows. It wins over future imports and sign-ins, including an `א` → `קבוע` demotion while the number remains in the original list. Existing classifications are marked explicit during the initial upgrade. Automatic regular accounts may be promoted when their verified number is later imported. The roster editor remains the place for gabbai status changes; members cannot request/assign a category. No new review requests or classification push alerts are created. The old queue's pending rows are retired at startup, GET `/api/admin/membership-requests` returns 404, and `/api/me` no longer includes `membershipRequests`.
+
+POST `/api/admin/association-members/import` accepts exactly `{name,base64}` for a `.xlsx` file (5 MiB decoded; route JSON limit 7 MiB). The first sheet must have `שם פרטי`, `שם משפחה`, `פלאפון`, or `שם מלא` + `פלאפון`; English `firstName,lastName,phone` / `name,phone` are supported. The included `association-members-template.xlsx` has separate name columns and a text-formatted phone column. Numeric Excel phones that lost the initial zero are normalized. All rows are validated before any write. Duplicate normalized phones within one file, formulas, invalid numbers/names/headers, malformed archives, over 10,000 rows, archive expansion over 20 MiB or over 200 archive entries are rejected atomically. `openpyxl` reads in read-only mode with `defusedxml` enabled and external links disabled. Original workbook bytes are not retained.
+
+Import adds or updates stored list entries and reports `{added,updated,total}`; it never deletes absent members or rewrites existing profile names, identities, history or manual classifications. GET returns `{phone,name,firstName,lastName,registered}` rows only to gabbaim. Each entry retains the importer and server timestamp. The Gabbai tools screen replaces the former review entry with `רשימת חברי העמותה — טעינת אקסל`, file selection, a separate upload action and a searchable list. The CLI also supports `import-members --author-email ... --file ...` and `membership-template --file ...`.
+
+Before switching an existing account to phone sign-in, a trusted server operator must run `python -m server.manage link-phone --email ... --phone ...`. This preserves its user/person IDs, family, role, sessions and aliyah history. Link the gabbai account this way after local CLI provisioning. Old contact phone fields are not proof of possession and are never matched automatically; otherwise they could enable account takeover. Existing phone/account conflicts return 409 rather than merging identities. Unlinked legacy email/password sessions remain supported for migration, but the app exposes only phone sign-in and linked accounts cannot use password login. Phone reassignment, automated account merging and self-service number changes are not part of this version.
 
 ### Mi Sheberach for the sick
 
@@ -157,7 +171,7 @@ The Hebrew birthday upgrade adds a nullable `hebrew_birth_date` JSON column to `
 
 `roster_people` is the main congregant roster. It holds separate first/surnames, status, Torah name, wife prayer name, bar-mitzvah Shabbat/parasha, structured Hebrew birthday, a yahrzeit list and classification. Values for people linked to family profiles are refreshed from those profiles. Member-entered first/surnames synchronize from the linked profile. Existing combined names are retained as `name` until separate parts are supplied; no order is guessed. A gabbai can also enter separate names and classification using the roster endpoint.
 
-Classification labels are exactly `א`, `דור ב`, `חתן`, `דור ב-נשוי`, `קבוע`. Household classifications are gabbai-controlled (`א` or `קבוע` for account holders). A linked son's classification is automatically stored from the father's classification and his own marriage; the endpoint does not allow a child override. An unclassified father leaves the son unclassified. Sons inherit their father's Kohen/Levi/Yisrael status. Son-in-law status is independent.
+Built-in labels are `א`, `דור ב`, `חתן`, `דור ב-נשוי`, `קבוע`; gabbaim may add custom labels. Household classifications are gabbai-controlled and chosen from the shared built-in/custom registry. A linked son's default classification follows the father/marriage; a gabbai override is stored explicitly and survives refresh. An unclassified father leaves the son unclassified. Sons inherit their father's Kohen/Levi/Yisrael status. Son-in-law status is independent.
 
 Each source roster ID equals the existing permanent `community_people.id`; no child row or account is replaced. A son with a complete Hebrew birthday receives a roster entry on his thirteenth Hebrew birthday. A server worker refreshes eligibility every 60 seconds, with additional refreshes on startup, profile saves and roster/API activity, so no login is required that day. Unknown birth years do not promote sons. Known underage independent records stay inactive until eligible. Account holders with unknown birthdays remain on the adult roster for legacy compatibility.
 
@@ -177,7 +191,7 @@ Create an independent congregant (regular attendee or son-in-law) without creati
 
 First/surname, valid status and classification are required on creation; other fields are optional. Optional `familyChildId` links a son-in-law to an existing active married daughter's permanent ID; automatic association-household linking usually creates this row first. A second roster entry for that same daughter is rejected. Independent unlinked records remain managed explicitly by the gabbai. Linked husbands use the stable daughter ID, with no merging by name. Linking an existing roster person to a new app account remains future work.
 
-`PUT` accepts a partial update with the same fields. For source-linked people, first/surname can be edited here; household heads also allow classification and seat allocation, and sons allow their own yahrzeit lists. Child/linked-husband classifications follow the household automatically. Other family data is edited through the original profile. A self/account holder's yahrzeit list stays authoritative in that profile. Unknown fields, invalid classifications and unauthorized writes are rejected.
+`PUT` accepts a partial update with the same fields. For source-linked people, first/surname can be edited here; household heads also allow classification and seat allocation, and sons allow their own yahrzeit lists. Child/linked-husband classifications follow the household unless the gabbai sets an explicit override. Other family data is edited through the original profile. A self/account holder's yahrzeit list stays authoritative in that profile. Unknown fields, invalid classifications and unauthorized writes are rejected.
 
 ### Household seating
 
@@ -224,7 +238,7 @@ There is at most one current event. New events default to `makeCurrent:true`; fa
 
 `seating_events` stores event configuration; `seating_reports` stores household/person FK, submitter, revisions, allocation snapshot, both selected values and canonical needed seats per prayer and update timestamp. Reports survive server restart and profile saves until the event passes. Past reports and past event configurations are physically deleted after the event's civil date (for Shabbat: Sunday 00:00 Israel), by the running 60-second worker and on startup/seating access. Only the selected current event can retain reports; future queued event configuration may remain. No seating history is kept. Aliyah history and permanent person records are unaffected. The schema upgrade discards legacy single-number reports rather than guessing which prayer they refer to; those households must report both numbers again. The gabbai summary lists active `א` households with their current status plus `totalAllocated`, `totalNeeded`, `totalReleased`, `unreportedHouseholds` and `unconfiguredHouseholds`. `totalNeeded` and `totalReleased` are separate `{arvit,shacharit}` totals; `totalAllocated` is the household allocation total. Totals use the **current roster and allocations**, including the correct no-report defaults; they are not frozen historical allocation summaries. Unknown quotas are counted separately and do not contribute invented seats.
 
-Demo mode uses four fictional allocated seats and local persistence only. Real quotas are never guessed. The gabbai configuration/summary APIs are implemented; event/quota/summary management screens remain future work; the new-member classification screen is implemented.
+Demo mode uses four fictional allocated seats and local persistence only. Real quotas are never guessed. The gabbai configuration/summary APIs are implemented; event-selection and summary management screens remain future work; quota editing is now part of the directory editor.
 
 ### Aliyah services, calls and rolling statistics
 
@@ -244,7 +258,7 @@ There is one record per date/service and one person per position. Duplicate crea
 
 `GET /api/admin/roster` exposes `windowMonths` (6 for Kohanim/Leviim, 12 for Yisraelim), `aliyahCount`, `lastAliyahDate` and `lastAliyah`. The window uses rolling Gregorian calendar months, clamped at shorter month ends, with an inclusive lower cutoff and today as the upper cutoff. It never resets on January 1 or Rosh Hashanah. Cancelled services and future dates are excluded. Unknown status yields a null window/count rather than assuming a tribe.
 
-The latest aliyah is selected from all available history, independently of the counting window, and rendered as Hebrew date plus the stored reading. With no recorded aliyah, `lastAliyahDate` is null and `lastAliyah` is exactly `לא נמצא`; a known status then has count 0. All roster/history endpoints require gabbai authentication and remain private to ordinary members. The gabbai aliyah UI remains future work; new-member classification is available in the app.
+The latest aliyah is selected from all available history, independently of the counting window, and rendered as Hebrew date plus the stored reading. With no recorded aliyah, `lastAliyahDate` is null and `lastAliyah` is exactly `לא נמצא`; a known status then has count 0. All roster/history endpoints require gabbai authentication and remain private to ordinary members. The gabbai morning aliyah screen is implemented; Mincha entry UI remains future work.
 
 Preferences:
 
@@ -260,6 +274,6 @@ Announcement input:
 
 Categories: `weekly`, `celebration`, `condolence`, `event`. Title max 200 characters; announcement body max 10,000; reply max 1,000. Extra input fields are rejected for profiles, preferences, announcements and replies. A member cannot choose an author, edit another member's profile or change a role. Replies notify prior participants and the announcement author when `replies` is enabled; announcement preferences are independent.
 
-Self-registration creates only unclassified member accounts; there are no administrator default credentials. Gabbai creation, optional member provisioning and password reset use local CLI commands. Passwords use PBKDF2-HMAC-SHA256 with 600,000 iterations and per-account salts; session tokens are random and stored hashed in SQLite, expire after 30 days, and are revoked on password reset. Native clients keep the session in SecureStore; the optional browser client uses tab-scoped sessionStorage. Login limits are persisted for both IP and account. The HTTP handler ignores forwarded IP headers. Apply additional request limits at the deployment proxy before production use.
+Verified phone sign-in creates only member-role accounts and assigns association/regular status from the server list, subject to explicit gabbai overrides; there are no administrator default credentials. Gabbai creation, optional member provisioning and password reset use local CLI commands. Passwords use PBKDF2-HMAC-SHA256 with 600,000 iterations and per-account salts; session tokens are random and stored hashed in SQLite, expire after 30 days, and are revoked on password reset. Native clients keep the session in SecureStore; the optional browser client uses tab-scoped sessionStorage. Login limits are persisted for both IP and account. The HTTP handler ignores forwarded IP headers. Apply additional request limits at the deployment proxy before production use.
 
 The stdlib HTTP server is a development/pilot entry point. Keep it behind HTTPS for remote use. One server process owns the optional push worker. SQLite and WAL files contain member data; keep the database directory private and back it up consistently. API and push tests use temporary databases and mocked Expo transport; they do not prove delivery through APNs/FCM.

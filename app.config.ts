@@ -20,6 +20,7 @@ export default {
       ['expo-build-properties', { ios: { enableSceneSupport: true } }],
       ['expo-localization', { supportsRTL: true }],
       'expo-secure-store',
+      'expo-sharing',
       ['expo-notifications', { defaultChannel: 'community', color: '#245E4F' }],
     ],
     extra: {

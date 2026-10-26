@@ -9,11 +9,17 @@ import { birthDayOptions } from '../dates';
 
 export function Profile() {
   const { data, saveProfile, isDemo } = useCommunity();
-  const [draft, setDraft] = useState<MemberProfile>(() => normalizeProfile(JSON.parse(JSON.stringify(data!.profile))));
+  return data ? <ProfileForm initial={data.profile} phoneLocked={!!data.verifiedPhone} onSave={saveProfile} isDemo={isDemo} /> : null;
+}
+export function ProfileForm({ initial, onSave, isDemo = false, title = 'הפרטים שלי', showFamily = true, phoneLocked = false, extra, onClose }: {
+  initial: MemberProfile; onSave: (profile: MemberProfile) => Promise<MemberProfile | void>; isDemo?: boolean;
+  title?: string; showFamily?: boolean; phoneLocked?: boolean; extra?: (busy: boolean) => React.ReactNode; onClose?: () => void;
+}) {
+  const [draft, setDraft] = useState<MemberProfile>(() => normalizeProfile(JSON.parse(JSON.stringify(initial))));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [saved, setSaved] = useState(() => JSON.stringify(normalizeProfile(data!.profile)));
+  const [saved, setSaved] = useState(() => JSON.stringify(normalizeProfile(initial)));
   const dirty = JSON.stringify(draft) !== saved;
   function change<K extends keyof MemberProfile>(key: K, value: MemberProfile[K]) { setDraft(d => ({ ...d, [key]: value })); setSuccess(false); }
   function updateYahrzeit(id: string, patch: Partial<Yahrzeit>) { change('yahrzeits', draft.yahrzeits.map(y => y.id === id ? { ...y, ...patch } : y)); }
@@ -30,24 +36,24 @@ export function Profile() {
         spouseName: child.spouseName.trim(), spouseTorahName: child.spouseTorahName.trim(), spousePrayerName: child.spousePrayerName.trim(),
       })),
     };
-    try { await saveProfile(normalized); setDraft(normalized); setSaved(JSON.stringify(normalized)); setSuccess(true); } catch (e) { setError(e instanceof Error ? e.message : 'שמירת הפרטים נכשלה.'); } finally { setBusy(false); }
+    try { const result = await onSave(normalized) || normalized; setDraft(result); setSaved(JSON.stringify(result)); setSuccess(true); } catch (e) { setError(e instanceof Error ? e.message : 'שמירת הפרטים נכשלה.'); } finally { setBusy(false); }
   }
   return <ScrollView style={s.page} keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
-    <View style={{ gap: 5 }}><Text style={s.title}>הפרטים שלי</Text><Text style={s.muted}>כדי שהקהילה תהיה איתך ברגעים החשובים.</Text></View>
+    <View style={{ gap: 5 }}>{onClose && <Button title="חזרה לרשימת המתפללים" secondary onPress={onClose} />}<Text style={s.title}>{title}</Text><Text style={s.muted}>{onClose ? 'עדכון פרטי המתפלל במסד הקהילה.' : 'כדי שהקהילה תהיה איתך ברגעים החשובים.'}</Text></View>
     <View style={s.card}>
       <Text style={s.heading}>נעים להכיר</Text>
       {(!draft.firstName || !draft.lastName) && draft.name && <Text style={s.muted}>השם שנשמר בעבר: {draft.name}. יש למלא שם פרטי ושם משפחה בנפרד.</Text>}
       <Field label="שם פרטי *" value={draft.firstName} onChangeText={v => change('firstName', v)} maxLength={200} editable={!busy} autoComplete="given-name" placeholder="שם פרטי" />
       <Field label="שם משפחה *" value={draft.lastName} onChangeText={v => change('lastName', v)} maxLength={200} editable={!busy} autoComplete="family-name" placeholder="שם משפחה" />
       <Choice label="כהן, לוי או ישראל *" value={draft.tribe} options={TRIBES} disabled={busy} onChange={v => change('tribe', v)} />
-      <Field label="מספר הפלאפון שלי" value={draft.phone} onChangeText={v => change('phone', v)} maxLength={40} editable={!busy} keyboardType="phone-pad" autoComplete="tel" placeholder="050-1234567" style={{ writingDirection: 'ltr' }} />
-      <Field label="מספר הפלאפון של אשתי" value={draft.wifePhone} onChangeText={v => change('wifePhone', v)} maxLength={40} editable={!busy} keyboardType="phone-pad" placeholder="050-1234567" style={{ writingDirection: 'ltr' }} />
+      {showFamily && <><Field label={onClose ? 'מספר הפלאפון של המתפלל' : 'מספר הפלאפון שלי'} value={draft.phone} onChangeText={v => change('phone', v)} maxLength={40} editable={!busy && !phoneLocked} keyboardType="phone-pad" autoComplete="tel" placeholder="050-1234567" hint={phoneLocked ? 'מספר הכניסה אומת ב־SMS.' : undefined} style={{ writingDirection: 'ltr' }} />
+      <Field label={onClose ? 'מספר הפלאפון של אשת המתפלל' : 'מספר הפלאפון של אשתי'} value={draft.wifePhone} onChangeText={v => change('wifePhone', v)} maxLength={40} editable={!busy} keyboardType="phone-pad" placeholder="050-1234567" style={{ writingDirection: 'ltr' }} /></>}
       <Field label="שם לעלייה לתורה" value={draft.torahName} onChangeText={v => change('torahName', v)} maxLength={200} editable={!busy} placeholder="למשל: ישראל בן אברהם" />
       <Field label="שם האישה למי שברך" value={draft.wifePrayerName} onChangeText={v => change('wifePrayerName', v)} maxLength={200} editable={!busy} placeholder="השם ושם האב" hint="שדה רשות, בהתאם לנוסח המקובל בקהילה." />
       <Choice label="פרשת בר המצווה" value={draft.barMitzvahParasha} disabled={busy} onChange={v => change('barMitzvahParasha', v)} options={PARASHA_OPTIONS} />
       <HebrewBirthDateFields value={draft.hebrewBirthDate} onChange={value => change('hebrewBirthDate', value)} disabled={busy} />
     </View>
-    <FamilyChildren value={draft.children} fatherTribe={draft.tribe} onChange={children => change('children', children)} disabled={busy} />
+    {showFamily && <FamilyChildren value={draft.children} fatherTribe={draft.tribe} onChange={children => change('children', children)} disabled={busy} />}
     <View style={s.between}><Text style={s.heading}>ימי זיכרון · יארצייט</Text><Pressable accessibilityRole="button" disabled={busy || draft.yahrzeits.length >= 30} onPress={add} hitSlop={10}><Text style={{ color: C.green, fontWeight: '700' }}>+ הוספת קרוב/ה</Text></Pressable></View>
     {!draft.yahrzeits.length && <View style={s.card}><Text style={s.text}>זוכרים יחד</Text><Text style={s.muted}>אפשר להוסיף תאריכי יארצייט לאב, אם, בן, בת, אח ואחות. התאריכים נשמרים לפי הלוח העברי.</Text><Button secondary title="הוספת יום זיכרון" onPress={add} /></View>}
     {draft.yahrzeits.map((y, i) => <View key={y.id} style={s.card}>
@@ -58,6 +64,7 @@ export function Profile() {
       <Choice label="יום בחודש *" value={y.day ? String(y.day) : ''} options={[{ value: '', label: 'בחירת יום' }, ...birthDayOptions(y.month)]} disabled={busy} onChange={day => updateYahrzeit(y.id, { day: Number(day) })} />
     </View>)}
     <Text style={s.muted}>בחודשים חשוון וכסלו ובתאריכי אדר יש הבדלים בין שנים ומנהגים. נשמר כאן התאריך שהזנת; תזכורות שנתיות אוטומטיות אינן כלולות בגרסה זו.</Text>
+    {extra?.(busy)}
     <ErrorText error={error} />
     {success && <Text accessibilityRole="alert" style={[s.text, { color: C.green }]}>{isDemo ? 'הפרטים נשמרו במכשיר ההדגמה.' : 'הפרטים נשמרו בקהילה.'}</Text>}
     {dirty && <Text style={s.muted}>יש שינויים שטרם נשמרו.</Text>}

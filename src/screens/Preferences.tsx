@@ -37,6 +37,6 @@ export function Preferences() {
     <Text style={s.muted}>ההעדפות נשמרות אוטומטית. כל ההודעות נשארות זמינות בלוח הקהילה גם כשמכבים התראות.</Text><ErrorText error={error} />
     {notice && <Text accessibilityRole="alert" style={[s.text, { color: C.green }]}>{notice}</Text>}
     <View style={s.card}><Text style={s.heading}>העדכונים מגיעים אליך</Text><Text style={s.muted}>{isDemo ? 'במצב הדגמה אפשר לשנות העדפות ולבחון את הממשק. לקבלת התראות אמיתיות נדרש חיבור לשרת וגרסה מותקנת בטלפון.' : 'הפעילו התראות במכשיר כדי לקבל הודעות גם כשהאפליקציה סגורה. נדרשת גרסה מותקנת עם הגדרת Apple ו־Firebase.'}</Text>{!isDemo && <Button title="הפעלת התראות במכשיר" onPress={() => void push()} busy={busy} />}</View>
-    <View style={s.card}><Text style={s.heading}>הקהילה שלי</Text><Text style={s.muted}>גרסת מתפללים · 0.1.0 · {isDemo ? 'סביבת הדגמה מקומית' : session?.user.email}</Text>{!isDemo && <Button title="התנתקות" secondary onPress={() => void signOut()} busy={busy} />}</View>
+    <View style={s.card}><Text style={s.heading}>הקהילה שלי</Text><Text style={s.muted}>גרסת מתפללים · 0.1.0 · {isDemo ? 'סביבת הדגמה מקומית' : data.verifiedPhone || session?.user.phone || session?.user.email}</Text>{!isDemo && <Button title="התנתקות" secondary onPress={() => void signOut()} busy={busy} />}</View>
   </ScrollView>;
 }

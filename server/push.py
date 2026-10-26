@@ -16,25 +16,17 @@ def process_one(store, send=None):
     with store.db() as db:
         # A single worker owns the outbox; see README before running multiple processes.
         job = db.execute("SELECT * FROM outbox WHERE status='pending' AND available_at<=? ORDER BY available_at LIMIT 1", (time.time(),)).fetchone()
-        membership = job is None
-        table = 'membership_outbox' if membership else 'outbox'
-        if membership:
-            job = db.execute("SELECT * FROM membership_outbox WHERE status='pending' AND available_at<=? ORDER BY available_at LIMIT 1", (time.time(),)).fetchone()
         if not job:
             return False
         user = db.execute('SELECT preferences FROM users WHERE id=?', (job['user_id'],)).fetchone()
         tokens = [r['token'] for r in db.execute('SELECT p.token FROM push_tokens p JOIN sessions s ON p.session_hash=s.hash WHERE p.user_id=? AND s.expires>?', (job['user_id'], time.time()))]
-        if membership:
-            pending = db.execute("SELECT 1 FROM roster_people r JOIN users u ON u.id=? WHERE r.id=? AND r.classification='' AND u.role='gabbai'", (job['user_id'], job['member_id'])).fetchone()
-            enabled = user and pending
-        else:
-            enabled = user and json.loads(user['preferences']).get(job['preference'], False)
+        enabled = user and json.loads(user['preferences']).get(job['preference'], False)
         if not enabled or not tokens:
-            db.execute(f"UPDATE {table} SET status='skipped' WHERE id=?", (job['id'],))
+            db.execute(f"UPDATE outbox SET status='skipped' WHERE id=?", (job['id'],))
             return True
     try:
-        body = 'מתפלל חדש ממתין לסיווג' if membership else 'תגובה חדשה בקהילה' if job['preference'] == 'replies' else 'הודעה חדשה מהגבאים'
-        data = dict(screen='membership') if membership else dict(messageId=job['message_id'])
+        body = 'תגובה חדשה בקהילה' if job['preference'] == 'replies' else 'הודעה חדשה מהגבאים'
+        data = dict(messageId=job['message_id'])
         payload = [dict(to=token, title='הקהילה שלי', body=body, data=data, channelId='community', sound='default') for token in tokens]
         result = send(payload)
         tickets = result.get('data', [])
@@ -52,11 +44,11 @@ def process_one(store, send=None):
         if retry:
             raise ValueError('Expo rejected at least one push ticket')
         with store.db() as db:
-            db.execute(f"UPDATE {table} SET status='accepted' WHERE id=?", (job['id'],))
+            db.execute(f"UPDATE outbox SET status='accepted' WHERE id=?", (job['id'],))
     except Exception:
         attempts = job['attempts'] + 1
         with store.db() as db:
-            db.execute(f'UPDATE {table} SET attempts=?,available_at=?,status=? WHERE id=?', (attempts, time.time() + min(3600, 30 * 2 ** attempts), 'failed' if attempts >= 5 else 'pending', job['id']))
+            db.execute(f'UPDATE outbox SET attempts=?,available_at=?,status=? WHERE id=?', (attempts, time.time() + min(3600, 30 * 2 ** attempts), 'failed' if attempts >= 5 else 'pending', job['id']))
         logging.warning('Push attempt failed for outbox job %s; attempt %d', job['id'], attempts)
     return True
 

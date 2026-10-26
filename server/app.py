@@ -7,7 +7,7 @@ import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 from .push import start_worker
 from .store import Store
@@ -33,9 +33,12 @@ def make_handler(store, allowed_origins=None):
             logging.info('%s %s', self.command, urlsplit(self.path).path)
 
         def respond(self, status, data):
-            encoded = json.dumps(data, ensure_ascii=False).encode('utf-8')
+            binary = isinstance(data, bytes)
+            encoded = data if binary else json.dumps(data, ensure_ascii=False).encode('utf-8')
             self.send_response(status)
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Type', 'application/pdf' if binary else 'application/json; charset=utf-8')
+            if binary:
+                self.send_header('Content-Disposition', 'inline; filename=weekly-schedule.pdf')
             self.send_header('Content-Length', str(len(encoded)))
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
@@ -46,12 +49,12 @@ def make_handler(store, allowed_origins=None):
             self.end_headers()
             self.wfile.write(encoded)
 
-        def body(self):
+        def body(self, maximum=65536):
             try:
                 length = int(self.headers.get('Content-Length', '0'))
             except ValueError:
                 raise APIError(400, 'גודל הבקשה אינו תקין.')
-            if not 0 < length <= 65536:
+            if not 0 < length <= maximum:
                 raise APIError(413, 'גודל הבקשה אינו תקין או גדול מדי.')
             if self.headers.get_content_type() != 'application/json':
                 raise APIError(415, 'יש לשלוח JSON.')
@@ -81,7 +84,11 @@ def make_handler(store, allowed_origins=None):
             if method == 'GET' and path == '/health':
                 return 200, {'ok': True}
             if method == 'POST' and path == '/api/register':
-                return 201, store.register(self.body(), self.client_address[0])
+                raise APIError(410, 'ההרשמה מתבצעת באמצעות מספר פלאפון וקוד SMS.')
+            if method == 'POST' and path == '/api/auth/phone/request':
+                return 200, store.request_phone_code(self.body(), self.client_address[0])
+            if method == 'POST' and path == '/api/auth/phone/verify':
+                return 200, store.verify_phone_code(self.body(), self.client_address[0])
             if method == 'POST' and path == '/api/login':
                 data = self.body()
                 if set(data) != {'email', 'password'}:
@@ -95,10 +102,18 @@ def make_handler(store, allowed_origins=None):
                     return 200, store.state(user)
                 if path == '/api/messages':
                     return 200, store.list_messages()
-                if path == '/api/admin/membership-requests':
-                    return 200, store.membership_requests(user)
+                if path == '/api/admin/classifications':
+                    return 200, store.classifications(user)
+                if path == '/api/admin/association-members':
+                    return 200, store.association_list(user)
                 if path == '/api/admin/members':
                     return 200, store.members(user)
+                if path == '/api/admin/aliyah-template':
+                    return 200, store.aliyah_template(user, parse_qs(urlsplit(self.path).query).get('date', [''])[0])
+                if path.startswith('/api/admin/people/'):
+                    return 200, store.person_details(user, path.rsplit('/', 1)[-1])
+                if path.startswith('/api/documents/'):
+                    return 200, store.document(user, path.rsplit('/', 1)[-1])
                 if path == '/api/admin/roster':
                     return 200, store.roster(user)
                 if path == '/api/admin/aliyah-services':
@@ -120,7 +135,21 @@ def make_handler(store, allowed_origins=None):
                     store.delete_healing_prayer(user, parts[2])
                     return 200, {'ok': True}
             elif method in ('POST', 'PUT'):
+                if path == '/api/admin/association-members/import' and method == 'POST':
+                    store.require_gabbai(user)
+                    return 200, store.import_members(user, self.body(7 * 1024 * 1024))
+                if path == '/api/admin/weekly-documents' and method == 'POST':
+                    store.require_gabbai(user)
+                    return 201, store.publish_document(user, self.body(14 * 1024 * 1024))
                 data = self.body()
+                if path.startswith('/api/admin/people/') and method == 'PUT':
+                    return 200, store.save_person_details(user, path.rsplit('/', 1)[-1], data)
+                if path == '/api/admin/aliyah-records' and method == 'POST':
+                    return 201, store.save_complete_aliyot(user, data)
+                if path.startswith('/api/admin/aliyah-records/') and method == 'PUT':
+                    return 200, store.save_complete_aliyot(user, data, path.rsplit('/', 1)[-1])
+                if method == 'POST' and path == '/api/admin/classifications':
+                    return 201, store.add_classification(user, data)
                 if method == 'POST' and path == '/api/logout':
                     store.logout(token)
                     return 200, {'ok': True}
