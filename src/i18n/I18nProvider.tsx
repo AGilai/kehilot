@@ -27,7 +27,7 @@ export function I18nProvider({ initialLang, children }: { initialLang?: Lang; ch
   // `direction` on the root view flips layout at runtime; I18nManager.forceRTL would need a restart.
   return (
     <I18nContext.Provider value={value}>
-      <View style={{ flex: 1, direction: dir }}>{children}</View>
+      <View style={Platform.OS === 'web' ? { flex: 1 } : { flex: 1, direction: dir }}>{children}</View>
     </I18nContext.Provider>
   );
 }

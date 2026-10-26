@@ -54,12 +54,24 @@ function ProfilePlaceholder() {
   );
 }
 
+function Offline() {
+  const { t } = useI18n();
+  const { retry } = useAuth();
+  return (
+    <AuthFrame title={t('auth.offline.title')}>
+      <Txt>{t('auth.offline.body')}</Txt>
+      <Button title={t('common.retry')} onPress={() => void retry()} />
+    </AuthFrame>
+  );
+}
+
 function Shell() {
   const { status } = useAuth();
   const k = useTokens();
   if (status === 'loading') {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
+  if (status === 'offline') return <Offline />;
   return status === 'signedIn' ? <ProfilePlaceholder /> : <SignedOutFlow />;
 }
 

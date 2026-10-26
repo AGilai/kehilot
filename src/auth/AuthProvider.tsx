@@ -11,9 +11,10 @@ import { AuthError } from './cognito.ts';
 import { signInSrp } from './srp.ts';
 import { REFRESH_KEY, createTokenManager } from './tokens.ts';
 import type { KeyValue } from './tokens.ts';
+import { localSignOut, resolveStart, signOutSequence } from './signout.ts';
 import { normEmail } from './validate.ts';
 
-export type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
+export type AuthStatus = 'loading' | 'signedOut' | 'signedIn' | 'offline';
 export type Api = ReturnType<typeof endpoints>;
 export type PendingNames = { first: string; last: string };
 
@@ -43,6 +44,8 @@ export type AuthApi = {
   resetPassword(email: string, code: string, password: string): Promise<void>;
   signInFederated(provider: 'google' | 'apple'): Promise<void>;
   signOut(): Promise<void>;
+  /** From 'offline': try restoring the stored session again. */
+  retry(): Promise<void>;
 };
 
 const AuthContext = React.createContext<AuthApi | null>(null);
@@ -84,18 +87,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { fixtures: false as const, storage, tokens, api: endpoints(http) };
   }, []);
 
-  forcedOut.current = () => {
-    setPendingNames(null);
-    resetSessionStore();
-    setStatus('signedOut');
-  };
+  // One local clean-up for every sign-out path (user, forced, account deleted).
+  const cleanup = React.useCallback(() => localSignOut({
+    clear: () => (core.fixtures ? Promise.resolve() : core.tokens.clear()),
+    reset: () => { setPendingNames(null); resetSessionStore(); },
+    done: () => setStatus('signedOut'),
+  }), [core]);
+  forcedOut.current = () => { void cleanup(); };
 
-  React.useEffect(() => {
+  const start = React.useCallback(async () => {
     if (core.fixtures) { setStatus(core.startSignedIn ? 'signedIn' : 'signedOut'); return; }
-    let live = true;
-    core.tokens.restore().then(ok => { if (live) setStatus(ok ? 'signedIn' : 'signedOut'); }, () => { if (live) setStatus('signedOut'); });
-    return () => { live = false; };
+    setStatus(await resolveStart(() => core.tokens.restore()));
   }, [core]);
+  React.useEffect(() => { void start(); }, [start]);
 
   const value = React.useMemo<AuthApi>(() => {
     const fixtures = core.fixtures;
@@ -131,21 +135,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new AuthError('unsupported'); // Task 20
       },
       async signOut() {
-        // Order matters: device first (needs the token), then revoke, then local state. Task 12b moves this into createSignOut.
-        if (!core.fixtures) {
-          if (pushToken) { try { await core.api.deleteDevice(pushToken); } catch { /* ignore */ } }
-          try {
-            const rt = await core.storage.get(REFRESH_KEY);
-            if (rt) await cognito.revoke(rt);
-          } catch { /* ignore */ }
-          await core.tokens.clear();
-        }
-        setPendingNames(null);
-        resetSessionStore();
-        setStatus('signedOut');
+        // Task 12b moves this sequence into createSignOut.
+        if (core.fixtures) { await cleanup(); return; }
+        let rt: string | null = null;
+        try { rt = await core.storage.get(REFRESH_KEY); } catch { /* ignore */ }
+        await signOutSequence({
+          deleteDevice: (t) => core.api.deleteDevice(t), revoke: cognito.revoke,
+          clear: () => core.tokens.clear(), reset: () => { setPendingNames(null); resetSessionStore(); }, done: () => setStatus('signedOut'),
+        }, pushToken, rt);
       },
+      async retry() { setStatus('loading'); await start(); },
     };
-  }, [core, status, pendingNames]);
+  }, [core, status, pendingNames, cleanup, start]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

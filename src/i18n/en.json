@@ -152,6 +152,10 @@
       "title": "Complete your profile",
       "body": "You are signed in. Completing your personal details comes in the next step.",
       "signOut": "Sign out"
+    },
+    "offline": {
+      "title": "No connection",
+      "body": "Cannot reach the server. Your sign-in is saved. Check your connection and try again."
     }
   }
 }
