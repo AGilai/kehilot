@@ -3,7 +3,7 @@ import secrets
 import time
 from datetime import datetime, timezone
 
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 from .errors import ApiError
@@ -122,9 +122,9 @@ class MembersRepo:
         tombstone {deleted, expiresAt +1 day}: until then a retry resolves to the same userId, afterwards the
         resolver answers 401 account_deleted instead of creating a new account.
         """
-        from boto3.dynamodb.conditions import Attr
         key_fields = ('pk', 'sk', 'gsi1pk', 'gsi1sk')
-        condition = Attr('userId').eq(user_id) | Attr('authorId').eq(user_id) | Attr('targetMemberId').eq(user_id)
+        condition = Attr('userId').eq(user_id) | Attr('authorId').eq(user_id) | Attr('targetMemberId').eq(user_id) \
+            | Attr('inviterId').eq(user_id)
         for needle in (user_id, sub):
             for field in key_fields:
                 condition = condition | Attr(field).contains(needle)
@@ -139,7 +139,7 @@ class MembersRepo:
                     if key == sub_key:
                         continue
                     if any(needle in item.get(field, '') for needle in (user_id, sub) for field in key_fields) \
-                            or item.get('userId') == user_id:
+                            or item.get('userId') == user_id or item.get('inviterId') == user_id:
                         batch.delete_item(Key=key)
                         deleted += 1
                         continue
@@ -181,13 +181,81 @@ class MembersRepo:
         return k
 
     def create_invite(self, k, inviter_id, role, uses, days, classification=''):
+        """The INV item and its INVBY marker (for list, revoke and the per-member limit) in one transaction."""
         code = ''.join(secrets.choice(CROCKFORD) for _ in range(INVITE_CODE_LENGTH))
+        now = int(time.time())
+        expires = now + days * 86400
         item = {'pk': f'INV#{code}', 'sk': 'META', 'kehilaId': k, 'inviterId': inviter_id,
-                'role': role, 'usesLeft': uses, 'expiresAt': int(time.time()) + days * 86400}
+                'role': role, 'usesLeft': uses, 'expiresAt': expires}
         if classification:
             item['classification'] = classification
-        self.table.put_item(Item=item, ConditionExpression='attribute_not_exists(pk)')
+        marker = {**self._key(k, f'INVBY#{inviter_id}#{code}'), 'role': role, 'expiresAt': expires,
+                  'createdAt': now}
+        try:
+            self._txn([{'Put': {'TableName': self.table.name, 'Item': item,
+                                'ConditionExpression': 'attribute_not_exists(pk)'}},
+                       {'Put': {'TableName': self.table.name, 'Item': marker}}])
+        except ClientError as error:
+            _cancel_reasons(error, 2)
+            raise ApiError(409, 'try_again')  # a code collision or a conflict: the client retries
         return code
+
+    def _markers(self, k, prefix, role=None):
+        """Unexpired INVBY markers under `prefix` (TTL deletion lags, so expiresAt is always filtered)."""
+        condition = Attr('expiresAt').gt(int(time.time()))
+        if role:
+            condition &= Attr('role').eq(role)
+        items, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').begins_with(prefix),
+                                    FilterExpression=condition, **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def count_active_listener_invites(self, k, inviter_id):
+        """Unexpired listener links of one member. Exhausted links (usesLeft 0) count until they expire."""
+        return len(self._markers(k, f'INVBY#{inviter_id}#', 'listener'))
+
+    def list_invites(self, k, inviter_id=None):
+        """Unexpired invites of the Kehila (or of one inviter): INV items, newest first."""
+        markers = self._markers(k, f'INVBY#{inviter_id}#' if inviter_id else 'INVBY#')
+        markers.sort(key=lambda m: m['createdAt'], reverse=True)
+        keys = [(f'INV#{m["sk"].rsplit("#", 1)[1]}', 'META') for m in markers]
+        found = self.batch_get(keys)
+        return [found[key] for key in keys if key in found and found[key]['kehilaId'] == k]
+
+    def revoke_invite(self, k, invite):
+        """Delete the INV item and its marker in one transaction, only while the invite belongs to Kehila k."""
+        code = invite['pk'][len('INV#'):]
+        try:
+            self._txn([{'Delete': {'TableName': self.table.name, 'Key': {'pk': invite['pk'], 'sk': 'META'},
+                                   'ConditionExpression': 'kehilaId = :k',
+                                   'ExpressionAttributeValues': {':k': k}}},
+                       {'Delete': {'TableName': self.table.name,
+                                   'Key': self._key(k, f'INVBY#{invite["inviterId"]}#{code}')}}])
+        except ClientError as error:
+            if _cancel_reasons(error, 2)[0] == 'ConditionalCheckFailed':
+                raise ApiError(404, 'invite_not_found')
+            raise ApiError(409, 'try_again')
+
+    def count_listeners(self, k):
+        """Current listeners of the Kehila: a COUNT query over the membership items, following pagination.
+        Soft cap: there is no counter item, so concurrent accepts may overshoot the limit by a few."""
+        total, kwargs = 0, {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').begins_with('M#'),
+                                    FilterExpression=Attr('role').eq('listener'), Select='COUNT', **kwargs)
+            total += page['Count']
+            if 'LastEvaluatedKey' not in page:
+                return total
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def set_max_listeners(self, k, value):
+        self.table.update_item(Key=self._key(k, 'META'), UpdateExpression='SET settings.maxListeners = :v',
+                               ConditionExpression='attribute_exists(settings)',
+                               ExpressionAttributeValues={':v': value})
 
     def get_invite(self, code):
         return self._get(f'INV#{code}', 'META')

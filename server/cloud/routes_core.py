@@ -3,6 +3,7 @@ import base64
 
 from .authz import ROLES, require
 from .errors import ApiError
+from .routes_invites import DEFAULT_MAX_LISTENERS
 
 
 def health(ctx, params):
@@ -27,11 +28,16 @@ def kehila(ctx, params):
     notify = {'mutedChannels': [], 'mutedTypes': [], 'membersBroadcasts': 'all', 'mutedMembers': [],
               **membership.get('notify', {})}
     pending = bool(ctx.repo.get_request(params['k'], ctx.user_id))
+    shown = {'pollSeconds': int(settings.get('pollSeconds', 30))}
+    extra = {}
+    if membership['role'] == 'gabbai':
+        shown['maxListeners'] = int(settings.get('maxListeners', DEFAULT_MAX_LISTENERS))
+        extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
     return 200, {'kehilaId': item['kehilaId'], 'name': item['name'], 'role': membership['role'],
                  'classification': membership.get('classification', ''),
                  'logoVersion': item.get('logoVersion'),
                  'canBroadcast': bool(membership.get('canBroadcast')), 'pendingRequest': pending, 'notify': notify,
-                 'settings': {'pollSeconds': int(settings.get('pollSeconds', 30))}}
+                 'settings': shown, **extra}
 
 
 def logo(ctx, params):

@@ -1,10 +1,13 @@
 """Admin CLI. Usage: .venv/bin/python tools/kehila_admin.py create --env dev --name "<name>" [--lang he] [--logo logo.png]
        .venv/bin/python tools/kehila_admin.py set-logo --env dev --kehila <id> --logo logo.png
 
+       .venv/bin/python tools/kehila_admin.py gabbai-invite --env dev --kehila <id>
+
 Creates a Kehila (with default channels) and prints its ID and a one-use, 7-day gabbai invite code.
-The table name comes from `terraform output`. The functions are importable for tests and the smoke test.
+The table name and (when AWS_DEFAULT_REGION is unset) the region come from `terraform output`. The functions are importable for tests and the smoke test.
 """
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -15,14 +18,26 @@ from server.cloud.logo import validate_logo  # noqa: E402
 from server.cloud.repo import Repo  # noqa: E402
 
 
-def table_name(env):
-    return subprocess.run(['terraform', f'-chdir={ROOT}/infra/envs/{env}', 'output', '-raw', 'table_name'],
+def terraform_output(env, name):
+    return subprocess.run(['terraform', f'-chdir={ROOT}/infra/envs/{env}', 'output', '-raw', name],
                           check=True, capture_output=True, text=True).stdout.strip()
+
+
+def table_name(env):
+    return terraform_output(env, 'table_name')
 
 
 def open_repo(env):
     import boto3
-    return Repo(boto3.resource('dynamodb').Table(table_name(env)))
+    region = os.environ.get('AWS_DEFAULT_REGION') or os.environ.get('AWS_REGION') or terraform_output(env, 'region')
+    return Repo(boto3.resource('dynamodb', region_name=region).Table(table_name(env)))
+
+
+def gabbai_invite(repo, k):
+    """One-use, 7-day gabbai invite for an existing Kehila (lock-out recovery). Exits if it does not exist."""
+    if not repo.get_kehila(k):
+        sys.exit(f'Kehila {k} does not exist')
+    return repo.create_invite(k, 'admin-cli', 'gabbai', 1, 7)
 
 
 def read_logo(path):
@@ -56,7 +71,13 @@ def main(argv=None):
     set_logo.add_argument('--env', required=True, choices=['dev'])
     set_logo.add_argument('--kehila', required=True)
     set_logo.add_argument('--logo', required=True, help='path to a square PNG, 64-512 px, at most 65536 bytes')
+    recover = sub.add_parser('gabbai-invite', help='one-use, 7-day gabbai invite for lock-out recovery')
+    recover.add_argument('--env', required=True, choices=['dev'])
+    recover.add_argument('--kehila', required=True)
     args = parser.parse_args(argv)
+    if args.command == 'gabbai-invite':
+        print(f'Gabbai invite code (one use, 7 days): {gabbai_invite(open_repo(args.env), args.kehila)}')
+        return
     if args.command == 'set-logo':
         data = read_logo(args.logo)
         try:

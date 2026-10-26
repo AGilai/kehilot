@@ -148,3 +148,9 @@ def import_list(ctx, params):
     log.info('import k=%s %s', k, ' '.join(f'{s}={counts.get(s, 0)}'
                                           for s in ('created', 'added', 'upgraded', 'exists', 'invalid', 'skipped')))
     return 200, {'results': results}
+
+
+def set_settings(ctx, params):
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    ctx.repo.set_max_listeners(params['k'], inputs.integer(inputs.body_object(ctx), 'maxListeners', 0, 5000))
+    return 200, {}
