@@ -34,6 +34,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { setLang } = useI18n();
   const store = React.useMemo(() => createStore(api, storage), [api]);
   const logos = React.useMemo(() => createLogoCache(storage), []);
+  const logo = React.useCallback((k: string, v: string | null) => logos.get(api, k, v), [logos, api]);
   const state = React.useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const [route, setRoute] = React.useState<SessionApi['route']>('loading');
   const [attempt, setAttempt] = React.useState(0);
@@ -68,7 +69,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const value = React.useMemo<SessionApi>(() => ({
     state, route,
-    logo: (k, v) => logos.get(api, k, v),
+    logo,
     async select(k) {
       const gen = store.getState().generation;
       await store.selectKehila(k);
@@ -80,7 +81,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (store.guard(gen)) setRoute(r);
     },
     retry: () => setAttempt(a => a + 1),
-  }), [state, route, api, logos, store]);
+  }), [state, route, logo, store]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

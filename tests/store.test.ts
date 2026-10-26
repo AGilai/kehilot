@@ -111,3 +111,21 @@ test('logo fetched only when logoVersion changes', async () => {
   const failing = fakeApi(meOf(['k1']), { logo: async () => { throw new Error('x'); } }).api;
   assert.equal(await createLogoCache(memory()).get(failing, 'k9', 'v1'), null);
 });
+
+test('logo lookups are memoised in memory, failures included', async () => {
+  const storage = memory();
+  let storageCalls = 0;
+  const counted: KeyValue = { get: async k => { storageCalls++; return storage.get(k); }, set: (k, v) => storage.set(k, v), remove: k => storage.remove(k) };
+  const { api, calls } = fakeApi(meOf(['k1']));
+  const logos = createLogoCache(counted);
+  await logos.get(api, 'k1', 'v1');
+  const before = storageCalls;
+  assert.equal(await logos.get(api, 'k1', 'v1'), 'data:image/png;base64,QUJD');
+  assert.equal(storageCalls, before);
+  assert.deepEqual(calls, ['logo:k1']);
+  let tries = 0;
+  const failing = fakeApi(meOf(['k1']), { logo: async () => { tries++; throw new Error('x'); } }).api;
+  assert.equal(await logos.get(failing, 'k2', 'v1'), null);
+  assert.equal(await logos.get(failing, 'k2', 'v1'), null);
+  assert.equal(tries, 1);
+});

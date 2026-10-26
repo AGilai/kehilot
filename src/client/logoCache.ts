@@ -10,9 +10,9 @@ export const logoKey = (k: string) => `kehilot.logo.${k}`;
  * The logo is fetched only when `logoVersion` differs from the cached one; `null` means "use the initial-letter tile".
  */
 export function createLogoCache(storage: KeyValue) {
-  return {
-    async get(api: Api, k: string, logoVersion: string | null): Promise<string | null> {
-      if (!logoVersion) return null;
+  // Per session: one lookup per (Kehila, version), failures included, so renders never re-hit storage or the network.
+  const memo = new Map<string, Promise<string | null>>();
+  async function lookup(api: Api, k: string, logoVersion: string): Promise<string | null> {
       let cached: { v: string; data: string } | null = null;
       try {
         const raw = await storage.get(logoKey(k));
@@ -28,6 +28,14 @@ export function createLogoCache(storage: KeyValue) {
       } catch {
         return cached?.data ?? null;
       }
+  }
+  return {
+    get(api: Api, k: string, logoVersion: string | null): Promise<string | null> {
+      if (!logoVersion) return Promise.resolve(null);
+      const key = `${k}:${logoVersion}`;
+      let hit = memo.get(key);
+      if (!hit) { hit = lookup(api, k, logoVersion); memo.set(key, hit); }
+      return hit;
     },
   };
 }
