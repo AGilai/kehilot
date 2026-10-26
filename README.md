@@ -12,10 +12,6 @@ The shared project repository is [AGilai/kehilot](https://github.com/AGilai/kehi
 
 Clone on another computer with `git clone https://github.com/AGilai/kehilot.git`, then read `HANDOFF.md` and install the machine-local dependencies. Credentials, local community databases, native build directories and generated artifacts are excluded from Git; compilation remains local.
 
-## App icon
-
-The app icon (`assets/`) is the logo of בית הכנסת נריה, פתח תקווה, taken from the gabay app (`AGilai/Gabay`, `web/icons/`) and used with the gabbai's consent. A per-Kehila logo shown inside the app is a later step.
-
 ## מצב המחשב הביתי — 25 באוקטובר 2026
 
 המקור הועבר אל `/Users/Noam/Developer/Shul-Regular`. כל 36 קובצי המקור התאימו לגדלים ול־SHA-256 שב־`TRANSFER-MANIFEST.json` לפני השינויים המקומיים. החבילה אינה כוללת היסטוריית Git או מסד קהילה אמיתי.

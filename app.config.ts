@@ -5,7 +5,6 @@ export default {
     version: '0.1.0',
     orientation: 'portrait',
     userInterfaceStyle: 'light',
-    icon: './assets/icon.png',
     scheme: 'shul',
     ios: {
       supportsTablet: true,
@@ -15,7 +14,6 @@ export default {
     },
     android: {
       package: 'com.shulregular.member',
-      adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#FFFFFF' },
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },
     plugins: [
@@ -24,7 +22,6 @@ export default {
       'expo-secure-store',
       ['expo-notifications', { defaultChannel: 'community', color: '#245E4F' }],
     ],
-    web: { favicon: './assets/favicon.png' },
     extra: {
       eas: { projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID || undefined },
     },
