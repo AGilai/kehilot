@@ -43,6 +43,10 @@ data "aws_iam_policy_document" "api" {
     resources = [var.user_pool_arn]
   }
   statement {
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+    resources = ["${var.media_bucket_arn}/up/*", "${var.media_bucket_arn}/m/*"]
+  }
+  statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
     resources = ["${aws_cloudwatch_log_group.api.arn}:*"]
   }
@@ -75,6 +79,7 @@ resource "aws_lambda_function" "api" {
       TABLE_NAME     = var.table_name
       PUSH_QUEUE_URL = var.push_queue_url
       USER_POOL_ID   = var.user_pool_id
+      MEDIA_BUCKET   = var.media_bucket_name
     }
   }
 

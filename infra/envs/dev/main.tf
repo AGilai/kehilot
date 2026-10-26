@@ -6,6 +6,7 @@ locals {
   env_name     = "dev"
   auth_urls    = ["shul://auth/callback", "http://localhost:8081/auth/callback", "${module.web.web_url}/auth/callback"]
   boundary_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/kehilot/kehilot-boundary"
+  app_origins  = [module.web.web_url, "http://localhost:8081"]
 }
 
 module "data" {
@@ -41,7 +42,15 @@ module "api" {
   push_queue_arn     = module.push.queue_arn
   user_pool_id       = module.auth.user_pool_id
   user_pool_arn      = module.auth.user_pool_arn
-  cors_origins       = [module.web.web_url, "http://localhost:8081"]
+  cors_origins       = local.app_origins
+  media_bucket_name  = module.media.bucket_name
+  media_bucket_arn   = module.media.bucket_arn
+}
+
+module "media" {
+  source       = "../../modules/media"
+  name_prefix  = local.name_prefix
+  cors_origins = local.app_origins
 }
 
 module "push" {

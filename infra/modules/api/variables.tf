@@ -61,3 +61,11 @@ variable "user_pool_arn" {
 variable "cors_origins" {
   type = list(string)
 }
+
+variable "media_bucket_name" {
+  type = string
+}
+
+variable "media_bucket_arn" {
+  type = string
+}

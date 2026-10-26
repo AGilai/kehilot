@@ -37,3 +37,7 @@ output "web_bucket" {
 output "web_distribution_id" {
   value = module.web.distribution_id
 }
+
+output "media_bucket" {
+  value = module.media.bucket_name
+}

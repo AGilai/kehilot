@@ -19,3 +19,10 @@ After an apply, write the app's (gitignored) `.env.dev` from the Terraform outpu
 `EXPO_PUBLIC_FEDERATION` stays empty until Google/Apple sign-in is set up. The Cognito domain
 (`kehilot-dev.auth.<region>.amazoncognito.com`) and the OAuth settings on the app client exist for that
 federation; the app never shows the hosted pages. CORS allows the web URL and `http://localhost:8081`.
+
+## Media bucket
+
+`kehilot-dev-media` holds brochure images (private, SSE-S3, no versioning, `force_destroy = false`). The app
+uploads into `up/` with a presigned PUT; unclaimed uploads expire after a day. Attached images live under
+`m/<kehila>/<message>` and are shown through short-lived presigned GET URLs. The API role may Put/Get/Delete
+objects under those two prefixes only. CORS on the bucket allows the web URL and `http://localhost:8081`.

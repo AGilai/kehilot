@@ -2,7 +2,8 @@
 
 Creates throwaway Cognito users and Kehilot, checks health, auth rejection, sign-in, tenant isolation, the
 invite and membership flow, message visibility, private replies, device routes and the push pipeline, then
-deletes everything it created (also on failure). Prints one line per check.
+the media bucket's settings, group channels, conversation channels and image uploads, then deletes everything it
+created (also on failure). Prints one line per check.
 """
 import json
 import secrets
@@ -52,6 +53,16 @@ def http(url, token=None, method='GET', body=None):
             return error.code, parsed
 
 
+def raw(url, method='GET', data=None, headers=None):
+    """(status, headers, body) of a plain HTTP request, for S3 URLs: HTTP errors are returned, not raised."""
+    request = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return response.status, response.headers, response.read()
+    except urllib.error.HTTPError as error:
+        return error.code, error.headers, error.read()
+
+
 def expect(name, condition, detail=''):
     print(f"{'PASS' if condition else 'FAIL'}  {name}{('  ' + detail) if detail and not condition else ''}")
     if not condition:
@@ -66,6 +77,8 @@ class Smoke:
         self.idp = boto3.client('cognito-idp', region_name=region)
         self.sqs = boto3.client('sqs', region_name=region)
         self.logs = boto3.client('logs', region_name=region)
+        self.s3 = boto3.client('s3', region_name=region)
+        self.media_bucket = self.out['media_bucket']
         self.repo = Repo(boto3.resource('dynamodb', region_name=region).Table(self.out['table_name']))
         self.users, self.items, self.emails = [], [], {}
         self.kehilot, self.user_ids, self.subs = [], [], []
@@ -132,6 +145,10 @@ class Smoke:
         self.check_message_visibility()
         self.check_private_reply()
         self.check_devices()
+        self.check_media_bucket_private()
+        self.check_group_channel()
+        self.check_chat_post()
+        self.check_image_roundtrip()
         self.check_cors()
         self.check_import()
         self.check_revoke_on_leave()
@@ -263,6 +280,86 @@ class Smoke:
         status, _ = self.call(fam[0], 'DELETE', '/v1/me/devices/' + urllib.parse.quote(token, safe=''))
         expect('device_deleted_percent_encoded', status == 204 and not self.repo.list_devices(fam[1]), str(status))
         print('PASS  check_devices')
+
+    def check_media_bucket_private(self):
+        bucket = self.media_bucket
+        block = self.s3.get_public_access_block(Bucket=bucket)['PublicAccessBlockConfiguration']
+        expect('media_public_access_blocked', len(block) == 4 and all(block.values()), str(block))
+        rules = self.s3.get_bucket_encryption(Bucket=bucket)['ServerSideEncryptionConfiguration']['Rules']
+        expect('media_encrypted_aes256', [r['ApplyServerSideEncryptionByDefault']['SSEAlgorithm'] for r in rules]
+               == ['AES256'], str(rules))
+        lifecycle = self.s3.get_bucket_lifecycle_configuration(Bucket=bucket)['Rules']
+        up = [r for r in lifecycle if r.get('Filter', {}).get('Prefix') == 'up/']
+        expect('media_up_prefix_expires', len(up) == 1 and up[0]['Status'] == 'Enabled'
+               and up[0]['Expiration']['Days'] == 1, str(lifecycle))
+        url = f'https://{bucket}.s3.{self.out["region"]}.amazonaws.com/m/{self.k}/{new_id()}'
+        status = raw(url)[0]
+        expect('media_unsigned_get_403', status == 403, str(status))
+        print('PASS  check_media_bucket_private')
+
+    def check_group_channel(self):
+        """A channel limited to a group is invisible to a member outside it until the member is put in the group."""
+        k, fam2 = self.k, self.people['fam2']
+        status, group = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/groups', {'name': f'Smoke group {secrets.token_hex(2)}'})
+        expect('group_created', status == 201 and group['groupId'], f'{status} {group}')
+        status, channel = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/channels', {
+            'name': 'smoke-group-channel', 'listenersCanRead': False, 'postPolicy': 'management',
+            'groups': [group['groupId']]})
+        expect('group_channel_created', status == 201 and channel['channelId'], f'{status} {channel}')
+        status, msg = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', {
+            'channelId': channel['channelId'], 'type': 'weekly', 'title': 'Smoke group notice', 'body': ''})
+        expect('group_message_posted', status == 201, f'{status} {msg}')
+        path = f'/v1/kehilot/{k}/messages/{msg["messageId"]}'
+        status, _ = self.call(fam2[0], 'GET', path)
+        expect('outside_member_get_404', status == 404, str(status))
+        status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam2[1]}', {'groups': [group['groupId']]})
+        expect('member_put_into_group', status == 200, str(status))
+        status, _ = self.call(fam2[0], 'GET', path)
+        expect('group_member_get_200', status == 200, str(status))
+        print('PASS  check_group_channel')
+
+    def check_chat_post(self):
+        """A member without canBroadcast posts in a conversation channel."""
+        k, fam1 = self.k, self.people['fam1']
+        status, channel = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/channels', {
+            'name': 'smoke-chat', 'listenersCanRead': False, 'postPolicy': 'management', 'conversation': True})
+        expect('chat_channel_created', status == 201 and channel['channelId'], f'{status} {channel}')
+        status, msg = self.call(fam1[0], 'POST', f'/v1/kehilot/{k}/messages', {
+            'channelId': channel['channelId'], 'body': 'Smoke hello'})
+        expect('chat_posted_without_broadcast_right', status == 201 and msg['type'] == 'chat', f'{status} {msg}')
+        print('PASS  check_chat_post')
+
+    def check_image_roundtrip(self):
+        k, channel = self.k, self.channels['announcements']['channelId']
+        jpeg = b'\xff\xd8\xff' + secrets.token_bytes(61)
+        status, grant = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/uploads', {
+            'channelId': channel, 'contentType': 'image/jpeg', 'bytes': len(jpeg)})
+        expect('image_grant', status == 201 and grant['method'] == 'PUT', f'{status} {grant}')
+        status = raw(grant['url'], 'PUT', jpeg, {'Content-Type': 'image/jpeg'})[0]
+        expect('image_put_jpeg_200', status == 200, str(status))
+        status = raw(grant['url'], 'PUT', jpeg, {'Content-Type': 'image/png'})[0]
+        expect('image_put_wrong_type_403', status == 403, str(status))
+        status, msg = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', {
+            'channelId': channel, 'type': 'weekly', 'title': 'Smoke image', 'body': '',
+            'imageUploadId': grant['uploadId']})
+        expect('image_attached', status == 201 and msg.get('image', {}).get('contentType') == 'image/jpeg',
+               f'{status} {msg}')
+        path = f'/v1/kehilot/{k}/messages/{msg["messageId"]}'
+        status, view = self.call(self.gab, 'GET', f'{path}/image')
+        expect('image_url_granted', status == 200 and view['url'], f'{status} {view}')
+        status, headers, body = raw(view['url'])
+        expect('image_fetched', status == 200 and headers.get('content-type') == 'image/jpeg' and body == jpeg,
+               f'{status} {headers.get("content-type")}')
+        status, _ = self.call(self.gab, 'DELETE', path)
+        expect('image_message_removed', status == 204, str(status))
+        status = raw(view['url'])[0]
+        expect('image_gone_after_removal', status in (403, 404), str(status))
+        status, headers, _ = raw(grant['url'].split('?')[0], 'OPTIONS', headers={
+            'Origin': 'http://localhost:8081', 'Access-Control-Request-Method': 'PUT',
+            'Access-Control-Request-Headers': 'content-type'})
+        expect('media_cors_preflight', status == 200 and headers.get('access-control-allow-origin')
+               == 'http://localhost:8081', f'{status} {dict(headers)}')
+        print('PASS  check_image_roundtrip')
 
     def check_cors(self):
         request = urllib.request.Request(
@@ -468,10 +565,27 @@ class Smoke:
                 print('cleanup: delete failed', type(error).__name__)
         return removed
 
+    def delete_media(self):
+        """Delete the smoke Kehilot's m/<k>/ and up/<k>/ objects."""
+        removed = 0
+        for k in set(self.kehilot):
+            for prefix in (f'm/{k}/', f'up/{k}/'):
+                keys = []
+                for page in self.s3.get_paginator('list_objects_v2').paginate(Bucket=self.media_bucket, Prefix=prefix):
+                    keys += [{'Key': o['Key']} for o in page.get('Contents', [])]
+                for start in range(0, len(keys), 1000):
+                    self.s3.delete_objects(Bucket=self.media_bucket, Delete={'Objects': keys[start:start + 1000]})
+                removed += len(keys)
+        return removed
+
     def cleanup(self):
         """Delete everything this run made, found by scanning for its IDs. Every step continues on failure and
         the Cognito users are deleted last, in a finally, so one error never leaves the pool dirty."""
-        removed, users = 0, 0
+        removed, users, objects = 0, 0, 0
+        try:
+            objects = self.delete_media()
+        except Exception as error:
+            print('cleanup: media cleanup failed', type(error).__name__)
         try:
             removed = self.delete_items()
         except Exception as error:
@@ -485,7 +599,7 @@ class Smoke:
                     users += 1
                 except Exception as error:
                     print('cleanup: user delete failed', type(error).__name__)
-        print(f'cleanup: {removed} items, {users} users removed')
+        print(f'cleanup: {removed} items, {objects} media objects, {users} users removed')
 
 
 if __name__ == '__main__':
