@@ -1,5 +1,3 @@
-data "aws_region" "current" {}
-
 locals {
   function_name = "${var.name_prefix}-push-worker"
 }
@@ -66,16 +64,6 @@ data "aws_iam_policy_document" "worker" {
   statement {
     actions   = ["ssm:GetParameter"]
     resources = [aws_ssm_parameter.expo_token.arn]
-  }
-  # The SecureString uses the AWS-managed key alias/aws/ssm; allow decrypt only through SSM.
-  statement {
-    actions   = ["kms:Decrypt"]
-    resources = ["arn:aws:kms:${data.aws_region.current.region}:*:key/*"]
-    condition {
-      test     = "StringEquals"
-      variable = "kms:ViaService"
-      values   = ["ssm.${data.aws_region.current.region}.amazonaws.com"]
-    }
   }
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]

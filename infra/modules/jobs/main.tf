@@ -1,5 +1,3 @@
-data "aws_region" "current" {}
-
 locals {
   function_name = "${var.name_prefix}-jobs"
 }
@@ -31,15 +29,6 @@ data "aws_iam_policy_document" "jobs" {
   statement {
     actions   = ["ssm:GetParameter"]
     resources = [var.token_parameter_arn]
-  }
-  statement {
-    actions   = ["kms:Decrypt"]
-    resources = ["arn:aws:kms:${data.aws_region.current.region}:*:key/*"]
-    condition {
-      test     = "StringEquals"
-      variable = "kms:ViaService"
-      values   = ["ssm.${data.aws_region.current.region}.amazonaws.com"]
-    }
   }
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
@@ -127,6 +116,11 @@ resource "aws_scheduler_schedule" "push_receipts" {
     arn      = aws_lambda_function.jobs.arn
     role_arn = aws_iam_role.scheduler.arn
     input    = jsonencode({ job = "push_receipts" })
+
+    retry_policy {
+      maximum_retry_attempts       = 2
+      maximum_event_age_in_seconds = 3600
+    }
   }
 
   depends_on = [aws_iam_role_policy.scheduler]
