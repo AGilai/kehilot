@@ -71,7 +71,9 @@
     "invalid_muted_members": "The selection of members to mute is not valid",
     "invalid_chat_channels": "The selection of chat channels for notifications is not valid",
     "network": "Cannot reach the server. Check your connection and try again",
-    "unknown": "Something went wrong. Try again"
+    "unknown": "Something went wrong. Try again",
+    "UsernameExistsException": "This email already has an account. Use 'Forgot password' to set a password.",
+    "generic": "Something went wrong. Try again"
   },
   "app": {
     "name": "Kehilot"
