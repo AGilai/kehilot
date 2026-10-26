@@ -17,3 +17,11 @@ android/
 *.jks
 *.p12
 *.mobileprovision
+
+# Terraform / build / agent workspace
+infra/**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/**/terraform.tfvars
+.superpowers/
