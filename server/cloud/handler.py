@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from . import routes_core, routes_invites, routes_me
+from . import routes_admin, routes_core, routes_invites, routes_me
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -25,6 +25,15 @@ ROUTES = [
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/invites$'), routes_invites.create),
     ('GET', re.compile(r'^/v1/invites/(?P<code>[^/]+)$'), routes_invites.preview),
     ('POST', re.compile(r'^/v1/invites/(?P<code>[^/]+)/accept$'), routes_invites.accept),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/membership-request$'), routes_admin.request_membership),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/membership$'), routes_admin.leave),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/requests$'), routes_admin.list_requests),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/requests/(?P<userId>[^/]+)/approve$'), routes_admin.approve),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/requests/(?P<userId>[^/]+)/reject$'), routes_admin.reject),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members$'), routes_admin.list_members),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.update_member),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.remove_member),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/broadcast$'), routes_admin.set_broadcast),
 ]
 PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 

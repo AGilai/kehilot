@@ -110,3 +110,161 @@ class MembersRepo:
             raise ApiError(409, 'try_again')  # TransactionConflict etc.: the client may retry
         return membership
 
+
+
+def _cancel_reasons(error, count):
+    """Per-item cancellation codes of a failed transaction, padded to `count`; re-raises other errors."""
+    if error.response['Error']['Code'] != 'TransactionCanceledException':
+        raise error
+    reasons = [r.get('Code') for r in error.response.get('CancellationReasons', [])]
+    return reasons + [None] * (count - len(reasons))
+
+
+class AdminRepo:
+    """Membership requests, approval, member management. Mixed into Repo next to MembersRepo."""
+
+    def _txn(self, items):
+        self.table.meta.client.transact_write_items(TransactItems=items)
+
+    def _key(self, k, sk):
+        return {'pk': f'K#{k}', 'sk': sk}
+
+    def put_request(self, k, user_id, display_name, previously_rejected, now):
+        """Add the listener's request; ConditionalCheckFailed means one is already pending."""
+        try:
+            self.table.put_item(Item={**self._key(k, f'REQ#{user_id}'), 'displayName': display_name,
+                                      'createdAt': int(now), 'previouslyRejected': previously_rejected},
+                                ConditionExpression='attribute_not_exists(sk)')
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            raise ApiError(409, 'already_requested')
+
+    def list_requests(self, k):
+        return self._query_prefix(k, 'REQ#')
+
+    def list_members(self, k):
+        return self._query_prefix(k, 'M#')
+
+    def _query_prefix(self, k, prefix):
+        items, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').begins_with(prefix),
+                                    **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def approve_request(self, k, user_id, classification, can_broadcast):
+        """One transaction: listener becomes member and the request disappears."""
+        try:
+            self._txn([
+                {'Delete': {'TableName': self.table.name, 'Key': self._key(k, f'REQ#{user_id}'),
+                            'ConditionExpression': 'attribute_exists(sk)'}},
+                {'Update': {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),
+                            'UpdateExpression': 'SET #r = :member, classification = :c, canBroadcast = :b',
+                            'ConditionExpression': '#r = :listener',
+                            'ExpressionAttributeNames': {'#r': 'role'},
+                            'ExpressionAttributeValues': {':member': 'member', ':listener': 'listener',
+                                                          ':c': classification, ':b': can_broadcast}}},
+            ])
+        except ClientError as error:
+            reasons = _cancel_reasons(error, 2)
+            if reasons[0] == 'ConditionalCheckFailed':
+                raise ApiError(404, 'request_not_found')
+            if reasons[1] == 'ConditionalCheckFailed':
+                raise ApiError(409, 'not_a_listener')
+            raise ApiError(409, 'try_again')
+
+    def reject_request(self, k, user_id, now):
+        try:
+            self._txn([
+                {'Delete': {'TableName': self.table.name, 'Key': self._key(k, f'REQ#{user_id}'),
+                            'ConditionExpression': 'attribute_exists(sk)'}},
+                {'Update': {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),
+                            'UpdateExpression': 'SET rejectedAt = :now',
+                            'ConditionExpression': 'attribute_exists(sk)',
+                            'ExpressionAttributeValues': {':now': int(now)}}},
+            ])
+        except ClientError as error:
+            reasons = _cancel_reasons(error, 2)
+            if reasons[0] == 'ConditionalCheckFailed' or reasons[1] == 'ConditionalCheckFailed':
+                raise ApiError(404, 'request_not_found')
+            raise ApiError(409, 'try_again')
+
+    def set_all_broadcast(self, k, allow):
+        """Settings default first (so new approvals follow it), then every member."""
+        self.table.update_item(Key=self._key(k, 'META'),
+                               UpdateExpression='SET settings.memberBroadcastDefault = :a',
+                               ExpressionAttributeValues={':a': allow})
+        for item in self.list_members(k):
+            if item['role'] == 'member':
+                self.table.update_item(Key=self._key(k, item['sk']), UpdateExpression='SET canBroadcast = :a',
+                                       ConditionExpression='#r = :member',
+                                       ExpressionAttributeNames={'#r': 'role'},
+                                       ExpressionAttributeValues={':a': allow, ':member': 'member'})
+
+    # Changes to a membership. The target is checked against the role the caller saw, so a concurrent
+    # change makes us answer try_again instead of overwriting it.
+    def update_member(self, k, user_id, seen_role, fields):
+        names = {'#r': 'role'}
+        sets, values = [], {':seen': seen_role}
+        for i, (name, value) in enumerate(fields.items()):
+            names[f'#f{i}'] = name
+            values[f':v{i}'] = value
+            sets.append(f'#f{i} = :v{i}')
+        update = {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),
+                  'UpdateExpression': 'SET ' + ', '.join(sets), 'ConditionExpression': '#r = :seen',
+                  'ExpressionAttributeNames': names, 'ExpressionAttributeValues': values}
+        if seen_role == 'gabbai' and fields.get('role', 'gabbai') != 'gabbai':
+            return self._without_last_gabbai(k, user_id, [{'Update': update}])
+        self._run(k, [{'Update': update}])
+
+    def remove_member(self, k, user_id, seen_role):
+        items = [{'Delete': {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),
+                             'ConditionExpression': '#r = :seen', 'ExpressionAttributeNames': {'#r': 'role'},
+                             'ExpressionAttributeValues': {':seen': seen_role}}},
+                 {'Delete': {'TableName': self.table.name, 'Key': self._key(k, f'REQ#{user_id}')}}]
+        if seen_role == 'gabbai':
+            return self._without_last_gabbai(k, user_id, items)
+        self._run(k, items)
+
+    def _run(self, k, items):
+        try:
+            self._txn(items)
+        except ClientError as error:
+            _cancel_reasons(error, 1)
+            raise ApiError(409, 'try_again')
+
+    def _without_last_gabbai(self, k, user_id, items):
+        """Remove a gabbai only while another gabbai provably remains.
+
+        The transaction also holds a ConditionCheck on a *witness*: some other gabbai whose role must
+        still be gabbai at commit. DynamoDB transactions are serializable, so two gabbaim removing
+        each other cannot both commit: the second one's witness has changed. On a failed witness we
+        pick a new one; none left means last_gabbai.
+        """
+        for _ in range(3):
+            witness = next((m['userId'] for m in self.list_members(k)
+                            if m['role'] == 'gabbai' and m['userId'] != user_id), None)
+            if witness is None:
+                raise ApiError(409, 'last_gabbai')
+            try:
+                return self._guarded(k, witness, items)
+            except ApiError as error:
+                if error.code != 'witness_changed':
+                    raise
+        raise ApiError(409, 'try_again')
+
+    def _guarded(self, k, witness, items):
+        check = {'ConditionCheck': {'TableName': self.table.name, 'Key': self._key(k, f'M#{witness}'),
+                                    'ConditionExpression': '#r = :gabbai', 'ExpressionAttributeNames': {'#r': 'role'},
+                                    'ExpressionAttributeValues': {':gabbai': 'gabbai'}}}
+        try:
+            self._txn([check, *items])
+        except ClientError as error:
+            reasons = _cancel_reasons(error, 1 + len(items))
+            if reasons[0] == 'ConditionalCheckFailed':
+                raise ApiError(409, 'witness_changed')
+            raise ApiError(409, 'try_again')
