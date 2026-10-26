@@ -3,13 +3,19 @@ send the verification/reset emails in Hebrew or English.
 
 Nothing here logs an email, a username or a provider id, and never `str(exception)` (Cognito messages can carry
 the username). Only the trigger source, the outcome, and for AWS errors the error code and operation name.
+
+Known Cognito behaviour: the first federated sign-in right after linking may fail with "already found an entry
+for username"; the app retries once (Tasks 19/20). Apple relay addresses never match a pre-loaded person, and
+Apple sends the email only on the first authorisation.
 """
 import logging
 
 from botocore.exceptions import ClientError
 
 from . import accounts
+from .errors import ApiError
 
+logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 logger = logging.getLogger(__name__)
 
 PROVIDERS = {'google': 'Google', 'signinwithapple': 'SignInWithApple'}
@@ -36,28 +42,30 @@ def _link_external(event, client):
     email = (attributes.get('email') or '').strip().lower()
     if not email:
         raise Exception('email_required')
-    if provider == 'Google' and str(attributes.get('email_verified')).lower() != 'true':
+    verified = str(attributes.get('email_verified')).lower()
+    if verified == 'false' or (provider == 'Google' and verified != 'true'):  # Apple: absent is trusted
         raise Exception('email_unverified')
     pool_id = event['userPoolId']
     client = client or accounts.cognito_client()
-    operation = 'ListUsers'
+    operation = 'EnsureAccount'
     try:
-        found = next((u for u in client.list_users(UserPoolId=pool_id, Filter='email = "%s"' % email)['Users']
-                      if u.get('UserStatus') != 'EXTERNAL_PROVIDER'), None)
-        operation = 'EnsureAccount'
-        sub, created = accounts.ensure_account(client, pool_id, email)  # repairs an unverified/unconfirmed user
-        destination = found['Username'] if found else sub
+        # repairs an unverified/unconfirmed user; the native username in this pool is the sub
+        sub, created = accounts.ensure_account(client, pool_id, email)
         operation = 'AdminLinkProviderForUser'
         client.admin_link_provider_for_user(
             UserPoolId=pool_id,
-            DestinationUser={'ProviderName': 'Cognito', 'ProviderAttributeValue': destination},
+            DestinationUser={'ProviderName': 'Cognito', 'ProviderAttributeValue': sub},
             SourceUser={'ProviderName': provider, 'ProviderAttributeName': 'Cognito_Subject',
                         'ProviderAttributeValue': provider_id})
     except ClientError as exc:
         logger.error('trigger=%s outcome=aws_error operation=%s code=%s', event['triggerSource'],
                      exc.operation_name or operation, exc.response.get('Error', {}).get('Code'))
-        raise
-    return 'created_and_linked' if not found and created else 'linked'
+        raise Exception('link_failed') from None
+    except ApiError as exc:
+        logger.error('trigger=%s outcome=aws_error operation=%s code=%s', event['triggerSource'], operation,
+                     exc.code)
+        raise Exception('link_failed') from None
+    return 'created_and_linked' if created else 'linked'
 
 
 def _custom_message(event, source):

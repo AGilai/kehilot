@@ -28,22 +28,26 @@ def _find(client, pool_id, email):
 
 
 def _normalise(client, pool_id, email, user):
-    """Repair a user who cannot use "forgot password". A CONFIRMED, verified user is never touched.
+    """Repair a user whose email is not verified. A CONFIRMED user with a verified email is never touched.
 
-    - Not CONFIRMED (FORCE_CHANGE_PASSWORD, RESET_REQUIRED, UNCONFIRMED): replace the password by a random one
-      nobody knows FIRST, then set email_verified, then confirm if the user is still UNCONFIRMED. An
-      UNCONFIRMED user's password may have been chosen by whoever typed the email at sign-up, so it must never
-      be live on a confirmed account. Every step is repeated by the next import if one fails.
-    - CONFIRMED but email_verified != 'true': only email_verified is set; the password is not touched.
+    Any user with email_verified != 'true', whatever the status (an attacker may have changed a CONFIRMED
+    account's email to someone else's, keeping a password they know), gets, in this order:
+    1. a random permanent password nobody knows (an UNCONFIRMED user's password may have been chosen by whoever
+       typed the email at sign-up, so it must never be live on a confirmed account);
+    2. AdminUserGlobalSignOut, which revokes refresh tokens already issued;
+    3. email_verified=true;
+    4. confirmation, only if the user is still UNCONFIRMED.
+    A non-CONFIRMED user that is already verified gets 1 and 4 (and 2). Every step is repeated by the next run
+    if one fails.
     """
     attributes = {a['Name']: a['Value'] for a in user['UserAttributes']}
     verified = attributes.get('email_verified') == 'true'
     status = user.get('UserStatus')
     if status == 'CONFIRMED' and verified:
         return
-    if status != 'CONFIRMED':
-        client.admin_set_user_password(UserPoolId=pool_id, Username=email, Permanent=True,
-                                       Password=_random_password())
+    client.admin_set_user_password(UserPoolId=pool_id, Username=email, Permanent=True,
+                                   Password=_random_password())
+    client.admin_user_global_sign_out(UserPoolId=pool_id, Username=email)
     if not verified:
         client.admin_update_user_attributes(UserPoolId=pool_id, Username=email,
                                             UserAttributes=[{'Name': 'email_verified', 'Value': 'true'}])

@@ -62,6 +62,9 @@ class FakeCognito:
     def admin_confirm_sign_up(self, **kw):
         self.calls.append(('admin_confirm_sign_up', kw))
 
+    def admin_user_global_sign_out(self, **kw):
+        self.calls.append(('admin_user_global_sign_out', kw))
+
     def admin_link_provider_for_user(self, **kw):
         self.calls.append(('admin_link_provider_for_user', kw))
 
@@ -90,7 +93,8 @@ class PreSignUpTest(unittest.TestCase):
                                        'Attributes': {'email': 'dana@example.com'}}])
         event = external_event('Google_123', email='Dana@Example.com')
         self.assertIs(cognito_triggers.handler(event, None, client=fake), event)
-        self.assertEqual(fake.named('list_users')[0]['Filter'], 'email = "dana@example.com"')
+        self.assertEqual(fake.named('list_users'), [])
+        self.assertEqual(fake.named('admin_get_user')[0]['Username'], 'dana@example.com')  # lowercased
         self.assertEqual(fake.named('admin_create_user'), [])
         self.assertEqual(fake.named('admin_link_provider_for_user'), [{
             'UserPoolId': POOL,
@@ -114,6 +118,7 @@ class PreSignUpTest(unittest.TestCase):
         names = [c[0] for c in fake.calls]
         self.assertIn('admin_set_user_password', names)
         self.assertIn('admin_update_user_attributes', names)
+        self.assertLess(names.index('admin_user_global_sign_out'), names.index('admin_update_user_attributes'))
         self.assertLess(names.index('admin_set_user_password'), names.index('admin_link_provider_for_user'))
 
     def test_unverified_google_email_rejected(self):
@@ -147,6 +152,13 @@ class PreSignUpTest(unittest.TestCase):
             cognito_triggers.handler(external_event('Facebook_5'), None, client=fake)
         self.assertEqual(str(ctx.exception), 'unsupported_provider')
 
+    def test_apple_explicit_false_is_rejected(self):
+        for value in ('false', False):
+            with self.assertRaises(Exception) as ctx:
+                cognito_triggers.handler(external_event('SignInWithApple_1', verified=value), None,
+                                         client=FakeCognito([native()]))
+            self.assertEqual(str(ctx.exception), 'email_unverified')
+
     def test_native_signup_passes_through(self):
         for source in ('PreSignUp_SignUp', 'PreSignUp_AdminCreateUser', 'TokenGeneration_HostedAuth'):
             fake = FakeCognito()
@@ -155,19 +167,33 @@ class PreSignUpTest(unittest.TestCase):
                              {'triggerSource': source, 'userName': 'x', 'request': {}, 'response': {}})
             self.assertEqual(fake.calls, [])
 
-    def test_unexpected_aws_error_raises_and_logs_only_code_and_operation(self):
+    def test_unexpected_aws_error_raises_generic_error_and_logs_only_code_and_operation(self):
         class Boom(FakeCognito):
             def admin_link_provider_for_user(self, **kw):
                 raise ClientError({'Error': {'Code': 'LimitExceededException',
                                              'Message': 'dana@example.com Google_123'}}, 'AdminLinkProviderForUser')
         with self.assertLogs(cognito_triggers.logger, level=logging.DEBUG) as logs:
-            with self.assertRaises(ClientError):
+            with self.assertRaises(Exception) as ctx:
                 cognito_triggers.handler(external_event('Google_123'), None, client=Boom([native()]))
-        text = '\n'.join(logs.output)
+        exc = ctx.exception
+        self.assertEqual(str(exc), 'link_failed')
+        self.assertIsNone(exc.__cause__)
+        self.assertTrue(exc.__suppress_context__)
+        text = '\n'.join(logs.output) + repr(exc.args)
         self.assertIn('LimitExceededException', text)
         self.assertIn('AdminLinkProviderForUser', text)
         for secret in ('dana', 'example.com', '123'):
             self.assertNotIn(secret, text)
+
+    def test_api_error_from_ensure_account_also_becomes_link_failed(self):
+        from server.cloud.errors import ApiError
+
+        class Busy(FakeCognito):
+            def admin_create_user(self, **kw):
+                raise self.exceptions.UsernameExistsException('dana@example.com')
+        with self.assertRaises(Exception) as ctx:
+            cognito_triggers.handler(external_event('Google_1'), None, client=Busy())
+        self.assertEqual(str(ctx.exception), 'link_failed')
 
     def test_trigger_logs_no_email(self):
         fake = FakeCognito([native()])

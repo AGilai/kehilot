@@ -379,23 +379,42 @@ class ImportTest(unittest.TestCase):
         with self.failing('admin_update_user_attributes'):
             self.assertEqual(self.do_import([row()])[0], 500)
         self.assertNotEqual(self.attrs_of().get('email_verified'), 'true')
-        with mock.patch.object(self.cognito, 'admin_set_user_password') as setpw:
+        with mock.patch.object(self.cognito, 'admin_set_user_password',
+                               wraps=self.cognito.admin_set_user_password) as setpw:
             self.assertEqual(self.do_import([row()])[1]['results'][0]['status'], 'added')
-        setpw.assert_not_called()  # already CONFIRMED with a random password: only the attribute is repaired
+        self.assertEqual(setpw.call_count, 1)  # still unverified: rotated again before verifying
         self.assertEqual(self.attrs_of()['email_verified'], 'true')
 
-    def test_confirmed_unverified_user_gets_only_email_verified(self):
+    def test_confirmed_unverified_user_loses_known_password_and_sessions_before_verify(self):
+        """Attacker scenario: a CONFIRMED account whose email was changed to the victim's (unverified)."""
         self.make_user('FORCE_CHANGE_PASSWORD')
         self.cognito.admin_set_user_password(UserPoolId=self.pool, Username='dana@example.test',
-                                             Password='Working-Pass1!', Permanent=True)
+                                             Password='Known-To-Attacker1!', Permanent=True)
         self.assertEqual(self.user_by_email('dana@example.test')['UserStatus'], 'CONFIRMED')
         self.assertNotEqual(self.attrs_of().get('email_verified'), 'true')
-        with mock.patch.object(self.cognito, 'admin_set_user_password') as setpw, \
-                mock.patch.object(self.cognito, 'admin_confirm_sign_up') as confirm:
-            self.do_import([row()])
-        setpw.assert_not_called()
-        confirm.assert_not_called()
+        client_id = self.cognito.create_user_pool_client(
+            UserPoolId=self.pool, ClientName='c2',
+            ExplicitAuthFlows=['ADMIN_NO_SRP_AUTH'])['UserPoolClient']['ClientId']
+
+        def login(password):
+            return self.cognito.admin_initiate_auth(
+                UserPoolId=self.pool, ClientId=client_id, AuthFlow='ADMIN_NO_SRP_AUTH',
+                AuthParameters={'USERNAME': 'dana@example.test', 'PASSWORD': password})
+        login('Known-To-Attacker1!')  # works before
+        calls = []
+        for name in ('admin_set_user_password', 'admin_user_global_sign_out', 'admin_update_user_attributes',
+                     'admin_confirm_sign_up'):
+            real = getattr(self.cognito, name)
+            patcher = mock.patch.object(self.cognito, name, side_effect=(
+                lambda n, r: lambda **kw: (calls.append(n), r(**kw))[1])(name, real))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.do_import([row()])
+        self.assertEqual(calls, ['admin_set_user_password', 'admin_user_global_sign_out',
+                                 'admin_update_user_attributes'])
         self.assertEqual(self.attrs_of()['email_verified'], 'true')
+        with self.assertRaises(self.cognito.exceptions.NotAuthorizedException):
+            login('Known-To-Attacker1!')
 
     def test_username_exists_but_not_found_retries_create_once_then_try_again(self):
         exists = self.cognito.exceptions.UsernameExistsException(
