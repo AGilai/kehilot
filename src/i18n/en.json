@@ -305,5 +305,15 @@
       "nature": "Nature and flowers",
       "symbols": "Symbols"
     }
+  },
+  "search": {
+    "title": "Search",
+    "open": "Search messages",
+    "placeholder": "Search messages",
+    "hint": "Search titles, text and names. It works offline too.",
+    "empty": "No messages found.",
+    "loading": "The archive is still loading ({n} messages so far)",
+    "back": "Back to messages",
+    "openError": "This message can't be opened without a connection."
   }
 }

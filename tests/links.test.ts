@@ -175,13 +175,13 @@ test('sign-out clears the pending invite, so the next sign-in does not accept it
   const pending = createPendingInvite(storage, () => 1000);
   await pending.set(CODE);
   const log: string[] = [];
-  await localSignOut({ clear: async () => { log.push('clear'); }, clearPending: () => pending.clear(), reset: () => log.push('reset'), done: () => log.push('done') });
-  assert.deepEqual(log, ['clear', 'reset', 'done']);
+  await localSignOut({ clearTokens: async () => { log.push('clear'); }, clearPending: () => pending.clear(), wipeCaches: async () => { log.push('wipe'); }, resetStore: () => { log.push('reset'); }, done: () => { log.push('done'); } });
+  assert.deepEqual(log, ['clear', 'wipe', 'reset', 'done']);
   assert.equal(storage.data.has(PENDING_INVITE_KEY), false);
   // A failing clearPending must not block the sign-out.
   const log2: string[] = [];
-  await localSignOut({ clear: async () => {}, clearPending: async () => { throw new Error('x'); }, reset: () => log2.push('reset'), done: () => log2.push('done') });
-  assert.deepEqual(log2, ['reset', 'done']);
+  await localSignOut({ clearTokens: async () => {}, clearPending: async () => { throw new Error('x'); }, wipeCaches: async () => { log2.push('wipe'); }, resetStore: () => { log2.push('reset'); }, done: () => { log2.push('done'); } });
+  assert.deepEqual(log2, ['wipe', 'reset', 'done']);
   const { api, accepted } = fakeApi({ me: async () => ({ userId: 'u2', email: 'b@example.invalid', profile: { firstName: 'ב', lastName: '', lang: 'he' }, kehilot: [] }) });
   const store = createStore(api, storage, { pending, isActive: () => false });
   assert.equal(await store.start(), 'none');

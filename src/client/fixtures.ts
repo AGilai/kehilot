@@ -13,7 +13,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat'];
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -100,6 +100,10 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     mk(1.5 * H, 7, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: me.userId, authorName: 'דנה בדויה', body: 'אני אביא, תודה!' }),
     ...(role === 'gabbai' ? [mk(4 * H, 8, { channelId: cYouth, type: 'weekly', title: 'מפגש נוער בשבת', body: 'הודעה בקבוצה שאינה בקהל שלי.' })] : []),
   ];
+  // ?screen=search-loading: a full first page and then a failing second page, so the archive stays "still loading".
+  if (screen === 'search-loading') {
+    for (let i = 0; i < 42; i++) messages.push(mk((30 + i) * H, 100 + i, { title: `עדכון שבועי מספר ${i + 1}`, body: 'הודעת דוגמה בלבד, ללא תוכן אמיתי.' }));
+  }
   const celebration = messages[1]!;
   // The server returns replies only to the target and to their own author; a gabbai gets none.
   const someReply = (n: number, authorId: string, authorName: string, body: string): Reply =>
@@ -137,6 +141,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     async request(method, path, body) {
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;
+      if (screen === 'search-loading' && method === 'GET' && key.endsWith('/messages') && path.includes('before=')) throw new ApiCodeError(503, 'network');
       if (method === 'POST' && key.endsWith('/replies')) {
         const text = String((body as { body?: unknown } | undefined)?.body ?? '');
         return { replyId: fixtureUlid(Date.now(), 31), authorId: me.userId, authorName: 'דנה בדויה', body: text, createdAt: new Date().toISOString() } as any;

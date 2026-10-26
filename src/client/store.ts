@@ -2,9 +2,12 @@ import type { KeyValue } from '../auth/tokens.ts';
 import type { endpoints } from './endpoints.ts';
 import { ApiCodeError } from './errors.ts';
 import { applyChanges, createPoller, emptyFeed, feedFromMessages, markReadLocal, mergeReplies, realSleep } from './feed.ts';
-import type { FeedState, Sleep } from './feed.ts';
+import type { FeedState, Sleep, Update } from './feed.ts';
 import type { PendingInvite } from './links.ts';
-import type { Channel, Kehila, Lang, Me, Reply } from './types.ts';
+import { runBackfill } from '../search/backfill.ts';
+import { createMessageCache, pruneKehilot } from '../search/cache.ts';
+import type { CacheStore, CachedMessage, MessageCache } from '../search/cache.ts';
+import type { Change, Channel, Message, Kehila, Lang, Me, Reply } from './types.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -27,21 +30,78 @@ export const lastKehilaKey = (userId: string) => `kehilot.lastKehila.${userId}`;
 
 const empty = (generation: number): StoreState => ({ generation, me: null, kehilaId: null, kehila: null, channels: [], feed: emptyFeed, joinError: null });
 
-export type StoreOptions = { sleep?: Sleep; isActive?: () => boolean; pending?: PendingInvite };
+export type StoreOptions = { sleep?: Sleep; isActive?: () => boolean; pending?: PendingInvite; /** Where the on-phone message cache lives; without it nothing is cached or searchable. */ cacheStore?: CacheStore };
 
 export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}) {
   let state = empty(0);
   const listeners = new Set<() => void>();
   const set = (patch: Partial<StoreState>) => { state = { ...state, ...patch }; listeners.forEach(l => l()); };
   const guard = (gen: number) => gen === state.generation;
+  const sleep = opts.sleep ?? realSleep;
+  const isActive = opts.isActive ?? (() => true);
+
+  // On-phone search cache (spec §3c) of the open Kehila. Visible messages only, never replies.
+  let cache: MessageCache | null = null;
+  let stopBackfill = new AbortController();
+  let backfillToken = 0;
+  let backfilling = false;
+  const readableIds = () => state.channels.map(c => c.channelId);
+
+  /** Fills the cache from the oldest saved cursor; a newer run, a Kehila switch or a reset stops this one. */
+  function startBackfill(c: MessageCache, k: string, gen: number, supersede: boolean): void {
+    if (backfilling && !supersede) return;
+    const token = ++backfillToken;
+    backfilling = true;
+    const signal = stopBackfill.signal;
+    const live = () => guard(gen) && cache === c && state.kehilaId === k && token === backfillToken;
+    void runBackfill({ api: { messages: (kk, o) => api.messages(kk, o) }, cache: c, k, isActive, sleep: ms => sleep(ms, signal), guard: live })
+      .catch(() => { /* offline or server error: the next focus continues from the saved cursor */ })
+      .finally(() => { if (token === backfillToken) backfilling = false; });
+  }
+
+  /** channels -> ensureChannels (a changed set wipes), then the backfill when it was wiped or is not complete. */
+  function syncCache(c: MessageCache, k: string): void {
+    const gen = state.generation;
+    void c.ensureChannels(readableIds()).then(async r => {
+      if (!guard(gen) || cache !== c) return;
+      if (r === 'wiped' || !(await c.status()).complete) startBackfill(c, k, gen, r === 'wiped');
+    }).catch(() => {});
+  }
+
+  /** Feed to cache. Resync wipes and refills; changes are applied in order. */
+  function feedToCache(u: Update): void {
+    const c = cache;
+    const k = state.kehilaId;
+    if (!c || !k) return;
+    const gen = state.generation;
+    const swallow = () => {};
+    if ('clear' in u) {
+      void c.wipe().then(async () => {
+        if (!guard(gen) || cache !== c) return;
+        try { const chs = await api.channels(k); if (guard(gen) && cache === c) set({ channels: chs }); } catch { /* keep the known set */ }
+        if (!guard(gen) || cache !== c) return;
+        await c.ensureChannels(readableIds());
+        startBackfill(c, k, gen, true);
+      }).catch(swallow);
+      return;
+    }
+    if ('replace' in u) { void c.upsert(u.replace).catch(swallow); return; }
+    let batch: Message[] = [];
+    const flush = () => { if (batch.length > 0) { void c.upsert(batch).catch(swallow); batch = []; } };
+    for (const ch of u.changes as Change[]) {
+      if (ch.kind === 'message' || ch.kind === 'join' || ch.kind === 'reply_count') batch.push(ch.item);
+      else if (ch.kind === 'message_removed') { flush(); void c.remove([ch.item.id]).catch(swallow); }
+    }
+    flush();
+  }
 
   /** The one change-feed poller; started by selectKehila, stopped by reset and on switching away. */
   const poller = createPoller({
     api: { changes: (k, since) => api.changes(k, since) },
-    apply: u => set({ feed: 'clear' in u ? emptyFeed : 'replace' in u ? feedFromMessages(u.replace) : applyChanges(state.feed, u.changes) }),
+    apply: u => { feedToCache(u); set({ feed: 'clear' in u ? emptyFeed : 'replace' in u ? feedFromMessages(u.replace) : applyChanges(state.feed, u.changes) }); },
     reload: k => api.messages(k, { limit: 50 }),
-    sleep: opts.sleep ?? realSleep,
-    isActive: opts.isActive ?? (() => true),
+    sleep,
+    isActive,
   });
 
   async function loadMe(): Promise<Me | null> {
@@ -49,6 +109,8 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const me = await api.me();
     if (!guard(gen)) return null;
     set({ me });
+    // A Kehila the user left: its cached messages go.
+    if (opts.cacheStore) void pruneKehilot(opts.cacheStore, me.userId, me.kehilot.map(x => x.kehilaId)).catch(() => {});
     return me;
   }
 
@@ -59,6 +121,10 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const [kehila, channels] = await Promise.all([api.kehila(k), api.channels(k)]);
     if (!guard(gen)) return false;
     set({ kehilaId: k, kehila, channels, feed: emptyFeed });
+    // The cache is set up before the poller starts, so its first operation (ensureChannels) is first in line.
+    backfillToken++; backfilling = false;
+    cache = opts.cacheStore && userId ? createMessageCache(opts.cacheStore, userId, k) : null;
+    if (cache) syncCache(cache, k);
     void poller.start(k, kehila.settings?.pollSeconds ?? 30);
     if (userId) { try { await storage.set(lastKehilaKey(userId), k); } catch { /* the choice is only a convenience */ } }
     return true;
@@ -142,8 +208,45 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const { me, kehilaId } = state;
     if (!me || !kehilaId || me.kehilot.some(x => x.kehilaId === kehilaId)) return false;
     poller.stop();
+    backfillToken++; backfilling = false; cache = null;
     set({ kehilaId: null, kehila: null, channels: [], feed: emptyFeed });
     return true;
+  }
+
+  /** On focus: channels(k) again; a changed readable set wipes the cache and refills it. */
+  async function refreshChannels(): Promise<void> {
+    const c = current();
+    const mine = cache;
+    if (!c || !mine) return;
+    const channels = await api.channels(c.k);
+    if (!still(c) || cache !== mine) return;
+    set({ channels });
+    syncCache(mine, c.k);
+  }
+
+  /** Offline search over the cache of the open Kehila. */
+  async function search(q: string, o: { channelId?: string } = {}): Promise<CachedMessage[]> {
+    const c = current();
+    const mine = cache;
+    if (!c || !mine) return [];
+    const hits = await mine.search(q, o);
+    return still(c) && cache === mine ? hits : [];
+  }
+  async function cacheStatus(): Promise<{ complete: boolean; count: number }> {
+    return cache ? cache.status() : { complete: false, count: 0 };
+  }
+
+  /** A search hit can be older than the loaded feed: fetch it once so the detail screen can show it. */
+  async function openMessage(m: string): Promise<boolean> {
+    const c = current();
+    if (!c) return false;
+    if (state.feed.messages[m]) return true;
+    try {
+      const item = await api.message(c.k, m);
+      if (!still(c)) return false;
+      set({ feed: applyChanges(state.feed, [{ kind: 'message', id: m, item }]) });
+      return true;
+    } catch { return false; }
   }
 
   /** Message actions on the open Kehila. Each drops its result if the Kehila changed or the store was reset. */
@@ -194,6 +297,8 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
 
   function reset(): void {
     poller.stop();
+    stopBackfill.abort(); stopBackfill = new AbortController();
+    backfillToken++; backfilling = false; cache = null;
     state = empty(state.generation + 1);
     listeners.forEach(l => l());
   }
@@ -201,7 +306,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   return {
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, reset, guard,
+    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, openMessage, reset, guard,
     markRead, loadReplies, sendReply, join, removeMessage,
     pollNow: () => poller.pollNow(),
   };

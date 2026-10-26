@@ -13,7 +13,7 @@ export type Filter = 'mine' | 'all';
 export const filterKey = (userId: string, k: string) => `kehilot.filter.${userId}.${k}`;
 
 /** M2: "mine / everything", channel chips (a chat channel's chip opens its chat), messages grouped by Israel day. */
-export function Messages({ onOpen, onChat, onNew, initialFilter }: { onOpen: (id: string) => void; onChat: (channelId: string) => void; onNew?: () => void; initialFilter?: Filter }) {
+export function Messages({ onOpen, onChat, onNew, onSearch, initialFilter }: { onOpen: (id: string) => void; onChat: (channelId: string) => void; onNew?: () => void; onSearch?: () => void; initialFilter?: Filter }) {
   const { t, lang, dir } = useI18n();
   const k = useTokens();
   const { state } = useSession();
@@ -46,7 +46,15 @@ export function Messages({ onOpen, onChat, onNew, initialFilter }: { onOpen: (id
 
   const header = (
     <View style={{ gap: 12, paddingBottom: 8 }}>
-      <Txt serif size="title" accessibilityRole="header">{t('messages.title')}</Txt>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Txt serif size="title" accessibilityRole="header">{t('messages.title')}</Txt>
+        {onSearch ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={t('search.open')} onPress={onSearch}
+            style={{ minWidth: TOUCH, minHeight: TOUCH, alignItems: 'center', justifyContent: 'center' }}>
+            <Txt size="heading" color={k.tekhelet}>🔍</Txt>
+          </Pressable>
+        ) : null}
+      </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Chip label={t('messages.filterMine')} selected={filter === 'mine'} onPress={() => choose('mine')} />
         <Chip label={t('messages.filterAll')} selected={filter === 'all'} onPress={() => choose('all')} />

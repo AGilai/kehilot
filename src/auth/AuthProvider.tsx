@@ -11,7 +11,8 @@ import { AuthError } from './cognito.ts';
 import { signInSrp } from './srp.ts';
 import { REFRESH_KEY, createTokenManager } from './tokens.ts';
 import type { KeyValue } from './tokens.ts';
-import { localSignOut, resolveStart, signOutSequence } from './signout.ts';
+import { createSignOut, localSignOut, resolveStart } from './signout.ts';
+import { wipeCaches } from '../search/platform.ts';
 import { pendingInvite } from '../client/pendingStore.ts';
 import { normEmail } from './validate.ts';
 
@@ -90,9 +91,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // One local clean-up for every sign-out path (user, forced, account deleted).
   const cleanup = React.useCallback(() => localSignOut({
-    clear: () => (core.fixtures ? Promise.resolve() : core.tokens.clear()),
+    clearTokens: () => (core.fixtures ? Promise.resolve() : core.tokens.clear()),
     clearPending: () => pendingInvite.clear(),
-    reset: () => { setPendingNames(null); resetSessionStore(); },
+    wipeCaches,
+    resetStore: () => { setPendingNames(null); resetSessionStore(); },
     done: () => setStatus('signedOut'),
   }), [core]);
   forcedOut.current = () => { void cleanup(); };
@@ -137,14 +139,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new AuthError('unsupported'); // Task 20
       },
       async signOut() {
-        // Task 12b moves this sequence into createSignOut.
         if (core.fixtures) { await cleanup(); return; }
-        let rt: string | null = null;
-        try { rt = await core.storage.get(REFRESH_KEY); } catch { /* ignore */ }
-        await signOutSequence({
-          deleteDevice: (t) => core.api.deleteDevice(t), revoke: cognito.revoke,
-          clear: () => core.tokens.clear(), clearPending: () => pendingInvite.clear(), reset: () => { setPendingNames(null); resetSessionStore(); }, done: () => setStatus('signedOut'),
-        }, pushToken, rt);
+        await createSignOut({
+          deleteDevice: async () => { if (pushToken) await core.api.deleteDevice(pushToken); },
+          revoke: async () => {
+            const rt = await core.storage.get(REFRESH_KEY).catch(() => null);
+            if (rt) await cognito.revoke(rt);
+          },
+          clearTokens: () => core.tokens.clear(), clearPending: () => pendingInvite.clear(), wipeCaches,
+          resetStore: () => { setPendingNames(null); resetSessionStore(); }, done: () => setStatus('signedOut'),
+        })();
       },
       async retry() { setStatus('loading'); await start(); },
     };

@@ -8,6 +8,8 @@ import { createLogoCache } from './logoCache.ts';
 import { pendingInvite } from './pendingStore.ts';
 import { createImageUrls } from '../media/imageUrl.ts';
 import { createStore } from './store.ts';
+import { cacheStore } from '../search/platform.ts';
+import type { CachedMessage } from '../search/cache.ts';
 import type { Route, StoreState } from './store.ts';
 import type { Lang, Reply } from './types.ts';
 
@@ -40,6 +42,11 @@ export type SessionApi = {
   removeMessage(messageId: string): Promise<void>;
   /** A fresh-enough presigned URL for a message image, or null when it has none. Memory only. */
   imageUrl(messageId: string, fresh?: boolean): Promise<string | null>;
+  /** Offline search over the on-phone cache of the open Kehila. */
+  search(q: string, o?: { channelId?: string }): Promise<CachedMessage[]>;
+  cacheStatus(): Promise<{ complete: boolean; count: number }>;
+  /** Makes sure a (possibly old) message is loaded so the detail screen can show it; false when it could not be. */
+  openMessage(messageId: string): Promise<boolean>;
 };
 
 const SessionContext = React.createContext<SessionApi | null>(null);
@@ -48,7 +55,7 @@ const SessionContext = React.createContext<SessionApi | null>(null);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { api } = useAuth();
   const { setLang } = useI18n();
-  const store = React.useMemo(() => createStore(api, storage, { pending: pendingInvite, isActive: () => AppState.currentState === 'active' }), [api]);
+  const store = React.useMemo(() => createStore(api, storage, { pending: pendingInvite, cacheStore: cacheStore(), isActive: () => AppState.currentState === 'active' }), [api]);
   const images = React.useMemo(() => createImageUrls(api), [api]);
   const logos = React.useMemo(() => createLogoCache(storage), []);
   const logo = React.useCallback((k: string, v: string | null) => logos.get(api, k, v), [logos, api]);
@@ -75,6 +82,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const sub = AppState.addEventListener('change', async (s) => {
       if (s !== 'active') return;
+      void store.refreshChannels().catch(() => {}); // a changed readable channel set wipes the search cache
       void store.pollNow(); // catch up at once; the poll is paused while the app is in the background
       const gen = store.getState().generation;
       try {
@@ -111,6 +119,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     sendReply: (m, body) => store.sendReply(m, body),
     join: m => store.join(m),
     removeMessage: m => store.removeMessage(m),
+    search: (q, o) => store.search(q, o),
+    cacheStatus: () => store.cacheStatus(),
+    openMessage: m => store.openMessage(m),
     imageUrl: async (m, fresh) => { const k = store.getState().kehilaId; return k ? images.get(k, m, { fresh }) : null; },
   }), [state, route, logo, store, images]);
 

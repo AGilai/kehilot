@@ -12,13 +12,15 @@ import { ChatView } from './ChatView.tsx';
 import { Home } from './Home.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
 import { Messages } from './Messages.tsx';
+import { Search } from './Search.tsx';
 import type { Filter } from './Messages.tsx';
 import { TopBar } from './TopBar.tsx';
 
 type Nav =
   | { tab: 'home' }
   | { tab: 'messages' }
-  | { tab: 'detail'; id: string; from: 'home' | 'messages' }
+  | { tab: 'search' }
+  | { tab: 'detail'; id: string; from: 'home' | 'messages' | 'search' }
   | { tab: 'chat'; channelId: string };
 
 /** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat opens that screen. */
@@ -27,6 +29,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   const s = fixtureParams().screen;
   const byType = (type: string) => state.feed.order.map(id => state.feed.messages[id]!).find(m => m.type === type && m.targetMemberId);
   if (s === 'messages') return { nav: { tab: 'messages' } };
+  if (s === 'search' || s === 'search-loading') return { nav: { tab: 'search' } };
   if (s === 'messages-all') return { nav: { tab: 'messages' }, filter: 'all' };
   if (s === 'm3' || s === 'm3target') { const m = byType('celebration'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
@@ -42,6 +45,7 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
   const [nav, setNav] = React.useState<Nav>({ tab: 'home' });
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
   const jumped = React.useRef(false);
+  const [searchQ, setSearchQ] = React.useState(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''));
 
   // Fixtures: jump to the requested screen once the messages have loaded.
   React.useEffect(() => {
@@ -65,7 +69,10 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
       body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />;
       break;
     case 'messages':
-      body = <Messages initialFilter={filter} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} />;
+      body = <Messages initialFilter={filter} onSearch={() => setNav({ tab: 'search' })} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} />;
+      break;
+    case 'search':
+      body = <Search initialQuery={searchQ} onQuery={setSearchQ} onBack={() => setNav({ tab: 'messages' })} onOpen={id => setNav({ tab: 'detail', id, from: 'search' })} />;
       break;
     case 'detail':
       body = <MessageDetail key={nav.id} messageId={nav.id} onBack={() => setNav({ tab: nav.from })} />;
