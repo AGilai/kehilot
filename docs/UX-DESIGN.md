@@ -147,7 +147,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 
 - Hebrew-only UI, dark mode follows the device.
 - Mazal tov and condolence use one shared message layout; extra types (event, lesson) get their own hue later.
-- Private replies are visible only to the family (gabbaim included are excluded). If gabbaim should see them, say so.
+- ~~Private replies~~ — confirmed by the user (2026-10-26): visible only to the family and the author; gabbaim have no access.
 - Channels carry a "visible to guests" flag; listeners see only flagged channels.
 - Gabbai mode is a switch inside the same app, not a separate app.
 

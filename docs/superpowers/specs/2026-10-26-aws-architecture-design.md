@@ -61,8 +61,9 @@ The user prefers AWS. Noam knows about and accepts the move.
 - **Member broadcasts**: allowed per member by `canBroadcast` on the Membership item; the gabbai screen
   has allow-all / block-all bulk actions plus per-member switches; the Kehila stores the default for new
   members. Management can always post; management can remove any message; authors can delete their own.
-- **Private replies**: replies to a blessing/condolence about a family go only to that family (and the
-  author, and management can see them for moderation).
+- **Private replies** **[decided by the user, 2026-10-26]**: replies to a blessing/condolence about a family
+  are visible only to that family and the reply's author. Gabbaim/management cannot see them (unless they
+  are that family); there is no moderation view.
 - **Notification preferences** per member and Kehila: channels, message types, "broadcasts from management
   only". They affect pushes only; the API returns every message the caller may see, and the app filters
   "My messages / Everything" on the device.
@@ -137,7 +138,7 @@ On-demand billing, TTL enabled on attribute `expiresAt`, point-in-time recovery 
 | Membership | `K#<k>` | `M#<user>` | role (listener/member/gabbai), classification (''/א/קבוע), canBroadcast, notification prefs, `personId` (the member's own Person item in this Kehila). GSI1: `U#<user>` / `K#<k>` lists a user's Kehilot |
 | Channel | `K#<k>` | `C#<c>` | name, type, who may post |
 | Message | `K#<k>` | `MSG#<ts>#<id>` | channel, type, author, authorKind (management/member), target family for blessings |
-| Private reply | `K#<k>#MSG#<id>` | `R#<ts>#<id>` | visible to the author, the target family and management |
+| Private reply | `K#<k>#MSG#<id>` | `R#<ts>#<id>` | visible only to the author and the target family |
 | Read mark | `K#<k>#U#<user>` | `READ#<msgId>` | |
 | Invite | `INV#<code>` | `META` | Kehila, inviter, `expiresAt` (TTL), uses left |
 | Person / roster | `K#<k>` | `P#<personId>` | Noam's permanent `community_people`/`roster_people` identity, family links, tribe, dates |
