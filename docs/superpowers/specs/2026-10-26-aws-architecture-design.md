@@ -193,7 +193,15 @@ approval + classification) use `TransactWriteItems`.
 - Failures retry through SQS: the event source mapping uses `ReportBatchItemFailures`, and the worker
   extends visibility (`ChangeMessageVisibility`) for backoff, then a dead-letter queue after 5 attempts with
   a CloudWatch alarm.
-- Payload text stays generic Hebrew ("הודעה חדשה בקהילה"), data carries only `{kehila, messageId}`.
+- Payload text is generic and in the recipient's language (`he` or `en`), chosen by message type; `title` is
+  the Kehila's name, and `data` carries only `{kehila, messageId}` (or `{kehila, screen}`). No message
+  title, body or author name is ever sent. Body by type (he / en):
+  weekly "עדכון שבועי מהקהילה" / "Weekly update from your community";
+  celebration "מזל טוב חדש בקהילה" / "New mazal tov in your community";
+  condolence "הודעת אבל בקהילה" / "Condolence notice in your community";
+  event "אירוע חדש בקהילה" / "New event in your community";
+  unknown type "הודעה חדשה בקהילה" / "New message in your community";
+  reply "ברכה חדשה" / "New blessing"; request "בקשת הצטרפות חדשה" / "New membership request".
 - The Expo access token is an SSM Parameter Store `SecureString`; Apple/Google credentials live in the
   Expo project, not in AWS.
 - The app polls while open; the interval comes from the Kehila's settings (default 30 s, dev 5 s).

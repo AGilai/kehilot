@@ -9,7 +9,7 @@ import os
 import time
 
 from . import expo, visibility
-from .push import PUSH_TEXT
+from .push import MESSAGE_TYPES, PUSH_TEXT
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +72,13 @@ def _lang(repo, uid, default):
 
 def _build(repo, kind, kehila, ref):
     """([expo messages], {token: [userIds]}) with each token appearing once."""
-    settings = (repo.get_kehila(kehila) or {}).get('settings', {})
+    meta = repo.get_kehila(kehila) or {}
+    settings = meta.get('settings', {})
+    title = meta.get('name', '')  # the community's name: the same for everyone, not personal data
+    text_key = kind
+    if kind == 'message':
+        message_type = (repo.get_message(kehila, ref) or {}).get('type')
+        text_key = message_type if message_type in MESSAGE_TYPES else 'message'
     default = settings.get('defaultLang', 'he')
     default = default if default in ('he', 'en') else 'he'
     data = _data(kind, kehila, ref)
@@ -85,7 +91,7 @@ def _build(repo, kind, kehila, ref):
                 owners[token].append(uid)
                 continue
             owners[token] = [uid]
-            messages.append({'to': token, 'title': '', 'body': PUSH_TEXT[kind][lang], 'data': data,
+            messages.append({'to': token, 'title': title, 'body': PUSH_TEXT[text_key][lang], 'data': data,
                              'sound': 'default'})
     return messages, owners
 

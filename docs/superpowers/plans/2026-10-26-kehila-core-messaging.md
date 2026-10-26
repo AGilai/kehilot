@@ -31,9 +31,12 @@ path plus boundary, no PII in logs, ULID IDs, `K#<k>` key prefix). In addition:
   them unless they are one of those two (spec §3a, user decision).
 - **Listeners** see only channels with `listenersCanRead = true`. They cannot post, reply, create invites or
   see the member list.
-- **Push payloads** carry `{kehila, messageId}` or `{kehila, screen}` only. The text is generic and in the
-  recipient's language: he "הודעה חדשה בקהילה" / en "New message in your community"; reply: he "ברכה חדשה" /
-  en "New blessing"; request: he "בקשת הצטרפות חדשה" / en "New membership request".
+- **Push payloads** carry `{kehila, messageId}` or `{kehila, screen}` only. `title` is the Kehila's name. The
+  body is generic, in the recipient's language, and chosen by message type (he / en): weekly "עדכון שבועי מהקהילה" /
+  "Weekly update from your community"; celebration "מזל טוב חדש בקהילה" / "New mazal tov in your community";
+  condolence "הודעת אבל בקהילה" / "Condolence notice in your community"; event "אירוע חדש בקהילה" / "New event in
+  your community"; unknown type "הודעה חדשה בקהילה" / "New message in your community"; reply "ברכה חדשה" / "New
+  blessing"; request "בקשת הצטרפות חדשה" / "New membership request".
 - **Kehila settings defaults:** `pollSeconds` 30 (dev 5), `memberBroadcastDefault` false,
   `broadcastDailyLimit` 3, `defaultLang` "he". Supported `lang` values: `he`, `en`.
 - **Default channels** made by the admin CLI: `announcements` (listeners can read, management posts),

@@ -9,11 +9,18 @@ import os
 
 log = logging.getLogger(__name__)
 
+# Keyed [key][lang]: key is a message type (kind 'message'), 'reply' or 'request'. 'message' is the
+# generic text for a message of an unknown type.
 PUSH_TEXT = {
+    'weekly': {'he': 'עדכון שבועי מהקהילה', 'en': 'Weekly update from your community'},
+    'celebration': {'he': 'מזל טוב חדש בקהילה', 'en': 'New mazal tov in your community'},
+    'condolence': {'he': 'הודעת אבל בקהילה', 'en': 'Condolence notice in your community'},
+    'event': {'he': 'אירוע חדש בקהילה', 'en': 'New event in your community'},
     'message': {'he': 'הודעה חדשה בקהילה', 'en': 'New message in your community'},
     'reply': {'he': 'ברכה חדשה', 'en': 'New blessing'},
     'request': {'he': 'בקשת הצטרפות חדשה', 'en': 'New membership request'},
 }
+MESSAGE_TYPES = ('weekly', 'celebration', 'condolence', 'event')
 
 
 def enqueue(kind, kehila, ref) -> None:

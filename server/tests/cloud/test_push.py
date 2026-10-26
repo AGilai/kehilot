@@ -110,24 +110,52 @@ class PushTest(unittest.TestCase):
     def test_text_in_recipient_language(self):
         self.run_message(self.message('announcements'))
         body = {s['to']: s['body'] for s in self.sent}
+        self.assertEqual(body['ExponentPushToken[fam]'], PUSH_TEXT['celebration']['he'])
+        self.assertEqual(body['ExponentPushToken[eng]'], PUSH_TEXT['celebration']['en'])
+
+    def test_text_per_message_type(self):
+        expected = {'weekly': ('עדכון שבועי מהקהילה', 'Weekly update from your community'),
+                    'celebration': ('מזל טוב חדש בקהילה', 'New mazal tov in your community'),
+                    'condolence': ('הודעת אבל בקהילה', 'Condolence notice in your community'),
+                    'event': ('אירוע חדש בקהילה', 'New event in your community')}
+        for type_, (he, en) in expected.items():
+            self.sent.clear()
+            self.run_message(self.message('announcements', type_=type_))
+            body = {s['to']: s['body'] for s in self.sent}
+            self.assertEqual(body['ExponentPushToken[fam]'], he, type_)
+            self.assertEqual(body['ExponentPushToken[eng]'], en, type_)
+            self.assertEqual((PUSH_TEXT[type_]['he'], PUSH_TEXT[type_]['en']), (he, en))
+
+    def test_unknown_type_uses_generic_text(self):
+        self.run_message(self.message('announcements', type_='mystery'))
+        body = {s['to']: s['body'] for s in self.sent}
         self.assertEqual(body['ExponentPushToken[fam]'], 'הודעה חדשה בקהילה')
         self.assertEqual(body['ExponentPushToken[eng]'], 'New message in your community')
+
+    def test_title_is_kehila_name(self):
+        self.run_message(self.message('announcements'))
+        self.assertTrue(self.sent)
+        self.assertEqual({s['title'] for s in self.sent}, {'Beit Test'})
+        self.sent.clear()
+        push_worker.handler({'Records': [record('request', self.k, 'requests')]}, None)
+        self.assertEqual({s['title'] for s in self.sent}, {'Beit Test'})
 
     def test_default_lang_from_kehila_settings(self):
         self.user('nolang', 'member', None)
         self.run_message(self.message('announcements'))
         body = {s['to']: s['body'] for s in self.sent}
-        self.assertEqual(body['ExponentPushToken[nolang]'], PUSH_TEXT['message']['he'])
+        self.assertEqual(body['ExponentPushToken[nolang]'], PUSH_TEXT['celebration']['he'])
 
     def test_payload_has_no_message_content(self):
         m = self.message('announcements')
         self.run_message(m)
         self.assertTrue(self.sent)
         texts = {t for langs in PUSH_TEXT.values() for t in langs.values()}
+        self.assertEqual(len(PUSH_TEXT), 7)
         for s in self.sent:
             self.assertLessEqual(set(s['data']), {'kehila', 'messageId', 'screen'})
             self.assertIn(s['body'], texts)
-            self.assertEqual((s['title'], s['sound']), ('', 'default'))
+            self.assertEqual((s['title'], s['sound']), ('Beit Test', 'default'))
             self.assertNotIn('A', s['data'].values())
 
     def test_same_token_sent_once(self):
