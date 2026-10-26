@@ -64,6 +64,8 @@ The user prefers AWS. Noam knows about and accepts the move.
 - **Private replies** **[decided by the user, 2026-10-26]**: replies to a blessing/condolence about a family
   are visible only to that family and the reply's author. Gabbaim/management cannot see them (unless they
   are that family); there is no moderation view.
+  Everyone who can see the message also sees a count chip, "N members sent private blessings to <family>"
+  (distinct repliers; no names, no text) — it encourages others to bless **[decided by the user, 2026-10-26]**.
 - **Notification preferences** per member and Kehila: channels, message types, "broadcasts from management
   only". They affect pushes only; the API returns every message the caller may see, and the app filters
   "My messages / Everything" on the device.

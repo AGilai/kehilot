@@ -130,6 +130,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 2. The lock line "יגיע למשפחת בדיוני בלבד" stays visible while typing.
 3. Send. The reply shows above the box as "נשלחה למשפחה בלבד". Nobody else can see it, not even other members; gabbaim do not see it either unless they are the family.
 4. The family gets a dedicated notification ("ברכה חדשה") and sees replies under their own message.
+5. Everyone who can see the message sees a chip "12 חברים שלחו ברכה פרטית למשפחת בדיוני" (count of distinct repliers only, no names or text), to encourage others to bless.
 
 **4. Setting notification preferences**
 1. אני, "העדפות התראות" (or the sliders icon on Messages).
