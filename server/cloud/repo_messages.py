@@ -71,10 +71,10 @@ class MessagesRepo:
             item['visibleTo'] = list(visible_to)
         self.table.put_item(Item=item)
 
-    def list_changes_after(self, k, since, limit):
-        """Up to `limit` change items with an ID greater than `since`, oldest first."""
+    def list_changes_after(self, k, since, until, limit):
+        """Up to `limit` change items with an ID greater than `since` and below `until`, oldest first."""
         items, kwargs = [], {}
-        key = Key('pk').eq(f'K#{k}') & Key('sk').between(f'CHG#{since}0', 'CHG#~')  # '0' sorts just after `since`
+        key = Key('pk').eq(f'K#{k}') & Key('sk').between(f'CHG#{since}0', f'CHG#{until}')  # '0' sorts just after `since`
         while len(items) < limit:
             page = self.table.query(KeyConditionExpression=key, Limit=limit - len(items), ConsistentRead=True,
                                     **kwargs)
@@ -83,11 +83,6 @@ class MessagesRepo:
                 break
             kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
         return items
-
-    def latest_change_id(self, k):
-        page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').between('CHG#', 'CHG#~'),
-                                ScanIndexForward=False, Limit=1, ConsistentRead=True)
-        return page['Items'][0]['sk'][len('CHG#'):] if page['Items'] else None
 
     def batch_get(self, keys):
         """{(pk, sk): item} for the keys that exist, in BatchGetItem chunks of 100."""

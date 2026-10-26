@@ -1,9 +1,10 @@
 import time
 import unittest
+from unittest import mock
 
 from moto import mock_aws
 
-from server.cloud import ids, push
+from server.cloud import ids, push, routes_changes
 from server.tests.cloud import test_messages
 
 
@@ -14,7 +15,13 @@ class ChangesTest(test_messages.MessagesTest):
     def setUp(self):
         super().setUp()
         self.other = self.add('other-sub', 'member', 'Omri Other')
+        self.clock_offset = 0
+        patcher = mock.patch.object(routes_changes, '_now_ms',
+                                    side_effect=lambda: int((time.time() + self.clock_offset) * 1000))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.start = self.feed('gabbai-sub')[1]['cursor']
+        self.clock_offset = 10  # seconds ahead of real time: past the hold-back, so fresh changes are served
 
     def feed(self, sub, since=None):
         return self.call('GET', f'{self.base()}/changes', sub=sub, query={'since': since} if since else None)
@@ -26,6 +33,28 @@ class ChangesTest(test_messages.MessagesTest):
 
     def kinds(self, sub):
         return [(c['kind'], c['id']) for c in self.since_start(sub)['changes']]
+
+    def test_change_younger_than_hold_back_is_withheld_then_served(self):
+        self.clock_offset = 0
+        cursor = self.feed('member-sub')[1]['cursor']
+        mid = self.post('announcements')[1]['messageId']
+        change_id = self.changes()[-1]['sk'][len('CHG#'):]
+        status, body = self.feed('member-sub', cursor)
+        self.assertEqual((status, body['changes']), (200, []))
+        self.assertLess(body['cursor'], change_id)
+        self.assertLess(self.feed('member-sub')[1]['cursor'], change_id)
+        self.clock_offset = 10  # time passes beyond the hold-back
+        body = self.feed('member-sub', body['cursor'])[1]
+        self.assertEqual([(c['kind'], c['id']) for c in body['changes']], [('message', mid)])
+        self.assertGreaterEqual(body['cursor'], change_id)
+
+    def test_cursor_never_passes_hold_back_bound(self):
+        self.clock_offset = 0
+        bound = ids.floor_id(int(time.time() * 1000) - routes_changes.HOLD_BACK_MS)
+        future = ids.new_id()
+        self.assertLess(self.feed('member-sub', future)[1]['cursor'], future)
+        self.assertLessEqual(self.feed('member-sub', future)[1]['cursor'], ids.floor_id(int(time.time() * 1000)))
+        self.assertGreaterEqual(self.feed('member-sub', future)[1]['cursor'], bound)
 
     def test_no_since_returns_latest_cursor_and_no_changes(self):
         self.post('announcements')

@@ -8,9 +8,14 @@ from .ids import ID_RE, floor_id, id_time_ms
 from .routes_messages import TYPES, _message_json, _reply_json
 
 PAGE = 200
+HOLD_BACK_MS = 2000  # changes younger than this wait for the next poll: IDs come from skewed clocks and commit late
 RESYNC_AFTER = 30 * 86400
 BROADCAST_MODES = ('all', 'management_only')
 MAX_LIST = 100
+
+
+def _now_ms():
+    return int(time.time() * 1000)
 
 
 def _item(ctx_user, membership, channels, change, messages, replies):
@@ -40,18 +45,20 @@ def changes(ctx, params):
     k = params['k']
     membership = require(ctx.repo, ctx.user_id, k)
     since = ctx.query.get('since')
+    bound = floor_id(_now_ms() - HOLD_BACK_MS)  # nothing at or after this ID is scanned, nor may a cursor pass it
     if since is None:
-        return 200, {'cursor': ctx.repo.latest_change_id(k) or floor_id(int(time.time() * 1000)),
-                     'more': False, 'changes': []}
+        return 200, {'cursor': bound, 'more': False, 'changes': []}
     if not isinstance(since, str) or not ID_RE.fullmatch(since):
         raise ApiError(400, 'invalid_since')
     if id_time_ms(since) < (time.time() - RESYNC_AFTER) * 1000:
         return 200, {'resync': True}
-    scanned = ctx.repo.list_changes_after(k, since, PAGE + 1)
+    if since >= bound:
+        return 200, {'cursor': bound, 'more': False, 'changes': []}
+    scanned = ctx.repo.list_changes_after(k, since, bound, PAGE + 1)
     more = len(scanned) > PAGE
     scanned = scanned[:PAGE]
     if not scanned:
-        return 200, {'cursor': since, 'more': False, 'changes': []}
+        return 200, {'cursor': since, 'more': False, 'changes': []}  # since < bound here
     channels = {c['sk'][2:]: c for c in ctx.repo.list_channels(k)}
     allowed = [c for c in scanned if c['kind'] in ('message', 'message_removed', 'join', 'read', 'reply')
                and visibility.change_visible(ctx.user_id, membership, channels, c)]
