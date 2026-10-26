@@ -93,6 +93,13 @@ resource "aws_apigatewayv2_route" "health" {
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
+# Public: the invite preview needs no sign-in. More specific than the proxy route, so it wins.
+resource "aws_apigatewayv2_route" "invite_preview" {
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "GET /v1/invites/{code}"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
 resource "aws_apigatewayv2_route" "v1" {
   api_id             = aws_apigatewayv2_api.http.id
   route_key          = "ANY /v1/{proxy+}"

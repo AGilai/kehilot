@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from . import routes_core, routes_me
+from . import routes_core, routes_invites, routes_me
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -22,8 +22,11 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/me/devices$'), routes_me.put_device),
     ('DELETE', re.compile(r'^/v1/me/devices/(?P<token>[^/]+)$'), routes_me.delete_device),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)$'), routes_core.kehila),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/invites$'), routes_invites.create),
+    ('GET', re.compile(r'^/v1/invites/(?P<code>[^/]+)$'), routes_invites.preview),
+    ('POST', re.compile(r'^/v1/invites/(?P<code>[^/]+)/accept$'), routes_invites.accept),
 ]
-PUBLIC = {routes_core.health}
+PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 
 
 @dataclass
@@ -70,7 +73,7 @@ def handler(event, context):
     try:
         func, params = _match(event['requestContext']['http']['method'], event['rawPath'])
         if func in PUBLIC:
-            return _response(*func(None, params))
+            return _response(*func(Ctx(_repo(), None, None, None), params))
         repo = _repo()
         caller = caller_from_event(event)
         body = _body(event)
