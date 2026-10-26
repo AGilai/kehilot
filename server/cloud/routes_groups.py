@@ -45,11 +45,13 @@ def _existing_group(ctx, params):
 def list_groups(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)
-    members = Counter(g for m in ctx.repo.list_members(k) for g in m.get('groups') or ())
+    everyone = ctx.repo.list_members(k)
+    members = Counter(g for m in everyone for g in m.get('groups') or ())
     channels = Counter(g for c in ctx.repo.list_channels(k) for g in c.get('groups') or ())
-    admins = Counter(g for m in ctx.repo.list_members(k) if m['role'] == 'member'
+    admins = Counter(g for m in everyone if m['role'] == 'member'
                      for g in m.get('adminGroups') or () if visibility.is_group_admin(m, g))
-    pending = Counter(r['groupId'] for r in ctx.repo.list_group_requests_all(k))
+    present = {m['userId'] for m in everyone}
+    pending = Counter(r['groupId'] for r in ctx.repo.list_group_requests_all(k) if r['userId'] in present)
     rows = [{'groupId': g['sk'][len('G#'):], 'name': g['name'], 'memberCount': members[g['sk'][len('G#'):]],
              'channelCount': channels[g['sk'][len('G#'):]], 'adminCount': admins[g['sk'][len('G#'):]],
              'pendingCount': pending[g['sk'][len('G#'):]]} for g in ctx.repo.list_groups(k)]
@@ -136,7 +138,7 @@ def withdraw_request(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, ROLES)
     if ID_RE.fullmatch(params['g']):
-        ctx.repo.delete_group_request(k, params['g'], ctx.user_id)
+        ctx.repo.withdraw_group_request(k, params['g'], ctx.user_id)
     return 204, None
 
 
@@ -184,7 +186,7 @@ def remove_group_member(ctx, params):
     target = _user(ctx, k, params)
     if not target or group_id not in (target.get('groups') or ()):
         raise ApiError(404, 'member_not_found')
-    if (params['u'] != ctx.user_id and group_id in (target.get('adminGroups') or ())
+    if (params['u'] != ctx.user_id and visibility.is_group_admin(target, group_id)
             and not visibility.is_gabbai(caller)):
         raise ApiError(403, 'forbidden')
     ctx.repo.remove_member_group(k, params['u'], group_id)

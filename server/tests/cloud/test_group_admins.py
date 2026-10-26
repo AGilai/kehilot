@@ -176,6 +176,39 @@ class GroupAdminsTest(test_groups.GroupsTest):
         self.assertNotIn('adminGroups', item)
         self.assertNotIn(self.women, item.get('groups', ()))
 
+    def test_member_admin_cannot_remove_gabbai_from_group(self):
+        self.appoint(self.member)
+        self.set_groups(self.gabbai, [self.women])
+        self.assertEqual(self.call('DELETE', f'{self.g()}/members/{self.gabbai}', sub='member-sub'),
+                         (403, {'error': 'forbidden'}))
+        self.assertIn(self.women, self.repo.get_membership(self.k, self.gabbai)['groups'])
+        self.assertEqual(self.call('DELETE', f'{self.g()}/members/{self.gabbai}')[0], 204)
+        self.assertNotIn(self.women, self.repo.get_membership(self.k, self.gabbai).get('groups', ()))
+
+    def test_withdraw_and_rerequest_pushes_once(self):
+        with mock.patch.object(push, 'enqueue') as enqueue:
+            self.request('listener-sub')
+            self.call('DELETE', f'{self.g()}/requests/me', sub='listener-sub')
+            self.assertEqual(self.requests_of(), [])
+            rows = self.call('GET', f'{self.base()}/groups', sub='listener-sub')[1]
+            self.assertFalse({r['name']: r for r in rows}['Women']['requested'])
+            rows = self.call('GET', f'{self.base()}/admin/groups')[1]
+            self.assertEqual({r['name']: r for r in rows}['Women']['pendingCount'], 0)
+            self.assertEqual(self.approve(self.listener), (404, {'error': 'request_not_found'}))
+            self.request('listener-sub')
+            self.call('DELETE', f'{self.g()}/requests/me', sub='listener-sub')
+            self.request('listener-sub')
+        enqueue.assert_called_once_with('group_request', self.k, self.women)
+        self.assertEqual([r['userId'] for r in self.requests_of()], [self.listener])
+        self.assertNotIn('withdrawnAt', self.repo.get_group_request(self.k, self.women, self.listener))
+
+    def test_pending_count_skips_departed_members(self):
+        self.request('listener-sub')
+        self.request('other-sub')
+        self.call('DELETE', f'{self.base()}/admin/members/{self.other}')
+        rows = self.call('GET', f'{self.base()}/admin/groups')[1]
+        self.assertEqual({r['name']: r for r in rows}['Women']['pendingCount'], 1)
+
     def test_group_members_listing(self):
         self.request('listener-sub')
         self.approve(self.listener)

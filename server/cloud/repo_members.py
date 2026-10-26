@@ -492,12 +492,18 @@ class AdminRepo:
                                   {'#grp': 'groups'})
 
     def put_group_request(self, k, group_id, user_id):
-        """Create the join request; True when it is new (also when an expired one was still lying around).
-        A repeat while one is live changes nothing and returns False."""
+        """Make the join request active; True only when no unexpired item existed (that is when admins are
+        pushed). A live item, withdrawn or not, is kept and re-activated without a push."""
         now = int(time.time())
+        key = self._key(k, f'GR#{group_id}#{user_id}')
+        item = self._get(key['pk'], key['sk'])
+        if item and int(item['expiresAt']) > now:
+            if 'withdrawnAt' in item:
+                self.table.update_item(Key=key, UpdateExpression='REMOVE withdrawnAt')
+            return False
         try:
-            self.table.put_item(Item={**self._key(k, f'GR#{group_id}#{user_id}'), 'userId': user_id,
-                                      'groupId': group_id, 'createdAt': now, 'expiresAt': now + 30 * 86400},
+            self.table.put_item(Item={**key, 'userId': user_id, 'groupId': group_id, 'createdAt': now,
+                                      'expiresAt': now + 30 * 86400},
                                 ConditionExpression='attribute_not_exists(sk) OR expiresAt <= :now',
                                 ExpressionAttributeValues={':now': now})
             return True
@@ -507,20 +513,35 @@ class AdminRepo:
             return False
 
     def get_group_request(self, k, group_id, user_id):
+        """The live, not withdrawn request, else None."""
         item = self._get(f'K#{k}', f'GR#{group_id}#{user_id}')
-        return item if item and int(item['expiresAt']) > time.time() else None
+        return item if item and int(item['expiresAt']) > time.time() and 'withdrawnAt' not in item else None
 
     def delete_group_request(self, k, group_id, user_id):
         self.table.delete_item(Key=self._key(k, f'GR#{group_id}#{user_id}'))
 
+    def withdraw_group_request(self, k, group_id, user_id):
+        """Mark withdrawn but keep the item (same expiresAt), so asking again does not push again."""
+        try:
+            self.table.update_item(Key=self._key(k, f'GR#{group_id}#{user_id}'),
+                                   UpdateExpression='SET withdrawnAt = :now',
+                                   ConditionExpression='attribute_exists(sk)',
+                                   ExpressionAttributeValues={':now': int(time.time())})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+
+    def _live_requests(self):
+        return Attr('expiresAt').gt(int(time.time())) & Attr('withdrawnAt').not_exists()
+
     def list_group_requests(self, k, group_id):
-        return self._query_prefix(k, f'GR#{group_id}#', Attr('expiresAt').gt(int(time.time())))
+        return self._query_prefix(k, f'GR#{group_id}#', self._live_requests())
 
     def list_group_requests_all(self, k):
-        return self._query_prefix(k, 'GR#', Attr('expiresAt').gt(int(time.time())))
+        return self._query_prefix(k, 'GR#', self._live_requests())
 
     def list_my_group_requests(self, k, user_id):
-        return self._query_prefix(k, 'GR#', Attr('userId').eq(user_id) & Attr('expiresAt').gt(int(time.time())))
+        return self._query_prefix(k, 'GR#', Attr('userId').eq(user_id) & self._live_requests())
 
     def list_group_members(self, k, group_id):
         return self._query_prefix(k, 'M#', Attr('groups').contains(group_id))
