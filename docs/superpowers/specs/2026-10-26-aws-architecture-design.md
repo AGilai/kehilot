@@ -1,6 +1,6 @@
 # Kehilot on AWS: architecture, Terraform and deployment (2026-10-26)
 
-Status: **approved by the user, 2026-10-26** (draft 2 after builder check), on branch `redesign`. Nothing is deployed. The UX is being designed in parallel
+Status: **approved by the user, 2026-10-26** (draft 2 after builder check), on branch `redesign`. Amended 2026-10-26 with §3c (groups, conversation channels, brochures, search; the user's decisions). Nothing is deployed. The UX is being designed in parallel
 (`docs/UX-DESIGN.md`, `design/mockups/`); this document covers the backend, infrastructure and delivery.
 Items marked **[call]** are the author's decisions, open to change. Items marked **[open]** need the user.
 
@@ -25,7 +25,8 @@ The user prefers AWS. Noam knows about and accepts the move.
 - Push notifications that reach closed phones within seconds; polling while the app is open.
 
 **Non-goals (for now)**
-- MQTT / AWS IoT Core, WebSockets, live chat, presence. Revisit only if real chat is added.
+- MQTT / AWS IoT Core, WebSockets, live chat, presence. Revisit only if real chat is added. (Conversation
+  channels, §3c, are light chat over the same polling and push; no typing indicators or presence.)
 - WAF, multi-region, cross-region backups, a custom analytics pipeline.
 - Cloud native builds (EAS Build). Native iOS/Android compilation stays on Noam's Mac (`AGENTS.md`).
 - Migrating data from SQLite: there is no real community database yet, so production starts empty.
@@ -57,7 +58,8 @@ The user prefers AWS. Noam knows about and accepts the move.
 - **Creating a Kehila** **[call]**: a platform-admin CLI (`server/manage.py` successor) creates the Kehila,
   its default channels and the first gabbai's invite. A platform-admin web screen can come later.
 - **Channels are in scope.** Each Kehila has channels (default: announcements, simchas, condolences) and
-  message types. Management messages go to all members of the channel.
+  message types. Management messages go to all members of the channel. Groups, conversation channels,
+  images and search: §3c.
 - **Member broadcasts**: allowed per member by `canBroadcast` on the Membership item; the gabbai screen
   has allow-all / block-all bulk actions plus per-member switches; the Kehila stores the default for new
   members. Management can always post; management can remove any message; authors can delete their own.
@@ -89,6 +91,80 @@ The user prefers AWS. Noam knows about and accepts the move.
   are shown in both languages (e.g. "Parashat Noach", "15 Cheshvan 5787"), using pyluach's English names.
 - Kehila setting **[call]**: a default language for new members of that Kehila (an English-speaking
   community can default to English).
+
+## 3c. Groups, conversation channels, brochures and search (user's decisions, 2026-10-26)
+
+All four ship in plan 3. As everywhere, only `server/cloud/visibility.py` decides who may see or post what.
+
+**Groups** (for example women, men, youth)
+- Gabbaim define up to 20 groups per Kehila (`K#<k>` / `G#<groupId>`, `name` ≤ 60 code points, unique per
+  Kehila ignoring case). A member belongs to zero or more groups (`groups`, a string set on the Membership
+  item). Gabbaim set them per person, and the list import takes an optional groups column (names of existing
+  groups; an unknown name makes the row `invalid` with `unknown_group`). An import only adds groups, never
+  removes them.
+- A channel may be limited to one or more groups (`groups`, a string set on the Channel item; absent = the
+  whole Kehila). A member reads a group channel when they are in **at least one** of its groups.
+- **[call] Group channels are members-only.** A channel with groups cannot have `listenersCanRead`; the API
+  refuses the combination (400 `invalid_groups`), and visibility denies listeners regardless. Reason:
+  listeners joined through a link nobody vetted, and "women only" is a promise about who reads.
+- **[call] Gabbaim read every channel**, group channels included, so they can moderate. Private blessings stay
+  hidden from them as before. Push and the app's "mine" view use the **audience** instead: for a gabbai
+  outside a channel's groups, that channel is readable but not in their audience, so it never pushes them and
+  is not in "mine" (they find it under "everything").
+- Fail-closed: a group still used by a channel cannot be deleted (409 `group_in_use`). A dangling group ID
+  (a race) matches nobody, so only gabbaim read that channel. Removing the last group from a channel opens it
+  to all members; that is an explicit gabbai edit, and `PUT` of a channel that omits `groups` keeps them.
+- A blessing in a group channel may target only a family that can read that channel; replies and their push
+  go to the target only while it can read the channel (`target_left` otherwise).
+
+**Conversation channels**
+- A per-channel switch `conversation`. In a conversation channel every **member or gabbai** who can read it
+  posts short messages: type `chat`, no title, body 1–1000 code points, optionally one image. `canBroadcast`
+  and the daily broadcast limit do not apply there; announcement channels are unchanged and never hold `chat`.
+- **[call] Conversation channels are members-only too** (no `listenersCanRead`), and listeners never post.
+- Rate limit **[call]**: 30 chat messages per user per Kehila per clock hour (UTC), for gabbaim too; a
+  conditional counter `K#<k>` / `CC#<user>#<yyyymmddhh>` (TTL 2 h). Over it: 429 `rate_limited`.
+- Gabbaim delete any message; authors delete their own (as before).
+- Push: conversation channels are **off by default** per member. `notify.chatChannels` lists the
+  conversation channels the member opted into. The push text is a generic `chat` text (§4.5).
+
+**Brochures (images; PDFs later)**
+- A message carries at most one image, JPEG or PNG. The app re-encodes on the phone to JPEG, longest side
+  ≤ 2000 px, aiming at ≤ 0.5 MB (re-encoding also drops EXIF, including location). **[call]** The server
+  accepts up to 1 MiB, so an unlucky photo still goes through.
+- Storage: private S3 bucket `kehilot-<env>-media` in the same region. All public access blocked, ACLs
+  disabled, SSE-S3 (AES256; the IAM boundary has no KMS rights and none are needed), versioning off (a delete
+  is final), TLS-only bucket policy, CORS for the web origins (`PUT`, `GET`, `HEAD`).
+- Upload: `POST /v1/kehilot/{k}/uploads` (only callers who may post in the named channel) returns a presigned
+  `PUT` valid 5 minutes, which signs `Content-Type` and the exact `Content-Length`. The object lands at
+  `up/<k>/<userId>/<uploadId>`. A lifecycle rule deletes everything under `up/` after 1 day, so uploads never
+  attached to a message disappear. 20 upload grants per user per hour (429 `rate_limited`).
+- Attach: `POST .../messages` with `imageUploadId`. The API checks the object (size ≤ 1 MiB, declared type,
+  magic bytes), copies it to `m/<k>/<messageId>` and deletes the upload. Only the uploader can attach it.
+- View: `GET .../messages/{m}/image` runs the normal message visibility check and returns a presigned `GET`
+  valid 5 minutes. There are no public URLs; a forwarded link dies within 5 minutes.
+- The image is deleted from S3 when its message is removed (before the message is marked removed). On
+  account deletion it follows the body: messages stay with a blank author name, so their images stay.
+- The app shows a thumbnail and a full-screen viewer (pinch-zoom, swipe down to close, save to the phone,
+  share). Push stays generic.
+
+**On-phone search**
+- The app keeps a local cache of the messages the user can see, in every channel they can read, per user
+  and Kehila, and searches it offline. Private blessings are never cached or indexed (they are replies).
+- Filling it **[call]**: new joiners see full history (user's decision), so on first use the app pages
+  through `GET .../messages` once (50 per page, newest first, resumable), then keeps it current from the
+  change feed. A `resync`, or any change in the set of readable channels (a group added or removed, a role
+  change), wipes that Kehila's cache and refills it: the feed does not replay old messages that become
+  visible, and nothing hidden may stay on the phone. Leaving a Kehila deletes its cache; sign-out wipes all.
+- Search is Hebrew-normalised: niqqud and cantillation stripped, final letters folded (ך→כ, ם→מ, ן→נ, ף→פ,
+  ץ→צ), geresh/gershayim and quotes removed, Latin lower-cased. Every query word must occur (AND). It searches
+  title, body, author name and target name.
+- Volume: up to about 5,000 messages a year per Kehila (channels are also used for light chat). A linear
+  scan over a few years of normalised text takes milliseconds on a phone, so there is no search index service.
+
+**Costs.** Images: about 10% of messages at ≤ 0.5 MB is 250 MB a year (well under $0.01/month), plus
+cents for requests. Backfill: about 100 list pages per user per year of history, once. Chat at this volume
+stays inside the free tiers. No new always-on resource.
 
 ## 4. Architecture
 
@@ -187,9 +263,11 @@ On-demand billing, TTL enabled on attribute `expiresAt`, point-in-time recovery 
 | Item | PK | SK | Notes |
 |---|---|---|---|
 | Kehila | `K#<k>` | `META` | name, settings (member broadcasts default, poll seconds, broadcast daily limit) |
-| Membership | `K#<k>` | `M#<user>` | role (listener/member/gabbai), classification (''/א/קבוע), canBroadcast, notification prefs, `personId` (the member's own Person item in this Kehila). GSI1: `U#<user>` / `K#<k>` lists a user's Kehilot |
-| Channel | `K#<k>` | `C#<c>` | name, type, who may post |
-| Message | `K#<k>` | `MSG#<ts>#<id>` | channel, type, author, authorKind (management/member), target family for blessings |
+| Membership | `K#<k>` | `M#<user>` | role (listener/member/gabbai), classification (''/א/קבוע), canBroadcast, notification prefs (incl. `chatChannels`, §3c), `groups` (string set of group IDs, §3c), `personId` (the member's own Person item in this Kehila). GSI1: `U#<user>` / `K#<k>` lists a user's Kehilot |
+| Group | `K#<k>` | `G#<g>` | name (§3c) |
+| Channel | `K#<k>` | `C#<c>` | name, `listenersCanRead`, `postPolicy`, `groups` (string set; absent = everyone), `conversation` (bool) (§3c) |
+| Message | `K#<k>` | `MSG#<ts>#<id>` | channel, type (incl. `chat`), author, authorKind (management/member), target family for blessings, `image` `{contentType, bytes}` (object at `m/<k>/<id>` in the media bucket) |
+| Chat / upload counters | `K#<k>` | `CC#<user>#<yyyymmddhh>` / `UPL#<user>#<yyyymmddhh>` | hourly rate limits, `expiresAt` 2 h (§3c) |
 | Private reply | `K#<k>#MSG#<id>` | `R#<ts>#<id>` | visible only to the author and the target family |
 | Read mark | `K#<k>#U#<user>` | `READ#<msgId>` | |
 | Invite | `INV#<code>` | `META` | Kehila, inviter, `expiresAt` (TTL), uses left |
@@ -214,8 +292,8 @@ approval + classification) use `TransactWriteItems`.
 
 ### 4.5 Notifications
 - Publishing a message writes it, then sends one SQS message `{kehila, messageId}`.
-- `push-worker` (SQS trigger, batch 10, partial batch failures) resolves recipients: members with access
-  to the channel who have not muted that type, skipping member-authored broadcasts for "management only"
+- `push-worker` (SQS trigger, batch 10, partial batch failures) resolves recipients: members whose audience
+  includes the channel (§3c; a conversation channel only for those who opted in) who have not muted that type, skipping member-authored broadcasts for "management only"
   people; for a private reply, only the target family and the author. It sends to Expo in batches of
   100 tokens, deletes `DeviceNotRegistered` tokens, and stores ticket IDs for receipt checks.
 - Failures retry through SQS: the event source mapping uses `ReportBatchItemFailures`, and the worker
@@ -229,6 +307,7 @@ approval + classification) use `TransactWriteItems`.
   condolence "הודעת אבל בקהילה" / "Condolence notice in your community";
   event "אירוע חדש בקהילה" / "New event in your community";
   unknown type "הודעה חדשה בקהילה" / "New message in your community";
+  chat (§3c) "הודעה חדשה בשיחה בקהילה" / "New chat message in your community";
   reply "ברכה חדשה" / "New blessing"; request "בקשת הצטרפות חדשה" / "New membership request".
 - The Expo access token is an SSM Parameter Store `SecureString`; Apple/Google credentials live in the
   Expo project, not in AWS.
@@ -244,6 +323,8 @@ App Store and Google Play require in-app account deletion and a privacy policy. 
 `DELETE /v1/me` removes the Cognito user, Membership items, Devices, read marks and the user's own
 healing-prayer entries in every Kehila; the member's Person items are archived (identity kept, personal
 fields cleared) so aliyah history stays consistent. A Hebrew privacy-policy page is served by the web app.
+Messages the user wrote stay, with the author name blanked; their images stay with them (§3c). Removing a
+message deletes its image.
 
 ### 4.6 Scheduled jobs
 EventBridge Scheduler → `jobs` Lambda:
@@ -290,6 +371,7 @@ infra/
     push/               SQS + DLQ, push-worker Lambda, SSM parameter (value set by hand)
     jobs/               scheduler schedules, jobs Lambda
     web/                S3, CloudFront, OAC, optional domain
+    media/              private S3 bucket for message images (§3c): SSE-S3, lifecycle on up/, CORS
     observability/      log retention, alarms, SNS topic, budgets
   envs/
     dev/                main.tf wires modules; backend key dev/terraform.tfstate
