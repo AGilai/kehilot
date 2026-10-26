@@ -70,8 +70,9 @@ class InvitesTest(unittest.TestCase):
         code = self.repo.create_invite(self.k, self.member, 'listener', 1, 7)
         status, body = self.call('GET', f'/v1/invites/{code}', sub=None)
         self.assertEqual(status, 200)
-        self.assertEqual(set(body), {'kehilaName'})
-        self.assertEqual(body['kehilaName'], 'Beit Test')
+        self.assertEqual(set(body), {'kehilaName', 'role', 'expiresAt'})
+        self.assertEqual((body['kehilaName'], body['role']), ('Beit Test', 'listener'))
+        self.assertEqual(body['expiresAt'], int(self.repo.get_invite(code)['expiresAt']))
         self.assertEqual(self.call('GET', '/v1/invites/NOSUCHCODE1', sub=None), (404, {'error': 'invite_not_found'}))
 
     def test_preview_expired_or_used_up_is_410(self):
@@ -80,7 +81,7 @@ class InvitesTest(unittest.TestCase):
                                     UpdateExpression='SET expiresAt = :e', ExpressionAttributeValues={':e': 1})
         self.assertEqual(self.call('GET', f'/v1/invites/{code}', sub=None), (410, {'error': 'invite_expired'}))
         used = self.repo.create_invite(self.k, self.member, 'listener', 1, 7)
-        self.repo.accept_invite(used, self.user('u1'), 'Dana T', int(time.time()))
+        self.repo.accept_invite(used, self.user('u1'), 'Dana T', int(time.time()), False)
         self.assertEqual(self.call('GET', f'/v1/invites/{used}', sub=None), (410, {'error': 'invite_expired'}))
 
     def test_accept_makes_listener(self):
@@ -150,7 +151,7 @@ class InvitesTest(unittest.TestCase):
     def test_lowercase_code_previews_and_accepts(self):
         code = self.repo.create_invite(self.k, self.member, 'listener', 5, 7)
         self.user('lc-sub')
-        self.assertEqual(self.call('GET', f'/v1/invites/{code.lower()}', sub=None), (200, {'kehilaName': 'Beit Test'}))
+        self.assertEqual(self.call('GET', f'/v1/invites/{code.lower()}', sub=None)[0], 200)
         self.assertEqual(self.call('POST', f'/v1/invites/{code.lower()}/accept', sub='lc-sub')[0], 200)
 
     def test_confusable_letters_are_normalized(self):
@@ -171,6 +172,108 @@ class InvitesTest(unittest.TestCase):
     def test_alphabet_never_produces_confusable_letters(self):
         from server.cloud.repo_members import CROCKFORD
         self.assertFalse(set('ILOU') & set(CROCKFORD))
+
+    def make_gabbai(self):
+        gabbai = self.user('gab-sub')
+        self.repo.put_membership(self.k, gabbai, 'gabbai')
+        return gabbai
+
+    def set_default(self, value):
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': 'META'},
+                                    UpdateExpression='SET settings.memberBroadcastDefault = :v',
+                                    ExpressionAttributeValues={':v': value})
+
+    def test_gabbai_creates_member_invite_with_classification(self):
+        self.make_gabbai()
+        self.set_default(True)
+        status, body = self.call('POST', f'/v1/kehilot/{self.k}/invites', sub='gab-sub',
+                                 body={'role': 'member', 'classification': 'א'})
+        self.assertEqual(status, 201)
+        invite = self.repo.get_invite(body['code'])
+        self.assertEqual((invite['role'], invite['classification']), ('member', 'א'))
+        self.assertEqual(self.call('GET', f'/v1/invites/{body["code"]}', sub=None)[1]['role'], 'member')
+        uid = self.user('fam-sub')
+        self.assertEqual(self.call('POST', f'/v1/invites/{body["code"]}/accept', sub='fam-sub'),
+                         (200, {'kehilaId': self.k, 'role': 'member'}))
+        membership = self.repo.get_membership(self.k, uid)
+        self.assertEqual((membership['role'], membership['classification'], membership['canBroadcast']),
+                         ('member', 'א', True))
+
+    def test_member_cannot_create_member_invite(self):
+        status, body = self.call('POST', f'/v1/kehilot/{self.k}/invites', sub='member-sub', body={'role': 'member'})
+        self.assertEqual((status, body), (403, {'error': 'forbidden'}))
+
+    def test_classification_only_with_member_role(self):
+        self.make_gabbai()
+        for body in ({'classification': 'א'}, {'role': 'listener', 'classification': 'קבוע'}):
+            self.assertEqual(self.call('POST', f'/v1/kehilot/{self.k}/invites', sub='gab-sub', body=body),
+                             (400, {'error': 'invalid_classification'}))
+        self.assertEqual(self.call('POST', f'/v1/kehilot/{self.k}/invites', sub='gab-sub',
+                                   body={'role': 'member', 'classification': 'x'}),
+                         (400, {'error': 'invalid_classification'}))
+        self.assertEqual(self.call('POST', f'/v1/kehilot/{self.k}/invites', sub='gab-sub', body={'role': 'gabbai'}),
+                         (400, {'error': 'invalid_role'}))
+
+    def test_member_invite_upgrades_listener_and_clears_request(self):
+        self.make_gabbai()
+        listener = self.user('lis-sub')
+        self.repo.put_membership(self.k, listener, 'listener')
+        self.repo.put_request(self.k, listener, 'Lis T', False, time.time())
+        code = self.repo.create_invite(self.k, self.member, 'member', 2, 7, 'קבוע')
+        self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='lis-sub'),
+                         (200, {'kehilaId': self.k, 'role': 'member'}))
+        membership = self.repo.get_membership(self.k, listener)
+        self.assertEqual((membership['role'], membership['classification'], membership['canBroadcast']),
+                         ('member', 'קבוע', False))
+        self.assertEqual(self.repo.list_requests(self.k), [])
+        self.assertEqual(self.repo.get_invite(code)['usesLeft'], 1)
+
+    def test_member_invite_to_existing_member_is_409(self):
+        code = self.repo.create_invite(self.k, self.member, 'member', 2, 7)
+        self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='member-sub'),
+                         (409, {'error': 'already_member'}))
+        self.assertEqual(self.repo.get_invite(code)['usesLeft'], 2)
+
+    def test_listener_invite_to_existing_listener_is_409(self):
+        listener = self.user('lis-sub')
+        self.repo.put_membership(self.k, listener, 'listener')
+        code = self.repo.create_invite(self.k, self.member, 'listener', 2, 7)
+        self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='lis-sub'),
+                         (409, {'error': 'already_member'}))
+
+    def test_upgrade_conflict_is_try_again(self):
+        from botocore.exceptions import ClientError
+        listener = self.user('lis-sub')
+        self.repo.put_membership(self.k, listener, 'listener')
+        code = self.repo.create_invite(self.k, self.member, 'member', 2, 7)
+        conflict = ClientError({'Error': {'Code': 'TransactionCanceledException'},
+                                'CancellationReasons': [{'Code': 'TransactionConflict'}] * 3}, 'TransactWriteItems')
+        real = self.repo.table.meta.client.transact_write_items
+        calls = []
+
+        def flaky(**kw):
+            calls.append(kw)
+            if len(calls) == 2:  # the first one is the plain put that finds the listener
+                raise conflict
+            return real(**kw)
+        with mock.patch.object(self.repo.table.meta.client, 'transact_write_items', side_effect=flaky):
+            self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='lis-sub'),
+                             (409, {'error': 'try_again'}))
+
+    def test_kehila_returns_notify_defaults_and_pending_request(self):
+        path = f'/v1/kehilot/{self.k}'
+        body = self.call('GET', path, sub='member-sub')[1]
+        self.assertEqual(body['notify'], {'mutedChannels': [], 'mutedTypes': [], 'membersBroadcasts': 'all',
+                                          'mutedMembers': []})
+        self.assertEqual((body['canBroadcast'], body['pendingRequest']), (False, False))
+        listener = self.user('lis-sub')
+        self.repo.put_membership(self.k, listener, 'listener')
+        self.repo.put_request(self.k, listener, 'Lis T', False, time.time())
+        self.call('PUT', f'{path}/me/notify', sub='lis-sub', body={'mutedTypes': ['event']})
+        body = self.call('GET', path, sub='lis-sub')[1]
+        self.assertTrue(body['pendingRequest'])
+        self.assertEqual(body['notify'], {'mutedChannels': [], 'mutedTypes': ['event'],
+                                          'membersBroadcasts': 'all', 'mutedMembers': []})
 
 
 class AdminCliTest(unittest.TestCase):

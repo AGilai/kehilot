@@ -12,7 +12,7 @@ DEFAULT_LIMIT, MAX_LIMIT = 20, 50
 REPLY_MAX = 1000
 
 
-def _message_json(item):
+def _message_json(item, read=None):
     out = {'messageId': item['sk'][len('MSG#'):], 'channelId': item['channelId'], 'type': item['type'],
            'title': item['title'], 'body': item['body'], 'authorId': item['authorId'],
            'authorName': item['authorName'], 'authorKind': item['authorKind'],
@@ -21,6 +21,8 @@ def _message_json(item):
         out['targetMemberId'] = item['targetMemberId']
         out['targetName'] = item.get('targetName', '')
         out['replierCount'] = int(item.get('replierCount', 0))  # a count only: never who or what
+    if read is not None:
+        out['read'] = read
     return out
 
 
@@ -97,15 +99,25 @@ def list_messages(ctx, params):
         if cid not in channels:
             channels[cid] = ctx.repo.get_channel(k, cid)
         if visibility.message_visible(membership, channels[cid], item):
-            page.append(_message_json(item))
+            page.append(item)
             if len(page) == limit:
                 break
-    return 200, page
+    flags = ctx.repo.read_flags(k, ctx.user_id, [i['sk'][len('MSG#'):] for i in page])
+    return 200, [_message_json(i, i['sk'][len('MSG#'):] in flags) for i in page]
 
 
 def get_message(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
-    return 200, _message_json(_visible_message(ctx, params['k'], membership, params['m'])[0])
+    item = _visible_message(ctx, params['k'], membership, params['m'])[0]
+    return 200, _message_json(item, bool(ctx.repo.read_flags(params['k'], ctx.user_id, [params['m']])))
+
+
+def list_directory(ctx, params):
+    """Names of the members and gabbaim, for choosing a target family. Listeners never see it."""
+    require(ctx.repo, ctx.user_id, params['k'], ('member', 'gabbai'))
+    rows = [{'userId': m['userId'], 'displayName': m.get('displayName', '')}
+            for m in ctx.repo.list_members(params['k']) if m['role'] in ('member', 'gabbai')]
+    return 200, sorted(rows, key=lambda r: r['displayName'])
 
 
 def remove_message(ctx, params):

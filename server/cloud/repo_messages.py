@@ -189,6 +189,12 @@ class MessagesRepo:
         self.table.put_item(Item={'pk': f'K#{k}#U#{user_id}', 'sk': f'READ#{message_id}',
                                   'at': int(time.time())})
 
+    def read_flags(self, k, user_id, message_ids):
+        """The subset of message_ids this user has read: one BatchGetItem (at most 50 keys)."""
+        keys = [(f'K#{k}#U#{user_id}', f'READ#{m}') for m in dict.fromkeys(message_ids)]
+        found = self.batch_get(keys) if keys else {}
+        return {sk[len('READ#'):] for _, sk in found}
+
     # replies
     def put_reply(self, k, message_id, author_id, author_name, body):
         """Returns (reply item, counted). The user's first reply also writes the distinct-replier marker and

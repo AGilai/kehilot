@@ -221,3 +221,30 @@ class MessagesTest(unittest.TestCase):
         self.assertEqual(self.call('GET', f'/v1/kehilot/{other_k}/messages/{msg["messageId"]}', sub='out-sub'),
                          (404, {'error': 'message_not_found'}))
         self.assertEqual(self.call('GET', f'/v1/kehilot/{self.k}/messages', sub='out-sub')[0], 404)
+
+    def test_messages_carry_read_flag_for_caller_only(self):
+        mid = self.post('announcements')[1]['messageId']
+        self.call('POST', f'{self.base()}/messages/{mid}/read', sub='member-sub')
+        for sub, expected in (('member-sub', True), ('quiet-sub', False)):
+            listed = self.call('GET', f'{self.base()}/messages', sub=sub)[1]
+            self.assertEqual([m['read'] for m in listed], [expected])
+            self.assertEqual(self.call('GET', f'{self.base()}/messages/{mid}', sub=sub)[1]['read'], expected)
+
+    def test_read_flags_batch(self):
+        ids = [self.post('announcements')[1]['messageId'] for _ in range(3)]
+        self.repo.put_read(self.k, ids[0], self.member)
+        self.repo.put_read(self.k, ids[2], self.member)
+        self.assertEqual(self.repo.read_flags(self.k, self.member, ids + ['nope']), {ids[0], ids[2]})
+        self.assertEqual(self.repo.read_flags(self.k, self.member, []), set())
+
+    def test_directory_lists_members_not_listeners(self):
+        for sub in ('member-sub', 'gabbai-sub'):
+            status, body = self.call('GET', f'{self.base()}/members', sub=sub)
+            self.assertEqual(status, 200)
+            self.assertEqual(body, [{'userId': self.gabbai, 'displayName': 'Gabi Gabbai'},
+                                    {'userId': self.member, 'displayName': 'Mia Member'},
+                                    {'userId': self.quiet, 'displayName': 'Quinn Quiet'}])
+
+    def test_listener_cannot_list_directory(self):
+        self.assertEqual(self.call('GET', f'{self.base()}/members', sub='listener-sub'),
+                         (403, {'error': 'forbidden'}))

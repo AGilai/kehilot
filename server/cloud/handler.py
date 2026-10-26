@@ -40,6 +40,7 @@ ROUTES = [
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels$'), routes_admin.create_channel),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/channels/(?P<c>[^/]+)$'), routes_admin.update_channel),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/channels$'), routes_messages.list_channels),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/members$'), routes_messages.list_directory),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.post_message),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.list_messages),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)$'), routes_messages.get_message),

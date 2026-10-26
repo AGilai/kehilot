@@ -142,7 +142,8 @@ class Smoke:
         k = self.k
         self.gab, self.gab_id = self.person('gab', 'Smoke', 'Gabbai')
         status, body = http(f'{self.api}/v1/invites/{gabbai_code}')  # public: no Authorization header
-        expect('invite_preview_public', (status, body) == (200, {'kehilaName': 'Smoke Community'}), f'{status} {body}')
+        expect('invite_preview_public', status == 200 and body.get('kehilaName') == 'Smoke Community'
+               and body.get('role') == 'gabbai' and set(body) == {'kehilaName', 'role', 'expiresAt'}, f'{status} {body}')
         expect('invite_preview_unknown', http(f'{self.api}/v1/invites/NOSUCHCODE')[0] == 404)
         expect('invite_accept_needs_auth',
                http(f'{self.api}/v1/invites/{gabbai_code}/accept', method='POST', body={})[0] == 401)

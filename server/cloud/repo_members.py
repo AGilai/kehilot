@@ -137,47 +137,76 @@ class MembersRepo:
                                       'listenersCanRead': can_read, 'postPolicy': policy})
         return k
 
-    def create_invite(self, k, inviter_id, role, uses, days):
+    def create_invite(self, k, inviter_id, role, uses, days, classification=''):
         code = ''.join(secrets.choice(CROCKFORD) for _ in range(INVITE_CODE_LENGTH))
-        self.table.put_item(Item={'pk': f'INV#{code}', 'sk': 'META', 'kehilaId': k, 'inviterId': inviter_id,
-                                  'role': role, 'usesLeft': uses, 'expiresAt': int(time.time()) + days * 86400},
-                            ConditionExpression='attribute_not_exists(pk)')
+        item = {'pk': f'INV#{code}', 'sk': 'META', 'kehilaId': k, 'inviterId': inviter_id,
+                'role': role, 'usesLeft': uses, 'expiresAt': int(time.time()) + days * 86400}
+        if classification:
+            item['classification'] = classification
+        self.table.put_item(Item=item, ConditionExpression='attribute_not_exists(pk)')
         return code
 
     def get_invite(self, code):
         return self._get(f'INV#{code}', 'META')
 
-    def accept_invite(self, code, user_id, display_name, now):
-        """Consume one use and add the membership in one transaction; the conditions are the only gate."""
+    def accept_invite(self, code, user_id, display_name, now, broadcast_default):
+        """Consume one use and add (or, for a listener and a member invite, upgrade) the membership in one
+        transaction; the conditions are the only gate."""
         invite = self.get_invite(code)
         if not invite:
             raise ApiError(404, 'invite_not_found')
         k = invite['kehilaId']
+        is_member = invite['role'] == 'member'
+        classification = invite.get('classification', '') if is_member else ''
+        can_broadcast = bool(broadcast_default) if is_member else False
         membership = {'pk': f'K#{k}', 'sk': f'M#{user_id}', 'gsi1pk': f'U#{user_id}', 'gsi1sk': f'K#{k}',
-                      'kehilaId': k, 'userId': user_id, 'role': invite['role'], 'classification': '',
-                      'canBroadcast': False, 'notify': {}, 'displayName': display_name}
+                      'kehilaId': k, 'userId': user_id, 'role': invite['role'], 'classification': classification,
+                      'canBroadcast': can_broadcast, 'notify': {}, 'displayName': display_name}
+        use = {'Update': {'TableName': self.table.name,
+                          'Key': {'pk': f'INV#{code}', 'sk': 'META'},
+                          'UpdateExpression': 'SET usesLeft = usesLeft - :one',
+                          'ConditionExpression': 'usesLeft > :zero AND expiresAt > :now',
+                          'ExpressionAttributeValues': {':one': 1, ':zero': 0, ':now': int(now)}}}
+        drop_request = {'Delete': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': f'REQ#{user_id}'}}}
+        items = [use, {'Put': {'TableName': self.table.name, 'Item': membership,
+                               'ConditionExpression': 'attribute_not_exists(sk)'}}]
+        if is_member:
+            items.append(drop_request)
         try:
-            self.table.meta.client.transact_write_items(TransactItems=[
-                {'Update': {'TableName': self.table.name,
-                            'Key': {'pk': f'INV#{code}', 'sk': 'META'},
-                            'UpdateExpression': 'SET usesLeft = usesLeft - :one',
-                            'ConditionExpression': 'usesLeft > :zero AND expiresAt > :now',
-                            'ExpressionAttributeValues': {':one': 1, ':zero': 0, ':now': int(now)}}},
-                {'Put': {'TableName': self.table.name, 'Item': membership,
-                         'ConditionExpression': 'attribute_not_exists(sk)'}},
-            ])
+            self.table.meta.client.transact_write_items(TransactItems=items)
         except ClientError as error:
             if error.response['Error']['Code'] != 'TransactionCanceledException':
                 raise
             reasons = [r.get('Code') for r in error.response.get('CancellationReasons', [])]
             reasons += [None] * (2 - len(reasons))
             if reasons[1] == 'ConditionalCheckFailed':
+                if is_member:
+                    return self._upgrade_listener(use, drop_request, k, user_id, membership)
                 raise ApiError(409, 'already_member')
             if reasons[0] == 'ConditionalCheckFailed':
                 raise ApiError(410, 'invite_expired')
             raise ApiError(409, 'try_again')  # TransactionConflict etc.: the client may retry
         return membership
 
+    def _upgrade_listener(self, use, drop_request, k, user_id, membership):
+        """A member invite for someone who already belongs: only a listener is upgraded (one transaction)."""
+        upgrade = {'Update': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': f'M#{user_id}'},
+                              'UpdateExpression': 'SET #r = :member, classification = :c, canBroadcast = :b',
+                              'ConditionExpression': '#r = :listener',
+                              'ExpressionAttributeNames': {'#r': 'role'},
+                              'ExpressionAttributeValues': {':member': 'member', ':listener': 'listener',
+                                                            ':c': membership['classification'],
+                                                            ':b': membership['canBroadcast']}}}
+        try:
+            self.table.meta.client.transact_write_items(TransactItems=[use, upgrade, drop_request])
+        except ClientError as error:
+            reasons = _cancel_reasons(error, 3)
+            if reasons[1] == 'ConditionalCheckFailed':
+                raise ApiError(409, 'already_member')  # a member or gabbai (or a listener upgraded meanwhile)
+            if reasons[0] == 'ConditionalCheckFailed':
+                raise ApiError(410, 'invite_expired')
+            raise ApiError(409, 'try_again')
+        return {**membership, 'role': 'member'}
 
 
 def _cancel_reasons(error, count):
@@ -207,6 +236,9 @@ class AdminRepo:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise
             raise ApiError(409, 'already_requested')
+
+    def get_request(self, k, user_id):
+        return self._get(f'K#{k}', f'REQ#{user_id}')
 
     def list_requests(self, k):
         return self._query_prefix(k, 'REQ#')

@@ -299,11 +299,11 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/v1/kehilot/{k}` | any | - | 200 `{kehilaId, name, role, classification, logoVersion, settings:{pollSeconds}}` (`logoVersion` is a string that changes with every logo upload, or null when the Kehila has no logo: the app caches the logo by it) (`pollSeconds` default 30, 5 in dev: how often the app polls `/changes`) | 400 `invalid_kehila_id`, 404 `kehila_not_found` |
+| GET | `/v1/kehilot/{k}` | any | - | 200 `{kehilaId, name, role, classification, logoVersion, canBroadcast, pendingRequest, notify:{mutedChannels, mutedTypes, membersBroadcasts, mutedMembers}, settings:{pollSeconds}}` (`canBroadcast`: the caller's flag; `pendingRequest`: a membership request of the caller is waiting; `notify`: the caller's push preferences with defaults `[]`, `[]`, `"all"`, `[]` filled in) (`logoVersion` is a string that changes with every logo upload, or null when the Kehila has no logo: the app caches the logo by it) (`pollSeconds` default 30, 5 in dev: how often the app polls `/changes`) | 400 `invalid_kehila_id`, 404 `kehila_not_found` |
 | GET | `/v1/kehilot/{k}/logo` | any | - | 200 `{logoVersion, contentType: "image/png", data}` where `data` is the base64 PNG (square, 64-512 px, at most 64 KB). Fetch it again only when `logoVersion` changes | 400 `invalid_kehila_id`, 404 `kehila_not_found` (not a member, same as the Kehila route), 404 `not_found` (no logo set) |
-| POST | `/v1/kehilot/{k}/invites` | member, gabbai | `{uses?: 1-50 (10), days?: 1-30 (7)}` or no body | 201 `{code, expiresAt}`; the code makes a **listener** | 400 `invalid_uses`, `invalid_days`, 403, 404 |
-| GET | `/v1/invites/{code}` | **public** | - | 200 `{kehilaName}` | 404 `invite_not_found`, 410 `invite_expired` |
-| POST | `/v1/invites/{code}/accept` | signed in | - | 200 `{kehilaId, role}` (`listener`, or `gabbai` for an admin-CLI code) | 404 `invite_not_found`, 409 `profile_required`, `already_member`, `try_again`, 410 `invite_expired` |
+| POST | `/v1/kehilot/{k}/invites` | member, gabbai | `{uses?: 1-50 (10), days?: 1-30 (7), role?: "listener"\|"member" (listener), classification?: ""\|"א"\|"קבוע"}` or no body | 201 `{code, expiresAt}`; the code makes a **listener** or a **member**. `role: "member"` needs a gabbai; `classification` only with `member` | 400 `invalid_uses`, `invalid_days`, `invalid_role`, `invalid_classification`, 403 `forbidden` (a member asking for a member invite), 404 |
+| GET | `/v1/invites/{code}` | **public** | - | 200 `{kehilaName, role, expiresAt}` | 404 `invite_not_found`, 410 `invite_expired` |
+| POST | `/v1/invites/{code}/accept` | signed in | - | 200 `{kehilaId, role}` (`listener`, `member`, or `gabbai` for an admin-CLI code). A `member` code sets the classification from the invite and `canBroadcast` from the Kehila default (`memberBroadcastDefault`), and removes any pending request. A caller who is already a **listener** is upgraded to member by a member code (one transaction, one use consumed); every other existing membership gets 409 `already_member` | 404 `invite_not_found`, 409 `profile_required`, `already_member`, `try_again`, 410 `invite_expired` |
 | POST | `/v1/kehilot/{k}/membership-request` | listener | - | 202 `{}`; gabbaim get a push | 403, 404, 409 `already_requested` |
 | DELETE | `/v1/kehilot/{k}/membership` | any | - | 204 (leave) | 409 `last_gabbai`, `try_again` |
 
@@ -330,6 +330,7 @@ A new Kehila (admin CLI) has the channels `announcements` (listeners can read, m
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/v1/kehilot/{k}/channels` | any | - | 200 `[{channelId, name, listenersCanRead, postPolicy, canPost}]`, only channels the caller can read | - |
+| GET | `/v1/kehilot/{k}/members` | member, gabbai | - | 200 `[{userId, displayName}]` for roles `member` and `gabbai`, sorted by `displayName` (listeners are never included; used to pick a target family) | 403 `forbidden` (listener), 404 `kehila_not_found` |
 | POST | `/v1/kehilot/{k}/messages` | gabbai, or member with `canBroadcast` where `postPolicy` is `broadcasters` | `{channelId, type: "weekly"\|"celebration"\|"condolence"\|"event", title, body?, targetMemberId?}` | 201 message (below) | 400 `invalid_channel_id`, `invalid_type`, `invalid_title`, `invalid_body`, `invalid_target_member_id` (target only on `celebration` and `condolence`, and must be a member or gabbai of this Kehila), 403 `forbidden`, 404 `channel_not_found`, 429 `broadcast_limit` (members only, `broadcastDailyLimit` per day, default 3) |
 | GET | `/v1/kehilot/{k}/messages?limit=&before=` | any | `limit` 1-50 (20), `before` = a messageId | 200 `[message]`, newest first, only visible ones | 400 `invalid_limit`, `invalid_before` |
 | GET | `/v1/kehilot/{k}/messages/{m}` | any | - | 200 message | 404 `message_not_found` (hidden and missing look the same) |
@@ -337,7 +338,7 @@ A new Kehila (admin CLI) has the channels `announcements` (listeners can read, m
 | POST | `/v1/kehilot/{k}/messages/{m}/join` | member, gabbai | - | 200 `{joinCount, joined:true}`; idempotent per user | 404 `message_not_found`, 409 `try_again` |
 | POST | `/v1/kehilot/{k}/messages/{m}/read` | any | - | 204; idempotent; a private read marker (only that user's feed sees it) | 404 `message_not_found` |
 
-Message object: `{messageId, channelId, type, title, body, authorId, authorName, authorKind: "management"\|"member", joinCount}`. When the message has a target it also carries `targetMemberId`, `targetName` (the family's display name) and `replierCount` (the number of distinct repliers: a count only, never who replied or what they wrote).
+Message object: `{messageId, channelId, type, title, body, authorId, authorName, authorKind: "management"\|"member", joinCount}`. `GET .../messages` and `GET .../messages/{m}` add `read: bool` (whether the caller read it; other users' reads never show; feed items carry no `read`, the `read` change kind covers it). When the message has a target it also carries `targetMemberId`, `targetName` (the family's display name) and `replierCount` (the number of distinct repliers: a count only, never who replied or what they wrote).
 
 #### Private replies (blessings)
 

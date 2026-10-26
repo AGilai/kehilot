@@ -3,6 +3,7 @@ import time
 
 from . import inputs
 from .authz import require
+from .routes_admin import CLASSIFICATIONS
 from .errors import ApiError
 from .repo_members import normalize_code
 
@@ -15,11 +16,19 @@ def _live_invite(repo, code):
 
 
 def create(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], ('member', 'gabbai'))
+    membership = require(ctx.repo, ctx.user_id, params['k'], ('member', 'gabbai'))
     d = inputs.body_object(ctx) if ctx.body else {}
+    role = d.get('role', 'listener')
+    if role not in ('listener', 'member'):
+        raise ApiError(400, 'invalid_role')
+    if role == 'member' and membership['role'] != 'gabbai':
+        raise ApiError(403, 'forbidden')
+    classification = d.get('classification', '')
+    if 'classification' in d and (role != 'member' or classification not in CLASSIFICATIONS):
+        raise ApiError(400, 'invalid_classification')
     uses = inputs.integer(d, 'uses', 1, 50) if 'uses' in d else 10
     days = inputs.integer(d, 'days', 1, 30) if 'days' in d else 7
-    code = ctx.repo.create_invite(params['k'], ctx.user_id, 'listener', uses, days)
+    code = ctx.repo.create_invite(params['k'], ctx.user_id, role, uses, days, classification)
     return 201, {'code': code, 'expiresAt': int(ctx.repo.get_invite(code)['expiresAt'])}
 
 
@@ -30,7 +39,7 @@ def preview(ctx, params):
     kehila = ctx.repo.get_kehila(invite['kehilaId'])
     if not kehila:
         raise ApiError(404, 'invite_not_found')
-    return 200, {'kehilaName': kehila['name']}
+    return 200, {'kehilaName': kehila['name'], 'role': invite['role'], 'expiresAt': int(invite['expiresAt'])}
 
 
 def accept(ctx, params):
@@ -38,5 +47,9 @@ def accept(ctx, params):
     if not profile:
         raise ApiError(409, 'profile_required')
     name = f"{profile['firstName']} {profile['lastName']}".strip()
-    membership = ctx.repo.accept_invite(normalize_code(params['code']), ctx.user_id, name, int(time.time()))
+    code = normalize_code(params['code'])
+    invite = _live_invite(ctx.repo, code)
+    settings = (ctx.repo.get_kehila(invite['kehilaId']) or {}).get('settings', {})
+    membership = ctx.repo.accept_invite(code, ctx.user_id, name, int(time.time()),
+                                        bool(settings.get('memberBroadcastDefault', False)))
     return 200, {'kehilaId': membership['kehilaId'], 'role': membership['role']}
