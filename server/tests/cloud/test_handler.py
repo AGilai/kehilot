@@ -49,7 +49,7 @@ class HandlerTest(unittest.TestCase):
         status, body = self.call('GET', '/v1/me')
         self.assertEqual(status, 200)
         self.assertEqual(body['userId'], self.user_id)
-        self.assertEqual(body['kehilot'], [{'kehilaId': self.ka, 'name': 'קהילה א', 'role': 'member'}])
+        self.assertEqual(body['kehilot'], [{'kehilaId': self.ka, 'name': 'קהילה א', 'role': 'member', 'logoVersion': None}])
 
     def test_own_kehila_is_200(self):
         status, body = self.call('GET', f'/v1/kehilot/{self.ka}')

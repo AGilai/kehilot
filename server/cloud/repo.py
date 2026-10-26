@@ -1,7 +1,9 @@
 """All DynamoDB access for the cloud API. Every Kehila-scoped key starts with K#<kehila>."""
 from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.types import Binary
 from botocore.exceptions import ClientError
 
+from .ids import new_id
 from .repo_members import AdminRepo, MembersRepo
 from .repo_messages import MessagesRepo
 
@@ -60,6 +62,27 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo):
 
     def put_kehila(self, k, name):
         self.table.put_item(Item={'pk': f'K#{k}', 'sk': 'META', 'kehilaId': k, 'name': name})
+
+    def set_logo(self, k, data):
+        """Replace logo and logoVersion together; raises LookupError when the Kehila does not exist."""
+        version = new_id()
+        try:
+            self.table.update_item(Key={'pk': f'K#{k}', 'sk': 'META'}, UpdateExpression='SET logo = :l, logoVersion = :v',
+                                   ConditionExpression='attribute_exists(pk)',
+                                   ExpressionAttributeValues={':l': Binary(data), ':v': version})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            raise LookupError(k)
+        return version
+
+    def get_logo(self, k):
+        """(logoVersion, png bytes), or None when the Kehila has no logo."""
+        item = self.get_kehila(k)
+        if not item or 'logo' not in item:
+            return None
+        logo = item['logo']
+        return item['logoVersion'], bytes(logo.value if isinstance(logo, Binary) else logo)
 
     def put_membership(self, k, user_id, role, classification=''):
         self.table.put_item(Item={'pk': f'K#{k}', 'sk': f'M#{user_id}', 'gsi1pk': f'U#{user_id}',

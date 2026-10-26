@@ -8,6 +8,7 @@ import os
 
 from . import expo
 
+logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 log = logging.getLogger(__name__)
 
 RECEIPT_CHUNK = 300

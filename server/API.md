@@ -289,7 +289,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/health` | public | - | 200 `{ok:true}` | - |
-| GET | `/v1/me` | signed in | - | 200 `{userId, email, profile, kehilot:[{kehilaId, name, role}]}`; `profile` is `{firstName, lastName, lang}` or null | - |
+| GET | `/v1/me` | signed in | - | 200 `{userId, email, profile, kehilot:[{kehilaId, name, role, logoVersion}]}`; `profile` is `{firstName, lastName, lang}` or null | - |
 | PUT | `/v1/me/profile` | signed in | `{firstName (required), lastName?, lang: "he"\|"en"}` | 200 `{firstName, lastName, lang}` | 400 `invalid_body`, `invalid_json`, `invalid_first_name`, `invalid_last_name`, `invalid_lang` |
 | PUT | `/v1/me/devices` | signed in | `{token: "ExponentPushToken[...]", platform: "ios"\|"android"\|"web"}` | 204; a token already registered to another user moves to the caller | 400 `invalid_token`, `invalid_platform`, `invalid_body` |
 | DELETE | `/v1/me/devices/{token}` | signed in | the token in the path, percent-encoded (`ExponentPushToken%5Bxxxx%5D`) | 204, also when it was not registered | - |
@@ -299,7 +299,8 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/v1/kehilot/{k}` | any | - | 200 `{kehilaId, name, role, classification, settings:{pollSeconds}}` (`pollSeconds` default 30, 5 in dev: how often the app polls `/changes`) | 400 `invalid_kehila_id`, 404 `kehila_not_found` |
+| GET | `/v1/kehilot/{k}` | any | - | 200 `{kehilaId, name, role, classification, logoVersion, settings:{pollSeconds}}` (`logoVersion` is a string that changes with every logo upload, or null when the Kehila has no logo: the app caches the logo by it) (`pollSeconds` default 30, 5 in dev: how often the app polls `/changes`) | 400 `invalid_kehila_id`, 404 `kehila_not_found` |
+| GET | `/v1/kehilot/{k}/logo` | any | - | 200 `{logoVersion, contentType: "image/png", data}` where `data` is the base64 PNG (square, 64-512 px, at most 64 KB). Fetch it again only when `logoVersion` changes | 400 `invalid_kehila_id`, 404 `kehila_not_found` (not a member, same as the Kehila route), 404 `not_found` (no logo set) |
 | POST | `/v1/kehilot/{k}/invites` | member, gabbai | `{uses?: 1-50 (10), days?: 1-30 (7)}` or no body | 201 `{code, expiresAt}`; the code makes a **listener** | 400 `invalid_uses`, `invalid_days`, 403, 404 |
 | GET | `/v1/invites/{code}` | **public** | - | 200 `{kehilaName}` | 404 `invite_not_found`, 410 `invite_expired` |
 | POST | `/v1/invites/{code}/accept` | signed in | - | 200 `{kehilaId, role}` (`listener`, or `gabbai` for an admin-CLI code) | 404 `invite_not_found`, 409 `profile_required`, `already_member`, `try_again`, 410 `invite_expired` |

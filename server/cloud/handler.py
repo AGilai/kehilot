@@ -13,6 +13,7 @@ from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
 
+logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 log = logging.getLogger(__name__)
 
 ROUTES = [
@@ -23,6 +24,7 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/me/devices$'), routes_me.put_device),
     ('DELETE', re.compile(r'^/v1/me/devices/(?P<token>[^/]+)$'), routes_me.delete_device),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)$'), routes_core.kehila),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/logo$'), routes_core.logo),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/invites$'), routes_invites.create),
     ('GET', re.compile(r'^/v1/invites/(?P<code>[^/]+)$'), routes_invites.preview),
     ('POST', re.compile(r'^/v1/invites/(?P<code>[^/]+)/accept$'), routes_invites.accept),

@@ -11,6 +11,7 @@ import time
 from . import expo, visibility
 from .push import MESSAGE_TYPES, PUSH_TEXT
 
+logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 log = logging.getLogger(__name__)
 
 CHUNK = 100
