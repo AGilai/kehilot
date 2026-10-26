@@ -147,6 +147,31 @@ class InvitesTest(unittest.TestCase):
         self.assertEqual(self.call('POST', '/v1/invites/NOSUCHCODE1/accept', sub='x-sub'),
                          (404, {'error': 'invite_not_found'}))
 
+    def test_lowercase_code_previews_and_accepts(self):
+        code = self.repo.create_invite(self.k, self.member, 'listener', 5, 7)
+        self.user('lc-sub')
+        self.assertEqual(self.call('GET', f'/v1/invites/{code.lower()}', sub=None), (200, {'kehilaName': 'Beit Test'}))
+        self.assertEqual(self.call('POST', f'/v1/invites/{code.lower()}/accept', sub='lc-sub')[0], 200)
+
+    def test_confusable_letters_are_normalized(self):
+        from server.cloud.repo_members import normalize_code
+        self.assertEqual(normalize_code(' ab0il '), 'AB011')
+
+    def test_transaction_conflict_is_409_try_again(self):
+        from botocore.exceptions import ClientError
+        code = self.repo.create_invite(self.k, self.member, 'listener', 5, 7)
+        self.user('tc-sub')
+        conflict = ClientError({'Error': {'Code': 'TransactionCanceledException'},
+                                'CancellationReasons': [{'Code': 'TransactionConflict'}, {'Code': 'None'}]},
+                               'TransactWriteItems')
+        with mock.patch.object(self.repo.table.meta.client, 'transact_write_items', side_effect=conflict):
+            self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='tc-sub'),
+                             (409, {'error': 'try_again'}))
+
+    def test_alphabet_never_produces_confusable_letters(self):
+        from server.cloud.repo_members import CROCKFORD
+        self.assertFalse(set('ILOU') & set(CROCKFORD))
+
 
 class AdminCliTest(unittest.TestCase):
     @mock_aws

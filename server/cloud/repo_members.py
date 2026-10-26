@@ -11,6 +11,7 @@ from .ids import new_id
 
 CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 INVITE_CODE_LENGTH = 10
+_CODE_FIXES = str.maketrans({'I': '1', 'L': '1', 'O': '0'})
 DEFAULT_SETTINGS = {'pollSeconds': 30, 'memberBroadcastDefault': False, 'broadcastDailyLimit': 3,
                     'defaultLang': 'he'}
 DEFAULT_CHANNELS = (  # (name, listenersCanRead, postPolicy)
@@ -18,6 +19,11 @@ DEFAULT_CHANNELS = (  # (name, listenersCanRead, postPolicy)
     ('simchas', False, 'broadcasters'),
     ('condolences', False, 'broadcasters'),
 )
+
+
+def normalize_code(code):
+    """Crockford: case-insensitive, I/L read as 1, O as 0."""
+    return code.strip().upper().translate(_CODE_FIXES)
 
 
 class MembersRepo:
@@ -96,8 +102,11 @@ class MembersRepo:
             if error.response['Error']['Code'] != 'TransactionCanceledException':
                 raise
             reasons = [r.get('Code') for r in error.response.get('CancellationReasons', [])]
-            if len(reasons) > 1 and reasons[1] == 'ConditionalCheckFailed':
+            reasons += [None] * (2 - len(reasons))
+            if reasons[1] == 'ConditionalCheckFailed':
                 raise ApiError(409, 'already_member')
-            raise ApiError(410, 'invite_expired')
+            if reasons[0] == 'ConditionalCheckFailed':
+                raise ApiError(410, 'invite_expired')
+            raise ApiError(409, 'try_again')  # TransactionConflict etc.: the client may retry
         return membership
 

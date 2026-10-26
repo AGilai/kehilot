@@ -4,6 +4,7 @@ import time
 from . import inputs
 from .authz import require
 from .errors import ApiError
+from .repo_members import normalize_code
 
 
 def _live_invite(repo, code):
@@ -23,7 +24,7 @@ def create(ctx, params):
 
 
 def preview(ctx, params):
-    invite = _live_invite(ctx.repo, params['code'])
+    invite = _live_invite(ctx.repo, normalize_code(params['code']))
     if invite['usesLeft'] <= 0 or invite['expiresAt'] <= time.time():
         raise ApiError(410, 'invite_expired')
     kehila = ctx.repo.get_kehila(invite['kehilaId'])
@@ -37,5 +38,5 @@ def accept(ctx, params):
     if not profile:
         raise ApiError(409, 'profile_required')
     name = f"{profile['firstName']} {profile['lastName']}".strip()
-    membership = ctx.repo.accept_invite(params['code'], ctx.user_id, name, int(time.time()))
+    membership = ctx.repo.accept_invite(normalize_code(params['code']), ctx.user_id, name, int(time.time()))
     return 200, {'kehilaId': membership['kehilaId'], 'role': membership['role']}
