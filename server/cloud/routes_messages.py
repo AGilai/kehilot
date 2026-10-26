@@ -19,6 +19,8 @@ def _message_json(item):
            'joinCount': int(item.get('joinCount', 0))}
     if item.get('targetMemberId'):
         out['targetMemberId'] = item['targetMemberId']
+        out['targetName'] = item.get('targetName', '')
+        out['replierCount'] = int(item.get('replierCount', 0))  # a count only: never who or what
     return out
 
 
@@ -49,6 +51,7 @@ def post_message(ctx, params):
     title = inputs.text(d, 'title', 120, required=True)
     body = inputs.text(d, 'body', 4000)
     target = d.get('targetMemberId')
+    target_membership = None
     if target is not None:
         if type_ not in TARGET_TYPES or not isinstance(target, str) or not ID_RE.fullmatch(target):
             raise ApiError(400, 'invalid_target_member_id')
@@ -64,7 +67,8 @@ def post_message(ctx, params):
         limit = ctx.repo.get_kehila(k).get('settings', {}).get('broadcastDailyLimit', 3)
         ctx.repo.count_broadcast(k, ctx.user_id, local_date(), int(limit))
     item = ctx.repo.put_message(k, channel_id, type_, title, body, ctx.user_id, membership.get('displayName', ''),
-                                'management' if membership['role'] == 'gabbai' else 'member', target)
+                                'management' if membership['role'] == 'gabbai' else 'member', target,
+                                target_membership.get('displayName', '') if target else '')
     message = _message_json(item)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
@@ -149,10 +153,12 @@ def post_reply(ctx, params):
     if target == ctx.user_id:
         raise ApiError(409, 'cannot_reply_to_own')
     body = inputs.text(inputs.body_object(ctx), 'body', REPLY_MAX, required=True)
-    item = ctx.repo.put_reply(k, params['m'], ctx.user_id, membership.get('displayName', ''), body)
+    item, counted = ctx.repo.put_reply(k, params['m'], ctx.user_id, membership.get('displayName', ''), body)
     reply = _reply_json(item)
     ctx.repo.put_change(k, 'reply', reply['replyId'], message['channelId'], [ctx.user_id, target],
                         message_id=params['m'])
+    if counted:  # channel-scoped, no visibleTo: the feed serves the message JSON, never the reply
+        ctx.repo.put_change(k, 'reply_count', params['m'], message['channelId'])
     push.enqueue('reply', k, params['m'])  # ref = messageId: the target is on the message
     return 201, reply
 

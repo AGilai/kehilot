@@ -68,6 +68,47 @@ class RepliesTest(test_messages.MessagesTest):
                          (body['replyId'], self.mid, self.channels['simchas']))
         self.assertEqual(change['visibleTo'], [self.member, self.quiet])
 
+    def test_replier_count_counts_distinct_users(self):
+        self.reply('member-sub', 'one')
+        self.reply('member-sub', 'two')
+        self.reply('other-sub', 'three')
+        status, msg = self.call('GET', f'{self.base()}/messages/{self.mid}', sub='gabbai-sub')
+        self.assertEqual((status, msg['replierCount'], msg['targetName']), (200, 2, 'Quinn Quiet'))
+        counts = [c for c in self.changes() if c['kind'] == 'reply_count']
+        self.assertEqual(len(counts), 2)
+        self.assertNotIn('visibleTo', counts[0])
+        self.assertEqual(counts[0]['refId'], self.mid)
+
+    def test_concurrent_first_replies_by_same_user_count_once(self):
+        # the marker's attribute_not_exists in the reply's transaction is what makes this hold under races
+        results = [self.repo.put_reply(self.k, self.mid, self.member, 'Mia Member', 'x')[1] for _ in range(2)]
+        self.assertEqual(results, [True, False])
+
+    def test_count_visible_to_everyone_who_sees_message(self):
+        lid = self.post('announcements', type='celebration', targetMemberId=self.quiet)[1]['messageId']
+        self.reply('member-sub', 'private', mid=lid)
+        for sub in ('gabbai-sub', 'other-sub', 'listener-sub'):
+            msg = self.call('GET', f'{self.base()}/messages/{lid}', sub=sub)[1]
+            self.assertEqual((msg['replierCount'], msg['targetName']), (1, 'Quinn Quiet'), sub)
+            listed = [m for m in self.call('GET', f'{self.base()}/messages', sub=sub)[1] if m['messageId'] == lid]
+            self.assertEqual(listed[0]['replierCount'], 1, sub)
+            if sub != 'listener-sub':
+                self.assertEqual(self.replies(sub, mid=lid), [] if sub != 'member-sub' else ['private'])
+        self.assertEqual(self.replies('listener-sub', mid=lid), [])
+        self.assertEqual(self.replies('other-sub', mid=lid), [])
+
+    def test_count_hidden_when_message_not_visible(self):
+        self.reply('member-sub')
+        self.assertEqual(self.call('GET', f'{self.base()}/messages/{self.mid}', sub='listener-sub'),
+                         (404, {'error': 'message_not_found'}))
+        listed = self.call('GET', f'{self.base()}/messages', sub='listener-sub')[1]
+        self.assertNotIn(self.mid, [m['messageId'] for m in listed])
+
+    def test_untargeted_message_has_no_count_fields(self):
+        msg = self.post('announcements')[1]
+        self.assertNotIn('replierCount', msg)
+        self.assertNotIn('targetName', msg)
+
     def test_validation(self):
         self.assertEqual(self.reply('member-sub', ''), (400, {'error': 'invalid_body'}))
         self.assertEqual(self.reply('member-sub', 'x' * 1001), (400, {'error': 'invalid_body'}))

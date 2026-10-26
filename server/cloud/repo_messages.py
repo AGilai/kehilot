@@ -122,12 +122,14 @@ class MessagesRepo:
             raise ApiError(429, 'broadcast_limit')
 
     # messages
-    def put_message(self, k, channel_id, type_, title, body, author_id, author_name, author_kind, target):
+    def put_message(self, k, channel_id, type_, title, body, author_id, author_name, author_kind, target,
+                    target_name=''):
         item = {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{new_id()}', 'channelId': channel_id, 'type': type_,
                 'title': title, 'body': body, 'authorId': author_id, 'authorName': author_name,
                 'authorKind': author_kind, 'joinCount': 0, 'removed': False}
         if target:
             item['targetMemberId'] = target
+            item['targetName'] = target_name
         self.table.put_item(Item=item)
         return item
 
@@ -189,10 +191,32 @@ class MessagesRepo:
 
     # replies
     def put_reply(self, k, message_id, author_id, author_name, body):
+        """Returns (reply item, counted). The user's first reply also writes the distinct-replier marker and
+        adds 1 to the message's replierCount in the same transaction; later replies only put the reply."""
         item = {'pk': f'K#{k}#MSG#{message_id}', 'sk': f'R#{new_id()}', 'authorId': author_id,
                 'authorName': author_name, 'body': body, 'createdAt': int(time.time())}
-        self.table.put_item(Item=item)
-        return item
+        name = self.table.name
+        try:
+            self._txn([
+                {'Put': {'TableName': name, 'Item': item}},
+                {'Put': {'TableName': name, 'Item': {'pk': item['pk'], 'sk': f'RP#{author_id}'},
+                         'ConditionExpression': 'attribute_not_exists(sk)'}},
+                {'Update': {'TableName': name, 'Key': {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
+                            'UpdateExpression': 'ADD replierCount :one',
+                            'ConditionExpression': 'attribute_exists(sk)',
+                            'ExpressionAttributeValues': {':one': 1}}},
+            ])
+            return item, True
+        except ClientError as error:
+            if not _failed(error, 'TransactionCanceledException'):
+                raise
+            reasons = [r.get('Code') for r in error.response.get('CancellationReasons', [])] + [None] * 3
+            if reasons[1] == 'ConditionalCheckFailed' and reasons[2] != 'ConditionalCheckFailed':
+                self.table.put_item(Item=item)  # already counted this user (also when a racing reply won)
+                return item, False
+            if reasons[2] == 'ConditionalCheckFailed':
+                raise ApiError(404, 'message_not_found')
+            raise ApiError(409, 'try_again')
 
     def list_replies(self, k, message_id):
         """Every reply of the message, oldest first. Callers filter with visibility.reply_visible."""

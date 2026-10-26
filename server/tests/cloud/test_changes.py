@@ -96,6 +96,20 @@ class ChangesTest(test_messages.MessagesTest):
         for sub in ('other-sub', 'gabbai-sub', 'listener-sub'):
             self.assertEqual([c for c in self.since_start(sub)['changes'] if c['kind'] == 'reply'], [], sub)
 
+    def test_count_change_in_feed_has_no_reply_content(self):
+        mid = self.post('simchas', type='celebration', targetMemberId=self.quiet)[1]['messageId']
+        self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub', body={'body': 'Secret wish'})
+        feed = self.since_start('other-sub')
+        counts = [c for c in feed['changes'] if c['kind'] == 'reply_count']
+        self.assertEqual([(c['id'], c['item']['replierCount'], c['item']['messageId']) for c in counts],
+                         [(mid, 1, mid)])
+        self.assertEqual([c for c in feed['changes'] if c['kind'] == 'reply'], [])
+        text = str(feed)
+        for secret in ('Secret wish', self.member, 'Mia Member'):
+            self.assertNotIn(secret, text)
+        listener = self.since_start('listener-sub')
+        self.assertEqual(listener['changes'], [])  # members-only channel
+
     def test_read_mark_only_to_reader(self):
         mid = self.post('announcements')[1]['messageId']
         self.call('POST', f'{self.base()}/messages/{mid}/read', sub='member-sub')

@@ -29,7 +29,7 @@ def _item(ctx_user, membership, channels, change, messages, replies):
     message = messages.get(change.get('messageId', ref))
     if not message or not visibility.message_visible(membership, channels.get(message['channelId']), message):
         return None
-    if kind in ('message', 'join'):
+    if kind in ('message', 'join', 'reply_count'):
         return _message_json(message)
     if kind == 'read':
         return {'messageId': ref}
@@ -60,7 +60,7 @@ def changes(ctx, params):
     if not scanned:
         return 200, {'cursor': since, 'more': False, 'changes': []}  # since < bound here
     channels = {c['sk'][2:]: c for c in ctx.repo.list_channels(k)}
-    allowed = [c for c in scanned if c['kind'] in ('message', 'message_removed', 'join', 'read', 'reply')
+    allowed = [c for c in scanned if c['kind'] in ('message', 'message_removed', 'join', 'read', 'reply', 'reply_count')
                and visibility.change_visible(ctx.user_id, membership, channels, c)]
     keys = []
     for c in allowed:
