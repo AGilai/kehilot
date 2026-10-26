@@ -94,13 +94,16 @@ class Smoke:
     def person(self, label, first, last):
         """A signed-in user with a saved profile: (token, userId)."""
         token = self.make_user(label)
-        user_id = self.call(token, 'GET', '/v1/me')[1]['userId']
+        status, me = self.call(token, 'GET', '/v1/me')
+        expect(f'me_{label}', status == 200, str(status))
+        user_id = me['userId']
         self.user_ids.append(user_id)
         status, _ = self.call(token, 'PUT', '/v1/me/profile', {'firstName': first, 'lastName': last, 'lang': 'en'})
         expect(f'profile_saved_{label}', status == 200, str(status))
         return token, user_id
 
     def run(self):
+        self.started_ms = int(time.time() * 1000)
         status, body = http(f'{self.api}/health')
         expect('check_health', status == 200 and body == {'ok': True}, f'{status} {body}')
 
@@ -139,6 +142,8 @@ class Smoke:
         status, body = http(f'{self.api}/v1/invites/{gabbai_code}')  # public: no Authorization header
         expect('invite_preview_public', (status, body) == (200, {'kehilaName': 'Smoke Community'}), f'{status} {body}')
         expect('invite_preview_unknown', http(f'{self.api}/v1/invites/NOSUCHCODE')[0] == 404)
+        expect('invite_accept_needs_auth',
+               http(f'{self.api}/v1/invites/{gabbai_code}/accept', method='POST', body={})[0] == 401)
         status, body = self.call(self.gab, 'POST', f'/v1/invites/{gabbai_code}/accept')
         expect('gabbai_invite_accepted', (status, body) == (200, {'kehilaId': k, 'role': 'gabbai'}), f'{status} {body}')
 
@@ -182,6 +187,15 @@ class Smoke:
         expect('changes_ok', status == 200 and 'changes' in body, f'{status} {body}')
         return body
 
+    def feed_until(self, token, since, kind, timeout=10):
+        """Poll the feed until `kind` appears (the positive control), then return its changes."""
+        deadline = time.time() + timeout
+        while True:
+            body = self.feed(token, since)
+            if any(c['kind'] == kind for c in body['changes']) or time.time() > deadline:
+                return body
+            time.sleep(1.5)
+
     def cursor(self, token):
         return self.call(token, 'GET', f'/v1/kehilot/{self.k}/changes')[1]['cursor']
 
@@ -201,9 +215,8 @@ class Smoke:
         expect('gabbai_posts_targeted_message', status == 201 and msg['targetName'] == 'Test Family'
                and msg['replierCount'] == 0, f'{status} {msg}')
         self.msg = msg['messageId']
-        time.sleep(HOLD_BACK_SECONDS)
-        lis_feed = self.feed(self.people['lis'][0], self.cursors['lis'])
-        fam_feed = self.feed(self.people['fam1'][0], self.cursors['fam1'])
+        fam_feed = self.feed_until(self.people['fam1'][0], self.cursors['fam1'], 'message')
+        lis_feed = self.feed(self.people['lis'][0], self.cursors['lis'])  # after the positive control
         expect('listener_feed_hides_message', not lis_feed['changes'], str(lis_feed))
         expect('member_feed_has_message', any(c['kind'] == 'message' and c['id'] == self.msg
                                               for c in fam_feed['changes']), str(fam_feed))
@@ -228,9 +241,8 @@ class Smoke:
                and len(author_replies[1]) == 1, f'{target_replies} {author_replies}')
         seen = self.call(self.gab, 'GET', f'/v1/kehilot/{k}/messages/{m}')[1]
         expect('replier_count_visible_to_gabbai', seen['replierCount'] == 1, str(seen))
-        time.sleep(HOLD_BACK_SECONDS)
-        gab_kinds = {c['kind'] for c in self.feed(self.gab, self.cursors['gab'])['changes']}
-        fam_kinds = {c['kind'] for c in self.feed(fam1, self.cursors['fam1'])['changes']}
+        gab_kinds = {c['kind'] for c in self.feed_until(self.gab, self.cursors['gab'], 'reply_count')['changes']}
+        fam_kinds = {c['kind'] for c in self.feed_until(fam1, self.cursors['fam1'], 'reply')['changes']}
         expect('feed_reply_visibility', 'reply_count' in gab_kinds and 'reply' not in gab_kinds
                and {'reply', 'reply_count'} <= fam_kinds, f'{gab_kinds} {fam_kinds}')
         print('PASS  check_private_reply')
@@ -261,32 +273,56 @@ class Smoke:
         status, _ = self.call(self.gab, 'POST', f'/v1/kehilot/{self.k}/messages', {
             'channelId': self.channels['simchas']['channelId'], 'type': 'weekly', 'title': 'Smoke push', 'body': ''})
         expect('push_message_posted', status == 201, str(status))
-        deadline, trail = time.time() + 60, []
+        deadline, trail, zeros = time.time() + 90, [], 0
         while time.time() < deadline:
             time.sleep(3)
             depth = self.queue_depth(urls['push'])
             trail.append(depth)
-            if depth == 0:
+            zeros = zeros + 1 if depth == 0 else 0
+            if zeros >= 2 and not self.repo.list_devices(fam[1]):
                 break
+        dropped = not self.repo.list_devices(fam[1])
         print(f'INFO  queue depth polls: {trail}')
-        expect('push_queue_drained', self.queue_depth(urls['push']) == 0, f'depth trail {trail}')
-        time.sleep(5)  # let the worker's log lines reach CloudWatch
+        if zeros < 2 or not dropped:
+            self.diagnose(urls, start_ms)
+        expect('push_queue_drained', zeros >= 2, f'depth trail {trail}')
+        # The worker deletes the fake token on DeviceNotRegistered: proves queue, worker, SSM decrypt and Expo.
+        expect('push_token_dropped', dropped, 'fake token still registered after 90 s')
         expect('push_dlq_empty', self.queue_depth(urls['push-dlq']) == 0)
         group = '/aws/lambda/kehilot-dev-push-worker'
-        since = int((time.time() - 300) * 1000)
-        errors = self.logs.filter_log_events(logGroupName=group, startTime=since, filterPattern='ERROR')['events']
-        expect('push_worker_no_errors_5min', not errors, '; '.join(e['message'].strip()[:300] for e in errors[:3]))
-        # The Lambda runtime drops INFO records (root logger is WARNING), so "ran" means an invocation started.
+        time.sleep(5)  # let the worker's log lines reach CloudWatch
+        # First page only: the worker is quiet, so a handful of events is all there can be.
+        errors = self.logs.filter_log_events(logGroupName=group, startTime=self.started_ms - 30_000,
+                                             filterPattern='ERROR')['events']
+        expect('push_worker_no_errors_since_start', not errors, '; '.join(e['message'].strip()[:300] for e in errors[:3]))
         ran = self.logs.filter_log_events(logGroupName=group, startTime=start_ms, filterPattern='"START RequestId"')['events']
-        expect('push_worker_invoked', bool(ran), 'no worker invocation since the publish')
-        left = [d['token'] for d in self.repo.list_devices(fam[1])]
-        print(f"INFO  fake token after push: {'kept' if token in left else 'dropped as DeviceNotRegistered'}")
+        print(f"INFO  worker invocations since publish (diagnostic): {len(ran)}")
         print('PASS  check_push_pipeline')
 
-    def cleanup(self):
-        """Delete everything this run made, found by scanning for its IDs (messages, replies, reads, changes,
-        invites and push tickets are not tracked one by one)."""
+    def diagnose(self, urls, start_ms):
+        """Print what explains a push failure: queue state, DLQ depth and the worker's WARNING+ lines."""
+        attrs = self.sqs.get_queue_attributes(QueueUrl=urls['push'], AttributeNames=['All'])['Attributes']
+        print('DIAG  push queue', {k: v for k, v in attrs.items() if k.startswith('ApproximateNumber')},
+              'dlq depth', self.queue_depth(urls['push-dlq']))
+        try:
+            events = self.logs.filter_log_events(logGroupName='/aws/lambda/kehilot-dev-push-worker',
+                                                 startTime=start_ms,
+                                                 filterPattern='?WARNING ?ERROR ?"Task timed out"')['events']
+        except Exception as error:
+            print('DIAG  could not read worker logs:', type(error).__name__)
+            return
+        for event in events[:10]:
+            print('DIAG  worker log:', event['message'].strip()[:300])
+
+    def delete_items(self):
         ks, uids = set(self.kehilot), set(self.user_ids)
+        for sub in self.subs:  # a user whose /v1/me failed has a SUB row but no tracked id
+            try:
+                uid = self.repo.get_user_id(sub)
+                if uid:
+                    uids.add(uid)
+            except Exception as error:
+                print('cleanup: user id lookup failed', type(error).__name__)
         keys = set(self.items)
         scan = {}
         while True:
@@ -301,11 +337,33 @@ class Smoke:
             if 'LastEvaluatedKey' not in page:
                 break
             scan['ExclusiveStartKey'] = page['LastEvaluatedKey']
-        for pk, sk in keys:
-            self.repo.table.delete_item(Key={'pk': pk, 'sk': sk})
-        for email in self.users:
-            self.idp.admin_delete_user(UserPoolId=self.out['user_pool_id'], Username=email)
-        print(f'cleanup: {len(keys)} items, {len(self.users)} users removed')
+        removed = 0
+        for pk, sk in sorted(keys, key=lambda key: key[0] == 'PUSHTKT'):  # push tickets last
+            try:
+                self.repo.table.delete_item(Key={'pk': pk, 'sk': sk})
+                removed += 1
+            except Exception as error:
+                print('cleanup: delete failed', type(error).__name__)
+        return removed
+
+    def cleanup(self):
+        """Delete everything this run made, found by scanning for its IDs. Every step continues on failure and
+        the Cognito users are deleted last, in a finally, so one error never leaves the pool dirty."""
+        removed, users = 0, 0
+        try:
+            removed = self.delete_items()
+        except Exception as error:
+            print('cleanup: item cleanup failed', type(error).__name__)
+        finally:
+            for email in self.users:
+                try:
+                    self.idp.admin_delete_user(UserPoolId=self.out['user_pool_id'], Username=email)
+                    users += 1
+                except self.idp.exceptions.UserNotFoundException:
+                    users += 1
+                except Exception as error:
+                    print('cleanup: user delete failed', type(error).__name__)
+        print(f'cleanup: {removed} items, {users} users removed')
 
 
 if __name__ == '__main__':
