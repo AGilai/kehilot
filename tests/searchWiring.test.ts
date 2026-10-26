@@ -18,6 +18,7 @@ function setup(over: { kehilot?: string[] } = {}) {
     channels: async () => state.channels.map(ch),
     changes: async () => (state.resync ? (state.resync = false, { resync: true as const }) : { cursor: 'c', more: false, changes: state.changes.splice(0) }),
     messages: async (_k: string, o: { before?: string }) => (o.before ? [] : state.history),
+    postMessage: async (_k: string, b: { channelId: string; title?: string; body?: string }) => ({ ...msg('01H0000000000000000000000D', b.channelId, b.title ?? ''), body: b.body ?? '' }),
   } as any;
   const cacheStore = memoryStore();
   const store = createStore(api, { get: async () => null, set: async () => {}, remove: async () => {} }, { cacheStore, isActive: () => true });
@@ -90,5 +91,17 @@ test('results and offline copies only come from channels the user can read now',
   await store.refreshChannels();
   assert.deepEqual(await titles(store), []);
   assert.equal(await store.cachedMessage('01H0000000000000000000000B'), null);
+  store.reset();
+});
+
+test('a message the user posts is applied to the feed and the cache at once', async () => {
+  const { store } = setup();
+  await store.start(); await idle();
+  const m = await store.postMessage({ channelId: 'c1', type: 'weekly', title: 'שיעור שפורסם עכשיו' });
+  assert.equal(store.getState().feed.order[0], m.messageId);
+  await idle();
+  assert.deepEqual((await store.search('שפורסם', {})).map(x => x.title), ['שיעור שפורסם עכשיו']);
+  await store.postMessage({ channelId: 'c1', type: 'weekly', title: 'שיעור שפורסם עכשיו' }); // the poll bringing it again changes nothing
+  assert.equal(store.getState().feed.order.filter(id => id === m.messageId).length, 1);
   store.reset();
 });

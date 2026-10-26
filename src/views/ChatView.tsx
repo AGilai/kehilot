@@ -1,23 +1,46 @@
 import React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
-import { timeOfDay, visibleList } from '../client/messageView.ts';
+import { CHAT_MAX, canSendChat, timeOfDay, visibleList } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Txt, useTokens } from '../kit/components.tsx';
+import { Banner, Txt, useTokens } from '../kit/components.tsx';
 import { Composer } from '../kit/Composer.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
+import { AttachButton, AttachPreview } from '../kit/ImageAttach.tsx';
 import { TOUCH } from '../kit/theme.ts';
+import type { Picked } from '../media/device.ts';
+import { sendMessage } from '../media/send.ts';
+import type { Stage } from '../media/send.ts';
+import { useErrorText } from './auth/Frame.tsx';
 
 /** Chat view of a conversation channel: bubbles with author and time, no titles, newest at the bottom. */
 export function ChatView({ channelId, onBack }: { channelId: string; onBack: () => void }) {
   const { t, dir } = useI18n();
   const k = useTokens();
-  const { state } = useSession();
+  const errText = useErrorText();
+  const { state, postMessage, requestUpload } = useSession();
   const { feed, channels, kehila, me } = state;
   const [draft, setDraft] = React.useState('');
+  const [image, setImage] = React.useState<Picked | null>(null);
+  const [stage, setStage] = React.useState<Stage | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  const alive = React.useRef(true);
+  React.useEffect(() => () => { alive.current = false; }, []);
   const scroller = React.useRef<ScrollView>(null);
   const channel = channels.find(c => c.channelId === channelId);
   if (!kehila || !channel) return null;
+  const busy = stage !== null;
+  async function send() {
+    if (busy || !canSendChat(draft, !!image)) return;
+    setError(null);
+    const text = draft.trim();
+    try {
+      await sendMessage({ image, channelId, requestUpload, post: id => postMessage({ channelId, body: text, ...(id ? { imageUploadId: id } : {}) }), onStage: s => { if (alive.current) setStage(s); } });
+      if (alive.current) { setDraft(''); setImage(null); setStage(null); }
+    } catch (e) {
+      if (alive.current) { setError(errText(e)); setStage(null); }
+    }
+  }
   // Oldest first, so the newest message ends up at the bottom.
   const list = visibleList(feed, { mode: 'all', channelId, notify: kehila.notify, channels }).slice().reverse();
   return (
@@ -45,8 +68,11 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
       </ScrollView>
       {channel.canPost ? (
         <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.stone, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-          {/* Sending is wired in Task 13. */}
-          <Composer value={draft} onChange={setDraft} maxCodePoints={1000} placeholder={t('messages.chatPlaceholder')} onSend={() => {}} />
+          {image ? <View style={{ paddingBottom: 8 }}><AttachPreview image={image} onRemove={() => setImage(null)} disabled={busy} /></View> : null}
+          {stage ? <Txt size="small" color={k.muted} style={{ paddingBottom: 8 }} accessibilityRole="alert">{t(`compose.progress.${stage}`)}</Txt> : null}
+          {error ? <View style={{ paddingBottom: 8 }}><Banner tone="error" text={error} /></View> : null}
+          <Composer value={draft} onChange={setDraft} maxCodePoints={CHAT_MAX} placeholder={t('messages.chatPlaceholder')} onSend={() => void send()} busy={busy}
+            allowEmpty={!!image} extras={<AttachButton disabled={busy || !!image} onPicked={setImage} onDenied={() => setError(t('compose.permissionDenied'))} />} />
         </View>
       ) : null}
     </View>

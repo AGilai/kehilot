@@ -81,7 +81,10 @@
     "InvalidPasswordException": "הסיסמה אינה עומדת בדרישות (לפחות 12 תווים)",
     "LimitExceededException": "יותר מדי ניסיונות. נסו שוב מאוחר יותר",
     "password_short": "הסיסמה חייבת להכיל לפחות 12 תווים",
-    "signed_out": "יש להיכנס מחדש"
+    "signed_out": "יש להיכנס מחדש",
+    "image_too_large": "התמונה גדולה מדי גם אחרי הקטנה. בחרו תמונה אחרת",
+    "upload_expired": "ההעלאה פגה, נסו שוב",
+    "upload_failed": "העלאת התמונה נכשלה, נסו שוב"
   },
   "app": {
     "name": "קהילות"
@@ -305,7 +308,13 @@
       "hands": "ידיים",
       "nature": "טבע ופרחים",
       "symbols": "סמלים"
-    }
+    },
+    "attach": "צירוף תמונה",
+    "attachTitle": "צירוף תמונה",
+    "gallery": "מהגלריה",
+    "camera": "צילום",
+    "remove": "הסרת התמונה",
+    "preview": "התמונה שנבחרה"
   },
   "search": {
     "title": "חיפוש",
@@ -315,5 +324,34 @@
     "empty": "לא נמצאו הודעות.",
     "loading": "הארכיון עדיין נטען ({n} הודעות עד כה)",
     "back": "חזרה להודעות"
+  },
+  "compose": {
+    "titleMember": "שידור חדש",
+    "titleGabbai": "פרסום הודעה",
+    "type": "סוג ההודעה",
+    "types": {
+      "weekly": "עדכון שבועי",
+      "celebration": "שמחה",
+      "condolence": "השתתפות בצער",
+      "event": "אירוע"
+    },
+    "channel": "ערוץ",
+    "channelFirst": "בחרו ערוץ",
+    "family": "המשפחה שעליה ההודעה",
+    "familySearch": "חיפוש משפחה",
+    "familyNone": "לא נמצאה משפחה",
+    "familyLoadError": "לא ניתן לטעון את רשימת המשפחות",
+    "familyPick": "בחרו משפחה",
+    "titleField": "כותרת",
+    "bodyField": "תוכן (לא חובה)",
+    "audience": "יישלח לערוץ {channel}",
+    "publish": "פרסום",
+    "published": "פורסם",
+    "progress": {
+      "preparing": "מכינים את התמונה…",
+      "uploading": "מעלים את התמונה…",
+      "publishing": "מפרסמים…"
+    },
+    "permissionDenied": "אין הרשאה לגשת לתמונות. אפשר לאשר בהגדרות המכשיר."
   }
 }

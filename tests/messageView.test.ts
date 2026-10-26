@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canReply, groupByDay, isMuted, joinLabel, replierChip, unreadCount, visibleList, visibleReplies } from '../src/client/messageView.ts';
+import { canPublish, canReply, canSendChat, groupByDay, isMuted, needsTarget, postBody, postableChannels, joinLabel, replierChip, unreadCount, visibleList, visibleReplies } from '../src/client/messageView.ts';
 import { feedFromMessages } from '../src/client/feed.ts';
 import type { Channel, Message, NotifyPrefs, Reply } from '../src/client/types.ts';
 
@@ -115,4 +115,43 @@ test('management_only does not mute chat messages of an opted-in channel', () =>
   const m = msg('m1', { type: 'chat', authorKind: 'member' });
   assert.equal(isMuted(m, notify({ chatChannels: ['c1'], membersBroadcasts: 'management_only' }), chs), false);
   assert.equal(isMuted(m, notify({ chatChannels: ['c1'], mutedMembers: ['a1'] }), chs), true);
+});
+
+test('postable channels are the canPost ones', () => {
+  const list = [channel('a', { canPost: true }), channel('b'), channel('c', { canPost: true, conversation: true })];
+  assert.deepEqual(postableChannels(list).map(c => c.channelId), ['a']); // a chat channel is written to in its chat view
+});
+
+test('target picker only for celebration and condolence', () => {
+  assert.equal(needsTarget('celebration'), true);
+  assert.equal(needsTarget('condolence'), true);
+  assert.equal(needsTarget('weekly'), false);
+  assert.equal(needsTarget('event'), false);
+});
+
+test('chat needs a body or an image', () => {
+  assert.equal(canSendChat('', false), false);
+  assert.equal(canSendChat('   \n', false), false);
+  assert.equal(canSendChat('שלום', false), true);
+  assert.equal(canSendChat('', true), true);
+  assert.equal(canSendChat('א'.repeat(1001), false), false);
+  assert.equal(canSendChat('😀'.repeat(1000), false), true); // code points, not UTF-16 units
+});
+
+test('compose can publish with a title, a channel and (when needed) a target', () => {
+  const ok = { type: 'weekly' as const, channelId: 'a', title: 'כותרת', body: '', targetMemberId: null };
+  assert.equal(canPublish(ok), true);
+  assert.equal(canPublish({ ...ok, title: '  ' }), false);
+  assert.equal(canPublish({ ...ok, channelId: null }), false);
+  assert.equal(canPublish({ ...ok, title: 'א'.repeat(121) }), false);
+  assert.equal(canPublish({ ...ok, body: 'א'.repeat(4001) }), false);
+  assert.equal(canPublish({ ...ok, type: 'celebration' }), false);
+  assert.equal(canPublish({ ...ok, type: 'celebration', targetMemberId: 'u2' }), true);
+});
+
+test('postBody drops the target for other types and empty optional fields', () => {
+  assert.deepEqual(postBody({ type: 'weekly', channelId: 'a', title: ' כותרת ', body: '', targetMemberId: 'u2' }, undefined),
+    { channelId: 'a', type: 'weekly', title: 'כותרת' });
+  assert.deepEqual(postBody({ type: 'condolence', channelId: 'a', title: 't', body: 'b', targetMemberId: 'u2' }, 'U1'),
+    { channelId: 'a', type: 'condolence', title: 't', body: 'b', targetMemberId: 'u2', imageUploadId: 'U1' });
 });

@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSPhotoLibraryUsageDescription": "האפליקציה צריכה גישה לתמונות כדי לצרף תמונה להודעה.",
+    "NSCameraUsageDescription": "האפליקציה צריכה גישה למצלמה כדי לצלם תמונה להודעה."
+  }
+}

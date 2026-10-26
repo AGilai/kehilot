@@ -21,15 +21,21 @@ export type ComposerProps = {
   placeholder: string;
   /** A line that stays visible above the box while typing (the privacy promise of a private blessing). */
   lockLine?: string;
-  onSend: () => void;
+  /** Without it there is no send button (the compose screen has its own publish button). */
+  onSend?: () => void;
   busy?: boolean;
+  /** A message with an attached image may have no text. */
+  allowEmpty?: boolean;
+  /** Extra controls beside the emoji button (the attach button). */
+  extras?: React.ReactNode;
+  disabled?: boolean;
 };
 
 /**
  * Multi-line input with a code-point counter (from 80% of the limit), a send button and, on web, an emoji
  * popover. Enter adds a newline; only the button sends. There is no `maxLength`: the limit is in code points.
  */
-export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine, onSend, busy }: ComposerProps) {
+export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine, onSend, busy, allowEmpty, extras, disabled }: ComposerProps) {
   const { lang, dir, t } = useI18n();
   const k = useTokens();
   const input = React.useRef<TextInput>(null);
@@ -37,7 +43,7 @@ export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine
   const [height, setHeight] = React.useState(MIN_H);
   const n = codePoints(value);
   const over = n > maxCodePoints;
-  const canSend = !busy && !over && value.trim().length > 0;
+  const canSend = !busy && !disabled && !over && (allowEmpty || value.trim().length > 0);
 
   function pick(emoji: string) {
     const r = insertAt(value, selection.current, emoji);
@@ -59,7 +65,7 @@ export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine
         </View>
       ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
-        <TextInput ref={input} value={value} multiline keyboardType="default" autoCorrect textAlignVertical="top"
+        <TextInput ref={input} value={value} multiline editable={!disabled} keyboardType="default" autoCorrect textAlignVertical="top"
           accessibilityLabel={placeholder} placeholder={placeholder} placeholderTextColor={k.muted}
           onChangeText={v => { if (Platform.OS === 'web') setHeight(MIN_H); onChange(v); }}
           onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => { selection.current = e.nativeEvent.selection; }}
@@ -67,14 +73,17 @@ export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine
           style={[{ flex: 1, height, borderWidth: 1, borderRadius: 10, borderColor: over ? k.danger : k.line, backgroundColor: k.surface, paddingHorizontal: 12, paddingVertical: PAD / 2, color: k.ink, fontSize: type.body, lineHeight: LINE, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) },
             Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null]} />
         <EmojiButton onPick={pick} />
+        {extras}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1 }}>
           {n >= maxCodePoints * 0.8 ? <Txt size="caption" color={over ? k.danger : k.muted}>{t('field.counter', { n, max: maxCodePoints })}</Txt> : null}
         </View>
-        <View style={{ minWidth: 120, minHeight: TOUCH }}>
-          <Button title={t('composer.send')} onPress={onSend} busy={busy} disabled={!canSend} />
-        </View>
+        {onSend ? (
+          <View style={{ minWidth: 120, minHeight: TOUCH }}>
+            <Button title={t('composer.send')} onPress={onSend} busy={busy} disabled={!canSend} />
+          </View>
+        ) : null}
       </View>
     </View>
   );

@@ -12,7 +12,7 @@ import { cacheStore } from '../search/platform.ts';
 import type { CachedMessage } from '../search/cache.ts';
 import type { Hit } from '../search/hit.ts';
 import type { Route, StoreState } from './store.ts';
-import type { Lang, Reply } from './types.ts';
+import type { DirectoryEntry, Lang, Message, PostMessageBody, Reply, UploadGrant } from './types.ts';
 
 const storage: KeyValue = {
   get: (k) => AsyncStorage.getItem(k),
@@ -43,6 +43,12 @@ export type SessionApi = {
   removeMessage(messageId: string): Promise<void>;
   /** A fresh-enough presigned URL for a message image, or null when it has none. Memory only. */
   imageUrl(messageId: string, fresh?: boolean): Promise<string | null>;
+  /** Publishes or chats; the returned message is already in the feed (and the search cache). */
+  postMessage(body: PostMessageBody): Promise<Message>;
+  /** An S3 upload grant for the open Kehila. Never log or store it. */
+  requestUpload(o: { channelId: string; contentType: 'image/jpeg' | 'image/png'; bytes: number }): Promise<UploadGrant>;
+  /** The families (members) a message to this channel may be about. */
+  directory(channelId?: string): Promise<DirectoryEntry[]>;
   /** Offline search over the on-phone cache of the open Kehila. */
   search(q: string, o?: { channelId?: string }): Promise<CachedMessage[]>;
   cacheStatus(): Promise<{ complete: boolean; count: number }>;
@@ -120,11 +126,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     sendReply: (m, body) => store.sendReply(m, body),
     join: m => store.join(m),
     removeMessage: m => store.removeMessage(m),
+    postMessage: b => store.postMessage(b),
+    requestUpload: o => store.requestUpload(o),
+    directory: async c => { const k = store.getState().kehilaId; return k ? api.directory(k, c) : []; },
     search: (q, o) => store.search(q, o),
     cacheStatus: () => store.cacheStatus(),
     loadHit: m => store.loadHit(m),
     imageUrl: async (m, fresh) => { const k = store.getState().kehilaId; return k ? images.get(k, m, { fresh }) : null; },
-  }), [state, route, logo, store, images]);
+  }), [state, route, logo, store, images, api]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

@@ -9,7 +9,7 @@ import { createMessageCache, pruneKehilot } from '../search/cache.ts';
 import { resolveHit } from '../search/hit.ts';
 import type { Hit } from '../search/hit.ts';
 import type { CacheStore, CachedMessage, MessageCache } from '../search/cache.ts';
-import type { Change, Channel, Message, Kehila, Lang, Me, Reply } from './types.ts';
+import type { Change, Channel, Message, Kehila, Lang, Me, PostMessageBody, Reply, UploadGrant } from './types.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -97,10 +97,16 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     flush();
   }
 
+  /** The one way the feed changes: the poller and the user's own posts both come through here, so the search cache follows. */
+  function applyUpdate(u: Update): void {
+    feedToCache(u);
+    set({ feed: 'clear' in u ? emptyFeed : 'replace' in u ? feedFromMessages(u.replace) : applyChanges(state.feed, u.changes) });
+  }
+
   /** The one change-feed poller; started by selectKehila, stopped by reset and on switching away. */
   const poller = createPoller({
     api: { changes: (k, since) => api.changes(k, since) },
-    apply: u => { feedToCache(u); set({ feed: 'clear' in u ? emptyFeed : 'replace' in u ? feedFromMessages(u.replace) : applyChanges(state.feed, u.changes) }); },
+    apply: u => applyUpdate(u),
     reload: k => api.messages(k, { limit: 50 }),
     sleep,
     isActive,
@@ -305,6 +311,22 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     if (still(c)) set({ feed: applyChanges(state.feed, [{ kind: 'message_removed', id: m, item: { id: m } }]) });
   }
 
+  /** Publishes (or chats); the returned message is applied as a synthetic `message` change, so the poll bringing it again changes nothing. */
+  async function postMessage(body: PostMessageBody): Promise<Message> {
+    const c = current();
+    if (!c) throw new ApiCodeError(0, 'try_again');
+    const m = await api.postMessage(c.k, body);
+    if (still(c)) applyUpdate({ changes: [{ kind: 'message', id: m.messageId, item: m }] });
+    return m;
+  }
+
+  /** An upload grant for the open Kehila (presigned; the caller must not log or store it). */
+  async function requestUpload(o: { channelId: string; contentType: 'image/jpeg' | 'image/png'; bytes: number }): Promise<UploadGrant> {
+    const c = current();
+    if (!c) throw new ApiCodeError(0, 'try_again');
+    return api.requestUpload(c.k, o);
+  }
+
   function reset(): void {
     poller.stop();
     stopBackfill.abort(); stopBackfill = new AbortController();
@@ -317,7 +339,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
     loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, cachedMessage, loadHit, reset, guard,
-    markRead, loadReplies, sendReply, join, removeMessage,
+    markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };
 }

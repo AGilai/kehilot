@@ -13,7 +13,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading'];
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -23,7 +23,7 @@ function fixtureUlid(ms: number, n: number): string {
   return t + '0000000000000000'.slice(0, 15) + CROCKFORD[n % 32];
 }
 
-const PICTURE = `data:image/svg+xml;utf8,${encodeURIComponent(
+export const FIXTURE_PICTURE = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="640" height="400" fill="#C9D3F5"/><circle cx="480" cy="110" r="52" fill="#F2D27A"/><path d="M0 400 L200 170 L340 320 L450 230 L640 400 Z" fill="#2A3F94"/></svg>')}`;
 
 export function fixtureZmanim(date: string): Zmanim {
@@ -128,7 +128,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     routes[`POST ${base}/read`] = undefined;
     routes[`POST ${base}/join`] = { joinCount: m.joinCount + 1, joined: true };
     routes[`DELETE ${base}`] = undefined;
-    if (m.image) routes[`GET ${base}/image`] = { url: PICTURE, expiresAt: new Date(now + 300_000).toISOString() };
+    if (m.image) routes[`GET ${base}/image`] = { url: FIXTURE_PICTURE, expiresAt: new Date(now + 300_000).toISOString() };
   }
   for (const x of me.kehilot.slice(1)) {
     routes[`GET /v1/kehilot/${x.kehilaId}`] = { ...kehila, kehilaId: x.kehilaId, name: x.name, role: x.role };
@@ -142,6 +142,11 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;
       if (screen === 'search-loading' && method === 'GET' && key.endsWith('/messages') && path.includes('before=')) throw new ApiCodeError(503, 'network');
+      if (method === 'GET' && key.endsWith('/members')) return [{ userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני' }, { userId: '01FIXTUREUSER00000000003', displayName: 'משפחת לדוגמה' }, { userId: '01FIXTUREUSER00000000004', displayName: 'משפחת הנחל' }] as any;
+      if (method === 'POST' && key.endsWith('/messages')) {
+        const b = (body ?? {}) as Partial<Message>;
+        return { messageId: fixtureUlid(Date.now(), 30), channelId: b.channelId ?? cAnn, type: b.type ?? 'chat', title: b.title ?? '', body: b.body ?? '', authorId: me.userId, authorName: 'דנה בדויה', authorKind: role === 'gabbai' ? 'management' : 'member', joinCount: 0 } as any;
+      }
       if (method === 'POST' && key.endsWith('/replies')) {
         const text = String((body as { body?: unknown } | undefined)?.body ?? '');
         return { replyId: fixtureUlid(Date.now(), 31), authorId: me.userId, authorName: 'דנה בדויה', body: text, createdAt: new Date().toISOString() } as any;

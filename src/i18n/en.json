@@ -81,7 +81,10 @@
     "InvalidPasswordException": "The password does not meet the requirements (at least 12 characters)",
     "LimitExceededException": "Too many attempts. Try again later",
     "password_short": "The password must be at least 12 characters",
-    "signed_out": "Please sign in again"
+    "signed_out": "Please sign in again",
+    "image_too_large": "The image is still too large after shrinking. Choose another one",
+    "upload_expired": "The upload expired, try again",
+    "upload_failed": "The image upload failed, try again"
   },
   "app": {
     "name": "Kehilot"
@@ -305,7 +308,13 @@
       "hands": "Hands",
       "nature": "Nature and flowers",
       "symbols": "Symbols"
-    }
+    },
+    "attach": "Attach a photo",
+    "attachTitle": "Attach a photo",
+    "gallery": "From the gallery",
+    "camera": "Take a photo",
+    "remove": "Remove the photo",
+    "preview": "The chosen photo"
   },
   "search": {
     "title": "Search",
@@ -315,5 +324,34 @@
     "empty": "No messages found.",
     "loading": "The archive is still loading ({n} messages so far)",
     "back": "Back to messages"
+  },
+  "compose": {
+    "titleMember": "New broadcast",
+    "titleGabbai": "Publish a message",
+    "type": "Message type",
+    "types": {
+      "weekly": "Weekly update",
+      "celebration": "Celebration",
+      "condolence": "Condolence",
+      "event": "Event"
+    },
+    "channel": "Channel",
+    "channelFirst": "Choose a channel",
+    "family": "The family this is about",
+    "familySearch": "Search for a family",
+    "familyNone": "No family found",
+    "familyLoadError": "Could not load the list of families",
+    "familyPick": "Choose a family",
+    "titleField": "Title",
+    "bodyField": "Text (optional)",
+    "audience": "Will be sent to the channel {channel}",
+    "publish": "Publish",
+    "published": "Published",
+    "progress": {
+      "preparing": "Preparing the image…",
+      "uploading": "Uploading the image…",
+      "publishing": "Publishing…"
+    },
+    "permissionDenied": "No access to photos. You can allow it in the device settings."
   }
 }

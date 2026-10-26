@@ -1,6 +1,6 @@
 import { israelDate } from '../dates.ts';
 import type { FeedState } from './feed.ts';
-import type { Channel, Message, MessageType, NotifyPrefs, Reply, Role } from './types.ts';
+import type { Channel, Message, MessageType, NotifyPrefs, PostMessageBody, Reply, Role } from './types.ts';
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
@@ -101,3 +101,36 @@ export const timeOfDay = (id: string): string => {
   if (!Number.isFinite(ms)) return '';
   return new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
 };
+
+export const TITLE_MAX = 120;
+export const BODY_MAX = 4000;
+export const CHAT_MAX = 1000;
+const cp = (s: string) => [...s].length;
+
+/** Channels the caller may broadcast to. A conversation channel is written to in its chat view, not here. */
+export function postableChannels(channels: Channel[]): Channel[] {
+  return channels.filter(c => c.canPost && !c.conversation);
+}
+
+/** Only a celebration or a condolence is about a family. */
+export const needsTarget = (type: MessageType): boolean => type === 'celebration' || type === 'condolence';
+
+export function canSendChat(body: string, hasImage: boolean): boolean {
+  return cp(body) <= CHAT_MAX && (body.trim().length > 0 || hasImage);
+}
+
+export type Draft = { type: MessageType; channelId: string | null; title: string; body: string; targetMemberId: string | null };
+
+export function canPublish(d: Draft): boolean {
+  return !!d.channelId && d.title.trim().length > 0 && cp(d.title) <= TITLE_MAX && cp(d.body) <= BODY_MAX
+    && (!needsTarget(d.type) || !!d.targetMemberId);
+}
+
+/** The request body; the target goes only with types that take one, empty optional fields are left out. */
+export function postBody(d: Draft, imageUploadId: string | undefined): PostMessageBody {
+  const out: PostMessageBody = { channelId: d.channelId!, type: d.type, title: d.title.trim() };
+  if (d.body.trim()) out.body = d.body;
+  if (needsTarget(d.type) && d.targetMemberId) out.targetMemberId = d.targetMemberId;
+  if (imageUploadId) out.imageUploadId = imageUploadId;
+  return out;
+}

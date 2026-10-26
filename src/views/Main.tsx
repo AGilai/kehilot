@@ -2,12 +2,14 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { config } from '../config.ts';
-import { fixtureParams } from '../client/fixtures.ts';
+import { FIXTURE_PICTURE, fixtureParams } from '../client/fixtures.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { unreadCount } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Txt, useTokens } from '../kit/components.tsx';
+import { Toast, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
+import { Compose } from './Compose.tsx';
+import type { ComposeInitial } from './Compose.tsx';
 import { ChatView } from './ChatView.tsx';
 import { Home } from './Home.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
@@ -21,10 +23,11 @@ type Nav =
   | { tab: 'messages' }
   | { tab: 'search' }
   | { tab: 'detail'; id: string; from: 'home' | 'messages' | 'search' }
-  | { tab: 'chat'; channelId: string };
+  | { tab: 'chat'; channelId: string }
+  | { tab: 'compose' };
 
 /** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat opens that screen. */
-function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter } | null {
+function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter; compose?: ComposeInitial } | null {
   if (!config.fixtures) return null;
   const s = fixtureParams().screen;
   const byType = (type: string) => state.feed.order.map(id => state.feed.messages[id]!).find(m => m.type === type && m.targetMemberId);
@@ -34,6 +37,9 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3' || s === 'm3target') { const m = byType('celebration'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
+  if (s === 'compose') return { nav: { tab: 'compose' } };
+  if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetId: '01FIXTUREUSER00000000002' } };
+  if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };
   return null;
 }
 
@@ -44,6 +50,10 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
   const { state } = useSession();
   const [nav, setNav] = React.useState<Nav>({ tab: 'home' });
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
+  const [composeInitial, setComposeInitial] = React.useState<ComposeInitial | undefined>(undefined);
+  const [toast, setToast] = React.useState(false);
+  const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
   const jumped = React.useRef(false);
   const [searchQ, setSearchQ] = React.useState(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''));
 
@@ -52,7 +62,7 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
     if (jumped.current || !state.feed.loaded) return;
     const j = fixtureNav(state);
     jumped.current = true;
-    if (j) { setNav(j.nav); setFilter(j.filter); }
+    if (j) { setNav(j.nav); setFilter(j.filter); setComposeInitial(j.compose); }
   }, [state]);
 
   const kehila = state.kehila;
@@ -69,13 +79,22 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
       body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />;
       break;
     case 'messages':
-      body = <Messages initialFilter={filter} onSearch={() => setNav({ tab: 'search' })} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} />;
+      body = <Messages initialFilter={filter} onSearch={() => setNav({ tab: 'search' })} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={() => { setComposeInitial(undefined); setNav({ tab: 'compose' }); }} />;
       break;
     case 'search':
       body = <Search initialQuery={searchQ} onQuery={setSearchQ} onBack={() => setNav({ tab: 'messages' })} onOpen={id => setNav({ tab: 'detail', id, from: 'search' })} />;
       break;
     case 'detail':
       body = <MessageDetail key={nav.id} messageId={nav.id} onBack={() => setNav({ tab: nav.from })} />;
+      break;
+    case 'compose':
+      body = <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
+        onPublished={id => {
+          setNav({ tab: 'detail', id, from: 'messages' });
+          setToast(true);
+          if (toastTimer.current) clearTimeout(toastTimer.current);
+          toastTimer.current = setTimeout(() => setToast(false), 2500);
+        }} />;
       break;
     case 'chat':
       body = <ChatView channelId={nav.channelId} onBack={() => setNav({ tab: 'messages' })} />;
@@ -102,6 +121,7 @@ export function Main({ onOpenSwitcher, banner }: { onOpenSwitcher: () => void; b
           </Pressable>
         ))}
       </View>
+      <Toast text={t('compose.published')} visible={toast} />
     </SafeAreaView>
   );
 }

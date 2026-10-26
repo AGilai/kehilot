@@ -6,6 +6,7 @@ export default {
     orientation: 'portrait',
     userInterfaceStyle: 'automatic',
     scheme: 'shul',
+    locales: { he: './locales/he.json', en: './locales/en.json' },
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.shulregular.member',
@@ -20,6 +21,12 @@ export default {
       ['expo-build-properties', { ios: { enableSceneSupport: true } }],
       ['expo-localization', { supportsRTL: true }],
       'expo-secure-store',
+      ['expo-image-picker', {
+        // English defaults; the Hebrew and English texts per device language are in locales/.
+        photosPermission: 'The app needs access to your photos to attach one to a message.',
+        cameraPermission: 'The app needs the camera to take a photo for a message.',
+        microphonePermission: false,
+      }],
       ['expo-notifications', { defaultChannel: 'community', color: '#245E4F' }],
     ],
     extra: {
