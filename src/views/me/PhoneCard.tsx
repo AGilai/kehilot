@@ -3,13 +3,14 @@ import { View } from 'react-native';
 import { ApiCodeError } from '../../client/errors.ts';
 import { formatPhone, normalizePhone } from '../../client/phone.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
+import { textStart } from '../../i18n/direction.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Toggle, Txt, useTokens } from '../../kit/components.tsx';
 import { useErrorText } from '../auth/Frame.tsx';
 
 /** P4: my number (one for all Kehilot), change/remove, and this Kehila's switch. Members and gabbaim only. */
 export function PhoneCard({ onOpenList, onToast }: { onOpenList: () => void; onToast: (text: string) => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const errText = useErrorText();
   const { state, setPhone, setShowPhone } = useSession();
@@ -60,7 +61,7 @@ export function PhoneCard({ onOpenList, onToast }: { onOpenList: () => void; onT
       ) : phone ? (
         <>
           <Txt size="small" bold>{t('me.phone.label')}</Txt>
-          <Txt bold size="heading" style={{ writingDirection: 'ltr', textAlign: 'left', fontVariant: ['tabular-nums'] }}>{formatPhone(phone)}</Txt>
+          <Txt bold size="heading" style={{ writingDirection: 'ltr', textAlign: textStart(lang), fontVariant: ['tabular-nums'] }}>{formatPhone(phone)}</Txt>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}><Button kind="secondary" title={t('me.phone.edit')} onPress={start} disabled={busy} /></View>
             <View style={{ flex: 1 }}><Button kind="secondary" title={t('me.phone.remove')} onPress={() => void remove()} disabled={busy} /></View>

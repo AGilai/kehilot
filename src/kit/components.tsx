@@ -64,7 +64,7 @@ export function Button({ title, onPress, kind = 'primary', busy, disabled, acces
 }
 
 /** Text field with a code-point counter (`[...s].length`, matching the server). */
-export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, ...rest }: TextInputProps & { label: string; value: string; onChangeText: (v: string) => void; maxCodePoints?: number; error?: string | null; /** Always left to right (numbers, even in Hebrew). */ ltr?: boolean }) {
+export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, ...rest }: TextInputProps & { label: string; value: string; onChangeText: (v: string) => void; maxCodePoints?: number; error?: string | null; /** Typed left to right (numbers, even in Hebrew); still aligned to the logical start. */ ltr?: boolean }) {
   const { lang, dir, t } = useI18n();
   const k = useTokens();
   const n = [...value].length;
@@ -73,7 +73,7 @@ export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, .
     <View style={{ gap: 6 }}>
       <Txt size="small" bold>{label}</Txt>
       <TextInput {...rest} accessibilityLabel={label} value={value} onChangeText={onChangeText} placeholderTextColor={k.muted}
-        style={[{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: over || error ? k.danger : k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: ltr ? 'ltr' : dir, textAlign: ltr ? 'left' : textStart(lang) }, rest.multiline ? { paddingVertical: 10, minHeight: 120, textAlignVertical: 'top' } : null]} />
+        style={[{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: over || error ? k.danger : k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: ltr ? 'ltr' : dir, textAlign: textStart(lang) }, rest.multiline ? { paddingVertical: 10, minHeight: 120, textAlignVertical: 'top' } : null]} />
       {maxCodePoints !== undefined ? <Txt size="caption" color={over ? k.danger : k.muted}>{t('field.counter', { n, max: maxCodePoints })}</Txt> : null}
       {error ? <Txt size="small" color={k.danger} accessibilityRole="alert">{error}</Txt> : null}
     </View>

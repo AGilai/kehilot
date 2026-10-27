@@ -61,7 +61,7 @@ export function PhoneList({ onBack, onMine }: { onBack: () => void; /** Opens Me
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{t('phoneList.title')}</Txt>
-      {rows && rows.length > 0 ? <Txt size="small" color={k.muted}>{t('phoneList.intro', { kehila: name })}</Txt> : null}
+      {rows && rows.length > 0 && !q.trim() ? <Txt size="small" color={k.muted}>{t('phoneList.intro', { kehila: name })}</Txt> : null}
 
       {failed ? (
         <Banner tone="error" text={t('phoneList.loadError')} action={{ title: t('common.retry'), onPress: () => setRevision(n => n + 1) }} />

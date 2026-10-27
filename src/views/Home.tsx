@@ -116,7 +116,7 @@ export function Home({ onOpen, onMessages, onPhoneList }: { onOpen: (id: string)
       </Card>
 
       {onPhoneList && roleFeatures(kehila.role).phoneList ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={t('home.phoneList')} onPress={onPhoneList}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${t('home.phoneList')}. ${t('home.phoneListSub')}`} onPress={onPhoneList}>
           <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Txt serif size="heading">☎</Txt>
             <View style={{ flex: 1 }}>
