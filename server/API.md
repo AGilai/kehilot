@@ -273,7 +273,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 ### Conventions
 
 - Base URL: the `api_url` Terraform output. All paths below start with `/v1` except `/health`. Bodies are JSON objects (max 16 KB; `isBase64Encoded` bodies are decoded). Responses are JSON; 204 has an empty body.
-- Authentication: `Authorization: <Cognito ID token>` (the `Bearer ` prefix is accepted). A missing or invalid token is rejected by API Gateway with 401 before the Lambda runs (that body is API Gateway's own, not an error code). Public routes: `GET /health` and `GET /v1/invites/{code}`.
+- Authentication: `Authorization: <Cognito ID token>` (the `Bearer ` prefix is accepted). A missing or invalid token is rejected by API Gateway with 401 before the Lambda runs (that body is API Gateway's own, not an error code). Public routes: `GET /health`, `GET /v1/invites/{code}` and `POST /v1/reports/anonymous`.
 - Errors are codes only: `{"error": "<snake_case_code>"}`. The server never sends prose; the app translates the code. IDs (`kehilaId`, `userId`, `channelId`, `messageId`, `replyId`) are 26-character ULIDs.
 - Roles: `listener`, `member`, `gabbai`. A caller who is not in the Kehila gets 404 `kehila_not_found` (a Kehila's existence is not revealed); a caller whose role is too low gets 403 `forbidden`. Listeners see only channels with `listenersCanRead = true`, and cannot post, reply, join, create invites or see the member list.
 - **Times**: every time field (`expiresAt`, `createdAt`) is a number of Unix **seconds**, not milliseconds and not an ISO string.
@@ -482,6 +482,20 @@ Feed use: call without `since`, store `cursor`, then every `pollSeconds` call wi
 
 A change is skipped if the object is no longer visible to the caller. The feed is subject to the 2 s hold-back above.
 
+#### Bug reports
+
+Write-only: no route returns a report (not even the caller's own); the owner's tooling reads the `RPT` partition with the deployer role. Nothing about a report (text, context, ids) is logged or pushed. Items: `pk RPT`, `sk RPT#<reportId>`, `status` (`new`, `triaged`, `fixed`, `owner_decision`, `rejected`, `duplicate`), `kind` (`bug`, `change_request`, `unclear`; set by triage), `userId` (absent when anonymous), `text`, `context`, `image` `{key, contentType, bytes}`, `triage` note, `createdAt`, `expiresAt` (+180 days, TTL). Pictures live at `reports/<reportId>.<jpg|png>`; the S3 lifecycle rule for `reports/` (181 days) removes them with the item, and account deletion removes both. Rate-limit counters are `RPTLIM` items (TTL 1 day).
+
+`context` is exactly `{appVersion, build, platform, os, screen, lang}` plus optional `kehilaId`: strings of at most 64 characters, unknown keys rejected. `text` is trimmed, 1-2000 code points.
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/v1/reports/upload` | signed in (no Kehila needed) | `{contentType: "image/jpeg"\|"image/png", bytes: 1-1048576}` | 201 `{uploadId, url, method: "PUT", headers, expiresAt}`, same use as message uploads (`PUT` within 300 s); the file waits at `up/reports/<userId>/<uploadId>` | 400 `invalid_content_type`, `invalid_bytes`, 429 `rate_limited` (10 grants per user per UTC hour) |
+| POST | `/v1/reports` | signed in | `{text, context, imageUploadId?}` | 201 `{reportId}` | 400 `invalid_text`, `invalid_context`, `invalid_upload` (bad id, no such upload of the caller, or the file failed the checks), 429 `rate_limited` (10 reports per user per UTC day), 503 `try_again` |
+| POST | `/v1/reports/anonymous` | public (API Gateway has no JWT on this route; any `Authorization` header or claims are ignored, nothing about a user is stored) | `{text, context}` (no image) | 201 `{reportId}` | 400 `invalid_text`, `invalid_context`, 429 `rate_limited` (3 per source IP per UTC hour, 50 per UTC day in total) |
+
+The anonymous limiter keys on `SHA-256(REPORT_IP_SALT + ":" + sourceIp)` (from `requestContext.http.sourceIp`); the raw IP is never stored or logged. The Lambda needs the environment variable `REPORT_IP_SALT` (a random secret string); without it the anonymous route answers 500. Account export (`data.json`) lists the person's own reports as `reports: [{reportId, text, context, status, createdAt}]`; the internal triage note, `kind` and the picture are not included.
+
 ### Push notifications
 
 Posting a message, a reply, a membership request, a group join request or a family link request queues a job (SQS); a worker sends it through Expo. Payload data carries `{kehila, messageId}` or `{kehila, screen}` only; the title is the Kehila's name and the text is generic and in the recipient's language. A device Expo reports as `DeviceNotRegistered` is removed. A message pushes only people in the channel's audience (a gabbai outside its groups is not); a reply pushes every adult of the target family who can read the channel. Two kinds are fixed system texts, left out of `admin/push-texts` (GET omits them, PUT answers 400 `invalid_key`): `family_request` (he "בקשת קישור משפחה חדשה", en "New family link request") and `family_gabbai` (he "הגבאי עדכן את פרטי המשפחה שלכם", en "The gabbai updated your family details"). Their job `ref` is the recipient's userId (pushed only while they are a member or gabbai of that Kehila) and the payload data is `{kehila, screen: "family"}`.
@@ -514,7 +528,8 @@ Posting a message, a reply, a membership request, a group join request or a fami
 | 429 | `broadcast_limit` | a member's daily message limit |
 | 400 | `invalid_image_upload_id`, `invalid_bytes`, `invalid_content_type` | image upload fields (see uploads) |
 | 400 | `image_not_found`, `invalid_image` | `imageUploadId` names no upload of the caller, or the file failed the checks (the upload is deleted) |
-| 429 | `rate_limited` | a chat post over the channel's hourly limit, or more than 20 upload grants in an hour |
+| 429 | `rate_limited` | a chat post over the channel's hourly limit, more than 20 upload grants in an hour, or a bug-report limit (see Bug reports) |
+| 400 | `invalid_text`, `invalid_context`, `invalid_upload` | bug report fields (see Bug reports) |
 | 503 | `try_again` | S3 failed while attaching or deleting an image: nothing changed, retry |
 | 500 | `internal` | unexpected failure; nothing is leaked, retry later |
 

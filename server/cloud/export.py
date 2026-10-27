@@ -101,6 +101,10 @@ def build(repo, user_id, email, remaining_ms=None):
                     'consents': [{'kind': c['kind'], **({'kehilaId': c['kehilaId']} if c.get('kehilaId') else {}),
                                   'value': c['value'], 'version': c['version'], 'at': int(c['at'])}
                                  for c in sorted(repo.list_consents(user_id), key=lambda c: c['sk'])],
+                    'reports': [{'reportId': r['sk'][len('RPT#'):], 'text': r.get('text', ''),
+                                 'context': r.get('context') or {}, 'status': r.get('status', 'new'),
+                                 'createdAt': int(r.get('createdAt', 0))}
+                                for r in sorted(repo.list_user_reports(user_id), key=lambda r: r['sk'])],
                     'messages': messages, 'replies': replies, 'photosOmitted': omitted}
             archive.writestr('data.json', json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
         log.info('export built user=%s messages=%d photos=%d omitted=%d bytes=%d', user_id, len(messages), photos,

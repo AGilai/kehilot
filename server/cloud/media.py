@@ -40,6 +40,14 @@ def upload_key(k, user_id, upload_id):
     return f'up/{k}/{user_id}/{upload_id}'
 
 
+def report_upload_key(user_id, upload_id):
+    return f'up/reports/{user_id}/{upload_id}'  # under up/: the unattached-upload lifecycle rule covers it
+
+
+def report_image_key(report_id, content_type):
+    return f'reports/{report_id}.{EXTENSIONS[content_type]}'
+
+
 def image_key(k, message_id):
     return f'm/{k}/{message_id}'
 
@@ -72,8 +80,20 @@ def _discard(key):
 
 def claim_upload(k, user_id, upload_id, message_id):
     """Check the caller's upload and move it to the message's key. Returns {contentType, bytes}."""
+    return _claim(upload_key(k, user_id, upload_id), lambda content_type: image_key(k, message_id))[0]
+
+
+def claim_report_upload(user_id, upload_id, report_id):
+    """Same checks for a report picture (the key names the caller, so only their own upload is found).
+    Returns {key, contentType, bytes}."""
+    info, target = _claim(report_upload_key(user_id, upload_id),
+                          lambda content_type: report_image_key(report_id, content_type))
+    return {'key': target, **info}
+
+
+def _claim(source, destination):
     from botocore.exceptions import ClientError
-    client, name, source = s3_client(), bucket(), upload_key(k, user_id, upload_id)
+    client, name = s3_client(), bucket()
     try:
         head = client.head_object(Bucket=name, Key=source)
     except ClientError as error:
@@ -94,13 +114,14 @@ def claim_upload(k, user_id, upload_id, message_id):
         _discard(source)
         raise ApiError(400, 'invalid_image')
     try:
-        client.copy_object(Bucket=name, Key=image_key(k, message_id), CopySource={'Bucket': name, 'Key': source},
+        target = destination(content_type)
+        client.copy_object(Bucket=name, Key=target, CopySource={'Bucket': name, 'Key': source},
                            MetadataDirective='REPLACE', ContentType=content_type,
                            CacheControl='private, no-store')
         client.delete_object(Bucket=name, Key=source)
     except ClientError as error:
         raise _try_again(error)
-    return {'contentType': content_type, 'bytes': size}
+    return {'contentType': content_type, 'bytes': size}, target
 
 
 def presign_get(k, message_id, content_type):
@@ -109,6 +130,15 @@ def presign_get(k, message_id, content_type):
         'get_object', Params={'Bucket': bucket(), 'Key': image_key(k, message_id), 'ResponseContentType': content_type,
                               'ResponseContentDisposition': f'inline; filename="{message_id}.{ext}"'},
         ExpiresIn=URL_SECONDS)
+
+
+def delete_key(key):
+    """Idempotent delete of one object; an S3 error is 503 try_again."""
+    from botocore.exceptions import ClientError
+    try:
+        s3_client().delete_object(Bucket=bucket(), Key=key)
+    except ClientError as error:
+        raise _try_again(error)
 
 
 def delete_image(k, message_id):

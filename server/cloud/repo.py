@@ -8,6 +8,7 @@ from .ids import new_id
 from .repo_families import FamiliesRepo
 from .repo_members import AdminRepo, MembersRepo
 from .repo_messages import MessagesRepo
+from .repo_reports import ReportsRepo
 from .repo_tags import TagsRepo
 
 TABLE_SCHEMA = dict(
@@ -23,7 +24,7 @@ TABLE_SCHEMA = dict(
     BillingMode='PAY_PER_REQUEST',
 )
 
-class Repo(MembersRepo, AdminRepo, MessagesRepo, FamiliesRepo, TagsRepo):
+class Repo(MembersRepo, AdminRepo, MessagesRepo, FamiliesRepo, TagsRepo, ReportsRepo):
     def __init__(self, table):
         self.table = table
 

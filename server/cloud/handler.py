@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_tags
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_tags
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -89,6 +89,9 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/image$'), routes_media.image_url),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/changes$'), routes_changes.changes),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/notify$'), routes_changes.put_notify),
+    ('POST', re.compile(r'^/v1/reports$'), routes_reports.create),
+    ('POST', re.compile(r'^/v1/reports/upload$'), routes_reports.create_upload),
+    ('POST', re.compile(r'^/v1/reports/anonymous$'), routes_reports.create_anonymous),
     ('POST', re.compile(r'^/v1/me/consents/age13$'), routes_privacy.age13),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/terms$'), routes_admin.accept_terms),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/phone-list$'), routes_privacy.put_switch),
@@ -110,7 +113,7 @@ ROUTES = [
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/families/link$'), routes_families.gabbai_link),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/cards/(?P<card>[^/]+)/dismiss$'), routes_privacy.dismiss_card),
 ]
-PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
+PUBLIC = {routes_core.health, routes_invites.preview, routes_reports.create_anonymous}  # no caller: ctx.caller and ctx.user_id are None
 
 
 @dataclass
@@ -121,6 +124,7 @@ class Ctx:
     body: str | None  # raw text; inputs.body_object parses it
     query: dict = field(default_factory=dict)  # query string parameters (strings)
     context: object = None  # the Lambda context (time left)
+    source_ip: str | None = None  # public routes only; hash it, never store or log it
 
 
 @functools.cache
@@ -162,7 +166,8 @@ def handler(event, context):
             return _response(204, None)
         func, params = _match(event['requestContext']['http']['method'], event['rawPath'])
         if func in PUBLIC:
-            return _response(*func(Ctx(_repo(), None, None, None), params))
+            http = event['requestContext']['http']
+            return _response(*func(Ctx(_repo(), None, None, _body(event), source_ip=http.get('sourceIp')), params))
         repo = _repo()
         caller = caller_from_event(event)
         body = _body(event)
