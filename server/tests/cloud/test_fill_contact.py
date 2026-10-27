@@ -84,11 +84,9 @@ class FillContactTest(unittest.TestCase):
             self.assertIsNone(EMAIL.search(text), name)
 
     def test_terms_version_matches_consents(self):
-        sys.path.insert(0, str(ROOT / 'server'))
-        try:
-            from cloud import consents
-        finally:
-            sys.path.remove(str(ROOT / 'server'))
+        spec = importlib.util.spec_from_file_location('consents_by_path', ROOT / 'server' / 'cloud' / 'consents.py')
+        consents = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(consents)
         text = (ROOT / 'public' / 'terms' / 'index.html').read_text()
         self.assertIn(consents.VERSIONS['kehilaTerms'], text)
 
