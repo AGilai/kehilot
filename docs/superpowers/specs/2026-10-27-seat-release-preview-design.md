@@ -60,3 +60,31 @@ a shabbat release and allow a gabbai (regardless) release places on behalf of a 
   name to others) and the household sees the current state on its seat page.
 
 Design through the designer (one look and feel): the card, the seat page with the block frame, the push copy.
+
+## Per-Kehila hall layout and households without accounts (owner, 2026-10-27)
+
+"each kehila should have its own synagogue place layout … the design that I've shared is specifically for
+Neria … in the web designer, only on web, allow some kind of designer — like a table of places, like an
+Excel — that a gabbai can describe the seats and what family sits where … not all the families will be
+registered … the upload should cover also families that are not registered … both should be part of the
+tests."
+
+- **Hall layout per Kehila**, edited on the web only (phone: view): a spreadsheet-like grid — each cell a
+  seat, aisle, bimah, ark or empty; blocks, rows, seat numbers; drag-select. **Paste from Excel** (the
+  gabbai copies his existing seating chart): cell positions become seats, cell text becomes the household
+  sitting there, matched with confirmation (nothing linked without the gabbai). Preview before save;
+  common Excel quirks handled (merged cells, two names in a cell, blank aisle rows). The Neria hall is the
+  first example, not a built-in.
+- **Seat holders without an account**: a gabbai-created household record (name, optional phone) that
+  holds seats, appears on the map, can be released on behalf, and is covered by the responses upload. When
+  a matching family registers, the gabbai is offered a link (by phone/name); on confirm, seats move to the
+  registered family.
+- **Assignment history**: seat changes take effect from a date; past Shabbatot keep their state.
+- **Privacy**: names on the map only for gabbaim; members see only their own seats; print names off by
+  default. Seat-holder records are personal data: included in deletion on request, never in logs/pushes.
+- **Concurrency**: a save over a newer version warns instead of overwriting.
+- **Tests** cover registered and unregistered households in: Excel paste, matching, responses upload,
+  on-behalf release, linking on registration; plus a dev smoke.
+- **Phasing**: (1) layout editor + Excel paste + seat holders; (2) release with real data (member, gabbai
+  on behalf, print); (3) responses upload; (4) timed reminders and push. The fixture preview continues.
+- **Asked the owner** for the real Excel chart (kept on the machine only, never in git).
