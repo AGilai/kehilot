@@ -105,6 +105,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
   const [families, setFamilies] = React.useState<AdminFamily[]>([]);
   const [linkFor, setLinkFor] = React.useState<string | null>(fxScreen === 'admin-link' ? '01FIXTUREUSER00000000023' : null);
   const [tagRows, setTagRows] = React.useState<TagRow[]>([]);
+  const [tagsError, setTagsError] = React.useState<string | null>(null);
   const [manageTags, setManageTags] = React.useState(fxScreen === 'tags-manage' || fxScreen === 'tags-empty');
   const [tagsFor, setTagsFor] = React.useState<string | null>(fxScreen === 'tags-assign' ? 'm1' : null);
   const flight = React.useRef(keyedFlight()).current;
@@ -114,7 +115,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
     if (m.status === 'fulfilled') { setRows(m.value); setError(null); } else { setError(errText(m.reason)); setRows(prev => prev ?? []); }
     if (g.status === 'fulfilled') setGroups(g.value);
     if (f.status === 'fulfilled') setFamilies(f.value);
-    if (tg.status === 'fulfilled') setTagRows(tg.value);
+    if (tg.status === 'fulfilled') { setTagRows(tg.value); setTagsError(null); } else setTagsError(errText(tg.reason));
   }, [api, kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => { void load(); }, [load]);
 
@@ -143,7 +144,11 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
         setRows(cur => (cur ?? []).map(x => (x.userId === u ? { ...x, tags: r.tags } : x)));
         setTagsFor(null); onToast(t('admin.tags.assign.saved'));
         void load(); // counts in the tag list
-      } catch (e) { out = errText(e); }
+      } catch (e) {
+        out = errText(e);
+        const code = (e as { code?: unknown } | null)?.code;
+        if (code === 'invalid_tag_ids' || code === 'tag_not_found') void load(); // the list changed under us: show the current one
+      }
     });
     return out;
   }
@@ -174,9 +179,12 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
     </View>
   );
   const tagLine = (r: MemberRow) => (
-    <View style={{ gap: 2 }}>
-      {r.tags.length ? <TagChips tags={r.tags} /> : <Txt size="small" color={k.muted}>{t('admin.tags.member.none')}</Txt>}
-      <TextLink title={t('admin.tags.member.edit')} accessibilityLabel={t('admin.tags.member.editA11y', { name: r.displayName })} onPress={() => setTagsFor(r.userId)} />
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+        <Txt size="small" color={k.muted}>{t('admin.tags.member.caption')}</Txt>
+        {r.tags.length ? <TagChips tags={r.tags} /> : <Txt size="small" color={k.muted}>{t('admin.tags.member.none')}</Txt>}
+      </View>
+      <TextLink title={t('admin.tags.member.edit')} disabled={!!tagsError} accessibilityLabel={t('admin.tags.member.editA11y', { name: r.displayName })} onPress={() => setTagsFor(r.userId)} />
     </View>
   );
   const familyOf = (u: string) => families.find(f => f.adults.some(a => a.userId === u));
@@ -287,6 +295,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
       <Txt serif size="title" accessibilityRole="header">{t('admin.members.title')}</Txt>
       <Button kind="secondary" icon="edit" title={t('admin.tags.button')} onPress={() => setManageTags(true)} />
       {error ? <Banner tone="error" text={error} /> : null}
+      {tagsError ? <Banner tone="error" text={tagsError} action={{ title: t('common.retry'), onPress: () => void load() }} /> : null}
       {filters}
       {bulkBar}
       {rows === null ? <ActivityIndicator color={k.tekhelet} /> : <Txt size="small" color={k.muted}>{t('admin.members.count', { n: shown.length })}</Txt>}

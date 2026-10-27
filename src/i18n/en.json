@@ -947,7 +947,8 @@
         "none": "No tags",
         "edit": "Edit tags",
         "editA11y": "Edit {name}'s tags",
-        "list": "Tags: {list}"
+        "list": "Tags: {list}",
+        "caption": "Roles:"
       },
       "assign": {
         "title": "{name}'s tags",

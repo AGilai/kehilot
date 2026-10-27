@@ -10,10 +10,10 @@ import { TOUCH } from '../../kit/theme.ts';
 import { useAdminErrText } from './shared.tsx';
 
 /** Link-style 48-high pressable. */
-export function TextLink({ title, onPress, accessibilityLabel }: { title: string; onPress: () => void; accessibilityLabel?: string }) {
+export function TextLink({ title, onPress, accessibilityLabel, disabled }: { title: string; onPress: () => void; accessibilityLabel?: string; disabled?: boolean }) {
   const k = useTokens();
   return (
-    <Pressable accessibilityRole="link" accessibilityLabel={accessibilityLabel ?? title} onPress={onPress} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
+    <Pressable accessibilityRole="link" accessibilityLabel={accessibilityLabel ?? title} disabled={disabled} accessibilityState={{ disabled: !!disabled }} onPress={onPress} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start', opacity: disabled ? 0.5 : 1 }}>
       <Txt size="small" bold color={k.tekhelet}>{title}</Txt>
     </Pressable>
   );
