@@ -141,6 +141,7 @@ test('pushDestination: requests opens approvals for a gabbai only; group_request
   assert.equal(pushDestination({ screen: 'group_requests' }, 'gabbai'), 'group_requests');
   assert.equal(pushDestination({ screen: 'group_requests' }, 'member'), 'group_requests');
   assert.equal(pushDestination({ screen: 'group_requests' }, 'listener'), 'home');
+  assert.equal(pushDestination({ messageId: 'm1' }, 'listener'), 'message'); // a listener's tap opens the message in Main
   assert.equal(pushDestination({ screen: 'other' }, 'gabbai'), 'home');
   assert.equal(pushDestination({ messageId: 'm1' }, 'gabbai'), 'message');
   assert.equal(pushDestination({}, 'member'), 'home');

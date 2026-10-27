@@ -6,6 +6,7 @@ import type { DirectoryEntry, MessageType, NotifyPrefs as Prefs } from '../clien
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Card, Toggle, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
+import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
 
 const TYPES: Exclude<MessageType, 'chat'>[] = ['weekly', 'celebration', 'condolence', 'event'];
@@ -33,7 +34,7 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
 
   // Muted members are IDs on the server: names come from the directory (members and gabbaim only; a listener gets 403).
   const [members, setDir] = React.useState<DirectoryEntry[] | null>(null);
-  const canDirectory = kehila?.role === 'member' || kehila?.role === 'gabbai';
+  const canDirectory = roleFeatures(kehila?.role).directory;
   const hasMuted = (kehila?.notify.mutedMembers.length ?? 0) > 0;
   React.useEffect(() => {
     if (!canDirectory || !hasMuted) return;

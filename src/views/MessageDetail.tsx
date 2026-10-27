@@ -8,6 +8,7 @@ import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.t
 import { Composer } from '../kit/Composer.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { TOUCH, edge } from '../kit/theme.ts';
+import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
 
 /** Reply errors that end the chance to reply to this message. */
@@ -47,7 +48,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
     if (!message) return;
     void markRead(messageId);
     // The server returns only the replies this caller may read (none for most gabbaim).
-    if (targeted) void loadReplies(messageId).catch(() => {});
+    if (targeted && roleFeatures(kehila?.role).blessingReply) void loadReplies(messageId).catch(() => {});
   }, [messageId, !!message, targeted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!kehila || !me) return null;
@@ -83,8 +84,8 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const isTarget = message.targetMemberId === me.userId;
   const replies = visibleReplies(message, feed.replies[messageId] ?? [], me.userId);
   const chip = replierChip(message, t);
-  const showBox = canReply(message, me.userId, role) && !blocked;
-  const canJoin = (message.type === 'celebration' || message.type === 'condolence') && role !== 'listener' && !isTarget;
+  const showBox = roleFeatures(role).blessingReply && canReply(message, me.userId, role) && !blocked;
+  const canJoin = (message.type === 'celebration' || message.type === 'condolence') && roleFeatures(role).join && !isTarget;
   // Mute (or unmute) notifications from the member who broadcast this; it never hides the message.
   const canMute = message.authorKind === 'member' && message.type !== 'chat' && message.authorId !== me.userId;
   const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);

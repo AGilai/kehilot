@@ -60,7 +60,8 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     notify: screen === 'm5'
       ? { mutedChannels: ['01FIXTURECHANNEL00000002'], mutedTypes: ['event'], membersBroadcasts: 'management_only', mutedMembers: ['m1'], chatChannels: [] }
       : { mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [] },
-    groups: [], adminGroups: [], settings: { pollSeconds: 60 },
+    // A listener admitted to the youth group reads its channel and posts in its chat (spec §3c).
+    groups: role === 'listener' ? ['01FIXTUREGROUP00000000001'] : [], adminGroups: [], settings: { pollSeconds: 60 },
   };
   const me = {
     userId: '01FIXTUREUSER00000000001', email: 'dana@example.invalid',
@@ -81,7 +82,8 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   const channels = [
     ch('01FIXTURECHANNEL00000001', 'הודעות הקהילה'),
     ch('01FIXTURECHANNEL00000002', 'שמחות ואבלות'),
-    ch('01FIXTURECHANNEL00000003', 'שיחת הקהילה', { conversation: true, canPost: role !== 'listener', chatHourlyLimit: 30, ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000001'] } : {}) }),
+    // The server never returns the whole-Kehila chat to a listener; the one it returns is the admitted group's chat.
+    ch('01FIXTURECHANNEL00000003', role === 'listener' ? 'שיחת קבוצת הנוער' : 'שיחת הקהילה', { conversation: true, listenersCanRead: role === 'listener' ? false : true, canPost: true, chatHourlyLimit: 30, ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000001'] } : {}) }),
     ...(role === 'gabbai' ? [ch('01FIXTURECHANNEL00000004', 'קבוצת הנוער', { inAudience: false })] : []),
   ];
   const [cAnn, cJoy, cChat, cYouth] = [channels[0]!.channelId, channels[1]!.channelId, channels[2]!.channelId, channels[3]?.channelId ?? channels[0]!.channelId];

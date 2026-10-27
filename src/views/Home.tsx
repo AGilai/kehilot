@@ -13,6 +13,8 @@ import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
 import { isCurrentZmanim, ZMANIM_CACHE_PREFIX } from '../zmanim.ts';
+import { roleFeatures } from '../client/roleView.ts';
+import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
 
 const TIMES = ['sunrise', 'sofZmanShma', 'sofZmanTfilla', 'minchaGedola', 'plagHaMincha', 'sunset', 'nightfall'] as const;
@@ -71,6 +73,7 @@ export function Home({ onOpen, onMessages }: { onOpen: (id: string) => void; onM
   const next = today ? TIMES.find(key => new Date(today.times[key] || '').getTime() > now.getTime()) : undefined;
   const latest = visibleList(state.feed, { mode: 'mine', notify: kehila.notify, channels: state.channels }).filter(m => m.type !== 'chat').slice(0, 3);
   const first = state.me?.profile?.firstName?.trim();
+  const guest = roleFeatures(kehila.role).membershipCard;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
@@ -112,6 +115,8 @@ export function Home({ onOpen, onMessages }: { onOpen: (id: string) => void; onM
         {shabbatError ? <Banner tone="error" text={t('home.shabbatError')} action={{ title: t('common.retry'), onPress: () => setRevision(n => n + 1) }} /> : null}
       </Card>
 
+      {guest ? <MembershipCard /> : null}
+
       <View style={{ gap: 10 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Txt bold size="heading">{t('home.latest')}</Txt>
@@ -127,6 +132,8 @@ export function Home({ onOpen, onMessages }: { onOpen: (id: string) => void; onM
           </Pressable>
         ))}
       </View>
+
+      {guest ? <LockedRows /> : null}
 
       <Button kind="secondary" title={t('home.signOut')} onPress={() => void signOut()} />
     </ScrollView>

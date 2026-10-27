@@ -8,8 +8,8 @@ import { useErrorText } from './auth/Frame.tsx';
 
 const LOCKED = ['lockedBlessings', 'lockedChat', 'lockedDirectory', 'lockedPosting'] as const;
 
-/** M10 (the parts M1 does not have): the membership card, open channels and the locked rows. */
-export function GuestHome() {
+/** M10: the "request membership" card (a 409 already_requested counts as sent). Shown on a listener's Home. */
+export function MembershipCard() {
   const { t } = useI18n();
   const { state, requestMembership } = useSession();
   const k = useTokens();
@@ -23,35 +23,34 @@ export function GuestHome() {
     try { await requestMembership(); } catch (e) { setError(errText(e)); } finally { setBusy(false); }
   }
   return (
-    <>
-      <Card edgeColor={k.tekhelet}>
-        <Txt bold size="heading">{t('guest.requestTitle')}</Txt>
-        {sent ? (
-          <Banner tone="success" text={t('guest.requestSent')} />
-        ) : (
-          <>
-            <Txt>{t('guest.requestBody')}</Txt>
-            {error ? <Banner tone="error" text={error} /> : null}
-            <Button title={t('guest.requestSend')} onPress={() => void send()} busy={busy} />
-          </>
-        )}
-      </Card>
-      <Card>
-        <Txt bold>{t('guest.channels')}</Txt>
-        {state.channels.length === 0 ? <Txt size="small" color={k.muted}>{t('guest.noChannels')}</Txt> : null}
-        {state.channels.map(c => (
-          <View key={c.channelId} style={{ minHeight: TOUCH, justifyContent: 'center' }}><Txt>{c.name}</Txt></View>
-        ))}
-      </Card>
-      <Card>
-        <Txt bold>{t('guest.locked')}</Txt>
-        {LOCKED.map(key => (
-          <View key={key} accessibilityState={{ disabled: true }} style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, opacity: 0.75 }}>
-            <Txt style={{ flex: 1 }}>{t(`guest.${key}`)}</Txt>
-            <Txt size="caption" bold color={k.muted}>{t('guest.membersOnly')}</Txt>
-          </View>
-        ))}
-      </Card>
-    </>
+    <Card edgeColor={k.tekhelet}>
+      <Txt bold size="heading">{t('guest.requestTitle')}</Txt>
+      {sent ? (
+        <Banner tone="success" text={t('guest.requestSent')} />
+      ) : (
+        <>
+          <Txt>{t('guest.requestBody')}</Txt>
+          {error ? <Banner tone="error" text={error} /> : null}
+          <Button title={t('guest.requestSend')} onPress={() => void send()} busy={busy} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+/** M10: what members get and a listener does not. */
+export function LockedRows() {
+  const { t } = useI18n();
+  const k = useTokens();
+  return (
+    <Card>
+      <Txt bold>{t('guest.locked')}</Txt>
+      {LOCKED.map(key => (
+        <View key={key} accessibilityState={{ disabled: true }} style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, opacity: 0.75 }}>
+          <Txt style={{ flex: 1 }}>{t(`guest.${key}`)}</Txt>
+          <Txt size="caption" bold color={k.muted}>{t('guest.membersOnly')}</Txt>
+        </View>
+      ))}
+    </Card>
   );
 }

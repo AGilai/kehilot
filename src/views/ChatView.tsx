@@ -14,6 +14,7 @@ import type { Picked } from '../media/device.ts';
 import { sendMessage } from '../media/send.ts';
 import type { Stage } from '../media/send.ts';
 import { singleFlight } from '../client/singleFlight.ts';
+import { canPostInChat } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
 
 /** Chat view of a conversation channel: bubbles with author and time, no titles, newest at the bottom. */
@@ -104,7 +105,7 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
           );
         })}
       </ScrollView>
-      {channel.canPost ? (
+      {canPostInChat(kehila.role, channel) ? (
         <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.stone, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
           {image ? <View style={{ paddingBottom: 8 }}><AttachPreview image={image} onRemove={() => setImage(null)} disabled={busy} /></View> : null}
           {stage ? <Txt size="small" color={k.muted} style={{ paddingBottom: 8 }} accessibilityRole="alert">{t(`compose.progress.${stage}`)}</Txt> : null}

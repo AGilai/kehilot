@@ -121,7 +121,7 @@ function MyLinks({ kehilaId, version, onToast }: { kehilaId: string; version: nu
 
 /**
  * M7, the cloud part: name, language, invites (member, gabbai), notification preferences, leaving, sign out and
- * account deletion. A listener sees only the name, the language, sign out and delete.
+ * account deletion. A listener sees the name, the language, groups, notification preferences, sign out and delete.
  */
 export function Me({ onPrefs, onBack, onToast, onLeft, onManage, onGroup }: { onPrefs?: () => void; /** A group admin opens one group's screen. */ onGroup?: (g: { groupId: string; name: string }) => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
   const { t, lang, setLang } = useI18n();
@@ -242,6 +242,7 @@ export function Me({ onPrefs, onBack, onToast, onLeft, onManage, onGroup }: { on
         </>
       ) : null}
 
+      {!canInvite && onPrefs ? <Button kind="secondary" title={t('me.prefs')} onPress={onPrefs} /> : null}
       <Button kind="secondary" title={t('me.signOut')} onPress={() => void signOut()} />
       <Button kind="danger" title={t('me.deleteAction')} onPress={() => setView('delete')} />
     </ScrollView>

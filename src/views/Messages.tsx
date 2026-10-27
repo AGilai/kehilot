@@ -2,7 +2,8 @@ import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, SectionList, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSession } from '../client/SessionProvider.tsx';
-import { groupByDay, isMuted, postableChannels, visibleList } from '../client/messageView.ts';
+import { groupByDay, isMuted, visibleList } from '../client/messageView.ts';
+import { showCompose } from '../client/roleView.ts';
 import { israelDate } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Chip, Txt, useTokens } from '../kit/components.tsx';
@@ -41,7 +42,7 @@ export function Messages({ onOpen, onChat, onNew, onSearch, initialFilter }: { o
   const today = israelDate();
   const dayLabel = (day: string) => day === today ? t('messages.today')
     : day ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${day}T12:00:00+02:00`)) : '';
-  const canPostSomewhere = postableChannels(channels).length > 0;
+  const canPostSomewhere = !!onNew && showCompose(kehila.role, channels);
   const nameOf = (id: string) => channels.find(c => c.channelId === id)?.name ?? '';
 
   const header = (

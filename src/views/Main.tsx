@@ -9,6 +9,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { pushDestination } from '../client/push.ts';
 import { adminGuard, takeManageEntry } from '../client/membersView.ts';
 import { firstWithPending } from '../client/channelsView.ts';
+import { roleFeatures } from '../client/roleView.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Toast, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
@@ -80,7 +81,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   return null;
 }
 
-/** The signed-in app for members and gabbaim: top bar, the open screen, and the bottom tabs. */
+/** The signed-in app for every role (listeners get the reading parts, see roleView.ts): top bar, the open screen, and the bottom tabs. */
 export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSignal, takeManage }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string } | null; /** Changes when the switcher asks for management mode. */ manageSignal?: number; /** Returns the pending request once. */ takeManage?: () => number | null }) {
   const { t } = useI18n();
   const k = useTokens();
@@ -163,6 +164,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   }, [state]);
 
   const kehila = state.kehila;
+  const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
   const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
@@ -172,11 +174,12 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     { key: 'approvals' as const, label: t('admin.tabs.approvals'), icon: '✓', badge: pending },
     { key: 'messages' as const, label: t('admin.tabs.messages'), icon: '✉', badge: unread },
     { key: 'members' as const, label: t('admin.tabs.members'), icon: '☷', badge: 0 },
-  ] : [
-    { key: 'home' as const, label: t('tabs.home'), icon: '⌂', badge: 0 },
-    { key: 'messages' as const, label: t('tabs.messages'), icon: '✉', badge: unread },
-    { key: 'me' as const, label: t('me.tab'), icon: '☺', badge: 0 },
-  ];
+  ] : feats.tabs.map(key => ({
+    key,
+    label: key === 'home' ? t('tabs.home') : key === 'messages' ? t('tabs.messages') : t('me.tab'),
+    icon: key === 'home' ? '⌂' : key === 'messages' ? '✉' : '☺',
+    badge: key === 'messages' ? unread : 0,
+  }));
 
   let body: React.ReactNode;
   switch (nav.tab) {
@@ -184,7 +187,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />;
       break;
     case 'messages':
-      body = <Messages initialFilter={filter} onSearch={() => setNav({ tab: 'search' })} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={() => { setComposeInitial(undefined); setNav({ tab: 'compose' }); }} />;
+      body = <Messages initialFilter={filter} onSearch={() => setNav({ tab: 'search' })} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
       break;
     case 'search':
       body = <Search initialQuery={searchQ} onQuery={setSearchQ} onBack={() => setNav({ tab: 'messages' })} onOpen={id => setNav({ tab: 'detail', id, from: 'search' })} />;
@@ -226,7 +229,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <Me onGroup={g => setNav({ tab: 'group', ...g, from: 'me' })} onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
       break;
     case 'compose':
-      body = <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
+      body = !feats.compose ? <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} /> : <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
         onPublished={id => {
           setNav({ tab: 'detail', id, from: 'messages' });
           showToast(t('compose.published'));
