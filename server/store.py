@@ -20,6 +20,9 @@ from .classifications import ClassificationStore
 from .recommendations import RecommendationsStore
 from .settings import SettingsStore, initialize as initialize_settings
 from .documents import DocumentStore, initialize as initialize_documents
+from .healing_import import initialize as initialize_healing
+from .healing import HealingStore, initialize as initialize_healing_cycles, begin_cycle, maintain as maintain_healing, metadata as healing_metadata
+from .healing import MESSAGE_PREFIX as HEALING_MESSAGE_PREFIX, message_id as healing_message_id
 
 
 def now():
@@ -38,7 +41,7 @@ def password_hash(password, salt):
     return hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 600000).hex()
 
 
-class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, GabbaiStore, DocumentStore, ClassificationStore, RecommendationsStore, SettingsStore):
+class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, GabbaiStore, DocumentStore, ClassificationStore, RecommendationsStore, SettingsStore, HealingStore):
     def __init__(self, path, sms_sender=None):
         self.sms_sender = sms_sender
         self.path = str(path)
@@ -106,6 +109,8 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             for user in db.execute('SELECT id,profile FROM users').fetchall():
                 self._sync_self(db, user['id'], json.loads(user['profile']))
             initialize_roster(db)
+            initialize_healing(db)
+            initialize_healing_cycles(db)
             initialize_seating(db)
             initialize_membership(db)
             initialize_phone(db)
@@ -290,7 +295,7 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             db.execute('UPDATE users SET preferences=? WHERE id=?', (encode(result), user['id']))
         return result
 
-    def list_messages(self):
+    def list_messages(self, user=None):
         with self.db() as db:
             messages = db.execute('SELECT m.*, u.profile FROM messages m JOIN users u ON u.id=m.author_id ORDER BY m.pinned DESC,m.created_at DESC').fetchall()
             replies = db.execute('SELECT r.*, u.profile FROM replies r JOIN users u ON u.id=r.author_id ORDER BY r.created_at,r.id').fetchall()
@@ -299,7 +304,8 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             grouped.setdefault(row['message_id'], []).append(dict(id=row['id'], author=json.loads(row['profile'])['name'], body=row['body'], createdAt=row['created_at']))
         with self.db() as db:
             attachments = {r['message_id']: dict(id=r['id'], name=r['name'], size=r['size'], mimeType='application/pdf') for r in db.execute('SELECT id,message_id,name,size FROM weekly_documents')}
-        return [dict(attachment=attachments.get(row['id']), id=row['id'], category=row['category'], title=row['title'], body=row['body'], author=json.loads(row['profile'])['name'], createdAt=row['created_at'], pinned=bool(row['pinned']), replies=grouped.get(row['id'], [])) for row in messages]
+        result = [dict(attachment=attachments.get(row['id']), id=row['id'], category=row['category'], title=row['title'], body=row['body'], author=json.loads(row['profile'])['name'], createdAt=row['created_at'], pinned=bool(row['pinned']), replies=grouped.get(row['id'], [])) for row in messages]
+        return result + self.healing_messages(user) if user is not None else result
 
     def state(self, user):
         with self.db() as db:
@@ -307,19 +313,37 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             member_profile = self._read_profile(db, user['id'])
             classification = db.execute('SELECT classification FROM roster_people WHERE id=?', (user['id'],)).fetchone()
             read_ids = [r['message_id'] for r in db.execute('SELECT message_id FROM reads WHERE user_id=?', (user['id'],))]
-        return dict(profile=member_profile, preferences=json.loads(fresh['preferences']), messages=self.list_messages(), readIds=read_ids, healingPrayers=self.healing_prayers(user), seating=self.seating(user), classification=classification['classification'] if classification else '', role=user['role'], classifications=self.classifications(user) if user['role'] == 'gabbai' else [], verifiedPhone=self.verified_phone(user), communitySettings=self.community_settings(user))
+        prayers = self.healing_prayers(user)
+        read_ids += [healing_message_id(p['reminder']['cycleId']) for p in prayers if p.get('reminder') and p['reminder']['read']]
+        return dict(profile=member_profile, preferences=json.loads(fresh['preferences']), messages=self.list_messages() + self.healing_messages(user, prayers), readIds=read_ids, healingPrayers=prayers, seating=self.seating(user), classification=classification['classification'] if classification else '', role=user['role'], classifications=self.classifications(user) if user['role'] == 'gabbai' else [], verifiedPhone=self.verified_phone(user), communitySettings=self.community_settings(user))
 
     @staticmethod
     def _healing_value(row):
-        member = json.loads(row['profile'])
-        name = (member.get('firstName', '') + ' ' + member.get('lastName', '')).strip() if member.get('firstName') and member.get('lastName') else member['name']
-        return dict(id=row['id'], memberId=row['member_id'], memberName=name, name=row['name'], addedOn=row['added_on'])
+        if row['member_id']:
+            member = json.loads(row['profile'])
+            name = (member.get('firstName', '') + ' ' + member.get('lastName', '')).strip() if member.get('firstName') and member.get('lastName') else member['name']
+        elif row['roster_person_id']:
+            name = (row['first_name'] + ' ' + row['last_name']).strip() or row['display_name']
+        else:
+            name = row['submitter_name']
+        result = dict(id=row['id'], memberId=row['member_id'], memberName=name, name=row['name'], addedOn=row['added_on'])
+        if row['roster_person_id']:
+            result['rosterPersonId'] = row['roster_person_id']
+        if row['submitter_name']:
+            result['unmatchedSubmitter'] = True
+        if 'cycle_id' in row.keys():
+            result['reminder'] = healing_metadata(row, israel_today())
+        return result
 
     def healing_prayers(self, user, all_members=False):
         if all_members:
             self.require_gabbai(user)
         with self.db() as db:
-            rows = db.execute('''SELECT p.*,u.profile FROM healing_prayers p JOIN users u ON u.id=p.member_id
+            db.execute('BEGIN IMMEDIATE')
+            maintain_healing(db, israel_today(), None if all_members else user['id'])
+            rows = db.execute('''SELECT p.*,u.profile,r.first_name,r.last_name,r.display_name,c.* FROM healing_prayers p
+                LEFT JOIN users u ON u.id=p.member_id LEFT JOIN roster_people r ON r.id=p.roster_person_id
+                LEFT JOIN healing_cycles c ON c.prayer_id=p.id
                 ''' + ('' if all_members else 'WHERE p.member_id=? ') + 'ORDER BY p.added_on DESC,p.rowid DESC',
                 () if all_members else (user['id'],)).fetchall()
             return [self._healing_value(row) for row in rows]
@@ -331,10 +355,12 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
         identifier = 'prayer-' + secrets.token_hex(16)
         with self.db() as db:
             try:
-                db.execute('INSERT INTO healing_prayers VALUES (?,?,?,?)', (identifier, user['id'], name, israel_today().isoformat()))
+                db.execute('INSERT INTO healing_prayers (id,member_id,name,added_on) VALUES (?,?,?,?)', (identifier, user['id'], name, israel_today().isoformat()))
             except sqlite3.IntegrityError:
                 raise APIError(409, 'השם כבר מופיע ברשימה שלך.')
-            row = db.execute('SELECT p.*,u.profile FROM healing_prayers p JOIN users u ON u.id=p.member_id WHERE p.id=?', (identifier,)).fetchone()
+            begin_cycle(db, identifier, israel_today())
+            row = db.execute('''SELECT p.*,u.profile,c.* FROM healing_prayers p JOIN users u ON u.id=p.member_id
+                LEFT JOIN healing_cycles c ON c.prayer_id=p.id WHERE p.id=?''', (identifier,)).fetchone()
             return self._healing_value(row)
 
     def delete_healing_prayer(self, user, identifier):
@@ -380,6 +406,8 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
         return dict(id=identifier, author=json.loads(user['profile'])['name'], body=body, createdAt=created)
 
     def mark_read(self, user, message_id):
+        if message_id.startswith(HEALING_MESSAGE_PREFIX):
+            return self.read_healing_message(user, message_id)
         with self.db() as db:
             if not db.execute('SELECT id FROM messages WHERE id=?', (message_id,)).fetchone():
                 raise APIError(404, 'ההודעה אינה קיימת.')

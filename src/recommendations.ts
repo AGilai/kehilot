@@ -1,7 +1,8 @@
 import { formatCivilDate } from './dates.ts';
 import type { AliyahRecommendations, RecommendationPerson } from './types.ts';
 
-export const PRINT_MARGIN_MM = 15;
+import { escapeHtml, PRINT_MARGIN_MM } from './printLayout.ts';
+export { escapeHtml, PRINT_MARGIN_MM } from './printLayout.ts';
 export const REPORT_COLUMNS = ['מעמד', 'שם פרטי ומשפחה', 'שם לעלייה לתורה', 'שם האישה למי שברך', 'סטטוס', 'מספר עליות', 'אירוע'];
 export function recommendationColumns(sectionId: string): string[] {
   return [...REPORT_COLUMNS.slice(0, -1), sectionId === 'events' ? 'אירוע' : 'עלייה אחרונה'];
@@ -14,9 +15,6 @@ export function recommendationCells(person: RecommendationPerson, sectionId = 'e
   return [({ kohen: 'כהן', levi: 'לוי', yisrael: 'ישראל', '': 'לא הוגדר' })[person.tribe], person.name,
     person.torahName || '—', person.wifePrayerName || '—', classificationLabel(person.classification),
     person.aliyahCount === null ? '—' : String(person.aliyahCount), sectionId === 'events' ? person.events.map(event => event.description).join('\n') || '—' : person.lastAliyah || 'לא נמצא'];
-}
-export function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!);
 }
 // iOS reserves the page margins in its native renderer; avoid applying them twice.
 export function recommendationsHtml(report: AliyahRecommendations, nativeMargins = false): string {

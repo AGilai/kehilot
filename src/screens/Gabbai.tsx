@@ -1,3 +1,4 @@
+import { GabbaiHealingPrayers } from './GabbaiHealingPrayers';
 import { DateField } from '../DateField';
 import { GabbaiRecommendations } from './GabbaiRecommendations';
 import { AssociationMembers } from './AssociationMembers';
@@ -14,8 +15,9 @@ import { Aliyot } from './GabbaiAliyot';
 
 export function Gabbai({ onClose, onMessage }: { onClose: () => void; onMessage: (id: string) => void }) {
   const { data } = useCommunity();
-  const [tool, setTool] = useState<'people' | 'publish' | 'aliyot' | 'association' | 'recommendations' | null>(null);
+  const [tool, setTool] = useState<'people' | 'publish' | 'aliyot' | 'association' | 'recommendations' | 'healing' | null>(null);
   if (data?.role !== 'gabbai') return null;
+  if (tool === 'healing') return <GabbaiHealingPrayers onClose={() => setTool(null)} />;
   if (tool === 'recommendations') return <GabbaiRecommendations onClose={() => setTool(null)} />;
   if (tool === 'association') return <AssociationMembers onClose={() => setTool(null)} />;
   if (tool === 'people') return <People onClose={() => setTool(null)} />;
@@ -26,6 +28,7 @@ export function Gabbai({ onClose, onMessage }: { onClose: () => void; onMessage:
     <Button title="רשימת המתפללים ועריכת פרטים" onPress={() => setTool('people')} />
     <Button title="פרסום הודעה או לו״ז PDF" onPress={() => setTool('publish')} />
     <Button title="מומלצים לעלייה לתורה והדפסה" onPress={() => setTool('recommendations')} />
+    <Button title="מי שברך לחולים — רשימה והדפסה" onPress={() => setTool('healing')} />
     <Button title="רישום עליות לתורה" onPress={() => setTool('aliyot')} />
     <Button title="רשימת חברי העמותה — טעינת אקסל" secondary onPress={() => setTool('association')} />
   </ScrollView>;

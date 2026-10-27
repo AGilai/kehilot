@@ -221,7 +221,7 @@ class CommunityTest(unittest.TestCase):
         while process_one(self.store, send):
             pass
         self.assertEqual(len(sent), 1)
-        self.assertEqual(sent[0]['data'], {'messageId': message['id']})
+        self.assertEqual(sent[0]['data'], {'screen': 'messages', 'messageId': message['id']})
         self.assertNotIn('הודעת בדיקה', json.dumps(sent, ensure_ascii=False))
         self.store.save_preferences(self.member, {**DEFAULT_PREFERENCES, 'community': False})
         self.publish()

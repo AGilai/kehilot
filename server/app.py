@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
 
 from .push import start_worker
+from .healing import start_worker as start_healing_worker
 from .store import Store
 from .validation import APIError
 from .roster import start_roster_worker
@@ -103,7 +104,7 @@ def make_handler(store, allowed_origins=None):
                 if path == '/api/community-settings':
                     return 200, store.community_settings(user)
                 if path == '/api/messages':
-                    return 200, store.list_messages()
+                    return 200, store.list_messages(user)
                 if path == '/api/admin/classifications':
                     return 200, store.classifications(user)
                 if path == '/api/admin/association-members':
@@ -148,6 +149,7 @@ def make_handler(store, allowed_origins=None):
                     store.require_gabbai(user)
                     return 201, store.publish_document(user, self.body(14 * 1024 * 1024))
                 data = self.body()
+                parts = path.strip('/').split('/')
                 if path.startswith('/api/admin/people/') and method == 'PUT':
                     return 200, store.save_person_details(user, path.rsplit('/', 1)[-1], data)
                 if path == '/api/admin/aliyah-records' and method == 'POST':
@@ -167,6 +169,8 @@ def make_handler(store, allowed_origins=None):
                     return 200, store.save_community_settings(user, data)
                 if method == 'POST' and path == '/api/healing-prayers':
                     return 201, store.add_healing_prayer(user, data)
+                if method == 'POST' and len(parts) == 4 and parts[:2] == ['api', 'healing-prayers'] and parts[3] == 'keep':
+                    return 200, store.keep_healing_prayer(user, parts[2], data)
                 if method == 'PUT' and path == '/api/seating':
                     return 200, store.save_seating_report(user, data)
                 if method == 'POST' and path == '/api/admin/seating/events':
@@ -232,6 +236,7 @@ def main():
     stop = threading.Event()
     worker = start_worker(store, stop)
     roster_worker = start_roster_worker(store, stop)
+    healing_worker = start_healing_worker(store, stop)
     print(f'Community API: http://{args.host}:{args.port}')
     try:
         server.serve_forever()
@@ -243,6 +248,7 @@ def main():
         if worker:
             worker.join(timeout=16)
         roster_worker.join(timeout=2)
+        healing_worker.join(timeout=16)
 
 
 if __name__ == '__main__':

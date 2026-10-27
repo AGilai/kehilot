@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import test_api as api_helpers
 from server.store import Store
+from server.healing_import import import_requests
+from server.validation import APIError
 
 
 class HealingPrayersTest(unittest.TestCase):
@@ -75,6 +77,7 @@ class HealingPrayersTest(unittest.TestCase):
     def test_combined_list_requires_gabbai_and_preserves_member_identity_after_a_rename(self):
         own = self.add()
         other = self.add('מרים בת חנה', token='other-token')
+        self.assertEqual(self.http('GET', '/api/admin/healing-prayers')[0], 401)
         self.assertEqual(self.http('GET', '/api/admin/healing-prayers', token='member-token')[0], 403)
         all_names = self.http('GET', '/api/admin/healing-prayers', token='gabbai-token')[1]
         self.assertEqual({entry['id'] for entry in all_names}, {own['id'], other['id']})
@@ -87,6 +90,9 @@ class HealingPrayersTest(unittest.TestCase):
         self.assertEqual(updated['memberName'], 'משה דוד בן עמי')
         self.assertEqual(updated['addedOn'], own['addedOn'])
         self.assertEqual(updated['name'], own['name'])
+        self.assertEqual(self.http('DELETE', '/api/healing-prayers/' + own['id'], token='member-token')[0], 200)
+        remaining = self.http('GET', '/api/admin/healing-prayers', token='gabbai-token')[1]
+        self.assertEqual([entry['id'] for entry in remaining], [other['id']])
 
     def test_additive_schema_upgrade_and_older_profile_writes_preserve_prayer_data(self):
         with self.store.db() as db:
@@ -114,6 +120,95 @@ class HealingPrayersTest(unittest.TestCase):
         status, _, headers = self.http('OPTIONS', '/api/healing-prayers/missing', origin='http://localhost:8081', extra={'Access-Control-Request-Method': 'DELETE'})
         self.assertEqual(status, 204)
         self.assertIn('DELETE', headers)
+
+    def standalone_person(self):
+        with self.store.db() as db:
+            db.execute('''INSERT INTO roster_people (id,first_name,last_name,display_name,created_at,updated_at)
+                VALUES ('imported-person','ישראל','ישראלי','ישראל ישראלי','2026-01-01','2026-01-01')''')
+        return dict(rosterPersonId='imported-person', submitter='ישראל ישראלי', name='מרים בת שרה', addedOn='2026-09-01')
+
+    def test_roster_import_keeps_identity_date_and_account_privacy_without_creating_accounts(self):
+        entry = self.standalone_person()
+        with self.store.db() as db:
+            accounts = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+            people = db.execute('SELECT COUNT(*) FROM roster_people').fetchone()[0]
+            self.assertEqual(import_requests(db, [entry])[0]['status'], 'new')
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM healing_prayers').fetchone()[0], 0)
+            import_requests(db, [entry], apply=True)
+            self.assertEqual(import_requests(db, [entry], apply=True)[0]['status'], 'existing')
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM users').fetchone()[0], accounts)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM roster_people').fetchone()[0], people)
+        status, rows, _ = self.http('GET', '/api/admin/healing-prayers', token='gabbai-token')
+        self.assertEqual(status, 200)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['memberId'], rows[0]['rosterPersonId'], rows[0]['memberName'], rows[0]['addedOn']),
+                         (None, 'imported-person', 'ישראל ישראלי', '2026-09-01'))
+        for token in ['member-token', 'other-token', 'gabbai-token']:
+            self.assertEqual(self.http('GET', '/api/healing-prayers', token=token)[1], [])
+            self.assertEqual(self.http('DELETE', '/api/healing-prayers/' + rows[0]['id'], token=token)[0], 404)
+        with self.store.db() as db:
+            db.execute("UPDATE roster_people SET first_name='משה' WHERE id='imported-person'")
+        self.assertEqual(Store(self.store.path).healing_prayers(self.gabbai, all_members=True)[0]['memberName'], 'משה ישראלי')
+
+    def test_import_requires_confirmed_identity_and_validates_the_whole_batch_before_writing(self):
+        entry = self.standalone_person()
+        for invalid in [dict(entry, submitter='ישראלי ישראל'), dict(entry, rosterPersonId='missing'),
+                        dict(entry, addedOn='01-09-2026'), dict(entry, addedOn='2026-02-30'),
+                        dict(entry, rosterPersonId=None), dict(entry, unmatchedSubmitter=True)]:
+            with self.store.db() as db:
+                with self.assertRaises(APIError):
+                    import_requests(db, [entry, invalid], apply=True)
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM healing_prayers').fetchone()[0], 0)
+        with self.store.db() as db:
+            with self.assertRaises(APIError):
+                import_requests(db, [entry, entry], apply=True)
+            import_requests(db, [entry], apply=True)
+            with self.assertRaises(APIError) as conflict:
+                import_requests(db, [dict(entry, addedOn='2026-09-02')], apply=True)
+            self.assertEqual(conflict.exception.status, 409)
+            self.assertEqual(db.execute('SELECT added_on FROM healing_prayers').fetchone()[0], '2026-09-01')
+
+    def test_explicit_unmatched_import_preserves_submitter_without_inventing_a_person(self):
+        entry = dict(rosterPersonId=None, unmatchedSubmitter=True, submitter='מכניס חסר', name='חולה בן אם', addedOn='2026-10-16')
+        with self.store.db() as db:
+            people = db.execute('SELECT COUNT(*) FROM roster_people').fetchone()[0]
+            import_requests(db, [entry], apply=True)
+            self.assertEqual(import_requests(db, [entry], apply=True)[0]['status'], 'existing')
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM roster_people').fetchone()[0], people)
+            self.assertEqual(db.execute('PRAGMA foreign_key_check').fetchall(), [])
+        row = self.http('GET', '/api/admin/healing-prayers', token='gabbai-token')[1][0]
+        self.assertTrue(row['unmatchedSubmitter'])
+        self.assertIsNone(row['memberId'])
+        self.assertNotIn('rosterPersonId', row)
+        self.assertEqual(row['memberName'], entry['submitter'])
+
+    @patch('server.store.israel_today', return_value=date(2026, 9, 3))
+    def test_import_for_verified_self_roster_uses_existing_account_ownership(self, _clock):
+        with self.store.db() as db:
+            person = db.execute('SELECT * FROM roster_people WHERE id=?', (self.member_id,)).fetchone()
+            entry = dict(rosterPersonId=self.member_id, submitter=person['display_name'], name='חולה בן אם', addedOn='2026-09-02')
+            import_requests(db, [entry], apply=True)
+        row = self.http('GET', '/api/healing-prayers', token='member-token')[1][0]
+        self.assertEqual(row['memberId'], self.member_id)
+        self.assertEqual(self.http('DELETE', '/api/healing-prayers/' + row['id'], token='member-token')[0], 200)
+
+    @patch('server.store.israel_today', return_value=date(2026, 9, 2))
+    def test_legacy_schema_upgrade_preserves_owned_requests_and_order(self, _clock):
+        with self.store.db() as db:
+            db.execute('DROP TABLE healing_prayers')
+            db.execute('''CREATE TABLE healing_prayers (id TEXT PRIMARY KEY,
+                member_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL, added_on TEXT NOT NULL, UNIQUE(member_id,name))''')
+            db.execute('INSERT INTO healing_prayers VALUES (?,?,?,?)', ('first', self.member_id, 'ראשון בן אם', '2026-09-01'))
+            db.execute('INSERT INTO healing_prayers VALUES (?,?,?,?)', ('second', self.member_id, 'שני בן אם', '2026-09-01'))
+        restarted = Store(self.store.path)
+        rows = restarted.healing_prayers(self.member)
+        self.assertEqual([row['id'] for row in rows], ['second', 'first'])
+        self.assertEqual([row['addedOn'] for row in rows], ['2026-09-01', '2026-09-01'])
+        self.assertEqual(Store(self.store.path).healing_prayers(self.member), rows)
+        self.assertEqual(self.http('DELETE', '/api/healing-prayers/first', token='member-token')[0], 200)
+        with self.store.db() as db:
+            self.assertEqual(db.execute('PRAGMA foreign_key_check').fetchall(), [])
 
 
 if __name__ == '__main__':

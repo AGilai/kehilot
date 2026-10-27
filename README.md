@@ -24,7 +24,7 @@ Android SDK נמצא ב־`~/Library/Android/sdk`, עם platform 36, ‏build-too
 
 `npm install` הושלם ונוצר `package-lock.json`; יש לשמור אותו ולהשתמש ב־`npm ci` להתקנה חוזרת. נוספה `expo-system-ui` בגרסה התואמת ל־SDK 57 לצורך הגדרת התצוגה הבהירה ב־Android. תוקנה קריאת `messageId` כש־`data` חסר בהתראה. נוצרו פרויקטי `ios/` ו־`android/` מקומיים והותקנו תלויות CocoaPods; הם עדיין מוחרגים מבקרת גרסאות.
 
-עברו כאן: 66 בדיקות JavaScript, ‏150 בדיקות שרת עם Python החדש, ‏TypeScript ו־`npm run export` עבור iOS/Android/Web. גם `expo install --check`, כל 21 בדיקות Expo Doctor ו־`npm run check:local` עברו בשלב התקנת הסביבה. יצוא Metro אינו הוכחה לבניית native או לבדיקת ממשק.
+עברו כאן: 76 בדיקות JavaScript, ‏172 בדיקות שרת עם Python החדש, ‏TypeScript ו־`npm run export` עבור iOS/Android/Web. גם `expo install --check`, כל 21 בדיקות Expo Doctor ו־`npm run check:local` עברו בשלב התקנת הסביבה. יצוא Metro אינו הוכחה לבניית native או לבדיקת ממשק.
 
 בניית iOS מקומית באמצעות `npm run ios` הצליחה, והאפליקציה הותקנה ופעלה במצב הדגמה ב־iPhone Duo/iOS 27.1; הממשק וזמני היום נצפו בצילום מסך. הבדיקה הראשונית חשפה ש־iOS 27 דורש UIScene: נוספה `expo-build-properties` עם `ios.enableSceneSupport: true` ב־`app.config.ts`, לפי [מסלול התאימות הרשמי של Expo ל־SDK 57](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md#staying-on-sdk-57-with-xcode-27). ההגדרה תישמר גם ביצירה מחדש של פרויקט iOS. אין צורך לשדרג SDK או לערוך ידנית את AppDelegate. בדגם Duo יש לצלם את המסך הפעיל באמצעות `simctl io … screenshot --display=1`; ברירת המחדל עלולה לצלם את המסך השני, השחור.
 
@@ -54,6 +54,16 @@ Events include a matching saved bar-mitzvah parasha (annually) or an explicitly 
 
 **הדפסת טופס המומלצים** opens the device's print dialog, or a dedicated browser print window. The print layout uses A4 portrait pages with all seven RTL columns fitted to the page width: 7.5-point table text, tighter row spacing, percentage column widths and wrapping for long values. Safe 15 mm margins are set in CSS for browser/Android printing and explicitly in the iOS native renderer. Row colors, repeated column headers and page breaks are retained; user-entered text is escaped. Android's print dialog also supports saving as PDF. The new native module is `expo-print`; rebuild development clients locally after pulling it. Both local iOS/Xcode and Android/Gradle builds passed. See [the Expo Print documentation](https://docs.expo.dev/versions/latest/sdk/print/) for platform printing behavior. Physical printer delivery has not been tested.
 
+## Gabbai Mi Sheberach list and printing
+
+Open **כלי הגבאי → מי שברך לחולים — רשימה והדפסה** to see the current prayer names submitted by all worshippers, with the submitting member and addition date (`DD-MM-YYYY`). The list refreshes on opening/returning to the app, by pull-to-refresh or the refresh button. It is read-only; members continue managing their own requests in the **מי שברך** tab.
+
+**הדפסת רשימת החולים** reloads the combined list before opening the print preview, so removed requests are not printed from an old screen snapshot. The A4 portrait sheet contains the prayer names and print date, with 15 mm margins. Submitter details remain on the management screen. Requests with the same text from different members remain separate entries. The existing native print module is reused; no new dependency or native rebuild is needed for this screen.
+
+Existing prayer requests can be imported locally with their original Gregorian dates using `tools/import_healing_prayers.py`; see [server/API.md](server/API.md#mi-sheberach-for-the-sick) for the private JSON format and preview/apply workflow. Confirm roster identities before importing. Imported submitters can use permanent roster IDs without login accounts; an explicitly authorized missing submitter can be retained by name pending later linking. Imported names appear in the combined gabbai list and printout. All real inputs, databases and backups stay outside Git.
+
+Account-owned names receive a renewal reminder after 14 days. The member can keep or remove each name; **keep updates the record date to the confirmation date**, starting another two-week reminder and one-calendar-month deadline. An unanswered name is deleted automatically at that deadline. Personal reminders also appear in **Messages**, with keep/remove controls and their exact deadlines. A small red dot on the Messages icon means there is unread content; opening a message clears its own unread state without renewing the name. A notification tap opens the Messages list, including when starting a closed app. The server worker runs cleanup even with push disabled or the app closed. External notification delivery uses the existing Expo push setup and requires a physical registered device, OS permission and `SHUL_ENABLE_PUSH=1`; the local preview has push disabled. Unlinked imported names remain on hold until their submitter has a trusted account link. See the API documentation for month-end handling and ownership checks.
+
 ## Gregorian date entry and calendar selection
 
 Gregorian date fields show **DD-MM-YYYY** and open a calendar with month/year navigation. The shared picker covers aliyah recording and both gabbai/family bar-mitzvah date fields; optional dates can be cleared and cancelled selection leaves the saved value intact. Bar-mitzvah dates require a Saturday. Aliyah recording restricts dates to today or earlier. Hebrew birthday and yahrzeit dropdowns remain separate.
@@ -76,7 +86,7 @@ The publishing screen sends text announcements in the existing categories or a w
 
 Aliyah entry chooses the date, prayer, minyan and reading, then a roster person or unnamed `אורח` for every slot. Ordinary Shabbat requires seven regular aliyot plus Maftir and permits extras. Weekday festivals require five plus Maftir; weekday Yom Kippur requires six plus Maftir. Festivals on Shabbat use seven plus Maftir and do not permit extras. The regular slots enforce their specified tribe; extra eighth and later aliyot allow Kohanim and Leviim too, as does Maftir. Yom Kippur Mincha has Kohen, Levi and third, without a separate Maftir or extras. Corrections replace a service/minyan atomically; complete-record entry requires every slot, while historical source imports may retain partial records. Guests do not affect member statistics. See [server/API.md](server/API.md) for the legacy-import distinction and exact contracts.
 
-The native modules added for gabbai documents and printing are `expo-document-picker`, `expo-file-system`, `expo-sharing` and `expo-print`; after `npm ci`, rebuild locally using `npm run ios` / `npm run android`. Both local native builds have passed, along with 66 app tests, 150 server tests, TypeScript, all-platform Metro export and all 21 Expo Doctor checks. Android UI checks verified editing, publishing, the complete aliyah form, PDF selection/upload and the native share sheet; recipient download matched the original PDF bytes. Event/seat-summary administration and broader household/account linking remain future work.
+The native modules added for gabbai documents and printing are `expo-document-picker`, `expo-file-system`, `expo-sharing` and `expo-print`; after `npm ci`, rebuild locally using `npm run ios` / `npm run android`. Both local native builds have passed, along with 76 app tests, 172 server tests, TypeScript, all-platform Metro export and all 21 Expo Doctor checks. Android UI checks verified editing, publishing, the complete aliyah form, PDF selection/upload and the native share sheet; recipient download matched the original PDF bytes. Event/seat-summary administration and broader household/account linking remain future work.
 
 ## Phone sign-in and association membership
 
@@ -333,7 +343,7 @@ The daily cache uses `shul.zmanim.yeshiva-rules.v2`. It validates the current Is
 
 אפשר להשאיר את `EXPO_PUBLIC_EAS_PROJECT_ID` ריק בפיתוח המקומי; ההודעות והרענון מתוך האפליקציה ממשיכים לעבוד, והפעלת Push מציגה הודעה שהשירות עדיין לא הוגדר.
 
-כשמגדירים התראות מרוחקות, משתמשים בגרסה שנבנתה מקומית ב־`npm run ios:device` או `npm run android:device`. ב־iOS מגדירים Team ויכולת Push Notifications ב־Xcode ובחשבון Apple. לאנדרואיד אפשר להפנות את `GOOGLE_SERVICES_JSON` לקובץ `google-services.json` מקומי. בנוסף נדרשת הגדרת אישורי המשלוח אצל ספק ההתראות; קובץ Firebase באפליקציה לבדו אינו מספיק. היכנסו באפליקציה ועברו להעדפות להפעלת התראות במכשיר.
+כשמגדירים התראות מרוחקות, משתמשים בגרסה שנבנתה מקומית ב־`npm run ios:device` או `npm run android:device`. ב־iOS מגדירים Team ויכולת Push Notifications ב־Xcode ובחשבון Apple. לאנדרואיד אפשר להפנות את `GOOGLE_SERVICES_JSON` לקובץ `google-services.json` מקומי. בנוסף נדרשת הגדרת אישורי המשלוח אצל ספק ההתראות; קובץ Firebase באפליקציה לבדו אינו מספיק. היכנסו באפליקציה ולחצו על הפעלת התראות בטלפון במסך ההודעות, או הפעילו התראות דרך ההעדפות.
 
 להפעלת עובד המשלוח בשרת משתמשים ב־`SHUL_ENABLE_PUSH=1 .venv/bin/python -m server.app`. אם אבטחת Expo Push מופעלת, מגדירים בשרת גם `EXPO_ACCESS_TOKEN`. שירותי המשלוח הם שירותי רשת; הבנייה נשארת במחשב.
 
@@ -341,7 +351,7 @@ The daily cache uses `shul.zmanim.yeshiva-rules.v2`. It validates the current Is
 
 התור נשמר ב־SQLite, מבצע עד חמישה ניסיונות במרווחים גדלים, בודק שוב את ההעדפות בזמן המשלוח ומסיר אסימונים שסומנו `DeviceNotRegistered`. תגובה מפעילה התראה למחבר ההודעה ולמשתתפים קודמים בשיחה, למעט המגיב עצמו. התראות כוללות טקסט כללי ומזהה הודעה; פרטי חברים ותוכן ההודעות אינם נשלחים ל־Expo.
 
-זהו עובד תור ראשוני לתהליך שרת יחיד. `accepted` מציין קבלה ב־Expo, לא הגעה לטלפון. טיפול ב־delivery receipts, ריבוי workers וביטול כפילויות לאחר כשל חלקי נותרו לשלב ההקשחה. אם Push כבוי, התור נשמר אך לא נשלח. ההתחברות באפליקציה אינה מפעילה את ההרשאה בלי לחיצה מפורשת בהעדפות.
+זהו עובד תור ראשוני לתהליך שרת יחיד. `accepted` מציין קבלה ב־Expo, לא הגעה לטלפון. טיפול ב־delivery receipts, ריבוי workers וביטול כפילויות לאחר כשל חלקי נותרו לשלב ההקשחה. אם Push כבוי, התור נשמר אך לא נשלח. בקשת הרשאה חדשה דורשת לחיצה מפורשת במסך ההודעות או בהעדפות. לאחר מתן ההרשאה, רישום המכשיר מתעדכן אוטומטית בהתחברות, בחזרה לאפליקציה ובשינוי אסימון. התראות משתמשות בערוץ Android ייעודי בעדיפות גבוהה; לחיצה פותחת את מסך ההודעות.
 
 ## בדיקות והמשך
 

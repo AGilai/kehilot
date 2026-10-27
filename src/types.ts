@@ -44,6 +44,8 @@ export type Profile = {
 };
 export type Reply = { id: string; author: string; body: string; createdAt: string };
 export type CommunityMessage = {
+  kind?: 'healing';
+  healing?: { prayerId: string; cycleId: string; expiresOn: string };
   id: string;
   category: MessageCategory;
   title: string;
@@ -54,7 +56,8 @@ export type CommunityMessage = {
   replies: Reply[];
   attachment?: PdfAttachment | null;
 };
-export type HealingPrayer = { id: string; memberId: string; memberName: string; name: string; addedOn: string };
+export type HealingReminder = { cycleId: string; startedOn: string; dueOn: string; expiresOn: string; confirmedOn: string | null; pending: boolean; createdOn?: string | null; read?: boolean };
+export type HealingPrayer = { id: string; memberId: string | null; rosterPersonId?: string; unmatchedSubmitter?: boolean; memberName: string; name: string; addedOn: string; reminder?: HealingReminder | null };
 export type SeatingMode = 'unused' | 'needed';
 export type SeatingEvent = { id: string; date: string; title: string; parasha: string | null; mode: SeatingMode; occasion: string; revision: number; reportingOpen: boolean; configuredOpen: boolean; closesAt: string | null; isCurrent: boolean; automatic: boolean };
 export type PrayerSeats = { arvit: number; shacharit: number };

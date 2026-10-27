@@ -6,7 +6,8 @@ import { api, API_URL, ApiError } from './api';
 import { createDemo } from './demo';
 import { validateProfile } from './dates';
 import { CLASSIFICATION_OPTIONS, ClassificationOption, CommunityMessage, MessageCategory, MemberState, Preferences, Profile, PrayerSeats, SeatingStatus, Session, YahrzeitCustom, normalizeMemberState, normalizeProfile } from './types';
-import { demoHealingPrayer, healingPrayerName } from './healingPrayers';
+import { demoHealingPrayer, healingPrayerName, refreshDemoHealing, keepDemoHealing } from './healingPrayers';
+import { syncHealingInbox } from './inbox';
 import { demoSeating, demoSeatReport, seatReport } from './seating';
 
 const DEMO_KEY = 'shul.demo.v1';
@@ -26,6 +27,7 @@ type Context = {
   publishMessage: (value: { category: MessageCategory; title: string; body: string; pinned: boolean }, pdf?: { name: string; base64: string }) => Promise<CommunityMessage>;
   markRead: (id: string) => Promise<void>;
   addHealingPrayer: (name: string) => Promise<void>; deleteHealingPrayer: (id: string) => Promise<void>;
+  keepHealingPrayer: (id: string, cycleId: string) => Promise<void>;
   saveSeating: (value: PrayerSeats, context: SeatingStatus) => Promise<void>;
 };
 const StateContext = createContext<Context | null>(null);
@@ -55,6 +57,9 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
             initial.seating = demoSeating(new Date(), previousSeating);
             if (initial.seating !== previousSeating) await AsyncStorage.setItem(DEMO_KEY, JSON.stringify(initial));
           }
+          initial.healingPrayers = refreshDemoHealing(initial.healingPrayers);
+          initial = syncHealingInbox(initial);
+          await AsyncStorage.setItem(DEMO_KEY, JSON.stringify(initial));
           if (mounted) setData(initial);
         } else {
           const saved = await sessionStorage.get();
@@ -75,7 +80,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     if (isDemo) {
       const existing = dataRef.current?.seating;
       const next = demoSeating(new Date(), existing);
-      if (dataRef.current && next !== existing) await commit(value => ({ ...value, seating: next }), generation.current);
+      if (dataRef.current) await commit(value => ({ ...value, seating: next, healingPrayers: refreshDemoHealing(value.healingPrayers) }), generation.current);
       return;
     }
     if (!session || refreshing.current) return;
@@ -107,7 +112,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
   async function commit(update: (value: MemberState) => MemberState, current: number) {
     const pending = commits.current.then(async () => {
       if (current !== generation.current || !dataRef.current) return;
-      const next = update(dataRef.current);
+      const next = syncHealingInbox(update(dataRef.current));
       if (isDemo) await AsyncStorage.setItem(DEMO_KEY, JSON.stringify(next));
       if (current !== generation.current) return;
       dataVersion.current += 1;
@@ -180,7 +185,14 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
   async function markRead(id: string) {
     if (dataRef.current?.readIds.includes(id)) return;
     const current = generation.current; dataVersion.current += 1;
-    if (session) await api.read(session.token, id);
+    if (session) {
+      try { await api.read(session.token, id); }
+      catch (error) {
+        // Another device may resolve/expire the reminder while it is opening.
+        if (error instanceof ApiError && error.status === 404) { await refresh(); return; }
+        throw error;
+      }
+    }
     await commit(value => ({ ...value, readIds: [...new Set([...value.readIds, id])] }), current);
   }
   async function addHealingPrayer(value: string) {
@@ -197,13 +209,25 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     if (session) await api.deleteHealingPrayer(session.token, id);
     await commit(state => ({ ...state, healingPrayers: state.healingPrayers.filter(entry => entry.id !== id) }), current);
   }
+  async function keepHealingPrayer(id: string, cycleId: string) {
+    const entry = dataRef.current?.healingPrayers.find(row => row.id === id);
+    if (!entry) throw new Error('השם לא נמצא ברשימה שלך.');
+    const current = generation.current; dataVersion.current += 1;
+    try {
+      const saved = session ? await api.keepHealingPrayer(session.token, id, cycleId) : keepDemoHealing(entry, cycleId);
+      await commit(state => ({ ...state, healingPrayers: state.healingPrayers.map(row => row.id === id ? saved : row) }), current);
+    } catch (error) {
+      if (error instanceof ApiError && [404, 409].includes(error.status)) await refresh().catch(() => {});
+      throw error;
+    }
+  }
   async function saveSeating(value: PrayerSeats, context: SeatingStatus) {
     const payload = seatReport(context, value);
     const current = generation.current; dataVersion.current += 1;
     const saved = session ? await api.saveSeating(session.token, payload) : demoSeatReport(dataRef.current?.seating || demoSeating(), context, value);
     await commit(state => ({ ...state, seating: saved }), current);
   }
-  return <StateContext.Provider value={{ data, session, loading, error, isDemo, verifyPhone, logout, refresh, saveProfile, savePreferences, saveCommunitySettings, addReply, addClassification, publishMessage, markRead, addHealingPrayer, deleteHealingPrayer, saveSeating }}>{children}</StateContext.Provider>;
+  return <StateContext.Provider value={{ data, session, loading, error, isDemo, verifyPhone, logout, refresh, saveProfile, savePreferences, saveCommunitySettings, addReply, addClassification, publishMessage, markRead, addHealingPrayer, deleteHealingPrayer, keepHealingPrayer, saveSeating }}>{children}</StateContext.Provider>;
 }
 export function useCommunity() {
   const value = useContext(StateContext);

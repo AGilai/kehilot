@@ -16,6 +16,7 @@ Single-community member API, Python 3.11+, SQLite and pyluach (installed from se
 | PUT | `/api/profile` | Signed in | Replace own profile; no user ID or role accepted |
 | GET | `/api/healing-prayers` | Signed in | Only the caller's requested healing names |
 | POST | `/api/healing-prayers` | Signed in | `{name}`; member and Gregorian date assigned by server |
+| POST | `/api/healing-prayers/{id}/keep` | Owner only | `{cycleId}`; renew a due name and update its record date |
 | DELETE | `/api/healing-prayers/{id}` | Owner only | Permanently remove an owned name; `{ok:true}` |
 | GET | `/api/admin/healing-prayers` | Gabbai | Combined list with adding member and date |
 | GET | `/api/seating` | Signed in | Current event and own household seating status |
@@ -25,7 +26,7 @@ Single-community member API, Python 3.11+, SQLite and pyluach (installed from se
 | PUT | `/api/admin/seating/events/{id}` | Gabbai | Configure/select an existing event |
 | GET | `/api/admin/seating/events/{id}/summary` | Gabbai | Household reports, defaults and seat totals |
 | PUT | `/api/preferences` | Signed in | Replace all four boolean preferences |
-| GET | `/api/messages` | Signed in | All announcements and replies, including muted categories |
+| GET | `/api/messages` | Signed in | Community announcements/replies plus only the caller's active personal reminders |
 | POST | `/api/messages/:id/replies` | Signed in | `{body}`; only celebrations and condolences; author derived from session |
 | POST | `/api/messages/:id/read` | Signed in | `{}`; idempotent per-member read status |
 | PUT | `/api/push-token` | Signed in | `{token}`; upsert this device's Expo token, max 20 per member |
@@ -50,6 +51,16 @@ Single-community member API, Python 3.11+, SQLite and pyluach (installed from se
 | POST | `/api/admin/aliyah-services` | Gabbai | Record a Shabbat/festival service |
 | PUT | `/api/admin/aliyah-services/{id}` | Gabbai | Correct or cancel a recorded service |
 | POST | `/api/admin/messages` | Gabbai | Publish announcement and enqueue notifications |
+
+### Messages inbox and phone notifications — October 27, 2026
+
+The Messages screen combines community messages with the caller's pending Mi Sheberach reminders. A private reminder is derived from the current healing cycle, never inserted into the shared `messages` table. Its DTO uses `id:"healing-reminder-<cycleId>"`, `kind:"healing"`, `category:"event"` for compatibility, and `healing:{prayerId,cycleId,expiresOn}`. The title/body include the requested name only in authenticated owner responses. `/api/messages` and `/api/me.messages` enforce this scope even for gabbai accounts; internal `list_messages()` without a caller still returns only community content. The UI has a separate personal-reminder filter.
+
+Opening a message sends POST `/api/messages/:id/read` with `{}`. Community receipts remain in `reads`; a private read updates nullable `healing_cycles.read_on` after checking the caller's current cycle. Unknown/foreign/expired IDs return 404; repeated owner reads are idempotent. `/api/me.readIds` includes current read private IDs across restarts. Reading changes neither the record date nor expiry and does not answer keep/remove. Keep, delete or automatic expiry resolves the private message/read state; the next cycle has a new unread ID. Private reminders have no community reply endpoint. The red dot on Messages remains while any message is unread; opening the list alone does not mark cards read. Reminder details contain keep/remove controls and the exact deadline.
+
+New push payloads use `data:{screen:"messages",messageId}`, generic visible text, default sound, high priority and Android channel `messages` (HIGH importance). Foreground alerts show a banner. Live and cold-start notification taps open the Messages **list**; legacy message-ID-only and healing payloads remain supported. Handled saved responses are cleared to avoid later replay. The Messages screen and Preferences both offer explicit OS permission/device registration. Already-authorized physical devices re-register on login, foreground entry and native token changes without another prompt; concurrent registrations are suppressed.
+
+Real delivery requires an Expo project ID, Apple APNs / Firebase FCM credentials and `SHUL_ENABLE_PUSH=1`; these are absent/disabled in the preview. Builds remain local. Actual simulator banner display and cold-start tapping were verified with local `simctl push`, which does not verify Apple/Firebase/Expo network delivery.
 
 ### Community yahrzeit custom — October 26, 2026
 
@@ -158,9 +169,13 @@ Before switching an existing account to phone sign-in, a trusted server operator
 
 ### Mi Sheberach for the sick
 
-The member app has a dedicated `מי שברך` tab. It shows only the signed-in member's own remaining entries, lets them add a name in the `השם ושם האם` format, and asks for confirmation before deleting an entry. Each entry displays its Gregorian addition date as `DD-MM-YYYY`. No Hebrew date, illness details or date input is collected. Existing records remain visible until the owner deletes them; cancellation leaves them intact.
+The member app has a dedicated `מי שברך` tab. It shows only the signed-in member's own remaining entries, lets them add a name in the `השם ושם האם` format, and asks for confirmation before deleting an entry. Each entry displays its Gregorian addition/last-confirmation date as `DD-MM-YYYY`. No Hebrew date, illness details or date input is collected. Names follow the renewal/expiry policy below; cancelling a manual deletion leaves the entry intact.
 
-The `healing_prayers` table stores a technical primary key `id` plus the three business values: `member_id` (a stable foreign key to the adding account), requested `name`, and Gregorian `added_on` (`YYYY-MM-DD`). The server derives identity from the authenticated session and dates from the current Israeli civil date. Requests cannot supply the adding member or date. Reads resolve the member's current display name, so a profile rename does not break ownership or change the addition date. The schema upgrade is additive and preserves all existing person IDs and community data.
+The `healing_prayers` table stores a technical primary key `id`, submitter identity, requested `name`, and Gregorian `added_on` (`YYYY-MM-DD`). Ordinary app submissions use `member_id`, a stable foreign key to the adding account. The server derives identity from the authenticated session and dates from the current Israeli civil date. Requests cannot supply the adding member or date. Reads resolve the member's current display name, so a profile rename does not break ownership or reset the record date. The atomic schema upgrade preserves existing request/person IDs, dates and list ordering. Choosing to keep a name deliberately updates `added_on` to the confirmation date.
+
+Local administrative imports also support existing roster people who have no login account. Such a row uses `roster_person_id` instead of `member_id`; the combined admin DTO has `memberId:null`, `rosterPersonId` and the roster's current name in `memberName`. Only an explicitly authorized unmatched import can use `submitter_name` instead, returning `memberId:null`, `unmatchedSubmitter:true` and that supplied name. A CHECK constraint requires exactly one of the three identity sources. These imports do not create accounts, roster people, sessions or notifications. Roster-linked/name-only rows are visible in the gabbai combined list and printout, without granting an unrelated account ownership. Future account/roster linking requires a trusted explicit migration, not a name or editable-phone match. Imports against a roster self-person already linked to an account retain that account's ordinary ownership.
+
+`tools/import_healing_prayers.py --database <existing-db> --input <private-json>` previews an import using a disposable database copy. The JSON list requires `rosterPersonId`, the exact confirmed `submitter` name, requested `name` and ISO `addedOn`. A missing roster person requires both `rosterPersonId:null` and explicit `unmatchedSubmitter:true`. `--apply` first creates a private SQLite backup, then validates the entire batch and inserts atomically. Repeating an identical row does not duplicate it; a conflicting date or mismatched name/ID aborts the batch. Keep input, backup and receipts in an ignored private directory. Normal HTTP POST/DELETE contracts and authorization remain unchanged.
 
 ```json
 { "name": "משה בן שרה" }
@@ -171,15 +186,30 @@ A successful POST returns 201 and an entry such as:
 ```json
 {
   "id": "prayer-generated-id", "memberId": "adding-member-id",
-  "memberName": "ישראל ישראלי", "name": "משה בן שרה", "addedOn": "2026-10-25"
+  "memberName": "ישראל ישראלי", "name": "משה בן שרה", "addedOn": "2026-10-25",
+  "reminder": {
+    "cycleId": "opaque-current-cycle", "startedOn": "2026-10-25",
+    "dueOn": "2026-11-08", "expiresOn": "2026-11-25",
+    "confirmedOn": null, "pending": false, "createdOn": null, "read": false
+  }
 }
 ```
 
-Names are trimmed and must have 1–200 characters. An identical name already present for that same member returns 409; another member may request the same prayer name independently. Deleting and later adding the name creates a new entry/date. Unknown fields are rejected. GET and `/api/me.healingPrayers` are scoped to the caller, including for gabbai accounts. The separate admin GET requires gabbai authorization and supplies the combined list for prayer use; it does not grant deletion of another member's entries.
+Names are trimmed and must have 1–200 characters. An identical name already present for that same member returns 409; another member may request the same prayer name independently. Deleting and later adding the name creates a new entry/date. Unknown fields are rejected. GET and `/api/me.healingPrayers` are scoped to the caller, including for gabbai accounts. The separate admin GET requires gabbai authorization and supplies the combined list for prayer use; it does not grant deletion of another member's entries. The gabbai app now exposes this endpoint through **כלי הגבאי → מי שברך לחולים — רשימה והדפסה**, showing all names, submitter and addition date. It reloads on opening/app foreground and supports manual/pull refresh. Printing always fetches a fresh admin snapshot first, then prints names only in A4 portrait with 15 mm margins; if the refreshed list is empty or cannot be fetched, no stale printout is opened. The browser print window is created synchronously before the refresh to preserve the user’s popup gesture. Different members’ equal names remain distinct requests. The screen provides no cross-owner deletion.
 
-DELETE removes the physical row by both entry ID and authenticated owner ID. Missing or other-owned IDs return the same 404, without changing another member's data. No archival copy is retained in this table. Success returns 200 with `{ "ok": true }`, without requiring a request body. CORS preflight permits DELETE for the existing allowed origins. These endpoints do not send notifications or publish the names to ordinary members.
+DELETE removes the physical row by both entry ID and authenticated owner ID, cascading its renewal state and queued reminders. Missing or other-owned IDs return the same 404, without changing another member's data. No archival copy is retained in this table. Success returns 200 with `{ "ok": true }`, without requiring a request body. CORS preflight permits DELETE for the existing allowed origins. These endpoints do not publish names to other ordinary members.
 
-The app's shared state refreshes this own list with the regular `/api/me` refresh and on pull-to-refresh. Add/delete updates are committed only after server success; failures retain the current list and show an error. Demo mode persists the same feature locally under the existing demo storage key and never uploads demo names. Older saved demo state gains an empty `healingPrayers` array without losing profile, family, preferences or read status. The existing array is preserved if present. Profile updates and older clients do not replace or erase this separate server table.
+#### Healing-prayer renewal reminders
+
+An account-owned name becomes due for confirmation 14 Israeli calendar days after `added_on`. The owner sees the question in Messages, with **להשאיר ברשימה** / **להסיר מהרשימה** controls in the message detail and Mi Sheberach tab. An app-wide reminder banner opens Messages. The card shows the exact deletion deadline. Choosing remove uses the existing confirmed DELETE. Choosing keep sends POST `/api/healing-prayers/:id/keep` with exactly `{ "cycleId": "current-cycle" }`, returning the updated entry. The server updates `added_on` to today's Israeli date and starts a new two-week reminder / one-calendar-month expiry cycle. Each subsequent keep repeats that behavior. The immutable request/owner IDs and prayer name remain intact; the record date is intentionally renewed. The gabbai screen displays `אישור אחרון` for renewed entries.
+
+A name with no answer is physically deleted at one calendar month after its current record date, including if the phone is offline or the app is closed. Month-end dates clamp to the next month's final day (31 January → 28/29 February). The deadline is not extended by opening/refreshing the list, failed push delivery, or a server outage. An expired keep returns 404 and cannot restore the name. Missing/foreign-owned IDs also return 404; stale/already-used cycles or an early keep return 409; malformed bodies return 400. Request bodies cannot choose a new date or another owner. A later re-add is a new entry/cycle.
+
+`healing_cycles` stores current-cycle dates, a nonce and a nullable owner read date; `healing_reminder_outbox` queues at most one reminder per prayer/cycle. The API starts a durable cleanup/reminder worker every 30 seconds, independent of `SHUL_ENABLE_PUSH`, and authenticated list reads also reconcile due/expired rows. Creation of a reminder and its outbox job is transactional; keep/delete cancels the old queued job. Workers follow the existing single-process deployment model. Existing account-owned rows initialize from their current record dates, so an already expired owned row is eligible for removal when the feature starts. Unlinked roster/name-only imports have `reminder:null`: they stay on hold, with no reminder or automatic deletion, until a trusted account-linking step establishes an owner. Never infer that link from editable names/phone fields.
+
+With `SHUL_ENABLE_PUSH=1` and a registered physical device, the personal reminder also goes through the existing Expo push delivery service. Tapping it opens the Messages list. Its generic text asks whether to keep/remove a name; the prayer name and member details are fetched only inside the authenticated app. Notification data contains `screen:"messages"` and an opaque `messageId` identifying the current private reminder. These personal reminders are independent of the community-event notification preference; OS permission/device registration is still required. Missing tokens retry hourly until the deadline; delivery errors use the existing bounded retry pattern and invalid device tokens are removed. In-app reminders and expiry do not depend on push delivery success. Push acceptance is not proof of delivery. The local preview keeps external push disabled.
+
+The app's shared state refreshes this own list with the regular `/api/me` refresh and on pull-to-refresh. Add/keep/delete updates are committed only after server success; stale/expired keep responses refresh the list. Demo mode applies the same calendar-day renewal/expiry rules on local refresh, persists under the existing demo storage key and never sends real notifications or uploads demo names. Older saved demo state gains an empty `healingPrayers` array without losing profile, family, preferences or read status. Profile updates and older clients do not replace or erase this separate server table.
 
 ### Separate member names
 

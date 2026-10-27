@@ -9,6 +9,8 @@ import os
 import threading
 import time
 import urllib.request
+from .validation import israel_today
+from .healing import message_id as healing_message_id
 
 
 def process_one(store, send=None):
@@ -26,8 +28,8 @@ def process_one(store, send=None):
             return True
     try:
         body = 'תגובה חדשה בקהילה' if job['preference'] == 'replies' else 'הודעה חדשה מהגבאים'
-        data = dict(messageId=job['message_id'])
-        payload = [dict(to=token, title='הקהילה שלי', body=body, data=data, channelId='community', sound='default') for token in tokens]
+        data = dict(screen='messages', messageId=job['message_id'])
+        payload = [dict(to=token, title='הקהילה שלי', body=body, data=data, channelId='messages', priority='high', sound='default') for token in tokens]
         result = send(payload)
         tickets = result.get('data', [])
         if len(tickets) != len(tokens):
@@ -60,6 +62,59 @@ def send_to_expo(payload):
     request = urllib.request.Request('https://exp.host/--/api/v2/push/send', data=json.dumps(payload).encode(), headers=headers, method='POST')
     with urllib.request.urlopen(request, timeout=15) as response:
         return json.load(response)
+
+
+def process_healing_one(store, send=None):
+    """Private reminder details are fetched by the authenticated app."""
+    send = send or send_to_expo
+    with store.db() as db:
+        job = db.execute('''SELECT o.*,c.expires_on,c.confirmed_on FROM healing_reminder_outbox o
+            JOIN healing_prayers p ON p.id=o.prayer_id AND p.member_id=o.user_id
+            JOIN healing_cycles c ON c.prayer_id=p.id AND c.cycle_id=o.cycle_id
+            WHERE o.status='pending' AND o.available_at<=? AND c.reminder_created_on IS NOT NULL
+            ORDER BY o.available_at LIMIT 1''', (time.time(),)).fetchone()
+        if not job:
+            return False
+        if job['expires_on'] <= israel_today().isoformat():
+            db.execute("UPDATE healing_reminder_outbox SET status='skipped' WHERE id=?", (job['id'],))
+            return True
+        tokens = [r['token'] for r in db.execute('''SELECT p.token FROM push_tokens p
+            JOIN sessions s ON p.session_hash=s.hash WHERE p.user_id=? AND s.expires>?''', (job['user_id'], time.time()))]
+        if not tokens:
+            # Keep the durable in-app reminder, and retry if this member later
+            # enables push/signs in on a physical device before the deadline.
+            db.execute('UPDATE healing_reminder_outbox SET available_at=? WHERE id=?', (time.time() + 3600, job['id']))
+            return True
+    try:
+        body = ('חלפו שבועיים מאז שאישרת להשאיר שם למי שברך לחולים.' if job['confirmed_on'] else
+                'חלפו שבועיים מאז שהוספת שם למי שברך לחולים.') + ' האם להשאירו ברשימה או להסירו?'
+        payload = [dict(to=token, title='מי שברך לחולים — תזכורת', body=body,
+                        data=dict(screen='messages', messageId=healing_message_id(job['cycle_id'])),
+                        channelId='messages', priority='high', sound='default') for token in tokens]
+        tickets = send(payload).get('data', [])
+        if len(tickets) != len(tokens):
+            raise ValueError('Unexpected Expo response')
+        retry = False
+        with store.db() as db:
+            for token, ticket in zip(tokens, tickets):
+                if ticket.get('status') == 'ok':
+                    continue
+                if ticket.get('details', {}).get('error') == 'DeviceNotRegistered':
+                    db.execute('DELETE FROM push_tokens WHERE token=?', (token,))
+                else:
+                    retry = True
+        if retry:
+            raise ValueError('Expo rejected a healing reminder ticket')
+        with store.db() as db:
+            db.execute("UPDATE healing_reminder_outbox SET status='accepted' WHERE id=?", (job['id'],))
+    except Exception:
+        attempts = job['attempts'] + 1
+        with store.db() as db:
+            db.execute('''UPDATE healing_reminder_outbox SET attempts=?,available_at=?,status=? WHERE id=?''',
+                       (attempts, time.time() + min(3600, 30 * 2 ** attempts),
+                        'failed' if attempts >= 5 else 'pending', job['id']))
+        logging.warning('Healing reminder push attempt failed; attempt %d', attempts)
+    return True
 
 
 def start_worker(store, stop):
