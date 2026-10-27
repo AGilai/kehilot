@@ -1,5 +1,5 @@
 import { normalize } from '../search/normalize.ts';
-import type { MemberRow, Role } from './types.ts';
+import type { AdminFamily, MemberRow, Role } from './types.ts';
 
 export type MemberFilter = { query: string; role?: Role; canBroadcast?: boolean; group?: string };
 
@@ -37,4 +37,17 @@ export function takeManageEntry(holder: { current: number | null }, role: Role |
 /** Group IDs of a person that still exist in the Kehila's group list. */
 export function existingGroups(ids: string[], all: string[]): string[] {
   return ids.filter(i => all.includes(i));
+}
+
+/** P11 line of one person: the partner's name (null when alone) and how many children the family has. */
+export function familyLine(userId: string, families: AdminFamily[]): { partnerName: string | null; children: number } {
+  const f = families.find(x => x.adults.some(a => a.userId === userId));
+  if (!f) return { partnerName: null, children: 0 };
+  return { partnerName: f.adults.find(a => a.userId !== userId)?.displayName ?? null, children: f.children.length };
+}
+
+/** Members and gabbaim whose family has one adult (or none yet), without the person being linked. */
+export function linkCandidates(members: MemberRow[], families: AdminFamily[], exceptUserId: string): MemberRow[] {
+  return members.filter(m => m.role !== 'listener' && m.userId !== exceptUserId
+    && !families.some(f => f.adults.length > 1 && f.adults.some(a => a.userId === m.userId)));
 }

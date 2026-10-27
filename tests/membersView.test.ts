@@ -59,3 +59,29 @@ test('groups seed keeps only existing group ids', async () => {
   const { existingGroups } = await import('../src/client/membersView.ts');
   assert.deepEqual(existingGroups(['g1', 'gone', 'g2'], ['g1', 'g2', 'g3']), ['g1', 'g2']);
 });
+
+// P11: family line and link candidates. Invented names.
+const fam = (id: string, adults: string[], kids: number) => ({
+  familyId: id, name: 'בדיוני', adults: adults.map(u => ({ userId: u, displayName: 'שם ' + u })),
+  children: Array.from({ length: kids }, (_, i) => ({ firstName: 'ילד' + i, gender: 'm' as const })),
+});
+
+test('family line with partner and children', async () => {
+  const { familyLine } = await import('../src/client/membersView.ts');
+  assert.deepEqual(familyLine('u1', [fam('f1', ['u1', 'u2'], 3)]), { partnerName: 'שם u2', children: 3 });
+  assert.deepEqual(familyLine('u2', [fam('f1', ['u1', 'u2'], 3)]), { partnerName: 'שם u1', children: 3 });
+});
+
+test('family line alone', async () => {
+  const { familyLine } = await import('../src/client/membersView.ts');
+  assert.deepEqual(familyLine('u3', [fam('f2', ['u3'], 1)]), { partnerName: null, children: 1 });
+  assert.deepEqual(familyLine('u9', []), { partnerName: null, children: 0 }); // no family item yet
+});
+
+test('link candidates exclude linked people and self', async () => {
+  const { linkCandidates } = await import('../src/client/membersView.ts');
+  const m = [row('u1', 'א'), row('u2', 'ב'), row('u3', 'ג'), row('u4', 'ד', { role: 'gabbai' }), row('u5', 'ה', { role: 'listener' }), row('u6', 'ו')];
+  const families = [fam('f1', ['u1', 'u2'], 0), fam('f2', ['u3'], 1)];
+  assert.deepEqual(ids(linkCandidates(m, families, 'u3')), ['u4', 'u6']); // u1,u2 linked; u3 self; u5 listener
+  assert.deepEqual(ids(linkCandidates(m, families, 'u6')), ['u3', 'u4']);
+});

@@ -1,16 +1,20 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
 import { keyedFlight } from '../../client/singleFlight.ts';
-import { existingGroups } from '../../client/membersView.ts';
+import { familyLine, existingGroups } from '../../client/membersView.ts';
+import { config } from '../../config.ts';
+import { fixtureParams } from '../../client/fixtures.ts';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
 import { bulkCount, filterMembers } from '../../client/membersView.ts';
-import type { Classification, Group, MemberFields, MemberRow, Role } from '../../client/types.ts';
+import type { AdminFamily, Classification, Group, MemberFields, MemberRow, Role } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { textStart } from '../../i18n/direction.ts';
 import { Banner, Button, Card, Chip, Sheet, Tag, Toggle, Txt, useTokens } from '../../kit/components.tsx';
 import { TOUCH, fonts, type } from '../../kit/theme.ts';
 import { WIDE, useAdminErrText } from './shared.tsx';
+import { FamilyBlock } from './FamilyBlock.tsx';
+import { LinkSheet } from './LinkSheet.tsx';
 
 const CLASS_KEY: Record<string, string> = { '': 'none', 'א': 'a', 'קבוע': 'kavua' };
 
@@ -36,9 +40,9 @@ function GroupsSheet({ row, groups, onClose, onSave }: { row: MemberRow | null; 
 }
 
 /** Actions of one person: role, classification, groups, remove (confirmed). */
-function Actions({ row, error, busy, onFields, onGroups, onRemove }: {
-  row: MemberRow; error: string | null; busy: boolean;
-  onFields: (f: MemberFields) => void; onGroups: () => void; onRemove: () => Promise<void>;
+function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, onRemove }: {
+  row: MemberRow; error: string | null; busy: boolean; family: AdminFamily | undefined; alone: boolean;
+  onFields: (f: MemberFields) => void; onGroups: () => void; onLink: () => void; onRemove: () => Promise<void>;
 }) {
   const { t } = useI18n();
   const [asking, setAsking] = React.useState(false);
@@ -48,6 +52,8 @@ function Actions({ row, error, busy, onFields, onGroups, onRemove }: {
       {error ? <Banner tone="error" text={error} /> : null}
       {row.role !== 'listener' ? (
         <>
+          <FamilyBlock family={family} />
+          {alone ? <Button kind="secondary" title={t('admin.members.link')} onPress={onLink} /> : null}
           <Button kind="secondary" title={row.role === 'gabbai' ? t('admin.members.makeMember') : t('admin.members.makeGabbai')} busy={busy} onPress={() => onFields({ role: flip })} />
           <Txt size="small" bold>{t('admin.members.class.label')}</Txt>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -86,17 +92,21 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
   const [role, setRole] = React.useState<Role | undefined>(undefined);
   const [send, setSend] = React.useState<boolean | undefined>(undefined);
   const [group, setGroup] = React.useState<string | undefined>(undefined);
-  const [open, setOpen] = React.useState<string | null>(null);
+  const fxScreen = config.fixtures ? fixtureParams().screen : undefined; // frame P11: דנה open, or the link sheet of מיכל
+  const [open, setOpen] = React.useState<string | null>(fxScreen === 'admin-families' ? '01FIXTUREUSER00000000021' : null);
   const [rowError, setRowError] = React.useState<{ id: string; text: string } | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [bulk, setBulk] = React.useState<boolean | null>(null);
   const [groupsFor, setGroupsFor] = React.useState<string | null>(null);
+  const [families, setFamilies] = React.useState<AdminFamily[]>([]);
+  const [linkFor, setLinkFor] = React.useState<string | null>(fxScreen === 'admin-link' ? '01FIXTUREUSER00000000023' : null);
   const flight = React.useRef(keyedFlight()).current;
 
   const load = React.useCallback(async () => {
-    const [m, g] = await Promise.allSettled([api.members(kehilaId), api.groups(kehilaId)]);
+    const [m, g, f] = await Promise.allSettled([api.members(kehilaId), api.groups(kehilaId), api.adminFamilies(kehilaId)]);
     if (m.status === 'fulfilled') { setRows(m.value); setError(null); } else { setError(errText(m.reason)); setRows(prev => prev ?? []); }
     if (g.status === 'fulfilled') setGroups(g.value);
+    if (f.status === 'fulfilled') setFamilies(f.value);
   }, [api, kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => { void load(); }, [load]);
 
@@ -142,8 +152,14 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
       {r.groups.map(g => groupNames.get(g)).filter((n): n is string => !!n).map(n => <Tag key={n} label={n} />)}
     </View>
   );
+  const familyOf = (u: string) => families.find(f => f.adults.some(a => a.userId === u));
+  const famText = (r: MemberRow) => {
+    if (r.role === 'listener') return null;
+    const l = familyLine(r.userId, families);
+    return `${l.partnerName ? t('admin.members.familyWith', { name: l.partnerName }) : t('admin.members.familyAlone')} · ${t('admin.members.children', { n: l.children })}`;
+  };
   const actions = (r: MemberRow) => open === r.userId ? (
-    <Actions row={r} busy={busy === r.userId} error={rowError?.id === r.userId ? rowError.text : null}
+    <Actions row={r} family={familyOf(r.userId)} alone={(familyOf(r.userId)?.adults.length ?? 1) < 2} onLink={() => setLinkFor(r.userId)} busy={busy === r.userId} error={rowError?.id === r.userId ? rowError.text : null}
       onFields={f => void update(r.userId, f)} onGroups={() => setGroupsFor(r.userId)} onRemove={() => remove(r.userId)} />
   ) : null;
   const toggleOpen = (r: MemberRow) => { setOpen(o => (o === r.userId ? null : r.userId)); setRowError(null); };
@@ -197,7 +213,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
   const body = wide ? (
     <View style={{ backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line }}>
       <View style={{ flexDirection: 'row', gap: 12, padding: 12, borderBottomWidth: 1, borderBottomColor: k.line }}>
-        {head(t('admin.members.colName'), 3)}{head(t('admin.members.colRole'), 1.2)}{head(t('admin.members.colClass'), 1.2)}{head(t('admin.members.colGroups'), 3)}{head(t('admin.members.colSend'), 2)}
+        {head(t('admin.members.colName'), 3)}{head(t('admin.members.colRole'), 1.2)}{head(t('admin.members.colClass'), 1.2)}{head(t('admin.members.family'), 3)}{head(t('admin.members.colGroups'), 3)}{head(t('admin.members.colSend'), 2)}
         <View style={{ width: 120 }} />
       </View>
       {shown.map(r => (
@@ -206,6 +222,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
             <Txt bold style={{ flex: 3 }}>{r.displayName}</Txt>
             <View style={{ flex: 1.2, alignItems: 'flex-start' }}><Tag label={t(`admin.members.role.${r.role}`)} tone={r.role === 'gabbai' ? 'strong' : 'plain'} /></View>
             <Txt style={{ flex: 1.2 }}>{r.classification ? t(`admin.members.class.${CLASS_KEY[r.classification]}`) : '–'}</Txt>
+            <Txt size="small" style={{ flex: 3 }}>{famText(r) ?? '–'}</Txt>
             <View style={{ flex: 3 }}>{r.groups.length ? chips(r) : <Txt size="small" color={k.muted}>{t('admin.members.noGroups')}</Txt>}</View>
             <View style={{ flex: 2 }}>{sendSwitch(r)}</View>
             <View style={{ width: 120 }}><Button kind="secondary" title={t('admin.members.details')} onPress={() => toggleOpen(r)} /></View>
@@ -224,6 +241,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
               <Tag label={t(`admin.members.role.${r.role}`)} tone={r.role === 'gabbai' ? 'strong' : 'plain'} />
               {r.classification ? <Tag label={t(`admin.members.class.${CLASS_KEY[r.classification]}`)} /> : null}
             </View>
+            {famText(r) ? <Txt size="small" color={k.muted}>{famText(r)}</Txt> : null}
             {chips(r)}
           </Pressable>
           {sendSwitch(r)}
@@ -233,6 +251,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
     </View>
   );
 
+  const linking = all.find(r => r.userId === linkFor) ?? null;
   const editing = all.find(r => r.userId === groupsFor) ?? null;
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1200 : 680, alignSelf: 'center' }}>
@@ -244,6 +263,8 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
       {rows && shown.length === 0 ? <Txt color={k.muted}>{t('admin.members.empty')}</Txt> : body}
       <GroupsSheet row={editing} groups={groups} onClose={() => setGroupsFor(null)}
         onSave={async ids => { const e = await update(groupsFor!, { groups: ids }, t('admin.members.groupsSaved')); if (!e) setGroupsFor(null); return e; }} />
+      <LinkSheet person={linking} members={all} families={families} kehilaId={kehilaId} onClose={() => setLinkFor(null)}
+        onLinked={() => { setLinkFor(null); onToast(t('admin.link.done')); void load(); }} />
     </ScrollView>
   );
 }
