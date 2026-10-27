@@ -82,7 +82,7 @@ test('between 0.5 MB and 1 MiB after all steps is accepted', async () => {
   assert.equal(r.bytes, 900_000);
 });
 
-const grant: UploadGrant = { uploadId: 'U1', url: 'https://s3.example.invalid/x?sig=1', method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, expiresAt: '2026-10-26T10:00:00Z' };
+const grant: UploadGrant = { uploadId: 'U1', url: 'https://s3.example.invalid/x?sig=1', method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, expiresAt: 1793008800 };
 
 test('upload sends only grant headers, no Authorization', async () => {
   const seen: Array<{ url: string; init: RequestInit }> = [];

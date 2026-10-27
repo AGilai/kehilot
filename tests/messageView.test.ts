@@ -80,8 +80,8 @@ test('gabbai outside the group sees the channel only under all', () => {
 test('replies show only to the target and to their own author', () => {
   const m = msg('m1', { type: 'condolence', targetMemberId: 'u9' });
   const rs: Reply[] = [
-    { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'א', createdAt: '2026-10-26T10:00:00Z' },
-    { replyId: 'r2', authorId: 'u2', authorName: 'רון לדוגמה', body: 'ב', createdAt: '2026-10-26T11:00:00Z' },
+    { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'א', createdAt: 1793008800 },
+    { replyId: 'r2', authorId: 'u2', authorName: 'רון לדוגמה', body: 'ב', createdAt: 1793012400 },
   ];
   assert.deepEqual(visibleReplies(m, rs, 'u9').map(r => r.replyId), ['r1', 'r2']);
   assert.deepEqual(visibleReplies(m, rs, 'u1').map(r => r.replyId), ['r1']);

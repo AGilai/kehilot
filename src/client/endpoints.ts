@@ -28,7 +28,7 @@ export function endpoints(http: Http) {
     kehila: (k: string) => r<Kehila>('GET', K(k)),
     logo: (k: string) => r<Logo>('GET', `${K(k)}/logo`),
     createInvite: (k: string, o: InviteOptions = {}) =>
-      r<{ code: string; expiresAt: string }>('POST', `${K(k)}/invites`, Object.keys(o).length ? o : undefined),
+      r<{ code: string; expiresAt: number }>('POST', `${K(k)}/invites`, Object.keys(o).length ? o : undefined),
     invites: (k: string) => r<InviteRow[]>('GET', `${K(k)}/invites`),
     revokeInvite: (k: string, code: string) => r<void>('DELETE', `${K(k)}/invites/${e(code)}`),
     previewInvite: (code: string) => r<InvitePreview>('GET', `/v1/invites/${e(code)}`, undefined, { auth: false }),
@@ -48,7 +48,7 @@ export function endpoints(http: Http) {
     requestUpload: (k: string, o: { channelId: string; contentType: 'image/jpeg' | 'image/png'; bytes: number }) =>
       r<UploadGrant>('POST', `${K(k)}/uploads`, o),
     messageImage: (k: string, m: string) =>
-      r<{ url: string; expiresAt: string }>('GET', `${K(k)}/messages/${e(m)}/image`),
+      r<{ url: string; expiresAt: number }>('GET', `${K(k)}/messages/${e(m)}/image`),
     setChatLimit: (k: string, c: string, chatHourlyLimit: number) =>
       r<Record<string, never>>('PUT', `${K(k)}/channels/${e(c)}/chat-settings`, { chatHourlyLimit }),
 

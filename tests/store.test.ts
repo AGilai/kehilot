@@ -168,7 +168,7 @@ test('feed.loaded stays false while the initial load fails', async () => {
 });
 
 test('reply posted is appended at once, kept in memory only, deduplicated; markRead is local first', async () => {
-  const reply = { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'מזל טוב', createdAt: '2026-10-26T10:00:00Z' };
+  const reply = { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'מזל טוב', createdAt: 1793008800 };
   const msg = { messageId: 'M1', channelId: 'c1', type: 'celebration', title: 't', body: 'b', authorId: 'a', authorName: 'x', authorKind: 'management', joinCount: 0, targetMemberId: 'u9' };
   const reads: string[] = [];
   const { api } = fakeApi(meOf(['k1']), {

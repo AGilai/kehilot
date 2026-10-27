@@ -9,7 +9,7 @@ const msg = (id: string, over: Partial<Message> = {}): Message => ({
   authorKind: 'member', joinCount: 0, ...over,
 });
 const reply = (id: string, messageId = 'M1'): Reply & { messageId: string } =>
-  ({ replyId: id, messageId, authorId: 'a', authorName: 'n', body: 'x', createdAt: '2026-01-01T00:00:00Z' });
+  ({ replyId: id, messageId, authorId: 'a', authorName: 'n', body: 'x', createdAt: 1767225600 });
 const added = (m: Message): Change => ({ kind: 'message', id: m.messageId, item: m });
 const removed = (id: string): Change => ({ kind: 'message_removed', id, item: { id } });
 const readOf = (id: string): Change => ({ kind: 'read', id, item: { messageId: id } });
@@ -285,7 +285,7 @@ test('start works destructured; pollNow success resets backoff', async () => {
 import { markReadLocal, mergeReplies } from '../src/client/feed.ts';
 
 test('mergeReplies dedupes by replyId and keeps order', () => {
-  const r = (id: string) => ({ replyId: id, authorId: 'u1', authorName: 'דנה בדויה', body: id, createdAt: '2026-10-26T10:00:00Z' });
+  const r = (id: string) => ({ replyId: id, authorId: 'u1', authorName: 'דנה בדויה', body: id, createdAt: 1793008800 });
   const s0 = { ...feedFromMessages([]), replies: { m1: [r('r1')] } };
   const s1 = mergeReplies(s0, 'm1', [r('r1'), r('r2')]);
   assert.deepEqual(s1.replies.m1!.map(x => x.replyId), ['r1', 'r2']);

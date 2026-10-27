@@ -1,4 +1,5 @@
 import React from 'react';
+import { fromEpochSeconds } from '../client/time.ts';
 import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { NAME_MAX } from '../auth/validate.ts';
@@ -93,7 +94,7 @@ function MyLinks({ kehilaId, version, onToast }: { kehilaId: string; version: nu
       if (e instanceof ApiCodeError && e.code === 'invite_not_found') { setAsking(null); await load(); } else setError(errText(e));
     } finally { setBusy(false); }
   }
-  const date = (iso: string) => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'short' }).format(new Date(iso));
+  const date = (seconds: number) => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'short' }).format(fromEpochSeconds(seconds));
 
   return (
     <Card>

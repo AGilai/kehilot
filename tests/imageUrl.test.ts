@@ -4,7 +4,7 @@ import { createImageUrls } from '../src/media/imageUrl.ts';
 import { ApiCodeError } from '../src/client/errors.ts';
 
 const T0 = Date.parse('2026-10-26T10:00:00Z');
-const grant = (n: number, secs = 300) => ({ url: `https://s3.invalid/img-${n}`, expiresAt: new Date(T0 + secs * 1000).toISOString() });
+const grant = (n: number, secs = 300) => ({ url: `https://s3.invalid/img-${n}`, expiresAt: Math.floor(T0 / 1000) + secs });
 
 test('url reused until 30 s before expiry', async () => {
   let now = T0; let n = 0;

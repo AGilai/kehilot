@@ -92,7 +92,7 @@ export type PostMessageBody = {
   imageUploadId?: string;
 };
 
-export type Reply = { replyId: string; authorId: string; authorName: string; body: string; createdAt: string };
+export type Reply = { replyId: string; authorId: string; authorName: string; body: string; createdAt: number };
 
 export type Change =
   | { kind: 'message' | 'join' | 'reply_count'; id: string; item: Message }
@@ -102,13 +102,13 @@ export type Change =
 
 export type ChangesPage = { cursor: string; more: boolean; changes: Change[] } | { resync: true };
 
-export type InvitePreview = { kehilaName: string; role: Role; expiresAt: string };
-export type InviteRow = { code: string; role: Role; usesLeft: number; expiresAt: string; mine: boolean };
+export type InvitePreview = { kehilaName: string; role: Role; expiresAt: number };
+export type InviteRow = { code: string; role: Role; usesLeft: number; expiresAt: number; mine: boolean };
 export type InviteOptions = { uses?: number; days?: number; role?: 'listener' | 'member'; classification?: Classification };
 
 export type DirectoryEntry = { userId: string; displayName: string };
 
-export type RequestRow = { userId: string; displayName: string; createdAt: string; previouslyRejected: boolean };
+export type RequestRow = { userId: string; displayName: string; createdAt: number; previouslyRejected: boolean };
 
 export type MemberRow = {
   userId: string;
@@ -131,7 +131,7 @@ export type Group = {
 };
 /** Member-facing listing row. */
 export type GroupMembership = { groupId: string; name: string; isMember: boolean; isAdmin: boolean; requested: boolean };
-export type GroupRequestRow = { userId: string; displayName: string; role: Role; createdAt: string };
+export type GroupRequestRow = { userId: string; displayName: string; role: Role; createdAt: number };
 export type GroupMemberRow = { userId: string; displayName: string; role: Role; isAdmin: boolean };
 
 export type ImportRow = {
@@ -166,5 +166,5 @@ export type UploadGrant = {
   url: string;
   method: 'PUT';
   headers: Record<string, string>;
-  expiresAt: string;
+  expiresAt: number;
 };

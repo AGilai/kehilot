@@ -1,4 +1,5 @@
 import React from 'react';
+import { fromEpochSeconds } from '../../client/time.ts';
 import { Pressable, View } from 'react-native';
 import { useErrorText } from '../auth/Frame.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
@@ -6,9 +7,9 @@ import { Txt, useTokens } from '../../kit/components.tsx';
 import { TOUCH } from '../../kit/theme.ts';
 
 /** Short local date in the current language. */
-export function useShortDate(): (iso: string) => string {
+export function useShortDate(): (seconds: number) => string {
   const { lang } = useI18n();
-  return iso => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'short' }).format(new Date(iso));
+  return seconds => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'short' }).format(fromEpochSeconds(seconds));
 }
 
 /** Small read-only label (role, classification, group). */

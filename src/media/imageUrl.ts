@@ -1,11 +1,12 @@
 import { ApiCodeError } from '../client/errors.ts';
+import { fromEpochSeconds } from '../client/time.ts';
 
 export const REUSE_MARGIN_MS = 30_000;
 
-type Grant = { url: string; expiresAt: string };
+type Grant = { url: string; expiresAt: number };
 
 /**
- * Presigned image GET URLs, in memory only: reused until 30 s before `expiresAt`, one request at a time
+ * Presigned image GET URLs, in memory only: reused until 30 s before `expiresAt` (Unix seconds), one request at a time
  * per message. A message without an image (404 `not_found`) gives null. The URL is never logged or stored.
  */
 export function createImageUrls(api: { messageImage(k: string, m: string): Promise<Grant> }, now: () => number = Date.now) {
@@ -22,7 +23,7 @@ export function createImageUrls(api: { messageImage(k: string, m: string): Promi
       const p = (async () => {
         try {
           const g = await api.messageImage(k, m);
-          cache.set(key, { url: g.url, until: Date.parse(g.expiresAt) - REUSE_MARGIN_MS });
+          cache.set(key, { url: g.url, until: fromEpochSeconds(g.expiresAt).getTime() - REUSE_MARGIN_MS });
           return g.url;
         } catch (e) {
           cache.delete(key);

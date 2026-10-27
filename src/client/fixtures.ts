@@ -89,6 +89,8 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   const targetId = screen === 'm3target' ? me.userId : '01FIXTUREUSER00000000002';
   const now = Date.now();
   const H = 3600_000;
+  /** The server sends times as Unix seconds. */
+  const secs = (ms: number) => Math.floor(ms / 1000);
   const mk = (ago: number, n: number, over: Partial<Message>): Message => ({
     messageId: fixtureUlid(now - ago, n), channelId: cAnn, type: 'weekly', title: '', body: '', authorId: 'm1', authorName: 'יוסי לדוגמה',
     authorKind: 'management', joinCount: 0, ...over,
@@ -110,7 +112,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   const celebration = messages[1]!;
   // The server returns replies only to the target and to their own author; a gabbai gets none.
   const someReply = (n: number, authorId: string, authorName: string, body: string): Reply =>
-    ({ replyId: fixtureUlid(now - n * H, n), authorId, authorName, body, createdAt: new Date(now - n * H).toISOString() });
+    ({ replyId: fixtureUlid(now - n * H, n), authorId, authorName, body, createdAt: secs(now - n * H) });
   const repliesFor = (m: Message): Reply[] => {
     if (role === 'gabbai' && m.targetMemberId !== me.userId) return [];
     if (m.targetMemberId === me.userId) return [someReply(1, 'u7', 'רון לדוגמה', 'מזל טוב ושמחה גדולה!'), someReply(2, 'u8', 'מיכל בדויה', 'מברכים מכל הלב, שתזכו לנחת.')];
@@ -131,26 +133,26 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     routes[`POST ${base}/read`] = undefined;
     routes[`POST ${base}/join`] = { joinCount: m.joinCount + 1, joined: true };
     routes[`DELETE ${base}`] = undefined;
-    if (m.image) routes[`GET ${base}/image`] = { url: FIXTURE_PICTURE, expiresAt: new Date(now + 300_000).toISOString() };
+    if (m.image) routes[`GET ${base}/image`] = { url: FIXTURE_PICTURE, expiresAt: secs(now + 300_000) };
   }
   for (const x of me.kehilot.slice(1)) {
     routes[`GET /v1/kehilot/${x.kehilaId}`] = { ...kehila, kehilaId: x.kehilaId, name: x.name, role: x.role };
     routes[`GET /v1/kehilot/${x.kehilaId}/channels`] = channels;
   }
   // Invite previews (public): 7K3M9Q2XPA is valid, 4D8F2H6NRT has expired. Same codes as views/useIncomingLink.ts.
-  routes['GET /v1/invites/7K3M9Q2XPA'] = { kehilaName: kehila.name, role: 'member', expiresAt: '2026-11-20T12:00:00.000Z' };
+  routes['GET /v1/invites/7K3M9Q2XPA'] = { kehilaName: kehila.name, role: 'member', expiresAt: secs(now + 24 * 24 * H) };
   routes[`POST /v1/kehilot/${kehila.kehilaId}/membership-request`] = {};
   routes[`PUT /v1/kehilot/${kehila.kehilaId}/me/notify`] = {};
   routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] = [
-    { code: '7K3M9Q2XPA', role: 'listener', usesLeft: 8, expiresAt: new Date(now + 5 * 24 * H).toISOString(), mine: true },
-    { code: '4D8F2H6NRT', role: 'listener', usesLeft: 10, expiresAt: new Date(now + 2 * 24 * H).toISOString(), mine: true },
+    { code: '7K3M9Q2XPA', role: 'listener', usesLeft: 8, expiresAt: secs(now + 5 * 24 * H), mine: true },
+    { code: '4D8F2H6NRT', role: 'listener', usesLeft: 10, expiresAt: secs(now + 2 * 24 * H), mine: true },
   ];
-  routes[`POST /v1/kehilot/${kehila.kehilaId}/invites`] = { code: '9P2R5T8WXZ', expiresAt: new Date(now + 7 * 24 * H).toISOString() };
+  routes[`POST /v1/kehilot/${kehila.kehilaId}/invites`] = { code: '9P2R5T8WXZ', expiresAt: secs(now + 7 * 24 * H) };
   // Management (gabbai). Invented names only.
   const A = `/v1/kehilot/${kehila.kehilaId}/admin`;
   const requests = [
-    { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', createdAt: new Date(now - 30 * H).toISOString(), previouslyRejected: false },
-    { userId: '01FIXTUREUSER00000000012', displayName: 'אורי לדוגמה', createdAt: new Date(now - 5 * H).toISOString(), previouslyRejected: true },
+    { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', createdAt: secs(now - 30 * H), previouslyRejected: false },
+    { userId: '01FIXTUREUSER00000000012', displayName: 'אורי לדוגמה', createdAt: secs(now - 5 * H), previouslyRejected: true },
   ];
   const memberRows = [
     { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'] },
@@ -181,8 +183,8 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', isAdmin: true },
   ];
   routes[`GET ${K}/groups/01FIXTUREGROUP00000000001/requests`] = [
-    { userId: '01FIXTUREUSER00000000013', displayName: 'תמר הנחל', role: 'listener', createdAt: new Date(now - 30 * H).toISOString() },
-    { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', role: 'member', createdAt: new Date(now - 5 * H).toISOString() },
+    { userId: '01FIXTUREUSER00000000013', displayName: 'תמר הנחל', role: 'listener', createdAt: secs(now - 30 * H) },
+    { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', role: 'member', createdAt: secs(now - 5 * H) },
   ];
   routes[`GET ${K}/groups/01FIXTUREGROUP00000000002/requests`] = [];
   routes[`GET ${K}/groups/01FIXTUREGROUP00000000002/members`] = [{ userId: 'u8', displayName: 'מיכל בדויה', role: 'member', isAdmin: true }];
@@ -199,7 +201,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   routes[`GET /v1/kehilot/${kehila.kehilaId}`] = { ...kehila, settings: { pollSeconds: 60, maxListeners: 500 }, listenerCount: 37 };
   routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] = [
     ...(routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] as unknown[]),
-    { code: '3B6D9F2HKM', role: 'member', usesLeft: 3, expiresAt: new Date(now + 3 * 24 * H).toISOString(), mine: false },
+    { code: '3B6D9F2HKM', role: 'member', usesLeft: 3, expiresAt: secs(now + 3 * 24 * H), mine: false },
   ];
   const http: Http = {
     async request(method, path, body) {
@@ -213,7 +215,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
       }
       if (method === 'POST' && key.endsWith('/replies')) {
         const text = String((body as { body?: unknown } | undefined)?.body ?? '');
-        return { replyId: fixtureUlid(Date.now(), 31), authorId: me.userId, authorName: 'דנה בדויה', body: text, createdAt: new Date().toISOString() } as any;
+        return { replyId: fixtureUlid(Date.now(), 31), authorId: me.userId, authorName: 'דנה בדויה', body: text, createdAt: secs(Date.now()) } as any;
       }
       if (/\/(admin\/)?groups(\/|$)/.test(key) && method !== 'GET') return (method === 'DELETE' || method === 'PUT' && /\/admins\//.test(key) ? undefined : {}) as any;
       if (method === 'PUT' && /\/chat-settings$/.test(key)) return {} as any;
