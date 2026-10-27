@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_tags
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -41,6 +41,11 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members$'), routes_admin.list_members),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.update_member),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)$'), routes_admin.remove_member),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/tags$'), routes_tags.list_tags),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/tags$'), routes_tags.create_tag),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/tags/(?P<tagId>[^/]+)$'), routes_tags.rename_tag),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/tags/(?P<tagId>[^/]+)$'), routes_tags.delete_tag),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)/tags$'), routes_tags.set_member_tags),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/import$'), routes_admin.import_list),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/settings$'), routes_admin.set_settings),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/push-texts$'), routes_admin.get_push_texts),

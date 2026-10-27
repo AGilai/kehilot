@@ -3,7 +3,7 @@
 Nothing here logs a phone number, a name or the list."""
 import time
 
-from . import consents, inputs
+from . import consents, inputs, tags
 from .authz import ROLES, require
 from .errors import ApiError
 from .families import family_name
@@ -55,13 +55,15 @@ def phone_list(ctx, params):
                 families.append((family, live))
     keys = [(f'U#{m["userId"]}', 'PROFILE') for _, live in families for m in live]
     profiles = repo.batch_get(keys) if keys else {}
+    names = tags.tag_map(repo, k) if any(m.get('tagIds') for _, live in families for m in live) else {}
     rows = []
     for family, live in families:
         people = []
         for m in live:
             profile = profiles.get((f'U#{m["userId"]}', 'PROFILE')) or {}
             if m['userId'] in on and profile.get('phone'):
-                people.append({'userId': m['userId'], 'name': m.get('displayName', ''), 'phone': profile['phone']})
+                people.append({'userId': m['userId'], 'name': m.get('displayName', ''), 'phone': profile['phone'],
+                               'tags': tags.tags_of(m, names)})
         if people:
             name = family_name([profiles.get((f'U#{m["userId"]}', 'PROFILE')) for m in live])
             rows.append({'familyId': family['familyId'], 'name': name, 'people': people})

@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import accounts, consents, importer, inputs, push, routes_me, type_rules
+from . import accounts, consents, importer, inputs, push, routes_me, tags, type_rules
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -71,10 +71,11 @@ def reject(ctx, params):
 def list_members(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     existing = {g['sk'][len('G#'):] for g in ctx.repo.list_groups(params['k'])}  # a deleted group's ID is not listed
-    return 200, [{'userId': m['userId'], 'displayName': m.get('displayName', ''), 'role': m['role'],
-                  'classification': m.get('classification', ''), 'canBroadcast': bool(m.get('canBroadcast')),
-                  'groups': sorted(set(m.get('groups') or ()) & existing)}
-                 for m in ctx.repo.list_members(params['k'])]
+    members = ctx.repo.list_members(params['k'])
+    rows = [{'userId': m['userId'], 'displayName': m.get('displayName', ''), 'role': m['role'],
+             'classification': m.get('classification', ''), 'canBroadcast': bool(m.get('canBroadcast')),
+             'groups': sorted(set(m.get('groups') or ()) & existing)} for m in members]
+    return 200, tags.with_tags(ctx.repo, params['k'], rows, members)
 
 
 def update_member(ctx, params):

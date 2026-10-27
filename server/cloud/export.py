@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 
-from . import media
+from . import media, tags
 from .posts import _split
 from .repo_families import MEMBER_ROLES
 
@@ -41,8 +41,10 @@ def _kehilot(repo, user_id):
     for m in sorted(repo.list_memberships(user_id), key=lambda m: m['kehilaId']):
         k = m['kehilaId']
         kehila = repo.get_kehila(k) or {}
+        names = tags.tag_map(repo, k) if m.get('tagIds') else {}
         out.append({'kehilaId': k, 'name': kehila.get('name', ''), 'role': m['role'],
                     'classification': m.get('classification', ''), 'groups': sorted(m.get('groups') or ()),
+                    'tags': [t['name'] for t in tags.tags_of(m, names)],
                     'showPhone': bool(m.get('showPhone')), 'notify': _own_notify(m.get('notify')),
                     'family': _family(repo, k, {**m, 'userId': user_id})})
     return out

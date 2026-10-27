@@ -105,7 +105,7 @@ class PhoneListTest(test_messages.MessagesTest):
         self.assertEqual([r['name'] for r in rows], ['Gabbai', 'Levi'])
         levi = rows[1]
         self.assertEqual(levi['familyId'], self.repo.family_of(self.k, self.member)['familyId'])
-        self.assertEqual(levi['people'], [{'userId': self.member, 'name': 'Mia Member', 'phone': E164}])
+        self.assertEqual(levi['people'], [{'userId': self.member, 'name': 'Mia Member', 'phone': E164, 'tags': []}])
         self.assertEqual(rows[0]['people'][0]['phone'], '+97236234567')
 
     def test_family_with_nobody_on_is_absent(self):

@@ -4,7 +4,7 @@ import base64
 from .authz import ROLES, require
 from .errors import ApiError
 from .routes_families import MEMBERS, notice_of, request_card
-from . import consents, type_rules
+from . import consents, tags, type_rules
 from .routes_invites import DEFAULT_MAX_LISTENERS
 from .routes_privacy import age13_required
 
@@ -59,7 +59,8 @@ def kehila(ctx, params):
                  'settings': shown, 'groups': sorted(membership.get('groups') or ()),
                  'adminGroups': sorted(set(membership.get('adminGroups') or ()) & set(membership.get('groups') or ())) if membership['role'] == 'member' else [],
                  'showPhone': bool(membership.get('showPhone')), 'cards': cards,
-                 'privacyContact': settings.get('privacyContact', ''), **extra}
+                 'privacyContact': settings.get('privacyContact', ''),
+                 'tags': tags.with_tags(ctx.repo, params['k'], [{}], [membership])[0]['tags'], **extra}
 
 
 def logo(ctx, params):
