@@ -7,6 +7,7 @@ import type { Allocation } from '../src/seats/frame.ts';
 import { cardWindow, israelInstant, seatCardState, shabbatFriday } from '../src/seats/window.ts';
 import { printModel } from '../src/seats/printModel.ts';
 import { releaseCounts, toggleRelease } from '../src/seats/release.ts';
+import { seatPrintAllowed, seatScreenFor } from '../src/seats/access.ts';
 import { fixtureSeatHall, fixtureMemberSeats } from '../src/client/fixtures.ts';
 import { pushDestination, routeFromPush } from '../src/client/push.ts';
 
@@ -110,7 +111,7 @@ test('memberView: returns only the cut of the asked household', () => {
   }
   const cells = view.frames.flatMap(f => f.rows.flatMap(r => r.cells));
   assert.equal(cells.filter(c => c.kind === 'mine').length, mine.seats.length);
-  assert.equal(view.frames.flatMap(f => f.rows).length < 20, true);
+  assert.ok(view.frames.every(f => f.rows.length <= 9), 'a frame spans at most 9 rows');
   assert.deepEqual(memberView(hall.hall, hall.allocations, 'nobody'), { seatCount: 0, frames: [] });
   const a: Allocation[] = [{ householdId: 'x', name: 'בדיוני', seats: [ref('CR', 6, 1)] }];
   assert.equal(memberView(HALL, a, 'x').frames.length, 1);
@@ -194,4 +195,16 @@ test('deep link: screen "seats" opens the seat page when the preview is on, Home
   assert.equal(pushDestination({ messageId: 'M1' }, 'member', true), 'message');
   const r = routeFromPush({ kehila: 'K1', screen: 'seats' });
   assert.deepEqual(r, { kehila: 'K1', screen: 'seats' });
+});
+
+test('print gate: only a gabbai with the flag reaches the hall print; seat screens map from ?screen=', () => {
+  assert.equal(seatPrintAllowed('gabbai', true), true);
+  for (const role of ['member', 'listener', undefined]) assert.equal(seatPrintAllowed(role, true), false);
+  assert.equal(seatPrintAllowed('gabbai', false), false);
+  assert.equal(seatScreenFor('seat-print', 'gabbai', true), 'seatPrint');
+  assert.equal(seatScreenFor('seat-print', 'member', true), null);
+  assert.equal(seatScreenFor('seat-print', 'gabbai', false), null);
+  for (const s of ['seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai']) assert.equal(seatScreenFor(s, 'member', true), 'seats', s);
+  assert.equal(seatScreenFor('seats', 'member', false), null);
+  assert.equal(seatScreenFor('home', 'member', true), null);
 });

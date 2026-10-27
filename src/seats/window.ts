@@ -37,6 +37,7 @@ export function cardWindow(friday: string, cfg: WindowConfig = DEFAULT_WINDOW): 
   };
 }
 
+/** Real timing (Thu 12:00 to Fri 12:00). The preview deliberately does not use it: UX §15.4 shows the card always; the server version will gate Home on this. */
 export type CardState = 'before' | 'open' | 'closed';
 export function seatCardState(now: Date, friday: string = shabbatFriday(now), cfg: WindowConfig = DEFAULT_WINDOW): CardState {
   const { opensAt, closesAt } = cardWindow(friday, cfg);

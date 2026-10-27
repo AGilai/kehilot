@@ -27,6 +27,7 @@ import { PushTexts } from './admin/PushTexts.tsx';
 import { Overview } from './admin/Overview.tsx';
 import { SeatPrint } from './admin/SeatPrint.tsx';
 import { SeatPage } from './SeatPage.tsx';
+import { seatPrintAllowed, seatScreenFor } from '../seats/access.ts';
 import { previewMemberSeats } from '../seats/preview.ts';
 import { TermsGate } from './TermsGate.tsx';
 import { PhoneList } from './PhoneList.tsx';
@@ -84,8 +85,9 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'channels' || s === 'channel-sheet') return { nav: { tab: 'channels' }, manage: true };
   if (s === 'import') return { nav: { tab: 'import' }, manage: true };
   if (s === 'group-admin') return { nav: { tab: 'group', groupId: '01FIXTUREGROUP00000000001', name: 'נוער', from: 'groups' }, manage: true };
-  if (config.seatsPreview && (s === 'seats' || s === 'seats-split' || s === 'seats-none' || s === 'seats-closed' || s === 'seats-gabbai')) return { nav: { tab: 'seats' } };
-  if (config.seatsPreview && s === 'seat-print') return { nav: { tab: 'seatPrint' }, manage: true };
+  const seat = seatScreenFor(s, state.kehila?.role, config.seatsPreview);
+  if (seat === 'seats') return { nav: { tab: 'seats' } };
+  if (seat === 'seatPrint') return { nav: { tab: 'seatPrint' }, manage: true };
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003' } };
   if (s === 'compose-family') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003', query: 'ב' } };
@@ -206,7 +208,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = config.seatsPreview ? <SeatPage data={seatData!} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
     case 'seatPrint':
-      body = config.seatsPreview ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onToast={showToast} /> : null;
+      body = seatPrintAllowed(kehila?.role, config.seatsPreview) ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onToast={showToast} /> : null;
       break;
     case 'phoneList':
       body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'me' })} /> : null;
@@ -221,7 +223,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={config.seatsPreview ? () => setNav({ tab: 'seatPrint' }) : undefined} onCount={setPending} onToast={showToast} />;
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintAllowed(state.kehila?.role, config.seatsPreview) ? () => setNav({ tab: 'seatPrint' }) : undefined} onCount={setPending} onToast={showToast} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} />;

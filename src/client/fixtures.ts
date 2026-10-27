@@ -402,7 +402,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
 // --- Seat-release preview (UX-DESIGN §15; the seats are the gabbai-side data, the member only ever gets memberView's cut) ---
 // All names are invented.
 export type SeatVariant = 'default' | 'split' | 'none' | 'closed' | 'gabbai';
-const SURNAMES = ['בדיוני', 'דוגמה', 'ניסוי', 'אלמוני', 'פלוני', 'מדומה', 'כהן־דמה', 'ניסיון', 'לוי־דמה', 'שמי', 'תבנית', 'דמיוני', 'אקראי', 'מקרי', 'פיקטיבי'];
+const SURNAMES = ['בדיוני', 'דוגמה', 'ניסוי', 'אלמוני', 'פלוני', 'מדומה', 'קהילתי', 'ניסיון', 'דגמי', 'שמי', 'תבנית', 'דמיוני', 'אקראי', 'מקרי', 'פיקטיבי'];
 const MINE: Record<'default' | 'split', SeatRef[]> = {
   default: [{ block: 'CR', row: 6, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
   split: [{ block: 'R', row: 2, col: 0 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
