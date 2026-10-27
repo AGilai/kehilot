@@ -4,8 +4,10 @@ Creates throwaway Cognito users and Kehilot, checks health, auth rejection, sign
 invite and membership flow, message visibility, private replies, device routes and the push pipeline, then
 the media bucket's settings, group channels, conversation channels and image uploads, then deletes everything it
 created (also on failure). Also checks the group admin and join-request flow, the chat limit, push texts, member
-invite roles, the import (twice) and the served web app. Prints one line per check.
+invite roles, the import (twice) and the served web app. Also checks family links and private replies, the phone list, hidden children, the data export,
+"delete my posts" account deletion, and the age and terms consents. Prints one line per check.
 """
+import io
 import json
 import secrets
 import subprocess
@@ -14,6 +16,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import boto3
@@ -129,6 +132,7 @@ class Smoke:
         (sa, me_a), (sb, me_b) = http(f'{self.api}/v1/me', token_a), http(f'{self.api}/v1/me', token_b)
         expect('check_sign_in', sa == sb == 200 and me_a['userId'] != me_b['userId'], f'{sa} {sb}')
         self.user_ids += [me_a['userId'], me_b['userId']]
+        self.outsider = token_b  # a member of another smoke Kehila only
 
         ka, kb = new_id(), new_id()
         self.kehilot += [ka, kb]
@@ -160,6 +164,12 @@ class Smoke:
         self.check_revoke_on_leave()
         self.check_listener_cap()
         self.check_push_pipeline()
+        self.check_family_link_and_replies()
+        self.check_phone_list_rules()
+        self.check_children_hidden()
+        self.check_export()
+        self.check_delete_posts()
+        self.check_terms_and_age()
         self.check_account_deletion()
 
     def check_invite_flow(self):
@@ -480,6 +490,180 @@ class Smoke:
         expect('web_privacy_200', status == 200 and len(body) > 500, str(status))
         print('PASS  check_web_served')
 
+    def join_member(self, label, first, last):
+        """A new person who joins the smoke Kehila as a member through a one-use member invite: (token, userId)."""
+        k = self.k
+        status, body = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/invites', {'role': 'member', 'uses': 1, 'days': 1})
+        expect(f'member_invite_for_{label}', status == 201, str(status))
+        token, user_id = self.person(label, first, last)
+        status, body = self.call(token, 'POST', f'/v1/invites/{body["code"]}/accept')
+        expect(f'{label}_joined_as_member', (status, body.get('role')) == (200, 'member'), str(status))
+        return token, user_id
+
+    def check_family_link_and_replies(self):
+        """Two members link (request, confirm) into one family; a blessing to one gets a reply both partners read and
+        the gabbai does not; after the unlink the ex-partner reads none."""
+        k = self.k
+        (t1, u1), (t2, u2), (t3, _) = (self.join_member('fl1', 'Smoke', 'Alef'), self.join_member('fl2', 'Smoke', 'Bet'),
+                                      self.join_member('fl3', 'Smoke', 'Gimel'))
+        status, _ = self.call(t1, 'POST', f'/v1/kehilot/{k}/family/requests', {'toUserId': u2})
+        expect('family_request_sent', status == 201, str(status))
+        status, view = self.call(t2, 'GET', f'/v1/kehilot/{k}/family')
+        expect('family_request_received', status == 200 and [r['fromUserId'] for r in view['received']] == [u1],
+               str(status))
+        status, view = self.call(t2, 'POST', f'/v1/kehilot/{k}/family/requests/{u1}/confirm')
+        expect('family_request_confirmed', status == 200 and {a['userId'] for a in view['adults']} == {u1, u2},
+               str(status))
+        family = view['familyId']
+        status, other = self.call(t1, 'GET', f'/v1/kehilot/{k}/family')
+        expect('partners_share_family_id', status == 200 and other['familyId'] == family, str(status))
+        status, msg = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', {
+            'channelId': self.channels['simchas']['channelId'], 'type': 'celebration', 'title': 'Smoke family blessing',
+            'body': '', 'targetMemberId': u1})
+        expect('family_blessing_posted', status == 201, str(status))
+        path = f'/v1/kehilot/{k}/messages/{msg["messageId"]}/replies'
+        status, _ = self.call(t3, 'POST', path, {'body': 'Smoke mazal tov'})
+        expect('family_third_member_replied', status == 201, str(status))
+        for label, token in (('first_partner', t1), ('second_partner', t2)):
+            status, replies = self.call(token, 'GET', path)
+            expect(f'{label}_reads_reply', status == 200 and [r['body'] for r in replies] == ['Smoke mazal tov'],
+                   str(status))
+        expect('gabbai_reads_no_reply', self.call(self.gab, 'GET', path) == (200, []))
+        status, view = self.call(t2, 'POST', f'/v1/kehilot/{k}/family/unlink')
+        expect('family_unlinked', status == 200 and view['familyId'] != family
+               and [a['userId'] for a in view['adults']] == [u2], str(status))
+        status, replies = self.call(t2, 'GET', path)
+        expect('ex_partner_reads_no_reply', (status, replies) == (200, []), str(status))
+        status, replies = self.call(t1, 'GET', path)
+        expect('kept_partner_still_reads_reply', status == 200 and len(replies) == 1, str(status))
+        print('PASS  check_family_link_and_replies')
+
+    def phone_list(self, token):
+        """(status, parsed phone list of the smoke Kehila)."""
+        return self.call(token, 'GET', f'/v1/kehilot/{self.k}/phone-list')
+
+    def check_phone_list_rules(self):
+        """A member's number shows to another member only while the switch is on; a listener gets 403, a member of
+        another Kehila 404."""
+        k = self.k
+        self.ph_a = self.join_member('pha', 'Smoke', 'Phonea')
+        self.ph_b = self.join_member('phb', 'Smoke', 'Phoneb')
+        (ta, ua), tb = self.ph_a, self.ph_b[0]
+        phone = '+97250' + ''.join(secrets.choice('0123456789') for _ in range(7))
+        status, body = self.call(ta, 'PUT', '/v1/me/phone', {'phone': phone})
+        expect('phone_set', status == 200 and body == {'phone': phone}, str(status))
+        status, _ = self.call(ta, 'PUT', f'/v1/kehilot/{k}/me/phone-list', {'show': True})
+        expect('phone_switch_on', status == 200, str(status))
+        status, rows = self.phone_list(tb)
+        shown = [p['phone'] for r in rows or [] for p in r['people'] if p['userId'] == ua] if status == 200 else []
+        expect('member_sees_phone', shown == [phone], str(status))
+        expect('listener_phone_list_403', self.phone_list(self.people['lis'][0])[0] == 403)
+        expect('other_kehila_phone_list_404', self.phone_list(self.outsider)[0] == 404)
+        status, _ = self.call(ta, 'PUT', f'/v1/kehilot/{k}/me/phone-list', {'show': False})
+        expect('phone_switch_off', status == 200, str(status))
+        status, rows = self.phone_list(tb)
+        expect('phone_gone_at_once', status == 200 and not any(p['userId'] == ua for r in rows for p in r['people']),
+               str(status))
+        print('PASS  check_phone_list_rules')
+
+    def check_children_hidden(self):
+        """A child added to a family shows in neither the phone list nor the family picker (no key, no name)."""
+        k = self.k
+        (ta, ua), tb = self.ph_a, self.ph_b[0]
+        child = 'Kid' + secrets.token_hex(4)
+        status, _ = self.call(ta, 'POST', f'/v1/kehilot/{k}/family/children', {'firstName': child, 'gender': 'm'})
+        expect('child_added', status == 201, str(status))
+        status, _ = self.call(ta, 'PUT', f'/v1/kehilot/{k}/me/phone-list', {'show': True})
+        expect('child_check_switch_on', status == 200, str(status))
+        try:
+            status, rows = self.phone_list(tb)
+            text = json.dumps(rows)
+            expect('phone_list_has_family', status == 200 and ua in text, str(status))  # positive control
+            expect('phone_list_hides_children', '"children"' not in text and child not in text)
+            channel = self.channels['simchas']['channelId']
+            status, rows = self.call(tb, 'GET', f'/v1/kehilot/{k}/families?channelId={channel}')
+            text = json.dumps(rows)
+            expect('picker_has_family', status == 200 and any(r['targetMemberId'] == ua for r in rows), str(status))
+            expect('picker_hides_children', '"children"' not in text and child not in text)
+        finally:
+            self.call(ta, 'PUT', f'/v1/kehilot/{k}/me/phone-list', {'show': False})
+        print('PASS  check_children_hidden')
+
+    def check_export(self):
+        """POST /v1/me/export builds a ZIP with data.json and no other member's name; a second POST re-issues the
+        link; the object is under x/<userId>/. Counts and statuses only: no URL or content is printed."""
+        token, user_id = self.join_member('exp', 'Smoke', 'Exporter')
+        status, body = self.call(token, 'POST', '/v1/me/export')
+        expect('export_200', status == 200 and bool(body.get('url')), str(status))
+        status, _, data = raw(body['url'])
+        expect('export_downloaded', status == 200 and zipfile.is_zipfile(io.BytesIO(data)), str(status))
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            names = archive.namelist()
+            expect('export_has_data_json', 'data.json' in names, f'{len(names)} files')
+            text = archive.read('data.json').decode()
+        json.loads(text)
+        others = [w for w in ('Gabbai', 'Listener', 'Family', 'Phonea', 'Phoneb', 'Alef', 'Bet', 'Gimel') if w in text]
+        expect('export_has_no_other_member_name', not others, f'{len(others)} foreign names found')
+        status, again = self.call(token, 'POST', '/v1/me/export')
+        expect('export_second_post_200', status == 200 and bool(again.get('url')), str(status))
+        listing = self.s3.list_objects_v2(Bucket=self.media_bucket, Prefix=f'x/{user_id}/')
+        keys = [o['Key'] for o in listing.get('Contents', [])]
+        expect('export_object_under_x', len(keys) == 1 and keys[0].endswith('.zip'), f'{len(keys)} objects')
+        print('PASS  check_export')
+
+    def check_delete_posts(self):
+        """A member posts a chat message with an image, then deletes the account with deletePosts=1: the message is
+        gone for others and the image cannot be fetched any more."""
+        k = self.k
+        token, user_id = self.join_member('del', 'Smoke', 'Deleter')
+        status, channel = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/channels', {
+            'name': 'smoke-delete-chat', 'listenersCanRead': False, 'postPolicy': 'management', 'conversation': True})
+        expect('delete_chat_channel_created', status == 201, str(status))
+        c = channel['channelId']
+        jpeg = b'\xff\xd8\xff' + secrets.token_bytes(61)
+        status, grant = self.call(token, 'POST', f'/v1/kehilot/{k}/uploads', {
+            'channelId': c, 'contentType': 'image/jpeg', 'bytes': len(jpeg)})
+        expect('delete_image_grant', status == 201, str(status))
+        expect('delete_image_put', raw(grant['url'], 'PUT', jpeg, {'Content-Type': 'image/jpeg'})[0] == 200)
+        status, msg = self.call(token, 'POST', f'/v1/kehilot/{k}/messages', {
+            'channelId': c, 'body': 'Smoke goodbye', 'imageUploadId': grant['uploadId']})
+        expect('delete_chat_posted_with_image', status == 201, str(status))
+        path = f'/v1/kehilot/{k}/messages/{msg["messageId"]}'
+        expect('gabbai_reads_chat_before', self.call(self.gab, 'GET', path)[0] == 200)
+        status, view = self.call(self.gab, 'GET', f'{path}/image')
+        expect('image_url_before', status == 200 and raw(view['url'])[0] == 200, str(status))
+        for attempt in range(3):  # 503 try_again / 500: the same request continues where it stopped
+            status, _ = self.call(token, 'DELETE', '/v1/me?deletePosts=1')
+            if status == 204:
+                break
+        expect('delete_with_posts_204', status == 204, str(status))
+        expect('message_removed_for_others', self.call(self.gab, 'GET', path)[0] == 404)
+        stored = self.repo.get_message(k, msg['messageId'])
+        expect('message_text_blanked', bool(stored.get('removed')) and not stored.get('title') and not stored.get('body'))
+        status = raw(view['url'])[0]
+        expect('image_gone_after_delete_posts', status in (403, 404), str(status))
+        print('PASS  check_delete_posts')
+
+    def check_terms_and_age(self):
+        """A fresh user needs the age-13 consent until it is given; the gabbai's terms card shows until accepted."""
+        token = self.make_user('age')
+        status, me = self.call(token, 'GET', '/v1/me')
+        expect('age_me_ok', status == 200, str(status))
+        self.user_ids.append(me['userId'])
+        expect('age13_required_for_fresh_user', me['age13Required'] is True)
+        status, _ = self.call(token, 'POST', '/v1/me/consents/age13')
+        expect('age13_consent_204', status == 204, str(status))
+        status, me = self.call(token, 'GET', '/v1/me')
+        expect('age13_not_required_after_consent', status == 200 and me['age13Required'] is False, str(status))
+        k = self.k
+        status, kehila = self.call(self.gab, 'GET', f'/v1/kehilot/{k}')
+        expect('terms_card_before', status == 200 and kehila['cards']['terms'] is True, str(status))
+        status, _ = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/terms')
+        expect('terms_accepted_200', status == 200, str(status))
+        status, kehila = self.call(self.gab, 'GET', f'/v1/kehilot/{k}')
+        expect('terms_card_gone_after', status == 200 and kehila['cards']['terms'] is False, str(status))
+        print('PASS  check_terms_and_age')
+
     def user_state(self, email):
         user = self.idp.admin_get_user(UserPoolId=self.out['user_pool_id'], Username=email)
         attrs = {a['Name']: a['Value'] for a in user['UserAttributes']}
@@ -674,16 +858,17 @@ class Smoke:
         return removed
 
     def delete_media(self):
-        """Delete the smoke Kehilot's m/<k>/ and up/<k>/ objects."""
+        """Delete the smoke Kehilot's m/<k>/ and up/<k>/ objects and the smoke users' x/<userId>/ exports."""
         removed = 0
-        for k in set(self.kehilot):
-            for prefix in (f'm/{k}/', f'up/{k}/'):
-                keys = []
-                for page in self.s3.get_paginator('list_objects_v2').paginate(Bucket=self.media_bucket, Prefix=prefix):
-                    keys += [{'Key': o['Key']} for o in page.get('Contents', [])]
-                for start in range(0, len(keys), 1000):
-                    self.s3.delete_objects(Bucket=self.media_bucket, Delete={'Objects': keys[start:start + 1000]})
-                removed += len(keys)
+        prefixes = [p for k in set(self.kehilot) for p in (f'm/{k}/', f'up/{k}/')]
+        prefixes += [f'x/{user_id}/' for user_id in set(self.user_ids)]
+        for prefix in prefixes:
+            keys = []
+            for page in self.s3.get_paginator('list_objects_v2').paginate(Bucket=self.media_bucket, Prefix=prefix):
+                keys += [{'Key': o['Key']} for o in page.get('Contents', [])]
+            for start in range(0, len(keys), 1000):
+                self.s3.delete_objects(Bucket=self.media_bucket, Delete={'Objects': keys[start:start + 1000]})
+            removed += len(keys)
         return removed
 
     def cleanup(self):
