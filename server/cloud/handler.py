@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_tags
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_tags
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -48,6 +48,10 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/members/(?P<userId>[^/]+)/tags$'), routes_tags.set_member_tags),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/import$'), routes_admin.import_list),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/settings$'), routes_admin.set_settings),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/schedule$'), routes_schedule.get_schedule),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule$'), routes_schedule.put_schedule),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule/weeks/(?P<week>[^/]+)$'), routes_schedule.put_week),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule/weeks/(?P<week>[^/]+)$'), routes_schedule.delete_week),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/push-texts$'), routes_admin.get_push_texts),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/push-texts$'), routes_admin.put_push_text),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/broadcast$'), routes_admin.set_broadcast),
@@ -180,7 +184,7 @@ def handler(event, context):
         status, payload = func(Ctx(repo, caller, user_id, body, event.get('queryStringParameters') or {}, context), params)
         return _response(status, payload)
     except ApiError as error:
-        return _response(error.status, {'error': error.code})
+        return _response(error.status, {'error': error.code, **({'field': error.field} if error.field else {})})
     except Exception as error:  # never leak details to the client or the log
         # an AWS error's code and operation name carry no user data and name the failing call
         detail = ''

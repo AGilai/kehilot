@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import accounts, consents, importer, inputs, push, routes_me, tags, type_rules
+from . import accounts, consents, importer, inputs, push, routes_me, schedule_rules, tags, type_rules
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -238,11 +238,13 @@ def _type_rules(value):
 
 
 def set_settings(ctx, params):
-    """maxListeners, privacyContact and/or typeRules (at least one). The contact is never logged."""
+    """maxListeners, privacyContact, typeRules, location and/or sheet (at least one). The contact is never logged."""
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     d = inputs.body_object(ctx)
-    if not any(key in d for key in ('maxListeners', 'privacyContact', 'typeRules')):
+    if not any(key in d for key in ('maxListeners', 'privacyContact', 'typeRules', 'location', 'sheet')):
         raise ApiError(400, 'invalid_body')
+    location = schedule_rules.validate_location(d['location']) if 'location' in d else None
+    sheet = schedule_rules.validate_sheet(d['sheet']) if 'sheet' in d else None
     new_rules = _type_rules(d['typeRules']) if 'typeRules' in d else None
     limit = inputs.integer(d, 'maxListeners', 0, 5000) if 'maxListeners' in d else None
     contact = None
@@ -253,7 +255,7 @@ def set_settings(ctx, params):
         contact = contact.strip()
         if len(contact) > PRIVACY_CONTACT_MAX:
             raise ApiError(400, 'invalid_privacy_contact')
-    ctx.repo.set_settings(params['k'], limit, contact, new_rules)
+    ctx.repo.set_settings(params['k'], limit, contact, new_rules, location, sheet)
     return 200, {}
 
 

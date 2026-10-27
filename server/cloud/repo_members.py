@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
-from . import type_rules as type_rules_module
+from . import schedule_rules, type_rules as type_rules_module
 from .errors import ApiError
 from .ids import new_id
 
@@ -319,11 +319,17 @@ class MembersRepo:
                                ConditionExpression='attribute_exists(settings)',
                                ExpressionAttributeValues={':v': value})
 
-    def set_settings(self, k, max_listeners=None, privacy_contact=None, type_rules=None):
+    def set_settings(self, k, max_listeners=None, privacy_contact=None, type_rules=None, location=None, sheet=None):
         """Set the given settings only (None = leave); privacy_contact '' removes it. `type_rules` is a validated
         partial `{type: {post, listeners}}`: those types are replaced, the other type keeps its (normalized) rule.
-        Other settings are kept."""
+        `location` / `sheet` (validated) replace those settings whole. Other settings are kept."""
         sets, removes, values = [], [], {}
+        if location is not None:
+            sets.append('settings.kehilaLocation = :loc')
+            values[':loc'] = schedule_rules.stored(location)
+        if sheet is not None:
+            sets.append('settings.sheet = :sheet')
+            values[':sheet'] = schedule_rules.stored(sheet)
         if type_rules:
             kehila = self.get_kehila(k)
             if not kehila:
