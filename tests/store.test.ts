@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createStore } from '../src/client/store.ts';
+import { createPendingInvite } from '../src/client/links.ts';
 import { createLogoCache } from '../src/client/logoCache.ts';
 import type { KeyValue } from '../src/auth/tokens.ts';
 import type { Kehila, KehilaSummary, Me } from '../src/client/types.ts';
@@ -271,4 +272,27 @@ test('acceptAge13 reloads me', async () => {
   assert.equal(store.getState().me?.age13Required, true);
   await store.acceptAge13();
   assert.equal(store.getState().me?.age13Required, false);
+  store.reset();
+});
+
+test('a stored invite waits behind the age gate and joins after acceptAge13', async () => {
+  const storage = memory();
+  const pending = createPendingInvite(storage, () => 1000);
+  await pending.set('7K3M9Q2XPA');
+  let required = true;
+  let kehilot: KehilaSummary[] = [];
+  const accepted: string[] = [];
+  const { api } = fakeApi(meOf([]), {
+    me: async () => ({ ...meOf([]), kehilot, age13Required: required }),
+    age13Consent: async () => { required = false; },
+    acceptInvite: async (c: string) => { accepted.push(c); kehilot = [summary('k1')]; return { kehilaId: 'k1', role: 'listener' }; },
+  });
+  const store = createStore(api, storage, { pending, isActive: () => false });
+  await store.start();
+  assert.deepEqual(accepted, []);
+  assert.equal(store.getState().kehilaId, null);
+  assert.equal(await store.acceptAge13(), 'ready');
+  assert.deepEqual(accepted, ['7K3M9Q2XPA']);
+  assert.equal(store.getState().kehilaId, 'k1');
+  store.reset();
 });

@@ -134,7 +134,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const r = await store.saveProfile(p, o);
       if (store.guard(gen)) setRoute(r);
     },
-    acceptAge13: () => store.acceptAge13(),
+    async acceptAge13() {
+      const gen = store.getState().generation;
+      const r = await store.acceptAge13();
+      if (store.guard(gen)) setRoute(r);
+    },
     async acceptInvite(code) {
       const gen = store.getState().generation;
       if (await store.acceptInvite(code) && store.guard(gen)) setRoute('ready');

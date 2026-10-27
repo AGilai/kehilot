@@ -170,7 +170,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   async function start(): Promise<Route> {
     const me = await loadMe();
     if (!me) return 'none';
-    if (me.profile) { const joined = await joinPending(); if (joined) return joined; }
+    if (me.profile && !me.age13Required) { const joined = await joinPending(); if (joined) return joined; }
     return chooseKehila();
   }
 
@@ -189,10 +189,13 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return (await joinPending()) ?? chooseKehila();
   }
 
-  /** The age gate: records the consent, then reloads me so `age13Required` clears. */
-  async function acceptAge13(): Promise<void> {
+  /** The age gate: records the consent, reloads me so `age13Required` clears, then joins a waiting invite or picks a Kehila. */
+  async function acceptAge13(): Promise<Route> {
+    const gen = state.generation;
     await api.age13Consent();
-    await loadMe();
+    if (!guard(gen)) return 'none';
+    if (!(await loadMe())) return 'none';
+    return (await joinPending()) ?? chooseKehila();
   }
 
   /** Join screen: accepts a code the user is looking at, then opens the Kehila. */
