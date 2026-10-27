@@ -2,6 +2,41 @@
 
 נקודת המשך מעודכנת במחשב הביתי: 25 באוקטובר 2026. המסמך עומד בפני עצמו; אין צורך בהיסטוריית הצ׳אט או בפרויקט Hoshanot כדי להמשיך.
 
+## Families and privacy pack delivered — October 27, 2026
+
+**What was built** (spec `docs/superpowers/specs/2026-10-27-families-privacy-design.md`, plan `docs/superpowers/plans/2026-10-27-families-privacy.md`, screens P1–P14 in `design/mockups/frames/` and `docs/UX-DESIGN.md` §10, API in `server/API.md`):
+- **Families:** every member or gabbai household is a family. Partners link by request and confirm (7-day expiry, 30-day cooldown after a decline) or by a gabbai, who notifies both and lets either undo. Either adult can unlink, and each keeps a copy of the children. Children are entered once per family.
+- **Private blessings** reach every current adult of the target family; gabbaim still have no access.
+- **Phone list:** names and phones only. Each person opts in per Kehila and a consent record is kept. Members and gabbaim of that Kehila only; the list is never stored on the phone.
+- **Privacy pack:**
+  - consent records;
+  - "I am 13 or older" at setup, plus a one-time gate for existing accounts;
+  - Kehila terms that a gabbai accepts, which block only the management screens;
+  - a Kehila privacy contact;
+  - "delete everything I posted" (unticked by default);
+  - removal of imported people who never signed in;
+  - "download my data" (a ZIP, with a 10-minute link and the file deleted after a day);
+  - "leave Kehila" for listeners;
+  - rewritten `/privacy/`, a new `/terms/`, and `docs/BREACH-PROCEDURE.md`.
+
+**Deployed on dev:**
+- The Terraform apply made 8 in-place changes: the media `x/` lifecycle rule, the API role `x/*` grant, the CloudFront `/terms` rewrite and Lambda code.
+- A second apply, approved by the user, added `dynamodb:BatchGetItem` to the push-worker role.
+- `backfill-families` ran; dev has no memberships, so it created 0.
+- The web app was deployed. The platform contact comes from the git-ignored `infra/envs/dev/site.env` (`PLATFORM_CONTACT=`). `tools/fill_contact.py` fills it at deploy time and the deploy refuses to run without it.
+- Smoke: 237 PASS twice in a row, nothing left behind.
+
+**Tests at this point:** Python 660 OK, `npm test` 392 pass, `npm run typecheck` clean. The ledger with every ruling and deferred minor is `.superpowers/sdd/2026-10-27-families-privacy/progress.md`.
+
+**Still open for the user:**
+- A lawyer should review `/privacy/` and `/terms/` (age 13 vs EU 13–16, backups wording).
+- A native Hebrew editor should review the new copy.
+- On phones: call and WhatsApp buttons, family pushes, export download on iOS and Android.
+- Follow-ups:
+  - there is no delete-Kehila tool yet (the terms promise deletion on request);
+  - Task 24, an Android test APK from GitHub Actions;
+  - Task 25, the Neria Kehila on dev with the user as gabbai.
+
 ## Cloud app (plan 3) delivered — October 27, 2026
 
 **What was built.** A multi-community cloud backend and a new app on top of it (specs and plans in `docs/superpowers/`, ledger in `.superpowers/sdd/2026-10-27-app/progress.md`, API in `server/API.md`): Cognito sign-in with a pre-sign-up/post-confirmation trigger, tenants (Kehilot) with roles listener, member and gabbai, invite links with roles and caps, membership requests and approvals, member list import (CSV/XLSX, in batches), channels, messages and private blessing replies, push through SQS and Expo, groups with group admins and join requests, conversation channels with an hourly chat limit, image attachments through a private S3 bucket (presigned URLs, client-side resize, in-app viewer with save/share/print), offline search, account deletion, per-community custom push texts, and a web build with a privacy page. The app is Hebrew/English, RTL/LTR, with a dark mode.
