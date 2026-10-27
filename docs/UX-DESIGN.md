@@ -444,3 +444,33 @@ under it); `deleteAccount.kept` is no longer rendered.
 Screenshot-checked at 1440 wide: P1 to P14, M7 for comparison, P7 also in dark mode, the index at 390 px.
 Not checked: English (LTR) rendering of these frames, and real device fonts. The Hebrew copy should be reviewed by a
 native editor; the terms summary (P8) and the privacy texts by the user's lawyer.
+
+### 10.6 Test build: "new version" card (P15)
+
+Android test build only (installed from GitHub Releases, used by the owner). The store build and every member never see
+any of this; the check does not run there. Frame: `design/mockups/frames/P15.html`.
+
+- **Where:** Home, under the greeting and above zmanim, first in that slot. It is outside the P7 one-at-a-time queue, so a
+  P7 card still shows under it.
+- **Component:** `Card` with `edgeColor={k.tekhelet}`, the P7 pattern: title (`Txt bold serif`), body, primary `Button`,
+  secondary `Button`. Not `Banner` (it has one action and no dismiss). No new component.
+- **When:** on start and on resume the app reads the latest GitHub release. Shown if it is newer than the installed build
+  and not the version last dismissed. "Download" opens the APK URL in the browser; the card stays until that version is
+  installed or dismissed. "Not now" stores the dismissed version; the card returns only for a newer one. Offline, error or
+  slow reply: nothing is shown, no spinner, no message.
+- **A11y:** the download Button gets `accessibilityLabel` = `testBuild.downloadA11y`.
+- **Test-build marker:** Android app name (launcher label) **"בדיקה · הקהילה שלי"** (store: "הקהילה שלי"); the marker
+  comes first so it survives launcher truncation. Home always shows a plain `Tag` "גרסת בדיקה · {installed}" at the end
+  of the date line, in the test build only, so bug reports name the build.
+
+| Key | Hebrew | English |
+|---|---|---|
+| `testBuild.title` | גרסת בדיקה חדשה | New test version |
+| `testBuild.body` | גרסה {version} מוכנה. ההורדה נפתחת בדפדפן, ואחריה Android יתקין אותה על הגרסה הנוכחית. | Version {version} is ready. The download opens in your browser, then Android installs it over this version. |
+| `testBuild.download` | הורדה | Download |
+| `testBuild.later` | לא עכשיו | Not now |
+| `testBuild.downloadA11y` | הורדת גרסת בדיקה {version} | Download test version {version} |
+| `testBuild.tag` | גרסת בדיקה · {version} | Test build · {version} |
+
+`{version}` is the release's version name (e.g. `0.1.3`), shown LTR. Not screenshot-checked (no browser run on this
+machine for this change).
