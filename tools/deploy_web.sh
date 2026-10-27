@@ -22,10 +22,18 @@ BUCKET="$(tf_out web_bucket)"
 DIST_ID="$(tf_out web_distribution_id)"
 WEB_URL="$(tf_out web_url)"
 
-npm run export:web
-
 DIST=dist/web
+# Start from an empty output dir and a cleared Metro cache: EXPO_PUBLIC_* values are inlined at build time,
+# and a cached fixture build would otherwise ship fixture data with no API URL.
+rm -rf "$DIST"
+npm run export:web -- --clear
+
 [ -f "$DIST/index.html" ] || { echo "missing $DIST/index.html after export" >&2; exit 1; }
+API_URL="$(tf_out api_url)"
+if ! grep -rqF "${API_URL%/}" "$DIST/_expo/static/js"; then
+  echo "the bundle does not contain the $ENV_NAME API URL; refusing to deploy" >&2
+  exit 1
+fi
 
 # 1. Everything except index.html: no-cache by default, then hashed assets as immutable.
 aws s3 sync "$DIST" "s3://$BUCKET" --delete --exclude index.html \
