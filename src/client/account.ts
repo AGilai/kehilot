@@ -6,10 +6,10 @@ type Api = Pick<ReturnType<typeof endpoints>, 'deleteMe'>;
 /** Waits before retry 1..5 of DELETE /v1/me. */
 export const DELETE_BACKOFF_MS = [1000, 2000, 4000, 8000, 16000];
 
-const RETRYABLE = new Set(['internal', 'network']);
+const RETRYABLE = new Set(['internal', 'network', 'try_again']);
 
 /**
- * Deletes the account. DELETE /v1/me is idempotent (API.md), so 500 `internal` and `network` are retried up to
+ * Deletes the account. DELETE /v1/me is idempotent (API.md), so 500 `internal`, 503 `try_again` (the server ran out of time; a retry finishes the job) and `network` are retried up to
  * 5 times with 1, 2, 4, 8 and 16 s waits. 204 (or 401 `account_deleted`) ends in the same full sign-out as a user sign-out, run once. 409
  * `last_gabbai` stops (the screen explains the hand-over). Any other error, or the last failed retry, is thrown.
  */
@@ -17,10 +17,12 @@ export async function deleteAccount(
   api: Api,
   signOut: () => Promise<void>,
   sleep: (ms: number) => Promise<void> = ms => new Promise(r => setTimeout(r, ms)),
+  o: { deletePosts?: boolean } = {},
 ): Promise<'deleted' | 'last_gabbai'> {
+  const deletePosts = !!o.deletePosts; // the same choice on every retry
   for (let attempt = 0; ; attempt++) {
     try {
-      await api.deleteMe();
+      await api.deleteMe({ deletePosts });
       break;
     } catch (e) {
       if (e instanceof ApiCodeError) {

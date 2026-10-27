@@ -1,4 +1,6 @@
 import React from 'react';
+import { fixtureParams } from '../client/fixtures.ts';
+import { config } from '../config.ts';
 import { fromEpochSeconds } from '../client/time.ts';
 import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
@@ -139,7 +141,14 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
   const role = kehila?.role;
   const canInvite = role === 'member' || role === 'gabbai';
 
-  const [view, setView] = React.useState<'me' | 'delete'>('me');
+  const [view, setView] = React.useState<'me' | 'delete'>(config.fixtures && (fixtureParams().screen === 'delete' || fixtureParams().screen === 'delete-ticked') ? 'delete' : 'me');
+  // "Want a copy first?" returns here and scrolls to the privacy card.
+  const scrollRef = React.useRef<ScrollView>(null);
+  const privacyY = React.useRef(0);
+  const [toPrivacy, setToPrivacy] = React.useState(false);
+  React.useEffect(() => {
+    if (toPrivacy && view === 'me') { scrollRef.current?.scrollTo({ y: Math.max(0, privacyY.current - 16), animated: false }); setToPrivacy(false); }
+  }, [toPrivacy, view]);
   const [editing, setEditing] = React.useState(false);
   const [first, setFirst] = React.useState('');
   const [last, setLast] = React.useState('');
@@ -161,7 +170,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
     return () => { live = false; };
   }, [asking, kehilaId, role, api]);
 
-  if (view === 'delete') return <DeleteAccount onBack={() => setView('me')} />;
+  if (view === 'delete') return <DeleteAccount onBack={() => setView('me')} onExport={() => { setToPrivacy(true); setView('me'); }} />;
   if (!profile) return null;
 
   const valid = !!first.trim() && [...first].length <= NAME_MAX && [...last].length <= NAME_MAX;
@@ -199,7 +208,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       {onBack ? <BackLink onPress={onBack} /> : null}
       <Txt serif size="title" accessibilityRole="header">{t('me.title')}</Txt>
       {role === 'gabbai' && onManage ? <Button title={t('admin.enter')} onPress={onManage} /> : null}
@@ -253,7 +262,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
       {onPrefs ? <Button kind="secondary" title={t('me.prefs')} onPress={onPrefs} /> : null}
       {kehila ? (
         <>
-          <PrivacyCard onAbout={() => setAbout(true)} />
+          <View onLayout={e => { privacyY.current = e.nativeEvent.layout.y; }}><PrivacyCard onAbout={() => setAbout(true)} /></View>
           <KehilaInfo visible={about} onClose={() => setAbout(false)} />
           <Card>
             {asking ? (

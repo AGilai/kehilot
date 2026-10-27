@@ -61,6 +61,29 @@ test('other errors are not retried', async () => {
   assert.deepEqual(h.log, ['deleteMe']);
 });
 
+test('passes deletePosts on every retry', async () => {
+  const calls: unknown[] = [];
+  let n = 0;
+  const api = { deleteMe: async (o?: { deletePosts?: boolean }) => { calls.push(o?.deletePosts); if (n++ < 2) throw new ApiCodeError(0, 'network'); } };
+  const r = await deleteAccount(api, async () => {}, async () => {}, { deletePosts: true });
+  assert.equal(r, 'deleted');
+  assert.deepEqual(calls, [true, true, true]);
+});
+
+test('without the option deletePosts is false on every call', async () => {
+  const calls: unknown[] = [];
+  const api = { deleteMe: async (o?: { deletePosts?: boolean }) => { calls.push(o?.deletePosts); } };
+  await deleteAccount(api, async () => {}, async () => {});
+  assert.deepEqual(calls, [false]);
+});
+
+test('retries try_again (503) until 204', async () => {
+  const h = harness([new ApiCodeError(503, 'try_again'), new ApiCodeError(503, 'try_again'), 'ok']);
+  assert.equal(await h.run(), 'deleted');
+  assert.deepEqual(h.log, ['deleteMe', 'deleteMe', 'deleteMe', 'signOut']);
+  assert.deepEqual(h.waits, [1000, 2000]);
+});
+
 // Leaving a Kehila and editing the profile go through the store.
 const sum = (id: string) => ({ kehilaId: id, name: id, role: 'member' as const, logoVersion: null });
 function storeWith(kehilot: string[], over: Record<string, unknown> = {}) {
