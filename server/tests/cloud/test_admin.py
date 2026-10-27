@@ -201,6 +201,44 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='listener-sub')[0], 204)
         self.assertEqual(self.call('GET', f'{self.base()}/admin/requests')[1], [])
 
+    def import_account(self, sub='import-sub', second_kehila=False):
+        user = self.call('GET', '/v1/me', sub=sub)[1]['userId']  # creates the mapping; then mark as imported
+        self.repo.table.update_item(Key={'pk': f'U#{sub}', 'sk': 'SUB'}, UpdateExpression='REMOVE neverSignedIn')
+        self.repo.mark_imported_account(sub, user)
+        self.repo.put_membership(self.k, user, 'member')
+        if second_kehila:
+            self.repo.put_membership(self.repo.create_kehila('Beit Two', {}), user, 'listener')
+        return user
+
+    def test_gabbai_removing_never_signed_in_import_deletes_account(self):
+        user = self.import_account()
+        self.repo.put_profile(user, 'Dana', 'Test', 'he')
+        with mock.patch('server.cloud.routes_me._delete_cognito_user') as delete:
+            self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{user}')[0], 204)
+        delete.assert_called_once_with('import-sub')
+        for item in self.repo.table.scan()['Items']:
+            if item['pk'] != 'U#import-sub':
+                self.assertNotIn(user, json.dumps(item, default=str))
+        self.assertTrue(self.repo.get_sub('import-sub')['deleted'])
+
+    def test_removing_signed_in_or_multi_kehila_import_keeps_account(self):
+        signed = self.import_account('signed-sub')
+        self.repo.mark_imported_account('signed-sub', signed)
+        self.call('GET', '/v1/me', sub='signed-sub')  # first API call clears the flag
+        multi = self.import_account('multi-sub', second_kehila=True)
+        with mock.patch('server.cloud.routes_me._delete_cognito_user') as delete:
+            self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{signed}')[0], 204)
+            self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{multi}')[0], 204)
+        delete.assert_not_called()
+        self.assertEqual(self.repo.get_user_id('signed-sub'), signed)
+        self.assertEqual(self.repo.get_user_id('multi-sub'), multi)
+
+    def test_cognito_failure_keeps_data_and_still_204(self):
+        user = self.import_account()
+        with mock.patch('server.cloud.routes_me._delete_cognito_user', side_effect=RuntimeError('x')):
+            self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{user}')[0], 204)
+        self.assertEqual(self.repo.get_user_id('import-sub'), user)
+
     def test_gabbai_of_other_kehila_cannot_approve(self):
         other_k = self.repo.create_kehila('Beit Other', {})
         outsider = self.user('outsider-sub')

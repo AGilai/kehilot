@@ -5,13 +5,18 @@ import unittest
 from unittest import mock
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from moto import mock_aws
 
 from server.cloud import handler as handler_module
 from server.cloud import routes_me
 from server.cloud.repo import Repo
 from server.tests.cloud.helpers import make_table
+from server.cloud import media
+from server.tests.cloud.helpers import MEDIA_BUCKET
 from server.tests.cloud.test_handler import Context, event
+from server.tests.cloud.helpers import make_bucket
+from server.tests.cloud.test_groups import own_tests_only
 
 TOKEN = 'ExponentPushToken[aaaaaaaaaaaaaaaaaaaaaa]'
 
@@ -40,8 +45,11 @@ class DeleteAccountTest(unittest.TestCase):
         self.repo.put_membership(self.k2, self.dana, 'listener')
 
     def call(self, method, path, sub, body=None):
-        response = handler_module.handler(event(method, path, sub=sub, body=json.dumps(body) if body else None),
-                                          Context())
+        path, _, query = path.partition('?')
+        evt = event(method, path, sub=sub, body=json.dumps(body) if body else None)
+        if query:
+            evt['queryStringParameters'] = dict(q.split('=') for q in query.split('&'))
+        response = handler_module.handler(evt, Context())
         return response['statusCode'], json.loads(response['body']) if response['body'] else None
 
     def uid(self, sub):
@@ -184,3 +192,128 @@ class DeleteAccountTest(unittest.TestCase):
         self.repo.ensure_family(self.k1, self.dana)
         self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana'), (204, None))
         self.assertEqual(self.repo._query_prefix(self.k1, 'F#'), [])
+
+
+JPEG = b'\xff\xd8\xff\xe0' + b'0' * 100
+
+
+@own_tests_only
+@mock_aws
+class DeletePostsTest(DeleteAccountTest):
+    """DELETE /v1/me?deletePosts=1 (inherits the fixtures; the parent's tests run again, which is harmless)."""
+
+    def setUp(self):
+        super().setUp()
+        env = mock.patch.dict(os.environ, {})
+        env.start()
+        self.addCleanup(env.stop)
+        media.s3_client.cache_clear()
+        self.addCleanup(media.s3_client.cache_clear)
+        self.s3 = make_bucket()
+        self.repo.put_profile(self.dana, 'Dana', 'Test', 'en')
+        self.eli_sub = 'sub-eli'
+        self.cognito.admin_create_user(UserPoolId=self.pool, Username=self.eli_sub)
+        self.eli = self.uid(self.eli_sub)
+        self.repo.put_membership(self.k1, self.eli, 'member')
+        self.chan1 = self.repo.list_channels(self.k1)[0]['sk'][2:]
+        self.chan2 = self.repo.list_channels(self.k2)[0]['sk'][2:]
+
+    def seed_posts(self):
+        weekly = self.repo.put_message(self.k1, self.chan1, 'weekly', 'Title one', 'Body one', self.dana, 'Dana T',
+                                       'member', None, image={'contentType': 'image/jpeg', 'bytes': 104})
+        self.s3.put_object(Bucket=MEDIA_BUCKET, Key=media.image_key(self.k1, weekly['sk'][4:]), Body=JPEG)
+        chat = self.repo.put_message(self.k2, self.chan2, 'chat', '', 'chat text', self.dana, 'Dana T', 'member', None)
+        blessing = self.repo.put_message(self.k1, self.chan1, 'celebration', 'Mazal tov', 'Wishes', self.dana,
+                                         'Dana T', 'member', self.gab, 'Gab')
+        bid = blessing['sk'][4:]
+        self.repo.put_reply(self.k1, bid, self.eli, 'Eli', 'one')
+        self.repo.put_reply(self.k1, bid, self.gab, 'Gab', 'two')
+        about_other = self.repo.put_message(self.k1, self.chan1, 'celebration', 't', 'b', self.gab, 'Gab',
+                                            'management', self.eli, 'Eli')
+        oid = about_other['sk'][4:]
+        self.repo.put_reply(self.k1, oid, self.dana, 'Dana T', 'private')
+        self.repo.put_reply(self.k1, oid, self.dana, 'Dana T', 'private again')
+        self.repo.put_reply(self.k1, oid, self.gab, 'Gab', 'other reply')
+        return weekly, chat, blessing, about_other
+
+    def changes(self, k):
+        return [i for i in self.repo._query_prefix(k, 'CHG#') if i['kind'] == 'message_removed']
+
+    def test_delete_posts_removes_messages_chat_and_replies_everywhere(self):
+        weekly, chat, blessing, about_other = self.seed_posts()
+        oid = about_other['sk'][4:]
+        self.assertEqual(int(self.repo.get_message(self.k1, oid)['replierCount']), 2)
+        self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana'), (204, None))
+        for k, m in ((self.k1, weekly), (self.k2, chat), (self.k1, blessing)):
+            item = self.repo.get_message(k, m['sk'][4:])
+            self.assertEqual((item['removed'], item['title'], item['body']), (True, '', ''))
+            self.assertNotIn('image', item)
+        keys = self.s3.list_objects_v2(Bucket=MEDIA_BUCKET).get('Contents', [])
+        self.assertEqual(keys, [])
+        self.assertEqual(sorted(i['refId'] for i in self.changes(self.k1)),
+                         sorted([weekly['sk'][4:], blessing['sk'][4:]]))
+        self.assertEqual([i['refId'] for i in self.changes(self.k2)], [chat['sk'][4:]])
+        self.assertEqual(self.repo._query_prefix(f'{self.k1}#MSG#{blessing["sk"][4:]}', 'R'), [])
+        replies = self.repo.list_replies(self.k1, oid)
+        self.assertEqual([r['body'] for r in replies], ['other reply'])
+        self.assertEqual(int(self.repo.get_message(self.k1, oid)['replierCount']), 1)
+        self.assertEqual(self.repo.table.query(KeyConditionExpression=Key('pk').eq(f'K#{self.k1}#MSG#{oid}') &
+                                               Key('sk').begins_with('RP#'))['Items'][0]['sk'], f'RP#{self.gab}')
+        counts = [i for i in self.repo._query_prefix(self.k1, 'CHG#') if i['kind'] == 'reply_count']
+        self.assertIn(oid, [i['refId'] for i in counts])
+        # the other messages are untouched
+        self.assertFalse(self.repo.get_message(self.k1, oid)['removed'])
+
+    def test_delete_posts_scrubs_text(self):
+        weekly, chat, blessing, about_other = self.seed_posts()
+        self.repo.remove_message(self.k2, chat['sk'][4:])  # removed earlier: title/body still there
+        self.assertEqual(self.repo.get_message(self.k2, chat['sk'][4:])['body'], 'chat text')
+        self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana')
+        item = self.repo.get_message(self.k2, chat['sk'][4:])
+        self.assertEqual((item['removed'], item['title'], item['body']), (True, '', ''))
+        for item in self.repo.table.scan()['Items']:
+            self.assertNotIn('chat text', json.dumps(item, default=str))
+            self.assertNotIn('Wishes', json.dumps(item, default=str))
+
+    def test_delete_posts_retry_finishes(self):
+        weekly, chat, blessing, about_other = self.seed_posts()
+        budget = iter([100000, 100000, 2000])
+        with mock.patch.object(Context, 'get_remaining_time_in_millis', create=True,
+                               side_effect=lambda: next(budget, 2000)):
+            self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana'), (503, {'error': 'try_again'}))
+        self.assertIsNotNone(self.repo.get_membership(self.k1, self.dana))  # nothing past the posts ran
+        self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana'), (204, None))
+        for item in self.repo.table.scan()['Items']:
+            self.assertNotIn(self.dana, item['pk'] + item['sk'])
+            if item.get('authorId') == self.dana:
+                self.assertEqual((item.get('title', ''), item.get('body', ''), item.get('authorName', '')),
+                                 ('', '', ''))
+        self.assertEqual(self.s3.list_objects_v2(Bucket=MEDIA_BUCKET).get('Contents', []), [])
+        self.assertEqual(int(self.repo.get_message(self.k1, about_other['sk'][4:])['replierCount']), 1)
+
+    def test_retry_after_crash_between_remove_and_scrub_finishes(self):
+        weekly, chat, blessing, about_other = self.seed_posts()
+        with mock.patch.object(self.repo, 'scrub_message', side_effect=RuntimeError('boom')):
+            self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana')[0], 500)
+        self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana'), (204, None))
+        for m in (weekly, blessing):
+            self.assertEqual(self.repo.get_message(self.k1, m['sk'][4:])['body'], '')
+
+    def test_delete_without_flag_keeps_posts(self):
+        weekly, chat, blessing, about_other = self.seed_posts()
+        self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=true', 'sub-dana'), (204, None))  # only "1" counts
+        item = self.repo.get_message(self.k1, weekly['sk'][4:])
+        self.assertEqual((item['removed'], item['body'], item['authorName']), (False, 'Body one', ''))
+        self.assertEqual(self.repo.get_message(self.k2, chat['sk'][4:])['body'], 'chat text')
+        self.assertEqual(self.s3.list_objects_v2(Bucket=MEDIA_BUCKET)['KeyCount'], 1)
+
+    def test_blessings_about_deleted_person_stay_blank_target(self):
+        about_dana = self.repo.put_message(self.k1, self.chan1, 'celebration', 'Mazal', 'Wishes', self.gab, 'Gab',
+                                           'management', self.dana, 'Dana T')
+        self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana')
+        item = self.repo.get_message(self.k1, about_dana['sk'][4:])
+        self.assertEqual((item['removed'], item['targetName'], item['body']), (False, '', 'Wishes'))
+
+    def test_listener_can_leave(self):
+        self.assertEqual(self.call('DELETE', f'/v1/kehilot/{self.k2}/membership', 'sub-dana')[0], 204)
+        self.assertIsNone(self.repo.get_membership(self.k2, self.dana))

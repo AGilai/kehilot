@@ -24,6 +24,18 @@ class IdentityTest(unittest.TestCase):
         self.assertRegex(user_id, ID_RE)
         self.assertEqual(self.repo.get_user_id('sub-1'), user_id)
 
+    def test_resolve_clears_never_signed_in(self):
+        user_id = self.repo.create_user_id('sub-1', 'A' * 26)
+        self.repo.mark_imported_account('sub-1', user_id)
+        sub = lambda: self.repo.table.get_item(Key={'pk': 'U#sub-1', 'sk': 'SUB'})['Item']
+        self.assertTrue(sub()['neverSignedIn'])
+        self.assertEqual(self.repo.table.get_item(Key={'pk': f'U#{user_id}', 'sk': 'SUBREF'})['Item']['sub'], 'sub-1')
+        self.assertEqual(resolve_user_id(self.repo, self.caller), user_id)
+        self.assertNotIn('neverSignedIn', sub())
+        with mock.patch.object(Repo, 'clear_never_signed_in') as clear:
+            resolve_user_id(self.repo, self.caller)
+        clear.assert_not_called()
+
     def test_second_call_returns_same_id(self):
         self.assertEqual(resolve_user_id(self.repo, self.caller), resolve_user_id(self.repo, self.caller))
 

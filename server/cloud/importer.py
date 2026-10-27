@@ -75,6 +75,8 @@ def import_rows(repo, client, pool_id, k, rows, remaining_ms=None):
         seen.add(row['email'])
         sub, created = accounts.ensure_account(client, pool_id, row['email'])
         user_id = repo.create_user_id(sub, new_id())
+        if created:
+            repo.mark_imported_account(sub, user_id)
         repo.put_profile_if_absent(user_id, row['first'], row['last'], lang)
         status = repo.import_membership(k, user_id, f"{row['first']} {row['last']}".strip(), row['role'],
                                         row['classification'], broadcast_default)

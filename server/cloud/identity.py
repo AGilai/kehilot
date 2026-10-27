@@ -24,4 +24,6 @@ def resolve_user_id(repo, caller):
     item = repo.get_sub(caller.sub)
     if item and item.get('deleted'):  # tombstone left by DELETE /v1/me: never recreate the account
         raise ApiError(401, 'account_deleted')
+    if item and item.get('neverSignedIn'):  # the first API call of an imported account
+        repo.clear_never_signed_in(caller.sub)
     return item['userId'] if item else repo.create_user_id(caller.sub, new_id())

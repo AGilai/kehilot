@@ -105,6 +105,25 @@ class ImportTest(unittest.TestCase):
         self.assertEqual(self.do_import([row()])[1]['results'][0]['status'], 'exists')
         self.assertFalse(card())
 
+    def test_import_marks_created_accounts_never_signed_in(self):
+        self.do_import([row()])
+        sub = self.cognito_users()[0]['Username']
+        user_id = self.repo.get_user_id(sub)
+        self.assertTrue(self.repo.get_sub(sub)['neverSignedIn'])
+        self.assertEqual(self.repo.table.get_item(Key={'pk': f'U#{user_id}', 'sk': 'SUBREF'})['Item']['sub'], sub)
+        self.call('GET', '/v1/me', sub, 'dana@example.test')
+        self.assertNotIn('neverSignedIn', self.repo.get_sub(sub))
+        self.do_import([row()])  # exists: not marked again
+        self.assertNotIn('neverSignedIn', self.repo.get_sub(sub))
+
+    def test_import_of_existing_cognito_user_is_not_marked(self):
+        self.cognito.admin_create_user(UserPoolId=self.pool, Username='dana@example.test', UserAttributes=[
+            {'Name': 'email', 'Value': 'dana@example.test'}, {'Name': 'email_verified', 'Value': 'true'}])
+        self.do_import([row()])
+        sub = self.cognito_users()[0]['Username']
+        self.assertNotIn('neverSignedIn', self.repo.get_sub(sub))
+        self.assertNotIn('SUBREF', [i['sk'] for i in self.repo.table.scan()['Items']])
+
     def test_reimport_is_idempotent(self):
         rows = [row(), row('Eli', 'Example', 'eli@example.test', 'listener')]
         self.do_import(rows)

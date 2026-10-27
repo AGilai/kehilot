@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import accounts, consents, importer, inputs, push
+from . import accounts, consents, importer, inputs, push, routes_me
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -113,7 +113,23 @@ def remove_member(ctx, params):
     ctx.repo.remove_member(params['k'], params['userId'], target['role'])
     _drop_from_family(ctx, params['k'], params['userId'], target['role'])
     ctx.repo.revoke_member_invites(params['k'], params['userId'])
+    _delete_if_never_signed_in(ctx, params['userId'])
     return 204, None
+
+
+def _delete_if_never_signed_in(ctx, user_id):
+    """An imported person who never signed in and has no other Kehila: delete the Cognito user and the data.
+    A Cognito failure leaves the account as it was (the removal itself stands); only the type is logged."""
+    sub = ctx.repo.get_sub_ref(user_id)
+    if not sub or not (ctx.repo.get_sub(sub) or {}).get('neverSignedIn') or ctx.repo.list_memberships(user_id):
+        return
+    try:
+        routes_me._delete_cognito_user(sub)
+    except Exception as error:
+        log.warning('never-signed-in cleanup failed user=%s error=%s', user_id, type(error).__name__)
+        return
+    ctx.repo.purge_user(user_id, sub)
+    log.info('removed never-signed-in user=%s', user_id)
 
 
 def _drop_from_family(ctx, k, user_id, role):

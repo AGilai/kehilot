@@ -2,7 +2,7 @@
 import time
 from datetime import datetime, timedelta, timezone
 
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 from .errors import ApiError
@@ -228,6 +228,27 @@ class MessagesRepo:
                 raise
             raise ApiError(404, 'message_not_found')
 
+    def scrub_message(self, k, message_id):
+        """Blank title and body (account deletion with "delete everything I posted"). Idempotent."""
+        try:
+            self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
+                                   UpdateExpression='SET title = :e, body = :e',
+                                   ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':e': ''})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise  # a message that is gone needs no scrub
+
+    def authored_items(self, user_id):
+        """Every message and reply the user wrote, in every Kehila: one consistent paginated Scan with a filter.
+        O(table size), like purge_user (see its note); only used by account deletion."""
+        items, kwargs = [], {'FilterExpression': Attr('authorId').eq(user_id), 'ConsistentRead': True}
+        while True:
+            page = self.table.scan(**kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
     def join_message(self, k, message_id, user_id):
         """Returns (joinCount, newly_joined). The Join item and the counter change in one transaction."""
         msg_key = {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'}
@@ -301,3 +322,56 @@ class MessagesRepo:
             if 'LastEvaluatedKey' not in page:
                 return items
             kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def delete_replies(self, k, message_id):
+        """Delete every reply (R#) and distinct-replier marker (RP#) under the message. Returns the count."""
+        pk, count = f'K#{k}#MSG#{message_id}', 0
+        keys, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(pk) & (Key('sk').begins_with('R#')),
+                                    ProjectionExpression='pk, sk', ConsistentRead=True, **kwargs)
+            keys += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                break
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+        # 'RP#' does not start with 'R#', so the markers need their own query
+        kwargs = {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(pk) & Key('sk').begins_with('RP#'),
+                                    ProjectionExpression='pk, sk', ConsistentRead=True, **kwargs)
+            keys += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                break
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+        with self.table.batch_writer() as batch:
+            for key in keys:
+                batch.delete_item(Key={'pk': key['pk'], 'sk': key['sk']})
+                count += 1
+        return count
+
+    def delete_reply(self, k, message_id, reply_sk, author_id):
+        """Delete one reply. When it is the author's last one on the message, their RP# marker goes too and the
+        message's replierCount drops by 1 (once: the marker's existence is the guard), then a reply_count change.
+        The count is settled before the reply goes, so a retry after a crash in between finds the reply again."""
+        pk = f'K#{k}#MSG#{message_id}'
+        mine = [r for r in self.list_replies(k, message_id) if r['authorId'] == author_id]
+        if [r['sk'] for r in mine] in ([reply_sk], []):
+            name = self.table.name
+            try:
+                self._txn([
+                    {'Delete': {'TableName': name, 'Key': {'pk': pk, 'sk': f'RP#{author_id}'},
+                                'ConditionExpression': 'attribute_exists(sk)'}},
+                    {'Update': {'TableName': name, 'Key': {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
+                                'UpdateExpression': 'ADD replierCount :minus1',
+                                'ConditionExpression': 'replierCount > :zero',
+                                'ExpressionAttributeValues': {':minus1': -1, ':zero': 0}}},
+                ])
+            except ClientError as error:
+                if not _failed(error, 'TransactionCanceledException'):
+                    raise
+                # the marker is already gone (a retry), or the count is 0: just make sure the marker is gone
+                self.table.delete_item(Key={'pk': pk, 'sk': f'RP#{author_id}'})
+            message = self.get_message(k, message_id)
+            if message:
+                self.put_change(k, 'reply_count', message_id, message['channelId'])
+        self.table.delete_item(Key={'pk': pk, 'sk': reply_sk})

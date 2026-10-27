@@ -52,6 +52,24 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo, FamiliesRepo):
                 raise ApiError(401, 'account_deleted')
             return winner['userId']['S']  # the winner of a concurrent first login
 
+    def mark_imported_account(self, sub, user_id):
+        """An account the list import created: flag it until its first API call, and keep sub for the gabbai's
+        removal (`U#<user>/SUBREF`)."""
+        self.table.update_item(Key={'pk': f'U#{sub}', 'sk': 'SUB'}, UpdateExpression='SET neverSignedIn = :t',
+                               ConditionExpression='attribute_exists(userId)', ExpressionAttributeValues={':t': True})
+        self.table.put_item(Item={'pk': f'U#{user_id}', 'sk': 'SUBREF', 'sub': sub})
+
+    def clear_never_signed_in(self, sub):
+        try:
+            self.table.update_item(Key={'pk': f'U#{sub}', 'sk': 'SUB'}, UpdateExpression='REMOVE neverSignedIn',
+                                   ConditionExpression='attribute_exists(userId)')
+        except ClientError as error:  # a tombstone appeared meanwhile: nothing to clear
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+
+    def get_sub_ref(self, user_id):
+        return (self._get(f'U#{user_id}', 'SUBREF') or {}).get('sub')
+
     def get_kehila(self, k):
         # META holds no logo bytes any more (they live in K#<k>/LOGO), so a plain get is already small
         return self.table.get_item(Key={'pk': f'K#{k}', 'sk': 'META'}).get('Item')

@@ -4,7 +4,7 @@ import os
 import re
 from urllib.parse import unquote
 
-from . import inputs
+from . import inputs, posts
 from .errors import ApiError
 
 log = logging.getLogger(__name__)
@@ -63,12 +63,17 @@ def delete_account(ctx, params):
     for k in gabbai_of:
         if not any(m['role'] == 'gabbai' and m['userId'] != ctx.user_id for m in ctx.repo.list_members(k)):
             raise ApiError(409, 'last_gabbai')
-    for k in gabbai_of:  # guarded removal: re-checks the other gabbai atomically (409 last_gabbai on a race)
-        ctx.repo.remove_member(k, ctx.user_id, 'gabbai')
+    n_messages = n_replies = 0
+    if ctx.query.get('deletePosts') == '1':  # first: a 503 try_again leaves membership intact, the retry continues
+        n_messages, n_replies = posts.delete_posts(
+            ctx.repo, ctx.user_id, getattr(ctx.context, 'get_remaining_time_in_millis', None))
     for m in memberships:  # before the purge, so the scan never meets the person in a family
         if m['role'] in ('member', 'gabbai'):
             ctx.repo.drop_adult(m['kehilaId'], ctx.user_id)
+    for k in gabbai_of:  # guarded removal: re-checks the other gabbai atomically (409 last_gabbai on a race)
+        ctx.repo.remove_member(k, ctx.user_id, 'gabbai')
     deleted, blanked = ctx.repo.purge_user(ctx.user_id, ctx.caller.sub)
     _delete_cognito_user(ctx.caller.sub)
-    log.info('account deleted user=%s items=%d blanked=%d', ctx.user_id, deleted, blanked)
+    log.info('account deleted user=%s items=%d blanked=%d posts=%d replies=%d', ctx.user_id, deleted, blanked,
+             n_messages, n_replies)
     return 204, None
