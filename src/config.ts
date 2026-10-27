@@ -18,6 +18,8 @@ export const config = {
   buildNumber: Number(process.env.EXPO_PUBLIC_BUILD_NUMBER) || 0,
   releasesRepo: process.env.EXPO_PUBLIC_RELEASES_REPO ?? '',
   /** The floating "Alpha · Report a bug" button (UX-DESIGN §13). On in dev builds and the fixtures build. */
+  /** The seat-release preview (UX-DESIGN §15): Home card, seat page, gabbai hall print, on fixture data. Dev builds only. */
+  seatsPreview: process.env.EXPO_PUBLIC_SEATS_PREVIEW === '1',
   bugReports: process.env.EXPO_PUBLIC_REPORTS === '1' || process.env.EXPO_PUBLIC_FIXTURES === '1',
 };
 

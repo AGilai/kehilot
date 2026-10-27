@@ -3,6 +3,11 @@ import { ApiCodeError } from './errors.ts';
 import { endpoints } from './endpoints.ts';
 import type { Http } from './http.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
+import { HALL, allSeats, seatKey } from '../seats/hall.ts';
+import type { Hall, SeatRef } from '../seats/hall.ts';
+import { memberView } from '../seats/frame.ts';
+import type { Allocation, MemberSeats } from '../seats/frame.ts';
+import type { Prayer } from '../seats/release.ts';
 import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
@@ -18,7 +23,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -393,3 +398,58 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   return endpoints(http);
 }
 
+
+// --- Seat-release preview (UX-DESIGN §15; the seats are the gabbai-side data, the member only ever gets memberView's cut) ---
+// All names are invented.
+export type SeatVariant = 'default' | 'split' | 'none' | 'closed' | 'gabbai';
+const SURNAMES = ['בדיוני', 'דוגמה', 'ניסוי', 'אלמוני', 'פלוני', 'מדומה', 'כהן־דמה', 'ניסיון', 'לוי־דמה', 'שמי', 'תבנית', 'דמיוני', 'אקראי', 'מקרי', 'פיקטיבי'];
+const MINE: Record<'default' | 'split', SeatRef[]> = {
+  default: [{ block: 'CR', row: 6, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
+  split: [{ block: 'R', row: 2, col: 0 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
+};
+
+/** The whole hall for the gabbai: fixed pseudo-random households over the 205 seats (about one in eight stays unallocated) and what each prayer released. */
+export function fixtureSeatHall(hall: Hall = HALL): { hall: Hall; allocations: Allocation[]; released: Record<Prayer, Set<string>> } {
+  let seed = 11;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const taken = new Set([...MINE.default, ...MINE.split].map(seatKey));
+  const allocations: Allocation[] = [{ householdId: 'me', name: 'דוגמה', seats: MINE.default }];
+  let current: Allocation | null = null;
+  let left = 0;
+  let n = 0;
+  for (const seat of allSeats(hall)) {
+    const key = seatKey(seat);
+    if (taken.has(key)) { current = null; continue; }
+    if (rnd() < 0.13) { current = null; continue; }
+    if (!current || left === 0) {
+      n++;
+      current = { householdId: `h${n}`, name: SURNAMES[n % SURNAMES.length]!, seats: [] };
+      left = 1 + Math.floor(rnd() * 3);
+      allocations.push(current);
+    }
+    current.seats.push(seat); left--;
+  }
+  const released: Record<Prayer, Set<string>> = { arvit: new Set(), shacharit: new Set() };
+  for (const a of allocations.slice(1)) for (const s of a.seats) {
+    if (rnd() < 0.15) released.arvit.add(seatKey(s));
+    if (rnd() < 0.25) released.shacharit.add(seatKey(s));
+  }
+  return { hall, allocations, released };
+}
+
+export type FixtureMemberSeats = MemberSeats & { closed: boolean; source: 'member' | 'gabbai'; answers: Record<Prayer, string[]> };
+/** What the member page receives in the preview: his frames cut from the gabbai-side hall, and his current answers. */
+export function fixtureMemberSeats(variant: SeatVariant = 'default'): FixtureMemberSeats {
+  const h = fixtureSeatHall();
+  const me = h.allocations[0]!;
+  const seats = variant === 'split' ? MINE.split : variant === 'none' ? [] : MINE.default;
+  const allocations = [{ ...me, seats }, ...h.allocations.slice(1)];
+  const cut = memberView(h.hall, allocations, 'me');
+  const mineKeys = seats.map(seatKey);
+  const answers: Record<Prayer, string[]> = variant === 'gabbai' ? { arvit: [mineKeys[2]!], shacharit: [] } : { arvit: [], shacharit: [] };
+  return { ...cut, closed: variant === 'closed', source: variant === 'gabbai' ? 'gabbai' : 'member', answers };
+}
+
+export function seatVariantOf(screen: string | null): SeatVariant {
+  return screen === 'seats-split' ? 'split' : screen === 'seats-none' ? 'none' : screen === 'seats-closed' ? 'closed' : screen === 'seats-gabbai' ? 'gabbai' : 'default';
+}

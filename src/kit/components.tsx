@@ -168,14 +168,14 @@ export function Banner({ text, tone = 'info', action }: { text: string; tone?: '
   );
 }
 
-/** Small read-only label. `plain`/`strong`: access role and class. `role`: a Kehila-defined role tag, a name (surface fill, ink text), not a permission. */
-export function Tag({ label, tone = 'plain', content }: { label: string; tone?: 'plain' | 'strong' | 'role'; /** User text: keeps its own direction. */ content?: boolean }) {
+/** Small read-only label. `preview`: dashed ink outline, transparent (UX §15.4: never reads as a real status). `plain`/`strong`: access role and class. `role`: a Kehila-defined role tag, a name (surface fill, ink text), not a permission. */
+export function Tag({ label, tone = 'plain', content }: { label: string; tone?: 'plain' | 'strong' | 'role' | 'preview'; /** User text: keeps its own direction. */ content?: boolean }) {
   const k = useTokens();
-  const bg = tone === 'role' ? k.surface : k.stone;
-  const border = tone === 'strong' ? k.tekhelet : k.line;
-  const fg = tone === 'strong' ? k.tekhelet : tone === 'role' ? k.ink : k.muted;
+  const bg = tone === 'preview' ? 'transparent' : tone === 'role' ? k.surface : k.stone;
+  const border = tone === 'strong' ? k.tekhelet : tone === 'preview' ? k.ink : k.line;
+  const fg = tone === 'strong' ? k.tekhelet : tone === 'role' || tone === 'preview' ? k.ink : k.muted;
   return (
-    <View style={{ paddingHorizontal: 10, minHeight: 24, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: bg }}>
+    <View style={{ paddingHorizontal: 10, minHeight: 24, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderStyle: tone === 'preview' ? 'dashed' : 'solid', borderColor: border, backgroundColor: bg }}>
       <Txt size="caption" bold color={fg} content={content}>{label}</Txt>
     </View>
   );

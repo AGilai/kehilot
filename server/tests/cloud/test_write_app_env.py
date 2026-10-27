@@ -26,6 +26,7 @@ EXPO_PUBLIC_COGNITO_DOMAIN=kehilot-dev.auth.il-central-1.amazoncognito.com
 EXPO_PUBLIC_WEB_URL=https://d111example.cloudfront.net
 EXPO_PUBLIC_FEDERATION=
 EXPO_PUBLIC_REPORTS=1
+EXPO_PUBLIC_SEATS_PREVIEW=1
 '''
 
 
@@ -49,6 +50,7 @@ class WriteAppEnvTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             text = write_app_env.write('prod', OUTPUTS, Path(tmp)).read_text()
             self.assertNotIn('EXPO_PUBLIC_REPORTS', text)
+            self.assertNotIn('EXPO_PUBLIC_SEATS_PREVIEW', text)
 
     def test_only_dev_and_prod_envs_are_accepted(self):
         with self.assertRaises(SystemExit):

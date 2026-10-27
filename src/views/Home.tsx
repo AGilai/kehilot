@@ -17,6 +17,9 @@ import { isCurrentZmanim, ZMANIM_CACHE_PREFIX } from '../zmanim.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { HomeCards } from './HomeCards.tsx';
 import { TestBuildCard } from './TestBuildCard.tsx';
+import { SeatCard } from './SeatCard.tsx';
+import { previewCardState, previewMemberSeats } from '../seats/preview.ts';
+import { cardWindow, shabbatFriday, whenParts } from '../seats/window.ts';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
 import { ForwardIcon, Icon } from '../kit/Icon.tsx';
@@ -28,7 +31,7 @@ const loaders = config.fixtures
   : { zmanim: loadZmanim, shabbat: loadShabbat };
 
 /** M1 (the day arc comes later): greeting, dates, zmanim grid, Shabbat card, and the latest three titles. */
-export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void; /** The terms card's button (management mode until the terms gate exists). */ onTerms?: () => void; onToast?: (text: string) => void }) {
+export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeats }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void; /** The terms card's button (management mode until the terms gate exists). */ onTerms?: () => void; onToast?: (text: string) => void; /** The seat-release preview (UX §15): opens the seat page. */ onSeats?: () => void }) {
   const { t, lang } = useI18n();
   const k = useTokens();
   const { signOut } = useAuth();
@@ -71,6 +74,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
     return () => { active = false; };
   }, [date, revision, t]);
 
+  const seatPreview = React.useMemo(() => (config.seatsPreview ? previewMemberSeats() : null), []);
   const kehila = state.kehila;
   if (!kehila) return null;
   const today = zmanim?.date === date ? zmanim : null;
@@ -90,6 +94,11 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
       </View>
 
       <TestBuildCard />
+
+      {seatPreview && onSeats && seatPreview.seatCount > 0 ? (
+        <SeatCard count={seatPreview.seatCount} state={seatPreview.source === 'gabbai' ? 'byGabbai' : previewCardState()} deadline={whenParts(cardWindow(shabbatFriday(now)).closesAt, lang)}
+          onYes={() => onToast?.(t('seats.previewToast'))} onUpdate={onSeats} />
+      ) : null}
 
       {onToast ? <HomeCards onTerms={onTerms ?? (() => {})} onToast={onToast} /> : null}
 

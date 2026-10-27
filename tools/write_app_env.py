@@ -1,6 +1,6 @@
 """Write the app's .env.<env> from `terraform output -json`. Usage: python3 tools/write_app_env.py --env dev
 
-The file is gitignored. EXPO_PUBLIC_REPORTS=1 (the bug-report button) is written for dev only. EXPO_PUBLIC_FEDERATION stays empty until Google/Apple sign-in is configured.
+The file is gitignored. EXPO_PUBLIC_REPORTS=1 (the bug-report button) and EXPO_PUBLIC_SEATS_PREVIEW=1 (the seat-release preview, UX-DESIGN §15) are written for dev only. EXPO_PUBLIC_FEDERATION stays empty until Google/Apple sign-in is configured.
 """
 import argparse
 import json
@@ -28,6 +28,7 @@ def render(outputs, reports=True):
     lines.append('EXPO_PUBLIC_FEDERATION=')
     if reports:  # the floating bug-report button is on in dev builds only
         lines.append('EXPO_PUBLIC_REPORTS=1')
+        lines.append('EXPO_PUBLIC_SEATS_PREVIEW=1')  # the clickable seat preview on fixture data, dev builds only
     return '\n'.join(lines) + '\n'
 
 
