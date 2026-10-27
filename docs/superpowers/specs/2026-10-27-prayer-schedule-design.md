@@ -59,6 +59,18 @@ Header: Kehila logo + "שבת פרשת <parasha>". Two columns:
   prayer. The city zmanim (the current arc/grid) become a **collapsible card** below.
 - **Full schedule** screen: sections as the template lays them out, this week's overrides applied.
 
+## 3a. Two formats of the same data (owner, 2026-10-27)
+
+"the zmanim shall be set into the app — and shall be allowed to be printed — print loads the times into a
+page with kehila logo and format as the page i shared — so there are 2 formats for zmanim — the mobile
+and the print". One schedule, two renderings:
+- **Mobile** — the Home card and the full-schedule screen (§3), designed for the phone.
+- **Print** — an A4 page in the template (§4): Kehila logo, "שבת פרשת X", the two columns, the week's
+  notices. A **"הדפסה" / "Print"** action on the full-schedule screen, for everyone who can see the
+  schedule (members and guests; guests' print leaves out mazal tov unless guests may see it). On the
+  web it opens the print page and the browser's print dialog; on the phone it makes a PDF to print or
+  share. The gabbai's editor shows the same page as its "sheet" preview.
+
 ## 4. The weekly sheet and templates
 
 - The sheet is **generated**: parasha from the Hebrew calendar, times from the schedule, the week's
