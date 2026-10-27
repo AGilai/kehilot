@@ -15,9 +15,8 @@ import { buildSheet } from '../../../schedule/sheetSource.ts';
 import type { ScheduleDoc, ScheduleWeek, ZmanimFor } from '../../../schedule/types.ts';
 import { addDays, computeWeek } from '../../../schedule/week.ts';
 import type { Message } from '../../../client/types.ts';
-import { dateRange } from '../../../schedule/memberView.ts';
-import { FullSections } from '../../Schedule.tsx';
-import { ScheduleCard, useShabbatTitle } from '../../ScheduleCard.tsx';
+import { FullSections, WeekTitle } from '../../Schedule.tsx';
+import { ScheduleCard } from '../../ScheduleCard.tsx';
 import { FSeg, Select, TimeField } from './controls.tsx';
 
 export type PreviewMode = 'phone' | 'sheet';
@@ -44,7 +43,6 @@ const DAY_OFFSETS = [0, 1, 2, 3, 4, 5];
 function PhonePreview({ doc, week, zmanimFor }: Pick<PreviewProps, 'doc' | 'week' | 'zmanimFor'>) {
   const { t, lang } = useI18n();
   const k = useTokens();
-  const title = useShabbatTitle();
   const [view, setView] = React.useState<'home' | 'full'>('home');
   const [offset, setOffset] = React.useState(0);
   const [time, setTime] = React.useState('15:40');
@@ -75,10 +73,7 @@ function PhonePreview({ doc, week, zmanimFor }: Pick<PreviewProps, 'doc' | 'week
           card ? <ScheduleCard model={card} doc={doc} cachedAt={null} onFull={() => setView('full')} /> : <Txt color={k.muted}>{t('editor.previewEmpty')}</Txt>
         ) : full ? (
           <>
-            <View style={{ alignItems: 'center' }}>
-              <Txt bold>{title(full.week)}</Txt>
-              <Txt size="caption" color={k.muted}>{dateRange(full.week.friday, full.week.thursday)}</Txt>
-            </View>
+            <View style={{ flexDirection: 'row' }}><WeekTitle week={full.week} /></View>
             <FullSections doc={doc} model={full} />
           </>
         ) : <Txt color={k.muted}>{t('editor.previewEmpty')}</Txt>}

@@ -13,7 +13,7 @@ import { BackIcon } from '../../kit/Icon.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import {
   applyFormulaPatch, changeCount, classicSections, cleanSections, editorReducer, initialEditorState, isDirty, issueTarget, nextId,
-  overrideIssueTarget, saveDiff, sectionItems, takenIds, validateSections, validateWeekOverrides, weekChanges, weekEditable, weekList, timeOfKind,
+  overrideIssueTarget, rebaseDraft, saveDiff, sectionItems, takenIds, validateSections, validateWeekOverrides, weekChanges, weekEditable, weekList, timeOfKind,
 } from '../../schedule/editor.ts';
 import type { Draft, FormulaPatch, Issue, IssueControl, RowItem } from '../../schedule/editor.ts';
 import { fullModel, textIn } from '../../schedule/memberView.ts';
@@ -34,7 +34,7 @@ import { WeekPicker } from './scheduleEditor/WeekPicker.tsx';
 import { WIDE, useAdminErrText } from './shared.tsx';
 
 type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; doc: ScheduleDoc };
-type Shown = { sectionId: string | null; rowId: string | null; extraId: string | null; control: IssueControl; message: string };
+type Shown = { week?: string; sectionId: string | null; rowId: string | null; extraId: string | null; control: IssueControl; message: string };
 
 const EMPTY = { sections: [], weekOverrides: {}, updatedAt: null as number | null };
 const ltr = (value: string) => `⁦${value}⁩`;
@@ -139,6 +139,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
     setProblems(list);
     const first = list.find(p => p.rowId || p.extraId);
     if (first) {
+      if (first.week) setFriday(first.week);
       if (first.sectionId) setCollapsed(c => { const n = new Set(c); n.delete(first.sectionId!); return n; });
       open(first.rowId ? `row:${first.rowId}` : `extra:${first.extraId}`);
     }
@@ -156,16 +157,17 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
     for (const issue of sectionIssues) { const at = issueTarget(issue.path, cleaned.sections); list.push({ ...at, extraId: null, message: issueText(issue) }); }
     for (const w of diff.weeks) {
       if (!w.overrides) continue;
-      for (const issue of validateWeekOverrides(w.overrides)) { const at = overrideIssueTarget(issue.path, w.overrides); list.push({ sectionId: null, rowId: at.rowId, extraId: at.extraId, control: at.control, message: issueText(issue) }); }
+      for (const issue of validateWeekOverrides(w.overrides)) { const at = overrideIssueTarget(issue.path, w.overrides); list.push({ week: w.friday, sectionId: null, rowId: at.rowId, extraId: at.extraId, control: at.control, message: issueText(issue) }); }
     }
     if (list.length) {
       showProblems(list);
-      setBanner({ tone: 'error', text: sectionIssues.length && !list.some(p => p.rowId || p.extraId) ? issueText(sectionIssues[0]!) : t('editor.fixFirst', { n: list.length }) });
+      setBanner({ tone: 'error', text: !list.some(p => p.rowId || p.extraId) ? list[0]!.message : t('editor.fixFirst', { n: list.length }) });
       return;
     }
     setBusy(true);
     let savedSnap: Draft = stateRef.current.saved;
     let updatedAt = stateRef.current.updatedAt;
+    let weekInFlight: string | null = null;
     try {
       if (diff.sections) {
         const res = await api.putSchedule(kehilaId, { sections: cleaned.sections, ifUpdatedAt: updatedAt });
@@ -174,22 +176,36 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
         dispatch({ type: 'saved', snapshot: savedSnap, updatedAt });
       }
       for (const w of diff.weeks) {
+        weekInFlight = w.friday;
         if (w.overrides) await api.putScheduleWeek(kehilaId, w.friday, w.overrides); else await api.deleteScheduleWeek(kehilaId, w.friday);
         const next = { ...savedSnap.weekOverrides };
         if (w.overrides) next[w.friday] = w.overrides; else delete next[w.friday];
         savedSnap = { ...savedSnap, weekOverrides: next };
-        dispatch({ type: 'saved', snapshot: savedSnap, updatedAt: updatedAt ?? 0 });
+        dispatch({ type: 'saved', snapshot: savedSnap, updatedAt });
       }
       onToast(t('editor.saved'));
     } catch (e) {
       const err = e instanceof ApiCodeError ? e : null;
       if (err?.code === 'schedule_changed') setConflict(true);
       else if (err?.field && (err.code === 'invalid_schedule' || err.code === 'invalid_overrides')) {
-        const at = err.code === 'invalid_schedule' ? { ...issueTarget(err.field, cleaned.sections), extraId: null as string | null } : { sectionId: null, ...overrideIssueTarget(err.field, cleaned.weekOverrides[friday] ?? {}) };
-        showProblems([{ sectionId: at.sectionId, rowId: at.rowId, extraId: at.extraId, control: at.control, message: errText(e) }]);
+        const at = err.code === 'invalid_schedule' ? { ...issueTarget(err.field, cleaned.sections), extraId: null as string | null } : { sectionId: null, ...overrideIssueTarget(err.field, cleaned.weekOverrides[weekInFlight ?? friday] ?? {}) };
+        showProblems([{ week: err.code === 'invalid_overrides' ? weekInFlight ?? undefined : undefined, sectionId: at.sectionId, rowId: at.rowId, extraId: at.extraId, control: at.control, message: errText(e) }]);
         setBanner({ tone: 'error', text: errText(e) });
       } else setBanner({ tone: 'error', text: errText(e) });
     } finally { setBusy(false); }
+  }
+  /** 409, "keep mine": load the server copy and put my unsaved changes back on top of it as unsaved changes. */
+  async function reloadKeepingMine() {
+    if (!kehilaId) return;
+    const { saved, draft: mine } = stateRef.current;
+    setConflict(false);
+    try {
+      const doc = await api.schedule(kehilaId);
+      dispatch({ type: 'reset', doc });
+      setLoad({ status: 'ready', doc });
+      dispatch({ type: 'restore', draft: rebaseDraft(saved, mine, { sections: doc.sections, weekOverrides: doc.weekOverrides }) });
+      setBanner({ tone: 'info', text: t('editor.conflictMerged') });
+    } catch (e) { setBanner({ tone: 'error', text: errText(e) }); }
   }
   const saveRef = React.useRef(save);
   saveRef.current = save;
@@ -408,7 +424,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
           <Txt size="small">{t('editor.conflictBody')}</Txt>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             <Button kind="danger" title={t('editor.conflictReload')} onPress={() => { setConflict(false); setSelectedKey(null); void fetchDoc(); }} />
-            <Button kind="secondary" title={t('editor.conflictKeep')} onPress={() => setConflict(false)} />
+            <Button kind="secondary" title={t('editor.conflictKeep')} onPress={() => { void reloadKeepingMine(); }} />
           </View>
         </View>
       ) : null}

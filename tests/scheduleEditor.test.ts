@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { evaluate } from '../src/schedule/formula.ts';
 import {
-  applyFormulaPatch, changeCount, editorLeaveAsk, classicSections, clockChangeIn, editorReducer, explainFormula, formulaWarnings, hideSuggestions,
+  applyFormulaPatch, changeCount, rebaseDraft, editorLeaveAsk, classicSections, clockChangeIn, editorReducer, explainFormula, formulaWarnings, hideSuggestions,
   initialEditorState, isDirty, issueTarget, nextId, nudgeClock, parseClockInput, saveDiff, timeOfKind, validateSections, validateWeekOverrides,
   weekEditable, weekList, sectionItems, weekChanges,
 } from '../src/schedule/editor.ts';
@@ -522,4 +522,52 @@ test('leaving the editor asks only when there are unsaved changes', () => {
   assert.equal(editorLeaveAsk('scheduleEditor', true), true);
   assert.equal(editorLeaveAsk('scheduleEditor', false), false);
   assert.equal(editorLeaveAsk('overview', true), false);
+});
+
+// ---- fix round 1 ------------------------------------------------------------------------------------------------------------------------
+
+test('after-sunset warning looks at every day a weekday row applies to', () => {
+  const latest: Formula = { anchor: 'sunset', day: 'latest', offset: { minutes: 1, direction: 'before' }, rounding: { mode: 'none' } };
+  const hit = formulaWarnings(latest, 'weekday', week, zmanim).find(x => x.code === 'afterSunset');
+  assert.ok(hit, 'latest sunset minus 1 is after the earliest sunset of the week');
+  const sunsets = week.weekdays.map(d => zmanim(d)!.sunset!);
+  assert.equal(zmanim(hit!.params.date!)!.sunset, [...sunsets].sort()[0]);
+  const early: Formula = { ...latest, day: 'earliest', offset: { minutes: 15, direction: 'before' } };
+  assert.equal(formulaWarnings(early, 'weekday', week, zmanim).some(x => x.code === 'afterSunset'), false);
+});
+
+test('week override validation: extra day and size caps', () => {
+  const extra = (day: string) => ({ extra: [{ id: 'x', sectionId: 's', label: { he: 'a' }, day: day as 'friday', time: { kind: 'none' as const } }] });
+  assert.deepEqual(validateWeekOverrides(extra('friday')), []);
+  assert.deepEqual(validateWeekOverrides(extra('monday')).map(i => i.path), ['extra[0].day']);
+  const big = { rows: Object.fromEntries(Array.from({ length: 200 }, (_, i) => [`r${i}`, { kind: 'time' as const, at: '10:00', note: 'א'.repeat(200) }])) };
+  assert.deepEqual(validateWeekOverrides(big).map(i => i.code), ['size']);
+  const sections: Section[] = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, kind: 'weekday' as const, title: { he: 'x' }, rows: Array.from({ length: 40 }, (_, j) => ({ id: `r${i}_${j}`, label: { he: '😀'.repeat(60), en: 'e'.repeat(60) }, note: '😀'.repeat(200), time: { kind: 'none' as const } })) }));
+  assert.deepEqual(validateSections(sections).map(i => [i.path, i.code]), [['sections', 'size']]);
+});
+
+test('saving week overrides before any schedule exists keeps updatedAt null', () => {
+  const s0 = initialEditorState({ sections: [], weekOverrides: {}, updatedAt: null });
+  const s1 = editorReducer(s0, { type: 'saved', snapshot: s0.draft, updatedAt: null });
+  assert.equal(s1.updatedAt, null);
+});
+
+test('rebase: my changes land on top of the server copy', () => {
+  const base = { sections: doc().sections, weekOverrides: {} };
+  const theirs = { sections: doc().sections.map(sec => (sec.id === 'wd' ? { ...sec, rows: sec.rows.map(r => (r.id === 'e' ? fixed('e', 'ערבית', '17:20') : r)) } : sec)), weekOverrides: {} };
+  let mine = run(initialEditorState({ ...doc(), weekOverrides: {} }),
+    { type: 'editRow', rowId: 'a', patch: { label: { he: 'שחרית חדש' } } },
+    { type: 'deleteRow', rowId: 'b' },
+    { type: 'addRow', sectionId: 'wd', id: 'n1', label: { he: 'חדש' }, afterRowId: 'c' },
+    { type: 'setOverride', friday: week.friday, rowId: 'c', override: { kind: 'hide' } }).draft;
+  const out = rebaseDraft(base, mine, theirs);
+  const row = (id: string) => out.sections.flatMap(x => x.rows).find(r => r.id === id);
+  assert.equal(row('a')!.label.he, 'שחרית חדש');
+  assert.equal(row('b'), undefined);
+  assert.deepEqual(row('e')!.time, { kind: 'fixed', at: '17:20' }, 'their change stays');
+  assert.deepEqual(out.sections[1]!.rows.map(r => r.id), ['c', 'n1', 'd', 'e']);
+  assert.deepEqual(out.weekOverrides[week.friday], { rows: { c: { kind: 'hide' } } });
+  assert.equal(rebaseDraft(base, base, theirs).sections[1]!.rows[2]!.id, 'e');
+  mine = run(initialEditorState({ ...doc(), weekOverrides: {} }), { type: 'deleteSection', id: 'sh' }, { type: 'addSection', id: 'z', kind: 'weekday', title: { he: 'ז' } }).draft;
+  assert.deepEqual(rebaseDraft(base, mine, theirs).sections.map(x => x.id), ['wd', 'z']);
 });

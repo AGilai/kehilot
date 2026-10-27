@@ -11,7 +11,7 @@ import { addDays, scheduleWeekOf } from './week.ts';
 
 // ---- limits (server/cloud/schedule_rules.py) ----------------------------------------------------------------------
 
-export const LIMITS = { sections: 12, rows: 40, label: 60, note: 200, overrideRows: 200, extraRows: 40, offsetMinutes: 720 } as const;
+export const LIMITS = { scheduleBytes: 360 * 1024, weekBytes: 48 * 1024, sections: 12, rows: 40, label: 60, note: 200, overrideRows: 200, extraRows: 40, offsetMinutes: 720 } as const;
 const UNSAFE = new RegExp('[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]');
 const CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
@@ -97,7 +97,7 @@ export type EditorAction =
   | { type: 'discard' }
   | { type: 'undo' }
   | { type: 'restore'; draft: Draft }
-  | { type: 'saved'; snapshot: Draft; updatedAt: number }
+  | { type: 'saved'; snapshot: Draft; updatedAt: number | null }
   | { type: 'addSection'; id: string; kind: Section['kind']; title: Text }
   | { type: 'renameSection'; id: string; title: Text; key?: string }
   | { type: 'moveSection'; id: string; delta: number }
@@ -381,7 +381,7 @@ export function cleanSections(sections: Section[]): Section[] {
 
 // ---- validation -----------------------------------------------------------------------------------------------------------
 
-export type IssueCode = 'required' | 'tooLong' | 'unsafe' | 'range' | 'count' | 'duplicate' | 'format' | 'unknown';
+export type IssueCode = 'size' | 'required' | 'tooLong' | 'unsafe' | 'range' | 'count' | 'duplicate' | 'format' | 'unknown';
 export type Issue = { path: string; code: IssueCode; limit?: number };
 
 class Collector {
@@ -427,6 +427,8 @@ function checkTime(c: Collector, time: Time | undefined, path: string, days: str
 }
 
 /** Every problem the server would refuse, with the server's `field` paths (`sections[0].rows[2].time.formula.anchor`). */
+const byteLength = (value: unknown): number => new TextEncoder().encode(JSON.stringify(value)).length;
+
 export function validateSections(sections: Section[]): Issue[] {
   const c = new Collector();
   if (sections.length > LIMITS.sections) { c.add('sections', 'count', LIMITS.sections); return c.issues; }
@@ -446,6 +448,7 @@ export function validateSections(sections: Section[]): Issue[] {
       checkTime(c, row.time, `${rp}.time`, s.kind === 'shabbat' ? SHABBAT_DAYS : WEEKDAY_DAYS);
     });
   });
+  if (!c.issues.length && byteLength({ sections }) > LIMITS.scheduleBytes) c.add('sections', 'size', LIMITS.scheduleBytes / 1024);
   return c.issues;
 }
 
@@ -469,8 +472,10 @@ export function validateWeekOverrides(overrides: WeekOverrides): Issue[] {
     if (e.afterRowId) c.ident(e.afterRowId, `${path}.afterRowId`);
     c.text(e.label, `${path}.label`);
     if (e.note !== undefined) c.string(e.note, LIMITS.note, `${path}.note`, false);
+    if (e.day !== undefined && !SHABBAT_DAYS.includes(e.day)) c.add(`${path}.day`, 'format');
     checkTime(c, e.time, `${path}.time`, [...SHABBAT_DAYS, ...WEEKDAY_DAYS]);
   });
+  if (!c.issues.length && byteLength(overrides) > LIMITS.weekBytes) c.add('', 'size', LIMITS.weekBytes / 1024);
   return c.issues;
 }
 
@@ -584,7 +589,7 @@ export type FormulaWarningCode = 'afterSunset' | 'earlyEnd' | 'lateCandles' | 'b
 export type FormulaWarning = { code: FormulaWarningCode; params: Record<string, string>; fix?: FormulaPatch };
 
 /** Info-level warnings (never block saving): the direction risks of rounding, crossing bounds, a bound that always decides. */
-export function formulaWarnings(formula: Formula, _kind: Section['kind'], week: ScheduleWeek, zmanimFor: ZmanimFor): FormulaWarning[] {
+export function formulaWarnings(formula: Formula, kind: Section['kind'], week: ScheduleWeek, zmanimFor: ZmanimFor): FormulaWarning[] {
   const out: FormulaWarning[] = [];
   const e = explainFormula(formula, week, zmanimFor);
   const minutes = (c: Clock | null) => (c === null ? null : parseClock(c));
@@ -595,9 +600,12 @@ export function formulaWarnings(formula: Formula, _kind: Section['kind'], week: 
   const atAnchor = formula.offset.minutes === 0;
 
   if (e && result !== null && formula.anchor === 'sunset' && formula.offset.direction === 'before') {
-    const sunset = e.days[e.pick]!.anchor!;
-    if (result > parseClock(sunset)!) {
-      const hit: FormulaWarning = { code: 'afterSunset', params: { time: e.result!, sunset, date: e.days[e.pick]!.date } };
+    // Every day the row applies to: Sunday-Thursday for a weekday row, else the formula's own day.
+    const dates = kind === 'weekday' ? week.weekdays : e.days.map(d => d.date);
+    const worst = dates.map(date => ({ date, sunset: zmanimFor(date)?.sunset })).filter((d): d is { date: string; sunset: string } => !!d.sunset)
+      .sort((a, b) => parseClock(a.sunset)! - parseClock(b.sunset)!)[0];
+    if (worst && result > parseClock(worst.sunset)!) {
+      const hit: FormulaWarning = { code: 'afterSunset', params: { time: e.result!, sunset: worst.sunset, date: worst.date } };
       if (roundsLater) hit.fix = { roundMode: 'down' };
       out.push(hit);
     }
@@ -724,3 +732,55 @@ export const weekChanges = (week: WeekOverrides | undefined): number => Object.k
 
 /** Leaving the editor screen with unsaved changes asks first (the channel sheet's discard pattern). */
 export const editorLeaveAsk = (tab: string, dirty: boolean): boolean => tab === 'scheduleEditor' && dirty;
+
+/**
+ * "Keep my changes" after a 409: the server copy (`theirs`) with what I changed since I loaded it (`mine` against `base`) applied on top.
+ * Rows and sections are matched by id; my new rows go after the row that preceded them; a row I did not touch keeps their version.
+ */
+export function rebaseDraft(base: Draft, mine: Draft, theirs: Draft): Draft {
+  const same = (a: unknown, b: unknown) => canon(a) === canon(b);
+  const baseSections = new Map(base.sections.map(x => [x.id, x]));
+  const mineIds = new Set(mine.sections.map(x => x.id));
+  const sections = theirs.sections.filter(x => mineIds.has(x.id) || !baseSections.has(x.id)).map(x => ({ ...x, rows: x.rows.slice() }));
+  for (const m of mine.sections) {
+    const b = baseSections.get(m.id);
+    let t = sections.find(x => x.id === m.id);
+    if (!t) { if (!b) sections.push({ ...m, rows: m.rows.slice() }); continue; }
+    if (b && !same(b.title, m.title)) t.title = m.title;
+    const baseRows = new Map((b?.rows ?? []).map(r => [r.id, r]));
+    const mineRowIds = new Set(m.rows.map(r => r.id));
+    for (const r of b?.rows ?? []) if (!mineRowIds.has(r.id)) t.rows = t.rows.filter(x => x.id !== r.id);
+    m.rows.forEach((r, i) => {
+      const br = baseRows.get(r.id);
+      const at = t!.rows.findIndex(x => x.id === r.id);
+      if (br && same(br, r)) return;
+      if (at >= 0) t!.rows[at] = r;
+      else {
+        const prev = i > 0 ? t!.rows.findIndex(x => x.id === m.rows[i - 1]!.id) : -1;
+        t!.rows.splice(prev >= 0 ? prev + 1 : i === 0 ? 0 : t!.rows.length, 0, r);
+      }
+    });
+  }
+  // A row deleted on the server whose section I kept stays deleted; sections I moved keep their server order, my new ones go last.
+  const weekOverrides: Record<string, WeekOverrides> = JSON.parse(JSON.stringify(theirs.weekOverrides));
+  for (const friday of new Set([...Object.keys(base.weekOverrides), ...Object.keys(mine.weekOverrides)])) {
+    const b = base.weekOverrides[friday] ?? {};
+    const m = mine.weekOverrides[friday] ?? {};
+    const w: WeekOverrides = weekOverrides[friday] ?? {};
+    const rows = { ...(w.rows ?? {}) };
+    for (const id of new Set([...Object.keys(b.rows ?? {}), ...Object.keys(m.rows ?? {})])) {
+      if (same(b.rows?.[id], m.rows?.[id])) continue;
+      if (m.rows?.[id]) rows[id] = m.rows[id]!; else delete rows[id];
+    }
+    let extra = (w.extra ?? []).slice();
+    for (const id of new Set([...(b.extra ?? []).map(e => e.id), ...(m.extra ?? []).map(e => e.id)])) {
+      const be = b.extra?.find(e => e.id === id);
+      const me = m.extra?.find(e => e.id === id);
+      if (same(be, me)) continue;
+      extra = extra.filter(e => e.id !== id);
+      if (me) extra.push(me);
+    }
+    weekOverrides[friday] = { rows, extra };
+  }
+  return { sections, weekOverrides: pruned(weekOverrides) };
+}

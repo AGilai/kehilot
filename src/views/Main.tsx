@@ -1,6 +1,6 @@
 import React from 'react';
 import { useReportScreen } from '../client/reportUi.ts';
-import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { config } from '../config.ts';
 import { FIXTURE_PICTURE, fixtureParams } from '../client/fixtures.ts';
@@ -145,15 +145,23 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   React.useEffect(() => {
     const target = takePush?.();
     if (!target) return;
-    const dest = pushDestination(target, state.kehila?.role);
-    if (dest === 'seats') setNav({ tab: 'seats' });
-    else if (dest === 'approvals') { setManage(true); setNav({ tab: 'approvals' }); }
-    else if (dest === 'group_requests') {
-      if (state.kehila?.role === 'gabbai') { setManage(true); setNav({ tab: 'groups' }); }
-      else openGroupRequests();
-    }
-    else setNav(dest === 'message' && target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
+    guard(() => {
+      const dest = pushDestination(target, state.kehila?.role);
+      if (dest === 'seats') setNav({ tab: 'seats' });
+      else if (dest === 'approvals') { setManage(true); setNav({ tab: 'approvals' }); }
+      else if (dest === 'group_requests') {
+        if (state.kehila?.role === 'gabbai') { setManage(true); setNav({ tab: 'groups' }); }
+        else openGroupRequests();
+      }
+      else setNav(dest === 'message' && target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
+    });
   }, [pushSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Android's back button leaves the schedule editor through the same unsaved-changes question.
+  React.useEffect(() => {
+    if (Platform.OS !== 'android' || nav.tab !== 'scheduleEditor') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { guard(() => setNav({ tab: 'overview' })); return true; });
+    return () => sub.remove();
+  }, [nav.tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const isGabbai = state.kehila?.role === 'gabbai';
   // Management mode is for gabbaim only, and ends when the role or the Kehila changes.
   const role = state.kehila?.role;

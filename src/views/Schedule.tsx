@@ -15,9 +15,22 @@ import { openPrintPage, sharePdf } from '../schedule/printSheet.ts';
 import { buildSheet } from '../schedule/sheetSource.ts';
 import { israelNow } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
-import type { ComputedRow, ScheduleDoc } from '../schedule/types.ts';
+import type { ComputedRow, ScheduleDoc, ScheduleWeek } from '../schedule/types.ts';
 import { CandleLine, useCountdownText, useShabbatTitle } from './ScheduleCard.tsx';
 import { ScheduleRow } from './ScheduleRow.tsx';
+
+/** The week's name and dates, centred: the header of the full schedule (P22) and of the editor's phone preview. */
+export function WeekTitle({ week, current }: { week: ScheduleWeek; current?: boolean }) {
+  const { t } = useI18n();
+  const k = useTokens();
+  const title = useShabbatTitle();
+  return (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Txt bold style={{ textAlign: 'center' }}>{title(week)}</Txt>
+      <Txt size="caption" color={k.muted} style={{ textAlign: 'center' }}>{dateRange(week.friday, week.thursday)}{current ? ` · ${t('schedule.thisWeek')}` : ''}</Txt>
+    </View>
+  );
+}
 
 /** The week's section cards and the footer line of P22: also the editor's phone preview, so both always read the same. */
 export function FullSections({ doc, model }: { doc: ScheduleDoc; model: FullModel }) {
@@ -120,10 +133,7 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
         <>
           <View accessibilityRole="toolbar" accessibilityLabel={t('schedule.week')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 48 }}>
             {arrow(0, weekIndex === 1, t('schedule.weekPrev'), <BackIcon color={k.tekhelet} />)}
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <Txt bold style={{ textAlign: 'center' }}>{title(model.week)}</Txt>
-              <Txt size="caption" color={k.muted} style={{ textAlign: 'center' }}>{dateRange(model.week.friday, model.week.thursday)}{weekIndex === 0 ? ` · ${t('schedule.thisWeek')}` : ''}</Txt>
-            </View>
+            <WeekTitle week={model.week} current={weekIndex === 0} />
             {arrow(1, weekIndex === 0, t('schedule.weekNext'), <ForwardIcon color={k.tekhelet} />)}
           </View>
           <FullSections doc={doc} model={model} />

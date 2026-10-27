@@ -1506,9 +1506,9 @@
     "startBlank": "Start blank",
     "loadError": "Couldn't load the prayer times for editing.",
     "conflictTitle": "Someone else saved in the meantime",
-    "conflictBody": "The prayer times changed since you opened the editor. To avoid overwriting the other gabbai's changes, reload; the unsaved changes here will be lost.",
-    "conflictReload": "Reload",
-    "conflictKeep": "Keep editing without saving",
+    "conflictBody": "The prayer times changed since you opened the editor. You can load the new copy and put your changes back on top of it (they stay unsaved so you can check them before saving), or drop them.",
+    "conflictReload": "Reload without my changes",
+    "conflictKeep": "Reload and keep my changes",
     "fixFirst": "{n} things to fix before saving.",
     "issue": {
       "required": "Please enter a name",
@@ -1518,7 +1518,8 @@
       "count": "Too many (up to {limit})",
       "duplicate": "This ID already exists",
       "format": "Not a valid value",
-      "unknown": "Not a valid value"
+      "unknown": "Not a valid value",
+      "size": "Too large to save, shorten some notes and names"
     },
     "discardAsk": "Discard all {n} unsaved changes?",
     "discardYes": "Discard changes",
@@ -1554,6 +1555,7 @@
     "droppedImage": "the pinned picture",
     "hideSuggestion": "Hide \"{row}\" this week",
     "ok": "OK",
-    "cancelEdit": "Cancel changes to this row"
+    "cancelEdit": "Cancel changes to this row",
+    "conflictMerged": "The new copy is loaded and your changes were put back on top. Check them before saving."
   }
 }
