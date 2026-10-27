@@ -49,3 +49,6 @@ export function canPostInChat(role: Role | undefined, channel: Pick<Channel, 'ca
   if (role === 'listener' && !channel.conversation) return false;
   return channel.canPost;
 }
+
+/** The prayer-schedule editor is for gabbaim only (the server refuses anyone else; this keeps the screen out of reach). */
+export const scheduleEditorAllowed = (role: Role | undefined): boolean => role === 'gabbai';

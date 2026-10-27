@@ -1,11 +1,14 @@
 export class ApiCodeError extends Error {
   status: number;
   code: string;
-  constructor(status: number, code: string) {
+  /** Path of the offending field (`sections[0].rows[2].time.at`) when the server names one (400 with `field`); never user data. */
+  field?: string;
+  constructor(status: number, code: string, field?: string) {
     super(code);
     this.name = 'ApiCodeError';
     this.status = status;
     this.code = code;
+    if (field !== undefined) this.field = field;
   }
 }
 

@@ -109,7 +109,7 @@ export function createHttp(o: Opts): Http {
         o.onSignedOut();
         throw new ApiCodeError(401, 'unauthorized');
       }
-      throw new ApiCodeError(status, code ?? (status === 401 ? 'unauthorized' : 'internal'));
+      throw new ApiCodeError(status, code ?? (status === 401 ? 'unauthorized' : 'internal'), typeof data?.field === 'string' ? data.field : undefined);
     }
   }
 

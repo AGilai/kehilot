@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canPostInChat, mainTabs, roleFeatures, showCompose } from '../src/client/roleView.ts';
+import { canPostInChat, mainTabs, roleFeatures, scheduleEditorAllowed, showCompose } from '../src/client/roleView.ts';
 import type { Channel } from '../src/client/types.ts';
 
 // All names are invented.
@@ -56,4 +56,9 @@ test('only members and gabbaim get the family card', () => {
   assert.equal(roleFeatures(undefined).family, false);
   assert.equal(roleFeatures('member').family, true);
   assert.equal(roleFeatures('gabbai').family, true);
+});
+
+test('the schedule editor is for gabbaim only', () => {
+  assert.equal(scheduleEditorAllowed('gabbai'), true);
+  for (const role of ['member', 'listener', undefined] as const) assert.equal(scheduleEditorAllowed(role), false);
 });

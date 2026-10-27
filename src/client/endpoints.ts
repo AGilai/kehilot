@@ -1,5 +1,5 @@
 import type { Http } from './http.ts';
-import type { ScheduleDoc } from '../schedule/types.ts';
+import type { CandleCity, ScheduleDoc, Section, WeekOverrides } from '../schedule/types.ts';
 import type { ReportContext } from './reportContext.ts';
 import type {
   TypeRules,
@@ -89,8 +89,13 @@ export function endpoints(http: Http) {
     updateMember: (k: string, u: string, fields: MemberFields) =>
       r<Record<string, never>>('PUT', `${A(k)}/members/${e(u)}`, fields),
     removeMember: (k: string, u: string) => r<void>('DELETE', `${A(k)}/members/${e(u)}`),
-    putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string; typeRules?: TypeRules }) =>
+    putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string; typeRules?: TypeRules; location?: ScheduleDoc['location']; sheet?: { candleCities: CandleCity[] } }) =>
       r<Record<string, never>>('PUT', `${A(k)}/settings`, s),
+    // prayer schedule (gabbai): full replace of the sections (409 `schedule_changed` when `ifUpdatedAt` is stale) and per-week overrides
+    putSchedule: (k: string, body: { sections: Section[]; version?: 1; ifUpdatedAt: number | null }) =>
+      r<{ updatedAt: number; warnings: Array<{ rowId: string; code: string }> }>('PUT', `${A(k)}/schedule`, { version: 1, ...body }),
+    putScheduleWeek: (k: string, friday: string, overrides: WeekOverrides) => r<Record<string, never>>('PUT', `${A(k)}/schedule/weeks/${e(friday)}`, overrides),
+    deleteScheduleWeek: (k: string, friday: string) => r<void>('DELETE', `${A(k)}/schedule/weeks/${e(friday)}`),
     tags: (k: string) => r<TagRow[]>('GET', `${A(k)}/tags`),
     createTag: (k: string, name: string) => r<RoleTag>('POST', `${A(k)}/tags`, { name }),
     renameTag: (k: string, id: string, name: string) => r<RoleTag>('PUT', `${A(k)}/tags/${e(id)}`, { name }),
