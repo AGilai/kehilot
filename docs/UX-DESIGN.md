@@ -647,7 +647,7 @@ horizontal scroller.
 
 Added 2026-10-27 for `docs/superpowers/specs/2026-10-27-message-types-design.md`. Mazal tov and condolence are no
 longer channels: they are message types in the one main channel ("הודעות הקהילה"), with a per-Kehila rule a gabbai
-sets. Frames: `design/mockups/frames/P17.html` (types) and `P18.html` (role tags, 12.6), index section "ה". Like the
+sets. Frames: `design/mockups/frames/P17.html` (types, Messages filter) and `P18.html` (role tags, 12.6), index section "ה". Like the
 P frames, they draw the shipped kit; build 1:1. GD3 (desktop draft) is updated to match: the "שמחות" row is gone and a
 "סוגי הודעות" table sits under the channel table. P16 carries a note that its chip row is superseded here.
 
@@ -711,19 +711,51 @@ button: two small settings, each change is one decision, as with the broadcast-p
   (never auto-publish). If nothing is postable any more, the Banner is `compose.refusedAll` with no action.
   A 403 for another reason (role removed) keeps today's `errors.forbidden` text.
 
-### 12.4 Messages (P17 phone 4, panel "יש גם קבוצה או שיחה")
+### 12.4 Messages: channel row, search and type filter (P17 phone 4 and the Messages panels)
 
-**Decision: hide the channel chip row when the person sees only one channel** (`channels.length <= 1`). "כל
-הערוצים" plus one chip filters nothing. The row returns, unchanged from §11.2, as soon as there is a group channel
-or a conversation channel. Listeners almost always see one channel, so for them the row is gone.
+Owner, spec item 8a: "the message types become a filter on channel. So allow filter by free text or message type,
+where MT is a multi select". This overrides the first draft's "no type filter".
 
-**Decision: no type filter.** The feed of one Kehila is short; the stripe colour and the type label already make a
-mazal tov or a condolence findable at a glance; muting by type already exists in notification preferences (M5); a
-third filter row would bring back the clutter §11.2 removed. Revisit only if a Kehila posts many types daily.
+**Header, top to bottom** (part of the list header, so it scrolls away with the list; `gap: 12`, one 16 px start
+edge, as §11.2):
+
+1. Title row: "הודעות" only. **The search icon button goes.**
+2. `Segmented` שלי / הכול (unchanged).
+3. **Search field, always visible.** A `TextInput` in the Field style (48 high, radius 10, `k.line` border,
+   `k.surface`), `Icon search` 20 `k.muted` at the start, placeholder "חיפוש בהודעות"; when not empty, a 44×44
+   `Icon x` button at the end ("ניקוי החיפוש"). Filters as you type (200 ms debounce). Matches title, body and names,
+   the same matcher the Search screen uses today, and once there is text it runs over the whole on-device archive
+   (older messages too), with today's "הארכיון עדיין נטען ({n} הודעות עד כה)" line while it loads.
+4. Channel chips, **only when the person sees more than one channel** (`channels.length > 1`), single select, as §11.2.
+5. **Type chips, multi-select.** `Chip size="filter"` in a bleeding scroller (wraps on web ≥ 600 like the channel
+   row). Unselected: an 8 px dot in the type's stripe colour before the label. Selected: ink fill (as §11.2) and
+   `Icon check` 16 in place of the dot, so "several can be on" is visible and status is not colour alone. No "all
+   types" chip: none selected means all. The row lists only types the person can see (a listener does not get
+   מזל טוב / השתתפות בצער while the gabbai keeps them hidden), in the 12.1 order.
+6. When any filter is active (text, a type, or a channel other than "all"): a count line, `Txt small muted`
+   "{n} הודעות" with the link "ניקוי הסינון" at the end (48 touch). Not shown without filters.
+
+**Logic:** mode (mine/all) AND channel AND text AND (type₁ OR type₂ …). All on the device, over what the person may
+already see. "ניקוי הסינון" clears text, types and channel, not mine/all (that is a view, not a filter). Filters
+live while the Messages tab is mounted; switching Kehila clears them. Chat channel chips still open the chat.
+
+**Empty result:** centred `Txt` "לא נמצאו הודעות שמתאימות לסינון." and a secondary `Button` "ניקוי הסינון". In
+"שלי", if "הכול" has matches, one more line: "יש {n} הודעות מתאימות ב„הכול“." with the link "הצגה ב„הכול“"
+(switches the Segmented, keeps the filters).
+
+**Decision: merge the Search screen into Messages.** Two places that search the same messages with different
+controls would confuse; a field behind an icon would hide the very filter the owner asked for. So the text field
+is always visible, and `Search.tsx` (and the `search` route) goes: anything that opened it now opens Messages with
+the field focused. The `search.*` keys are replaced by the `messages.*` keys below and can be removed. Cost: about 60 px more header than
+§11.2 on a phone. Accepted because the header scrolls away.
 
 **Meta line** of `MessageRow` and M3: the type label replaces the channel name, which used to carry the type
 ("שמחות · 14:50"): `{type} · {time}`, and `{type} · {channel} · {time}` when the person sees more than one channel.
-Chat messages keep the channel name. No new strings: it reuses the 12.1 labels.
+Chat messages keep the channel name.
+
+**A11y:** the field has `accessibilityRole="search"` and label "חיפוש בהודעות"; the type row is a group labelled
+"סינון לפי סוג" whose chips are `checkbox` with `checked`; channel chips stay `tab`-like single select with
+`selected`. The count line is a polite live region, so each change announces "{n} הודעות".
 
 ### 12.5 Copy
 
@@ -738,6 +770,16 @@ New or changed keys (`src/i18n/he.json` / `en.json`). Existing keys reused uncha
 | `compose.refused` | ההגדרות השתנו ואין לכם עוד הרשאה לפרסם הודעה מהסוג הזה. מה שכתבתם נשמר. | The settings changed and you can no longer post this type of message. What you wrote is kept. |
 | `compose.refusedAll` | אין לכם כרגע הרשאה לפרסם בקהילה. מה שכתבתם לא נשלח. | You can't post in this community right now. Your message was not sent. |
 | `compose.asGeneral` | שינוי להודעה רגילה | Change to a regular message |
+| `messages.search` | חיפוש בהודעות | Search messages |
+| `messages.searchClear` | ניקוי החיפוש | Clear search |
+| `messages.typesLabel` | סינון לפי סוג | Filter by type |
+| `messages.count` | {n} הודעות | {n} messages |
+| `messages.countOne` | הודעה אחת | 1 message |
+| `messages.clearFilters` | ניקוי הסינון | Clear filters |
+| `messages.emptyFiltered` | לא נמצאו הודעות שמתאימות לסינון. | No messages match your filters. |
+| `messages.inAll` | יש {n} הודעות מתאימות ב„הכול“. | {n} matching messages in Everything. |
+| `messages.showAll` | הצגה ב„הכול“ | Show in Everything |
+| `messages.archiveLoading` (was `search.loading`) | הארכיון עדיין נטען ({n} הודעות עד כה) | The archive is still loading ({n} messages so far) |
 | `admin.types.title` | סוגי הודעות | Message types |
 | `admin.types.intro` | כל ההודעות מתפרסמות בערוץ הודעות הקהילה. כאן קובעים מי מפרסם מזל טוב והשתתפות בצער, והאם מתפללים אורחים רואים אותן. | All messages go to the Announcements channel. Here you choose who may post mazal tov and condolence messages, and whether guests see them. |
 | `admin.types.postLabel` | מי מפרסם | Who may post |
@@ -856,3 +898,94 @@ names are user text: `Txt content` (§11.5), so an English tag in a Hebrew UI ke
 Frames written by hand, not screenshot-checked (no browser run on this machine for this change): check P17, P18 and
 GD3 at 1440 and 390 before building. Not checked: dark mode of the new frame helpers (they use only `--k-*`
 variables), English rendering beyond the English panels, real device fonts. Names in frames are invented.
+
+## 13. Bug reports (alpha)
+
+Added 2026-10-27 for `docs/superpowers/specs/2026-10-27-bug-reports-design.md` §1. Frame:
+`design/mockups/frames/P19.html` (index section "ה"). Kit-drawn like the P frames.
+
+### 13.1 The button
+
+- **Look:** a pill, height 32 (`hitSlop` to 48), radius 16, `k.ink` fill, `k.stone` text, `Txt size="caption" bold`
+  "אלפא · דיווח על תקלה", soft shadow. Ink, not tekhelet: it is not an app action and must not compete with
+  "הודעה חדשה". No bug icon (it reads as an error state). At its end, separated by a hairline, a 28-wide `Icon x`
+  16 segment, "הסתרה לעכשיו".
+- **Collapsed:** "✕" turns it into a 14 px `k.ink` dot with a 3 px `k.stone` ring, same spot, 48 touch. Tapping the
+  dot brings the pill back (it does not open the sheet: a stray tap on a dot should not start a report). Collapsed
+  state lasts for the app session (memory only, not stored).
+- **Where, phone and narrow web (< 1024):** bottom-**start** corner (right in Hebrew, left in English), 16 from the
+  start edge, 16 above the tab bar; on screens without a tab bar (sign-in, sign-up, profile setup, gates) 16 from
+  the bottom. The compose FAB is on the end side (§11.7), so the two never meet: at 360 the FAB (~160) and the
+  pill (~140) leave a gap of about 30.
+- **Where, wide (≥ 1024, desktop and admin console):** bottom-**end** corner of the window, 16 inset, outside the 680
+  content column and away from the start-side admin sidebar.
+- **Hidden** while: the keyboard is open, any `Sheet` or modal is open (its own sheet included), the image viewer is
+  open, and on the chat screen (its composer sits at the bottom). Every scrolling screen adds 56 px of bottom
+  padding when the button shows, so a last primary button ("פרסום", "שמירה", "כניסה") can always scroll clear of it.
+- Mounted once at the root (`App`/`Main`), above navigation, so it is on every screen, signed in or not. A build
+  flag (`config.bugReports`) removes it.
+- **A11y:** the pill is a button labelled "דיווח על תקלה (גרסת אלפא)"; the ✕ is its own button "הסתרה לעכשיו"; the dot
+  is a button "הצגת כפתור הדיווח". It comes after the screen's own content in focus order.
+
+### 13.2 The report sheet
+
+`Sheet` "דיווח על תקלה":
+
+1. Intro `Txt small`: what happened and what you expected; it goes to the development team only, not to gabbaim
+   (true per spec §2, and it makes people comfortable describing a message).
+2. `Field` multiline "מה קרה?", `maxCodePoints={2000}`, counter under it; required.
+3. **Picture (signed in only):** two secondary Buttons in a row, "צילום המסך הזה" (only where the platform can
+   capture: the capture is taken *before* the sheet opens, so it shows the screen being reported) and "בחירת
+   תמונה" (the existing image picker). Once attached: a 56×96 thumbnail, its name, the warning "בדקו שאין בו משהו
+   שלא תרצו לשלוח.", and a `trash` icon button "הסרת התמונה". One picture.
+4. **"יצורף אוטומטית"** `Card`: one muted line with the real values: version (build), platform and OS version,
+   screen name, UI language, Kehila (shown by name; the id is what is sent). Then: "לא נשלחים תוכן הודעות, סיסמאות
+   או פרטים של אנשים אחרים."
+5. Footer: primary "שליחה" (disabled until there is text and while over 2000; busy while sending), secondary "ביטול".
+   "ביטול" with text typed asks first (the channel sheet's discard pattern).
+
+**Signed out** (sign-in, sign-up, verification): same sheet, no picture row, a muted line "בלי חשבון אפשר לשלוח
+טקסט בלבד.", the details card without a Kehila.
+
+**After sending:** the sheet closes, the text is cleared, Toast "תודה, הדיווח נשלח". No status screen in this version.
+
+**Errors** (Banner above the footer, text kept): network/5xx (error tone), 429 signed in (info, "tomorrow"), 429
+anonymous (info, "in an hour"), image too large (error; the picture is removed, the text stays).
+
+### 13.3 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `bug.button` | אלפא · דיווח על תקלה | Alpha · Report a bug |
+| `bug.buttonA11y` | דיווח על תקלה (גרסת אלפא) | Report a bug (alpha version) |
+| `bug.hide` | הסתרה לעכשיו | Hide for now |
+| `bug.show` | הצגת כפתור הדיווח | Show the report button |
+| `bug.title` | דיווח על תקלה | Report a bug |
+| `bug.intro` | מה קרה, ומה ציפיתם שיקרה? הדיווח מגיע לצוות הפיתוח בלבד, לא לגבאים. | What happened, and what did you expect? Your report goes to the development team only, not to the gabbaim. |
+| `bug.text` | מה קרה? | What happened? |
+| `bug.screenshot` | צילום המסך הזה | This screen |
+| `bug.pick` | בחירת תמונה | Choose a picture |
+| `bug.picNote` | בדקו שאין בו משהו שלא תרצו לשלוח. | Check it shows nothing you'd rather not send. |
+| `bug.removePic` | הסרת התמונה | Remove the picture |
+| `bug.autoTitle` | יצורף אוטומטית | Attached automatically |
+| `bug.auto` | גרסה {version} · {platform} · מסך: {screen} · שפה: {lang} | Version {version} · {platform} · Screen: {screen} · Language: {lang} |
+| `bug.autoKehila` | קהילה: {name} | Community: {name} |
+| `bug.autoNot` | לא נשלחים תוכן הודעות, סיסמאות או פרטים של אנשים אחרים. | Not sent: message content, passwords or other people's details. |
+| `bug.signedOut` | בלי חשבון אפשר לשלוח טקסט בלבד. | Without an account you can send text only. |
+| `bug.send` | שליחה | Send |
+| `bug.cancel` | ביטול | Cancel |
+| `bug.discard` | לסגור בלי לשלוח? מה שכתבתם יימחק. | Close without sending? What you wrote will be lost. |
+| `bug.discardYes` | סגירה בלי שליחה | Close without sending |
+| `bug.sent` | תודה, הדיווח נשלח | Thanks, your report was sent |
+| `bug.error` | הדיווח לא נשלח. בדקו את החיבור ונסו שוב. מה שכתבתם נשמר. | The report wasn't sent. Check your connection and try again. What you wrote is kept. |
+| `bug.limitUser` | שלחתם הרבה דיווחים היום. אפשר לשלוח שוב מחר. | You've sent a lot of reports today. You can send again tomorrow. |
+| `bug.limitAnon` | נשלחו הרבה דיווחים מהרשת הזאת. נסו שוב בעוד שעה. | Many reports came from this network. Try again in an hour. |
+| `bug.tooBig` | התמונה גדולה מדי. נסו תמונה אחרת או שלחו בלי תמונה. | The picture is too large. Try another one or send without it. |
+
+`{screen}` is a translated screen name (`bug.screens.<route>`, e.g. הודעות / Messages, כניסה / Sign in); the raw
+route name is what is sent. Values in `bug.auto` (version, OS) are LTR inside isolates (§11.5).
+
+### 13.4 Verification
+
+Not screenshot-checked (no browser run on this machine). Check P19 at 390 in both directions and in dark mode, and
+the 1440 placement in the admin console, before building. The screenshot mechanism per platform is the builder's.
