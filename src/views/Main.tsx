@@ -23,6 +23,7 @@ import { Members } from './admin/Members.tsx';
 import { Import } from './admin/Import.tsx';
 import { PushTexts } from './admin/PushTexts.tsx';
 import { Overview } from './admin/Overview.tsx';
+import { TermsGate } from './TermsGate.tsx';
 import { PhoneList } from './PhoneList.tsx';
 import { Compose } from './Compose.tsx';
 import type { ComposeInitial } from './Compose.tsx';
@@ -70,7 +71,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'compose') return { nav: { tab: 'compose' } };
   if (s === 'me' || s === 'me-family' || s === 'me-request' || s === 'me-linked' || s === 'partner-picker' || s === 'child-sheet') return { nav: { tab: 'me' } };
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
-  if (s === 'overview') return { nav: { tab: 'overview' }, manage: true };
+  if (s === 'overview' || s === 'overview-privacy' || s === 'terms') return { nav: { tab: 'overview' }, manage: true };
   if (s === 'approvals') return { nav: { tab: 'approvals' }, manage: true };
   if (s === 'members') return { nav: { tab: 'members' }, manage: true };
   if (s === 'invite-member') return { nav: { tab: 'invite', member: true }, manage: true };
@@ -246,6 +247,9 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <ChatView channelId={nav.channelId} onBack={() => setNav({ tab: 'messages' })} />;
       break;
   }
+
+  // The Kehila terms are not accepted yet: every management screen of this Kehila shows the gate; the rest of the app works.
+  if (manage && adminTab && kehila?.cards.terms) body = <TermsGate onToast={showToast} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>

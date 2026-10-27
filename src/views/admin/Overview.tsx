@@ -7,6 +7,7 @@ import type { InviteRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { LinkShare } from '../Me.tsx';
+import { PrivacyContactCard, TermsCard } from './PrivacyContactCard.tsx';
 import { useShortDate, useAdminErrText } from './shared.tsx';
 
 type Counts = { pending: number; members: number; listeners: number };
@@ -96,12 +97,13 @@ function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged
 export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
-  const { state } = useSession();
+  const { state, refreshKehila } = useSession();
   const k = useTokens();
   const errText = useAdminErrText();
   const kehilaId = state.kehilaId!;
   const [counts, setCounts] = React.useState<Counts | null>(null);
   const [cap, setCap] = React.useState<{ max?: number; listeners?: number } | null>(null);
+  const [privacy, setPrivacy] = React.useState<{ contact: string; terms: { name: string; at: number } | null | undefined } | null>(null);
   const [invites, setInvites] = React.useState<InviteRow[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -118,7 +120,10 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
       members: mem.status === 'fulfilled' ? mem.value.filter(m => m.role !== 'listener').length : prev?.members ?? 0,
       listeners: mem.status === 'fulfilled' ? mem.value.filter(m => m.role === 'listener').length : prev?.listeners ?? 0,
     }));
-    if (keh.status === 'fulfilled') setCap({ max: keh.value.settings.maxListeners, listeners: keh.value.listenerCount });
+    if (keh.status === 'fulfilled') {
+      setCap({ max: keh.value.settings.maxListeners, listeners: keh.value.listenerCount });
+      setPrivacy({ contact: keh.value.privacyContact ?? '', terms: keh.value.termsAccepted });
+    }
     await loadInvites();
   }, [api, kehilaId, loadInvites]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => { void load(); }, [load]);
@@ -134,6 +139,8 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
             <Txt bold size="heading">{counts.pending > 0 ? t('admin.overview.pending', { n: counts.pending }) : t('admin.overview.pendingNone')}</Txt>
             {counts.pending > 0 ? <Button title={t('admin.overview.review')} onPress={onApprovals} /> : null}
           </Card>
+          {privacy ? <PrivacyContactCard contact={privacy.contact} onSaved={c => { setPrivacy(p => p && { ...p, contact: c }); onToast(t('admin.overview.privacy.saved')); void refreshKehila(); }} /> : null}
+          {privacy ? <TermsCard accepted={privacy.terms} /> : null}
           <Card>
             <Txt serif size="heading" accessibilityRole="header">{t('admin.overview.counts')}</Txt>
             <Txt>{t('admin.overview.members', { n: counts.members })}</Txt>
