@@ -43,8 +43,9 @@ data "aws_iam_policy_document" "api" {
     resources = [var.user_pool_arn]
   }
   statement {
-    actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-    resources = ["${var.media_bucket_arn}/up/*", "${var.media_bucket_arn}/m/*", "${var.media_bucket_arn}/x/*"]
+    actions = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+    resources = ["${var.media_bucket_arn}/up/*", "${var.media_bucket_arn}/m/*", "${var.media_bucket_arn}/x/*",
+    "${var.media_bucket_arn}/reports/*"]
   }
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
@@ -80,10 +81,17 @@ resource "aws_lambda_function" "api" {
       PUSH_QUEUE_URL = var.push_queue_url
       USER_POOL_ID   = var.user_pool_id
       MEDIA_BUCKET   = var.media_bucket_name
+      REPORT_IP_SALT = random_password.report_ip_salt.result
     }
   }
 
   depends_on = [aws_cloudwatch_log_group.api, aws_iam_role_policy.api]
+}
+
+# Salt for hashing a reporter's IP into a rate-limit key; the raw IP is never stored.
+resource "random_password" "report_ip_salt" {
+  length  = 32
+  special = false
 }
 
 # --- HTTP API ---
@@ -127,6 +135,13 @@ resource "aws_apigatewayv2_route" "health" {
 resource "aws_apigatewayv2_route" "invite_preview" {
   api_id    = aws_apigatewayv2_api.http.id
   route_key = "GET /v1/invites/{code}"
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+# Public: a bug report from someone not signed in (text only, per-IP and global limits in the Lambda).
+resource "aws_apigatewayv2_route" "anonymous_report" {
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "POST /v1/reports/anonymous"
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 

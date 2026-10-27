@@ -48,6 +48,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "media" {
   }
 
   rule {
+    id     = "expire-report-images"
+    status = "Enabled"
+
+    filter {
+      prefix = "reports/"
+    }
+
+    expiration {
+      days = 181 # reports live 180 days (item TTL); their pictures go a day later
+    }
+  }
+
+  rule {
     id     = "expire-exports"
     status = "Enabled"
 
