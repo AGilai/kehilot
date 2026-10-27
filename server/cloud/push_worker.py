@@ -9,7 +9,7 @@ import os
 import time
 
 from . import expo, visibility
-from .push import MESSAGE_TYPES, PUSH_TEXT
+from .push import MESSAGE_TYPES, PUSH_TEXT, resolve_text
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 log = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ def _build(repo, kind, kehila, ref):
                 owners[token].append(uid)
                 continue
             owners[token] = [uid]
-            messages.append({'to': token, 'title': title, 'body': PUSH_TEXT[text_key][lang], 'data': data,
+            messages.append({'to': token, 'title': title, 'body': resolve_text(meta, text_key, lang), 'data': data,
                              'sound': 'default'})
     return messages, owners
 

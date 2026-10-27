@@ -268,6 +268,36 @@ class MembersRepo:
                                ConditionExpression='attribute_exists(settings)',
                                ExpressionAttributeValues={':v': value})
 
+    def set_push_text(self, k, key, lang, text):
+        """Set (or, for '', remove) the custom push text of `key` in `lang` with UpdateItem on the nested
+        pushTexts map path; no other META field is touched. `key` and `lang` are validated by the caller."""
+        table_key = self._key(k, 'META')
+        if not text:
+            try:
+                self.table.update_item(Key=table_key, UpdateExpression='REMOVE #p.#k.#l',
+                                       ConditionExpression='attribute_exists(#p.#k.#l)',
+                                       ExpressionAttributeNames={'#p': 'pushTexts', '#k': key, '#l': lang})
+            except ClientError as error:
+                if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                    raise  # nothing to remove is fine
+            return
+        # the parent maps may not exist yet: try the deepest path first, then create what is missing
+        for expression, condition, names, values in (
+                ('SET #p.#k.#l = :t', 'attribute_exists(#p.#k)', {'#p': 'pushTexts', '#k': key, '#l': lang},
+                 {':t': text}),
+                ('SET #p.#k = :m', 'attribute_exists(#p) AND attribute_not_exists(#p.#k)',
+                 {'#p': 'pushTexts', '#k': key}, {':m': {lang: text}}),
+                ('SET #p = :m', 'attribute_exists(pk) AND attribute_not_exists(#p)', {'#p': 'pushTexts'},
+                 {':m': {key: {lang: text}}})):
+            try:
+                self.table.update_item(Key=table_key, UpdateExpression=expression, ConditionExpression=condition,
+                                       ExpressionAttributeNames=names, ExpressionAttributeValues=values)
+                return
+            except ClientError as error:
+                if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                    raise
+        raise ApiError(409, 'try_again')
+
     def get_invite(self, code):
         return self._get(f'INV#{code}', 'META')
 

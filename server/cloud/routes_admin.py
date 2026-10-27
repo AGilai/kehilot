@@ -11,6 +11,7 @@ from .ids import ID_RE
 from .routes_groups import GABBAI, group_ids
 
 CLASSIFICATIONS = ('', 'א', 'קבוע')
+LANGS = ('he', 'en')
 ROLES = ('listener', 'member', 'gabbai')
 IMPORT_MAX_ROWS = 10
 IMPORT_MAX_BODY = 64 * 1024
@@ -187,4 +188,30 @@ def import_list(ctx, params):
 def set_settings(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     ctx.repo.set_max_listeners(params['k'], inputs.integer(inputs.body_object(ctx), 'maxListeners', 0, 5000))
+    return 200, {}
+
+
+def get_push_texts(ctx, params):
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    stored = (ctx.repo.get_kehila(params['k']) or {}).get('pushTexts') or {}
+    custom = {key: {lang: t for lang, t in langs.items() if lang in LANGS and t}
+              for key, langs in stored.items() if key in push.PUSH_TEXT and isinstance(langs, dict)}
+    return 200, {'defaults': push.PUSH_TEXT, 'custom': {key: v for key, v in custom.items() if v}}
+
+
+def put_push_text(ctx, params):
+    """Set or (with "") remove the custom push text. It is shown on the lock screen, so it is one line of at
+    most 80 code points; it is never logged."""
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    d = inputs.body_object(ctx)
+    key, lang = d.get('key'), d.get('lang')
+    if not isinstance(key, str) or key not in push.PUSH_TEXT:
+        raise ApiError(400, 'invalid_key')
+    if not isinstance(lang, str) or lang not in LANGS:
+        raise ApiError(400, 'invalid_lang')
+    text = d.get('text')
+    if (not isinstance(text, str) or len(text) > push.PUSH_TEXT_MAX
+            or any(c in text for c in '\n\r\x0b\x0c\x85\u2028\u2029')):
+        raise ApiError(400, 'invalid_text')
+    ctx.repo.set_push_text(params['k'], key, lang, text.strip())
     return 200, {}

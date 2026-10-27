@@ -58,6 +58,9 @@
     "invalid_groups": "The group selection is not valid (up to 20 existing groups)",
     "invalid_rows": "The list is not valid (1 to 10 rows at a time)",
     "invalid_can_broadcast": "Invalid value for the posting permission",
+    "invalid_key": "Unknown notification type",
+    "invalid_lang": "Unknown language",
+    "invalid_text": "The text must be one line of up to 80 characters",
     "invalid_max_listeners": "The number of listeners must be between 0 and 5000",
     "invalid_allow": "Invalid value",
     "invalid_listeners_can_read": "A conversation channel cannot be open to listeners",
@@ -532,7 +535,8 @@
       },
       "groupsLink": "Groups",
       "channelsLink": "Channels",
-      "importLink": "Import list"
+      "importLink": "Import list",
+      "pushTextsLink": "Notification texts"
     },
     "approvals": {
       "title": "Approve members",
@@ -670,6 +674,19 @@
       "rejected": "Request rejected",
       "onlyGabbai": "Only a gabbai can remove a group admin",
       "noRights": "You no longer have admin rights for this group"
+    },
+    "pushTexts": {
+      "title": "Notification texts",
+      "warning": "The text is shown on the phone lock screen. Do not write names or private details.",
+      "intro": "Choose the text of each notification, per language. Leave empty to use the default.",
+      "save": "Save",
+      "saved": "Saved",
+      "reset": "Restore default",
+      "lang": { "he": "Hebrew", "en": "English" },
+      "key": {
+        "weekly": "Weekly update", "celebration": "Mazal tov", "condolence": "Condolence notice", "event": "Event", "chat": "Chat message",
+        "message": "Other message", "reply": "Blessing", "request": "Membership request", "group_request": "Group join request"
+      }
     },
     "channels": {
       "title": "Channels",

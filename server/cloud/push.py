@@ -22,7 +22,15 @@ PUSH_TEXT = {
     'request': {'he': 'בקשת הצטרפות חדשה', 'en': 'New membership request'},
     'group_request': {'he': 'בקשת הצטרפות לקבוצה', 'en': 'New group join request'},
 }
+PUSH_TEXT_MAX = 80  # code points: the text is shown on the lock screen
 MESSAGE_TYPES = ('weekly', 'celebration', 'condolence', 'event', 'chat')
+
+
+def resolve_text(meta, key, lang) -> str:
+    """The Kehila's custom text for `key` in `lang` when set and not empty, else the default."""
+    custom = ((meta or {}).get('pushTexts') or {}).get(key, {})
+    text = custom.get(lang) if isinstance(custom, dict) else None
+    return text if isinstance(text, str) and text else PUSH_TEXT[key][lang]
 
 
 def enqueue(kind, kehila, ref) -> None:

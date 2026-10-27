@@ -188,6 +188,14 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   routes[`GET ${K}/groups/01FIXTUREGROUP00000000002/members`] = [{ userId: 'u8', displayName: 'מיכל בדויה', role: 'member', isAdmin: true }];
   routes[`PUT ${A}/settings`] = {};
   routes[`PUT ${A}/broadcast`] = {};
+  routes[`PUT ${A}/push-texts`] = {};
+  routes[`GET ${A}/push-texts`] = {
+    defaults: {
+      celebration: { he: 'מזל טוב חדש בקהילה', en: 'New mazal tov in your community' },
+      reply: { he: 'ברכה חדשה', en: 'New blessing' },
+    },
+    custom: { celebration: { en: 'Mazal tov!' } },
+  };
   routes[`GET /v1/kehilot/${kehila.kehilaId}`] = { ...kehila, settings: { pollSeconds: 60, maxListeners: 500 }, listenerCount: 37 };
   routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] = [
     ...(routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] as unknown[]),

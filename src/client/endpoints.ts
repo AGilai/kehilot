@@ -2,7 +2,7 @@ import type { Http } from './http.ts';
 import type {
   Channel, ChannelCreated, ChannelFields, ChangesPage, Classification, DirectoryEntry, Group, GroupMemberRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
-  MemberFields, MemberRow, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply, RequestRow, UploadGrant,
+  MemberFields, MemberRow, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply, RequestRow, UploadGrant,
 } from './types.ts';
 
 const e = encodeURIComponent;
@@ -72,6 +72,9 @@ export function endpoints(http: Http) {
       r<Record<string, never>>('PUT', `${A(k)}/members/${e(u)}`, fields),
     removeMember: (k: string, u: string) => r<void>('DELETE', `${A(k)}/members/${e(u)}`),
     putSettings: (k: string, s: { maxListeners: number }) => r<Record<string, never>>('PUT', `${A(k)}/settings`, s),
+    pushTexts: (k: string) => r<PushTexts>('GET', `${A(k)}/push-texts`),
+    putPushText: (k: string, key: string, lang: Lang, text: string) =>
+      r<Record<string, never>>('PUT', `${A(k)}/push-texts`, { key, lang, text }),
     setBroadcastAll: (k: string, allow: boolean) => r<Record<string, never>>('PUT', `${A(k)}/broadcast`, { allow }),
     importRows: (k: string, rows: ImportRow[]) =>
       r<{ results: ImportResult[] }>('POST', `${A(k)}/import`, { rows }),

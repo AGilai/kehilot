@@ -142,6 +142,11 @@ export type ImportRow = {
   classification: Classification;
   groups?: string[];
 };
+/** Gabbai-editable push texts: the defaults per key and language, and the Kehila's custom ones. */
+export type PushTexts = {
+  defaults: Record<string, Record<Lang, string>>;
+  custom: Record<string, Partial<Record<Lang, string>>>;
+};
 export type ImportResult = {
   index: number;
   status: 'created' | 'added' | 'upgraded' | 'skipped' | 'exists' | 'invalid';
