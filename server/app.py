@@ -100,6 +100,8 @@ def make_handler(store, allowed_origins=None):
             if method == 'GET':
                 if path == '/api/me':
                     return 200, store.state(user)
+                if path == '/api/community-settings':
+                    return 200, store.community_settings(user)
                 if path == '/api/messages':
                     return 200, store.list_messages()
                 if path == '/api/admin/classifications':
@@ -108,8 +110,12 @@ def make_handler(store, allowed_origins=None):
                     return 200, store.association_list(user)
                 if path == '/api/admin/members':
                     return 200, store.members(user)
+                if path == '/api/admin/aliyah-recommendations/calendar':
+                    return 200, store.recommendation_calendar(user, parse_qs(urlsplit(self.path).query).get('year', [''])[0])
+                if path == '/api/admin/aliyah-recommendations':
+                    return 200, store.aliyah_recommendations(user, parse_qs(urlsplit(self.path).query).get('date', [''])[0], parse_qs(urlsplit(self.path).query).get('service', ['shacharit'])[0])
                 if path == '/api/admin/aliyah-template':
-                    return 200, store.aliyah_template(user, parse_qs(urlsplit(self.path).query).get('date', [''])[0])
+                    return 200, store.aliyah_template(user, parse_qs(urlsplit(self.path).query).get('date', [''])[0], parse_qs(urlsplit(self.path).query).get('service', ['shacharit'])[0])
                 if path.startswith('/api/admin/people/'):
                     return 200, store.person_details(user, path.rsplit('/', 1)[-1])
                 if path.startswith('/api/documents/'):
@@ -157,6 +163,8 @@ def make_handler(store, allowed_origins=None):
                     return 200, store.save_profile(user, data)
                 if method == 'PUT' and path == '/api/preferences':
                     return 200, store.save_preferences(user, data)
+                if method == 'PUT' and path == '/api/admin/community-settings':
+                    return 200, store.save_community_settings(user, data)
                 if method == 'POST' and path == '/api/healing-prayers':
                     return 201, store.add_healing_prayer(user, data)
                 if method == 'PUT' and path == '/api/seating':

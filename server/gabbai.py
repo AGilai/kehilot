@@ -10,14 +10,21 @@ from .hebrew_calendar import bar_mitzvah_date
 from .seating import event_title
 
 
-def aliyah_template(day):
+def aliyah_template(day, service='shacharit'):
     hebrew = dates.HebrewDate.from_pydate(day)
     festival = hebrew.festival(israel=True, hebrew=True, include_working_days=False)
     if day.weekday() != 5 and festival is None:
         raise APIError(400, 'יש לבחור שבת או יום טוב בלוח ישראל.')
+    if service not in ('shacharit', 'mincha') or (service == 'mincha' and not (hebrew.month == 7 and hebrew.day == 10)):
+        raise APIError(400, 'רישום מנחה במסך זה זמין ליום כיפור בלבד.')
+    if service == 'mincha':
+        return dict(date=day.isoformat(), service=service, reading='יום כיפור - מנחה', regularCount=3, allowExtra=False,
+                    slots=[dict(position='כהן', tribe='kohen'), dict(position='לוי', tribe='levi'), dict(position='ישראל 1', tribe='yisrael')])
     total = 7 if day.weekday() == 5 else 6 if hebrew.month == 7 and hebrew.day == 10 else 5
     reading = ('א׳' if hebrew.day == 1 else 'ב׳') + ' ראש השנה' if hebrew.month == 7 and hebrew.day in (1, 2) else event_title(day)
-    return dict(date=day.isoformat(), reading=reading, regularCount=total,
+    if hebrew.month == 7 and hebrew.day == 10:
+        reading = 'יום כיפור - שחרית'
+    return dict(date=day.isoformat(), service=service, reading=reading, regularCount=total,
                 allowExtra=not bool(hebrew.festival(israel=True, include_working_days=True)),
                 slots=[dict(position='כהן', tribe='kohen'), dict(position='לוי', tribe='levi')]
                 + [dict(position=f'ישראל {index}', tribe='yisrael') for index in range(1, total - 1)]
@@ -58,7 +65,7 @@ class GabbaiStore:
             owner = source['owner_user_id'] if source else None
             account = db.execute('SELECT email,role FROM users WHERE id=?', (identifier,)).fetchone() if kind == 'self' else None
             return dict(person=person, profile=details, kind=kind, ownerId=owner, account=dict(email='' if account['email'].endswith('@phone.invalid') else account['email'], role=account['role']) if account else None,
-                        verifiedPhone=self.verified_phone(dict(id=identifier)) if kind == 'self' else None)
+                        verifiedPhone=self.verified_phone(dict(id=identifier)) if kind == 'self' else None, birthDateNote=row['birth_date_note'])
 
     def save_person_details(self, user, identifier, value):
         self.require_gabbai(user)
@@ -106,27 +113,30 @@ class GabbaiStore:
             if previous['kind'] in ('independent', 'son_in_law'):
                 eligible = bar_mitzvah_date(clean['hebrewBirthDate'], israel_today())
                 db.execute('UPDATE roster_people SET eligible_from=?,active=? WHERE id=?', (eligible.isoformat() if eligible else None, int(eligible is None or eligible <= israel_today()), identifier))
+            if clean['hebrewBirthDate'] and clean['hebrewBirthDate'].get('year'):
+                db.execute("UPDATE roster_people SET birth_date_note='' WHERE id=?", (identifier,))
             self._set_family_classification(db, identifier, classification)
             self._refresh_roster(db, israel_today())
         return self.person_details(user, identifier)
 
-    def aliyah_template(self, user, raw_date):
+    def aliyah_template(self, user, raw_date, service='shacharit'):
         self.require_gabbai(user)
         day = date.fromisoformat(civil_date(raw_date, 'תאריך העליות', required=True))
-        return aliyah_template(day)
+        return aliyah_template(day, service)
 
     def save_complete_aliyot(self, user, value, identifier=None):
         self.require_gabbai(user)
-        if not isinstance(value, dict) or set(value) - {'date', 'reading', 'calls', 'cancelled'} or not {'date', 'reading', 'calls'} <= set(value):
+        if not isinstance(value, dict) or set(value) - {'date', 'reading', 'calls', 'cancelled', 'service', 'minyan'} or not {'date', 'reading', 'calls'} <= set(value):
             raise APIError(400, 'פרטי העליות אינם תקינים.')
-        template = self.aliyah_template(user, value['date'])
+        service = value.get('service', 'shacharit')
+        template = self.aliyah_template(user, value['date'], service)
         calls = value['calls']
         if not isinstance(calls, list) or not len(template['slots']) <= len(calls) <= 100:
             raise APIError(400, 'יש למלא את כל העליות, כולל מפטיר.')
         extra = len(calls) - len(template['slots'])
         if extra and not template['allowExtra']:
             raise APIError(400, 'בחג אין להוסיף עליות מעבר למספר הקבוע.')
-        slots = template['slots'][:-1] + [dict(position=f"ישראל {template['regularCount'] - 1 + index}", tribe='yisrael') for index in range(extra)] + template['slots'][-1:]
+        slots = template['slots'][:-1] + [dict(position=f"ישראל {template['regularCount'] - 1 + index}", tribe=None) for index in range(extra)] + template['slots'][-1:]
         with self.db() as db:
             for item, slot in zip(calls, slots):
                 if not isinstance(item, dict) or item.get('position') != slot['position']:
@@ -136,4 +146,4 @@ class GabbaiStore:
                 person = db.execute('SELECT tribe FROM roster_people WHERE id=?', (item.get('personId'),)).fetchone() if isinstance(item.get('personId'), str) else None
                 if not person or (slot['tribe'] and person['tribe'] != slot['tribe']):
                     raise APIError(400, 'יש לבחור מתפלל במעמד המתאים לעלייה או אורח.')
-        return self.save_aliyah_service(user, {**value, 'service': 'shacharit'}, identifier)
+        return self.save_aliyah_service(user, {**value, 'service': service}, identifier)

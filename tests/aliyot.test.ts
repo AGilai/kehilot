@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { aliyahCalls, aliyahChoices, aliyahLabel, aliyahSlots } from '../src/aliyot.ts';
+import { aliyahCalls, aliyahChoices, aliyahLabel, aliyahSlots, FESTIVAL_READINGS } from '../src/aliyot.ts';
 import type { AliyahTemplate, RosterPerson } from '../src/types.ts';
 
 const template: AliyahTemplate = { date: '2026-10-24', reading: 'לך לך', regularCount: 7, allowExtra: true, slots: [
@@ -38,4 +38,19 @@ test('Hebrew ordinal labels cover ordinary and extra aliyot while preserving sto
   assert.equal(aliyahLabel('ישראל 19'), 'עשרים ואחד');
   assert.equal(aliyahLabel('ישראל 97'), 'תשעים ותשעה');
   assert.equal(aliyahLabel('ראשון'), 'ראשון');
+});
+
+test('extra Shabbat slots permit Kohanim and Leviim while ordinary Israel slots retain their filter', () => {
+  const people = ['kohen', 'levi', 'yisrael'].map(tribe => ({ id: tribe, name: tribe, tribe })) as RosterPerson[];
+  const extra = aliyahSlots(template, 2).slice(-3, -1);
+  assert.deepEqual(extra.map(slot => slot.tribe), [null, null]);
+  assert.deepEqual(aliyahChoices(extra[0]!, people).map(option => option.value), ['', 'guest', 'person:kohen', 'person:levi', 'person:yisrael']);
+  assert.deepEqual(aliyahChoices(template.slots[2]!, people).map(option => option.value), ['', 'guest', 'person:yisrael']);
+});
+test('Yom Kippur morning and afternoon readings are separate choices', () => {
+  assert.ok(FESTIVAL_READINGS.includes('יום כיפור - שחרית'));
+  assert.ok(FESTIVAL_READINGS.includes('יום כיפור - מנחה'));
+  const mincha: AliyahTemplate = { date: '2026-09-21', service: 'mincha', reading: 'יום כיפור - מנחה', regularCount: 3, allowExtra: false, slots: [{ position: 'כהן', tribe: 'kohen' }, { position: 'לוי', tribe: 'levi' }, { position: 'ישראל 1', tribe: 'yisrael' }] };
+  assert.deepEqual(aliyahSlots(mincha, 0).map(slot => aliyahLabel(slot.position)), ['כהן', 'לוי', 'שלישי']);
+  assert.throws(() => aliyahSlots(mincha, 1));
 });

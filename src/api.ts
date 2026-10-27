@@ -1,3 +1,4 @@
+import type { AliyahRecommendations, RecommendationCalendar, CommunitySettings, YahrzeitCustom } from './types';
 import type { PhoneChallenge, AssociationMember } from './types';
 import type { Classification, ClassificationOption, AliyahInput, AliyahRecord, AliyahTemplate, PersonDetails, PersonUpdate, RosterPerson, CommunityMessage, HealingPrayer, MemberState, Preferences, Profile, Reply, SeatReport, SeatingStatus, Session, Shabbat, Zmanim } from './types.ts';
 import { upcomingFriday } from './dates.ts';
@@ -26,12 +27,16 @@ export async function request<T>(path: string, token?: string, body?: unknown, m
   } finally { clearTimeout(timeout); }
 }
 export const api = {
+  communitySettings: (token: string) => request<CommunitySettings>('/api/community-settings', token),
+  saveCommunitySettings: (token: string, yahrzeitCustom: YahrzeitCustom) => request<CommunitySettings>('/api/admin/community-settings', token, { yahrzeitCustom }, 'PUT'),
+  recommendationCalendar: (token: string, year = '') => request<RecommendationCalendar>(`/api/admin/aliyah-recommendations/calendar?year=${encodeURIComponent(year)}`, token),
+  aliyahRecommendations: (token: string, date: string, service = 'shacharit') => request<AliyahRecommendations>(`/api/admin/aliyah-recommendations?date=${encodeURIComponent(date)}&service=${encodeURIComponent(service)}`, token),
   roster: (token: string) => request<RosterPerson[]>('/api/admin/roster', token),
   person: (token: string, id: string) => request<PersonDetails>(`/api/admin/people/${encodeURIComponent(id)}`, token),
   savePerson: (token: string, id: string, value: PersonUpdate) => request<PersonDetails>(`/api/admin/people/${encodeURIComponent(id)}`, token, value, 'PUT'),
   publish: (token: string, value: { category: string; title: string; body: string; pinned: boolean }) => request<CommunityMessage>('/api/admin/messages', token, value),
   publishPdf: (token: string, value: { name: string; base64: string; title: string; body: string }) => request<CommunityMessage>('/api/admin/weekly-documents', token, value),
-  aliyahTemplate: (token: string, date: string) => request<AliyahTemplate>(`/api/admin/aliyah-template?date=${encodeURIComponent(date)}`, token),
+  aliyahTemplate: (token: string, date: string, service = 'shacharit') => request<AliyahTemplate>(`/api/admin/aliyah-template?date=${encodeURIComponent(date)}&service=${encodeURIComponent(service)}`, token),
   aliyahRecords: (token: string) => request<AliyahRecord[]>('/api/admin/aliyah-services', token),
   saveAliyot: (token: string, value: AliyahInput, id?: string) => request<AliyahRecord>(id ? `/api/admin/aliyah-records/${encodeURIComponent(id)}` : '/api/admin/aliyah-records', token, value, id ? 'PUT' : 'POST'),
   requestPhoneCode: (phone: string) => request<PhoneChallenge>('/api/auth/phone/request', undefined, { phone }),

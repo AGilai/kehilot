@@ -34,7 +34,8 @@ def initialize(db):
             reading TEXT NOT NULL, cancelled INTEGER NOT NULL DEFAULT 0,
             recorded_by TEXT NOT NULL REFERENCES users(id),
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-            UNIQUE(service_date,service));
+            minyan INTEGER NOT NULL DEFAULT 1 CHECK(minyan BETWEEN 1 AND 1000),
+            UNIQUE(service_date,service,minyan));
         CREATE TABLE IF NOT EXISTS aliyah_calls (
             service_id TEXT NOT NULL REFERENCES aliyah_services(id),
             position TEXT NOT NULL, person_id TEXT NOT NULL REFERENCES roster_people(id),
@@ -58,6 +59,34 @@ def initialize(db):
             ALTER TABLE aliyah_calls_with_guests RENAME TO aliyah_calls;
             CREATE INDEX aliyah_calls_person ON aliyah_calls(person_id,service_id);
         ''')
+
+    service_columns = {row['name'] for row in db.execute('PRAGMA table_info(aliyah_services)')}
+    if 'minyan' not in service_columns:
+        db.executescript('''
+            BEGIN IMMEDIATE;
+            CREATE TABLE aliyah_services_new (
+                id TEXT PRIMARY KEY, service_date TEXT NOT NULL,
+                service TEXT NOT NULL CHECK(service IN ('shacharit','mincha')),
+                reading TEXT NOT NULL, cancelled INTEGER NOT NULL DEFAULT 0,
+                recorded_by TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                minyan INTEGER NOT NULL DEFAULT 1 CHECK(minyan BETWEEN 1 AND 1000),
+                UNIQUE(service_date,service,minyan));
+            INSERT INTO aliyah_services_new SELECT *,1 FROM aliyah_services;
+            CREATE TABLE aliyah_calls_new (
+                service_id TEXT NOT NULL REFERENCES aliyah_services_new(id), position TEXT NOT NULL,
+                person_id TEXT REFERENCES roster_people(id), person_name TEXT NOT NULL,
+                PRIMARY KEY(service_id,position));
+            INSERT INTO aliyah_calls_new SELECT * FROM aliyah_calls;
+            DROP TABLE aliyah_calls;
+            DROP TABLE aliyah_services;
+            ALTER TABLE aliyah_services_new RENAME TO aliyah_services;
+            ALTER TABLE aliyah_calls_new RENAME TO aliyah_calls;
+            CREATE INDEX aliyah_calls_person ON aliyah_calls(person_id,service_id);
+            CREATE INDEX aliyah_service_dates ON aliyah_services(service_date,cancelled);
+            COMMIT;
+        ''')
+    if 'birth_date_note' not in columns:
+        db.execute("ALTER TABLE roster_people ADD COLUMN birth_date_note TEXT NOT NULL DEFAULT ''")
 
     initialize_classifications(db)
 
@@ -270,7 +299,7 @@ class RosterStore:
 
     def save_aliyah_service(self, user, value, identifier=None):
         self.require_gabbai(user)
-        if not isinstance(value, dict) or set(value) - {'date', 'service', 'reading', 'calls', 'cancelled'} or not {'date', 'service', 'reading', 'calls'} <= set(value):
+        if not isinstance(value, dict) or set(value) - {'date', 'service', 'reading', 'calls', 'cancelled', 'minyan'} or not {'date', 'service', 'reading', 'calls'} <= set(value):
             raise APIError(400, 'רשומת העליות אינה תקינה.')
         day = date.fromisoformat(civil_date(value['date'], 'תאריך העליות', required=True))
         if not is_shabbat_or_festival(day):
@@ -293,10 +322,13 @@ class RosterStore:
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             self._refresh_roster(db, israel_today())
-            existing = db.execute('SELECT id FROM aliyah_services WHERE id=?', (identifier,)).fetchone() if identifier else None
+            existing = db.execute('SELECT id,minyan FROM aliyah_services WHERE id=?', (identifier,)).fetchone() if identifier else None
             if identifier and not existing:
                 raise APIError(404, 'רשומת העליות לא נמצאה.')
-            collision = db.execute('SELECT id FROM aliyah_services WHERE service_date=? AND service=?', (day.isoformat(), value['service'])).fetchone()
+            minyan = value.get('minyan', existing['minyan'] if existing else 1)
+            if type(minyan) is not int or not 1 <= minyan <= 1000:
+                raise APIError(400, 'מספר המניין חייב להיות מספר שלם בין 1 ל־1000.')
+            collision = db.execute('SELECT id FROM aliyah_services WHERE service_date=? AND service=? AND minyan=?', (day.isoformat(), value['service'], minyan)).fetchone()
             if collision and collision['id'] != identifier:
                 raise APIError(409, 'כבר קיימת רשומה לתפילה זו. יש לעדכן אותה.')
             participants = []
@@ -315,10 +347,10 @@ class RosterStore:
             identifier = identifier or 'service-' + secrets.token_hex(16)
             timestamp = stamp()
             db.execute('''INSERT INTO aliyah_services
-                (id,service_date,service,reading,cancelled,recorded_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)
+                (id,service_date,service,reading,cancelled,recorded_by,created_at,updated_at,minyan) VALUES (?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(id) DO UPDATE SET service_date=excluded.service_date,service=excluded.service,
-                reading=excluded.reading,cancelled=excluded.cancelled,recorded_by=excluded.recorded_by,updated_at=excluded.updated_at''',
-                (identifier, day.isoformat(), value['service'], reading, int(value.get('cancelled', False)), user['id'], timestamp, timestamp))
+                reading=excluded.reading,cancelled=excluded.cancelled,recorded_by=excluded.recorded_by,updated_at=excluded.updated_at,minyan=excluded.minyan''',
+                (identifier, day.isoformat(), value['service'], reading, int(value.get('cancelled', False)), user['id'], timestamp, timestamp, minyan))
             db.execute('DELETE FROM aliyah_calls WHERE service_id=?', (identifier,))
             db.executemany('INSERT INTO aliyah_calls VALUES (?,?,?,?)', [(identifier, *item) for item in participants])
             return self._service_value(db, identifier)
@@ -328,13 +360,13 @@ class RosterStore:
         row = db.execute('SELECT * FROM aliyah_services WHERE id=?', (identifier,)).fetchone()
         calls = db.execute('SELECT position,person_id,person_name FROM aliyah_calls WHERE service_id=? ORDER BY rowid', (identifier,)).fetchall()
         return dict(id=row['id'], date=row['service_date'], hebrewDate=hebrew_label(date.fromisoformat(row['service_date'])),
-                    service=row['service'], reading=row['reading'], cancelled=bool(row['cancelled']),
+                    service=row['service'], minyan=row['minyan'], reading=row['reading'], cancelled=bool(row['cancelled']),
                     calls=[dict(position=call['position'], personId=call['person_id'], nameAtRecording=call['person_name'], guest=call['person_id'] is None) for call in calls])
 
     def aliyah_services(self, user):
         self.require_gabbai(user)
         with self.db() as db:
-            return [self._service_value(db, row['id']) for row in db.execute('SELECT id FROM aliyah_services ORDER BY service_date DESC,service').fetchall()]
+            return [self._service_value(db, row['id']) for row in db.execute('SELECT id FROM aliyah_services ORDER BY service_date DESC,service,minyan').fetchall()]
 
 
 def start_roster_worker(store, stop):

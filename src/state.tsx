@@ -5,7 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import { api, API_URL, ApiError } from './api';
 import { createDemo } from './demo';
 import { validateProfile } from './dates';
-import { CLASSIFICATION_OPTIONS, ClassificationOption, CommunityMessage, MessageCategory, MemberState, Preferences, Profile, PrayerSeats, SeatingStatus, Session, normalizeMemberState, normalizeProfile } from './types';
+import { CLASSIFICATION_OPTIONS, ClassificationOption, CommunityMessage, MessageCategory, MemberState, Preferences, Profile, PrayerSeats, SeatingStatus, Session, YahrzeitCustom, normalizeMemberState, normalizeProfile } from './types';
 import { demoHealingPrayer, healingPrayerName } from './healingPrayers';
 import { demoSeating, demoSeatReport, seatReport } from './seating';
 
@@ -21,6 +21,7 @@ type Context = {
   isDemo: boolean; verifyPhone: (challengeId: string, code: string) => Promise<void>; logout: () => Promise<void>;
   refresh: () => Promise<void>; saveProfile: (profile: Profile) => Promise<void>;
   savePreferences: (prefs: Preferences) => Promise<void>; addReply: (id: string, body: string) => Promise<void>;
+  saveCommunitySettings: (custom: YahrzeitCustom) => Promise<void>;
   addClassification: (name: string) => Promise<ClassificationOption>;
   publishMessage: (value: { category: MessageCategory; title: string; body: string; pinned: boolean }, pdf?: { name: string; base64: string }) => Promise<CommunityMessage>;
   markRead: (id: string) => Promise<void>;
@@ -147,6 +148,12 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     const saved = session ? await api.preferences(session.token, preferences) : preferences;
     await commit(value => ({ ...value, preferences: saved }), current);
   }
+  async function saveCommunitySettings(custom: YahrzeitCustom) {
+    if (!session || dataRef.current?.role !== 'gabbai') throw new Error('שינוי מנהג הקהילה מיועד לגבאים בלבד.');
+    const current = generation.current; dataVersion.current += 1;
+    const saved = await api.saveCommunitySettings(session.token, custom);
+    await commit(value => ({ ...value, communitySettings: saved }), current);
+  }
   async function addReply(id: string, body: string) {
     const text = body.trim();
     if (!text || text.length > 1000) throw new Error('התגובה צריכה להכיל בין תו אחד ל־1,000 תווים.');
@@ -196,7 +203,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     const saved = session ? await api.saveSeating(session.token, payload) : demoSeatReport(dataRef.current?.seating || demoSeating(), context, value);
     await commit(state => ({ ...state, seating: saved }), current);
   }
-  return <StateContext.Provider value={{ data, session, loading, error, isDemo, verifyPhone, logout, refresh, saveProfile, savePreferences, addReply, addClassification, publishMessage, markRead, addHealingPrayer, deleteHealingPrayer, saveSeating }}>{children}</StateContext.Provider>;
+  return <StateContext.Provider value={{ data, session, loading, error, isDemo, verifyPhone, logout, refresh, saveProfile, savePreferences, saveCommunitySettings, addReply, addClassification, publishMessage, markRead, addHealingPrayer, deleteHealingPrayer, saveSeating }}>{children}</StateContext.Provider>;
 }
 export function useCommunity() {
   const value = useContext(StateContext);

@@ -17,6 +17,8 @@ from .phone_auth import PhoneAuthStore, initialize as initialize_phone, check_pr
 from .member_import import MemberImportStore
 from .gabbai import GabbaiStore
 from .classifications import ClassificationStore
+from .recommendations import RecommendationsStore
+from .settings import SettingsStore, initialize as initialize_settings
 from .documents import DocumentStore, initialize as initialize_documents
 
 
@@ -36,7 +38,7 @@ def password_hash(password, salt):
     return hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 600000).hex()
 
 
-class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, GabbaiStore, DocumentStore, ClassificationStore):
+class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, GabbaiStore, DocumentStore, ClassificationStore, RecommendationsStore, SettingsStore):
     def __init__(self, path, sms_sender=None):
         self.sms_sender = sms_sender
         self.path = str(path)
@@ -108,6 +110,7 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             initialize_membership(db)
             initialize_phone(db)
             initialize_documents(db)
+            initialize_settings(db)
             self._refresh_roster(db, israel_today())
             self._current_seating_event(db, current_time())
         Path(self.path).chmod(0o600)
@@ -304,7 +307,7 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             member_profile = self._read_profile(db, user['id'])
             classification = db.execute('SELECT classification FROM roster_people WHERE id=?', (user['id'],)).fetchone()
             read_ids = [r['message_id'] for r in db.execute('SELECT message_id FROM reads WHERE user_id=?', (user['id'],))]
-        return dict(profile=member_profile, preferences=json.loads(fresh['preferences']), messages=self.list_messages(), readIds=read_ids, healingPrayers=self.healing_prayers(user), seating=self.seating(user), classification=classification['classification'] if classification else '', role=user['role'], classifications=self.classifications(user) if user['role'] == 'gabbai' else [], verifiedPhone=self.verified_phone(user))
+        return dict(profile=member_profile, preferences=json.loads(fresh['preferences']), messages=self.list_messages(), readIds=read_ids, healingPrayers=self.healing_prayers(user), seating=self.seating(user), classification=classification['classification'] if classification else '', role=user['role'], classifications=self.classifications(user) if user['role'] == 'gabbai' else [], verifiedPhone=self.verified_phone(user), communitySettings=self.community_settings(user))
 
     @staticmethod
     def _healing_value(row):

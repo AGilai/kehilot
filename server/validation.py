@@ -19,7 +19,7 @@ DEFAULT_PREFERENCES = dict(weekly=True, community=True, replies=True, events=Tru
 MONTH_DAYS = dict(tishrei=30, cheshvan=30, kislev=30, tevet=29, shevat=30,
                   adar=29, adar_i=30, adar_ii=29, nisan=30, iyar=29,
                   sivan=30, tamuz=29, av=30, elul=29)
-RELATIONSHIPS = {'father', 'mother', 'son', 'daughter', 'brother', 'sister'}
+RELATIONSHIPS = {'father', 'mother', 'son', 'daughter', 'brother', 'sister', 'father_in_law', 'mother_in_law', 'uncle', 'aunt', 'unknown'}
 CATEGORIES = {'weekly', 'celebration', 'condolence', 'event'}
 TRIBES = {'kohen', 'levi', 'yisrael'}
 

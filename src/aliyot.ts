@@ -1,6 +1,6 @@
 import type { AliyahCall, AliyahSlot, AliyahTemplate, RosterPerson } from './types.ts';
 
-export const FESTIVAL_READINGS = ['א׳ ראש השנה', 'ב׳ ראש השנה', 'יום כיפור', 'סוכות', 'שמיני עצרת ושמחת תורה', 'פסח', 'שביעי של פסח', 'שבועות'];
+export const FESTIVAL_READINGS = ['א׳ ראש השנה', 'ב׳ ראש השנה', 'יום כיפור - שחרית', 'יום כיפור - מנחה', 'סוכות', 'שמיני עצרת ושמחת תורה', 'פסח', 'שביעי של פסח', 'שבועות'];
 
 export function aliyahLabel(position: string): string {
   const match = /^ישראל ([1-9]\d*)$/.exec(position);
@@ -17,7 +17,7 @@ export function aliyahLabel(position: string): string {
 
 export function aliyahSlots(template: AliyahTemplate, extras: number): AliyahSlot[] {
   if (!Number.isInteger(extras) || extras < 0 || extras > 100 - template.slots.length || (extras > 0 && !template.allowExtra)) throw new Error('מספר העליות הנוספות אינו תקין.');
-  return [...template.slots.slice(0, -1), ...Array.from({ length: extras }, (_, index) => ({ position: `ישראל ${template.regularCount - 1 + index}`, tribe: 'yisrael' as const })), ...template.slots.slice(-1)];
+  return [...template.slots.slice(0, -1), ...Array.from({ length: extras }, (_, index) => ({ position: `ישראל ${template.regularCount - 1 + index}`, tribe: null })), ...template.slots.slice(-1)];
 }
 export function aliyahChoices(slot: AliyahSlot, people: RosterPerson[]) {
   return [{ value: '', label: 'בחירת עולה' }, { value: 'guest', label: 'אורח' }, ...people.filter(person => !slot.tribe || person.tribe === slot.tribe).map(person => ({ value: `person:${person.id}`, label: person.name }))];

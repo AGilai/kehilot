@@ -1,5 +1,8 @@
 export type MessageCategory = 'weekly' | 'celebration' | 'condolence' | 'event';
 export type Preferences = { weekly: boolean; community: boolean; replies: boolean; events: boolean };
+export type YahrzeitCustom = 'ashkenaz' | 'sephardi';
+export type CommunitySettings = { yahrzeitCustom: YahrzeitCustom | null };
+export const YAHRZEIT_CUSTOM_OPTIONS: { value: YahrzeitCustom; label: string }[] = [{ value: 'ashkenaz', label: 'אשכנז' }, { value: 'sephardi', label: 'עדות המזרח' }];
 export type HebrewMonth = 'tishrei' | 'cheshvan' | 'kislev' | 'tevet' | 'shevat' | 'adar' | 'adar_i' | 'adar_ii' | 'nisan' | 'iyar' | 'sivan' | 'tamuz' | 'av' | 'elul';
 // Year is optional only for preserving older records; new dates require it.
 export type HebrewBirthDate = { day: number; month: HebrewMonth | ''; year?: number | null };
@@ -7,7 +10,7 @@ export type Tribe = '' | 'kohen' | 'levi' | 'yisrael';
 export const TRIBES: { value: Exclude<Tribe, ''>; label: string }[] = [
   { value: 'kohen', label: 'כהן' }, { value: 'levi', label: 'לוי' }, { value: 'yisrael', label: 'ישראל' },
 ];
-export type Relationship = 'father' | 'mother' | 'son' | 'daughter' | 'brother' | 'sister';
+export type Relationship = 'father' | 'mother' | 'son' | 'daughter' | 'brother' | 'sister' | 'father_in_law' | 'mother_in_law' | 'uncle' | 'aunt' | 'unknown';
 export type Yahrzeit = { id: string; name: string; relationship: Relationship; day: number; month: HebrewMonth; year: string };
 export type Child = {
   id: string;
@@ -57,7 +60,7 @@ export type SeatingEvent = { id: string; date: string; title: string; parasha: s
 export type PrayerSeats = { arvit: number; shacharit: number };
 export type SeatingStatus = { event: SeatingEvent; eligible: boolean; allocatedSeats: number | null; allocationRevision: number | null; reported: boolean; value: PrayerSeats | null; neededSeats: PrayerSeats | null; releasedSeats: PrayerSeats | null; reportInvalidated: boolean; updatedAt: string | null };
 export type SeatReport = { eventId: string; revision: number; mode: SeatingMode; allocatedSeats: number; allocationRevision: number; arvit: number; shacharit: number };
-export type MemberState = { profile: Profile; preferences: Preferences; messages: CommunityMessage[]; readIds: string[]; healingPrayers: HealingPrayer[]; seating: SeatingStatus | null; classification?: string; role?: 'member' | 'gabbai'; verifiedPhone?: string | null; classifications?: ClassificationOption[] };
+export type MemberState = { profile: Profile; preferences: Preferences; messages: CommunityMessage[]; readIds: string[]; healingPrayers: HealingPrayer[]; seating: SeatingStatus | null; classification?: string; role?: 'member' | 'gabbai'; verifiedPhone?: string | null; communitySettings?: CommunitySettings; classifications?: ClassificationOption[] };
 export type Session = { token: string; user: { id: string; email: string; phone?: string } };
 export type Zmanim = { date: string; times: Record<string, string>; source: string };
 export type Shabbat = { friday: string; parasha: string; petahTikva: string | null; telAviv: string | null };
@@ -70,7 +73,7 @@ export function normalizeProfile(profile: Partial<Profile>): Profile {
   return { ...EMPTY_PROFILE, ...profile, firstName, lastName, name: firstName && lastName ? `${firstName} ${lastName}` : profile.name ?? '', tribe: profile.tribe ?? '', phone: profile.phone ?? '', wifePhone: profile.wifePhone ?? '', hebrewBirthDate: profile.hebrewBirthDate ?? null, children: (profile.children ?? []).map(child => ({ ...child, spouseTribe: child.spouseTribe ?? '', hebrewBirthDate: child.hebrewBirthDate ?? null })) };
 }
 export function normalizeMemberState(value: Omit<MemberState, 'healingPrayers' | 'seating'> & { healingPrayers?: HealingPrayer[]; seating?: SeatingStatus | null }): MemberState {
-  return { ...value, profile: normalizeProfile(value.profile), healingPrayers: Array.isArray(value.healingPrayers) ? value.healingPrayers : [], seating: value.seating && (value.seating.value === null || typeof value.seating.value === 'object') && (value.seating.neededSeats === null || typeof value.seating.neededSeats === 'object') ? value.seating : null };
+  return { ...value, communitySettings: value.communitySettings || { yahrzeitCustom: null }, profile: normalizeProfile(value.profile), healingPrayers: Array.isArray(value.healingPrayers) ? value.healingPrayers : [], seating: value.seating && (value.seating.value === null || typeof value.seating.value === 'object') && (value.seating.neededSeats === null || typeof value.seating.neededSeats === 'object') ? value.seating : null };
 }
 export function newChild(gender: Child['gender']): Child {
   return { id: `child-${Date.now()}-${Math.random().toString(36).slice(2)}`, gender, name: '', birthDate: '', hebrewBirthDate: null, torahName: '', barMitzvahParasha: '', barMitzvahDate: '', married: false, spouseName: '', spouseTribe: '', spouseTorahName: '', spousePrayerName: '' };
@@ -88,6 +91,8 @@ export const MONTHS: { value: HebrewMonth; label: string; max: number }[] = [
 export const RELATIONSHIPS: { value: Relationship; label: string }[] = [
   { value: 'father', label: 'אב' }, { value: 'mother', label: 'אם' }, { value: 'son', label: 'בן' },
   { value: 'daughter', label: 'בת' }, { value: 'brother', label: 'אח' }, { value: 'sister', label: 'אחות' },
+  { value: 'father_in_law', label: 'חותן' }, { value: 'mother_in_law', label: 'חותנת' },
+  { value: 'uncle', label: 'דוד' }, { value: 'aunt', label: 'דודה' }, { value: 'unknown', label: 'לא ידוע' },
 ];
 export const CATEGORY: Record<MessageCategory, { label: string; color: string; background: string; symbol: string }> = {
   weekly: { label: 'לו״ז שבועי', color: '#245E4F', background: '#EAF1ED', symbol: '▦' },
@@ -109,13 +114,20 @@ export type ClassificationOption = { value: Classification; label: string };
 export const CLASSIFICATION_OPTIONS: { value: Classification; label: string }[] = ['א', 'דור ב', 'חתן', 'דור ב-נשוי', 'קבוע'].map(value => ({ value: value as Classification, label: value === 'א' ? 'א — חבר עמותה' : value }));
 export type PdfAttachment = { id: string; name: string; size: number; mimeType: 'application/pdf' };
 export type RosterPerson = { id: string; sourcePersonId: string | null; familyChildId: string | null; name: string; firstName: string; lastName: string; tribe: Tribe; classification: Classification | ''; torahName: string; wifePrayerName: string; barMitzvahDate: string; barMitzvahParasha: string; hebrewBirthDate: HebrewBirthDate | null; yahrzeits: Yahrzeit[]; allocatedSeats: number | null; aliyahCount: number | null; windowMonths: number | null; lastAliyah: string };
-export type PersonDetails = { person: RosterPerson; profile: Profile; kind: 'self' | 'son' | 'son_in_law' | 'independent'; ownerId: string | null; verifiedPhone?: string | null; account: { email: string; role: 'member' | 'gabbai' } | null };
+export type PersonDetails = { person: RosterPerson; profile: Profile; kind: 'self' | 'son' | 'son_in_law' | 'independent'; ownerId: string | null; verifiedPhone?: string | null; birthDateNote?: string; account: { email: string; role: 'member' | 'gabbai' } | null };
 export type PersonUpdate = { profile: Profile; classification: Classification; allocatedSeats: number | null; barMitzvahDate: string };
 export type AliyahSlot = { position: string; tribe: Tribe | null };
-export type AliyahTemplate = { date: string; reading: string; regularCount: number; allowExtra: boolean; slots: AliyahSlot[] };
+export type AliyahService = 'shacharit' | 'mincha';
+export type AliyahTemplate = { date: string; service?: AliyahService; reading: string; regularCount: number; allowExtra: boolean; slots: AliyahSlot[] };
 export type AliyahCall = { position: string; personId?: string | null; guest?: boolean; nameAtRecording?: string };
-export type AliyahRecord = { id: string; date: string; hebrewDate: string; service: 'shacharit' | 'mincha'; reading: string; cancelled: boolean; calls: AliyahCall[] };
-export type AliyahInput = { date: string; reading: string; calls: AliyahCall[]; cancelled?: boolean };
+export type AliyahRecord = { id: string; date: string; hebrewDate: string; service: AliyahService; minyan?: number; reading: string; cancelled: boolean; calls: AliyahCall[] };
+export type AliyahInput = { date: string; service?: AliyahService; minyan?: number; reading: string; calls: AliyahCall[]; cancelled?: boolean };
 
 export type PhoneChallenge = { challengeId: string; expiresIn: number; retryAfter: number };
 export type AssociationMember = { phone: string; name: string; firstName: string; lastName: string; registered: boolean };
+
+export type RecommendationService = { date: string; key?: string; service?: AliyahService; reading: string; parashot: string[]; hebrewDate: string; year: number; yearLabel: string; title: string };
+export type RecommendationCalendar = { year: number; yearLabel: string; defaultDate: string; years: { value: string; label: string }[]; services: RecommendationService[] };
+export type RecommendationEvent = { kind: 'bar_mitzvah' | 'yahrzeit'; date: string; hebrewDate: string; description: string; needsReview: boolean; relationship?: Relationship; relativeName?: string; recordedDay?: number; recordedMonth?: HebrewMonth; recordedHebrewDate?: string };
+export type RecommendationPerson = { id: string; name: string; firstName: string; lastName: string; tribe: Tribe; torahName: string; wifePrayerName: string; classification: string; aliyahCount: number | null; windowMonths: number | null; lastAliyahDate: string | null; lastAliyah: string; events: RecommendationEvent[] };
+export type AliyahRecommendations = { service: RecommendationService; yahrzeitCustom?: YahrzeitCustom | null; eventWindowEnd: string; sections: { id: string; title: string; limit: number | null; people: RecommendationPerson[] }[]; notes: string[] };
