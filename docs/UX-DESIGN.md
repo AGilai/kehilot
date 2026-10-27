@@ -174,7 +174,7 @@ Checked by headless screenshots at phone and desktop widths: M1, M2, M3, M5, M6,
 
 Added 2026-10-27 for `docs/superpowers/specs/2026-10-27-families-privacy-design.md`. Mockups: `design/mockups/frames/P1.html`
 to `P14.html` (index section "ד. משפחות ופרטיות"). Unlike the M/GM/GD drafts, **the P frames draw the shipped kit**
-(`src/kit/theme.ts` tokens, `src/kit/components.tsx`): TopBar with logo tile and 🔔, bottom tabs with glyphs, Card,
+(`src/kit/theme.ts` tokens, `src/kit/components.tsx`): TopBar with logo tile and bell icon, bottom tabs with line icons (§11.3–11.4), Card,
 Button (primary / secondary / danger), Field, Chip, Toggle (the "פעיל/כבוי" pill), Banner, Sheet, Toast and `Tag`
 from `admin/shared.tsx`. Build them 1:1; QA compares against them. Each frame has one or two phones plus labelled
 state panels. All names and numbers are invented.
@@ -474,3 +474,171 @@ any of this; the check does not run there. Frame: `design/mockups/frames/P15.htm
 
 `{version}` is the release's version name (e.g. `0.1.3`), shown LTR. Not screenshot-checked (no browser run on this
 machine for this change).
+
+## 11. Mobile web polish
+
+Added 2026-10-27 after the owner opened the deployed web app in Brave on Android (dark mode) and reported:
+"English with Hebrew, not aligned the filters. Require better design even for Web over mobile." Audit: the fixtures
+web build (`EXPO_PUBLIC_FIXTURES=1`) at 390x844, light and dark, Hebrew and English, plus 1440x900. Screens checked:
+Home, Messages (member, gabbai), M3 detail, Compose, Me, phone list, sign-in, Messages and Home in English.
+Frame: `design/mockups/frames/P16.html` (Messages after the fixes, Hebrew and English, plus the control and icon
+sheets). The P1–P15 frames now draw the new top-bar bell and bottom tabs (`shared.css` `.ktop .bell`, `.ktabs`).
+
+Scope is polish, not a redesign: existing tokens (`theme.ts`), type scale and kit components. Fixes in priority order.
+
+### 11.1 Channel names show stored keys (Messages, MessageRow, M3, Chat, Compose, Search, prefs)
+
+**Wrong:** the default channels are seeded as `announcements`, `simchas`, `condolences`
+(`server/cloud/repo_members.py`) and the client prints `channel.name`, so a Hebrew screen shows English words
+(owner's screenshot: chips "announcements", "simchas", "…es").
+
+**Fix:** one helper, used everywhere a channel name is shown:
+`channelLabel(c: Pick<Channel,'name'>, t): string` in `src/client/channelsView.ts`. If `c.name` is one of the three
+keys, return `t('channel.default.<key>')`; otherwise return `c.name` unchanged (gabbai-created names are shown as
+stored). Use it in: Messages chips and `nameOf`, MessageRow (via `channelName`), MessageDetail (both lines),
+ChatView header, Compose (chips, `channelName`, audience line), Search (chips, `nameOf`), NotifyPrefs toggles,
+admin Channels list and Home "latest".
+
+| i18n key | he | en |
+|---|---|---|
+| `channel.default.announcements` | הודעות הקהילה | Announcements |
+| `channel.default.simchas` | שמחות | Simchas |
+| `channel.default.condolences` | אבלות | Condolences |
+
+Admin channel sheet (`admin/Channels.tsx`): the name Field is prefilled with `channelLabel(c)`. On save, if the
+trimmed value still equals that label, send the stored key unchanged, so the channel keeps localising in both
+languages; any edit stores the new text. Server unchanged.
+
+### 11.2 Messages filter header: two misaligned rows of oversized pills (M2)
+
+**Wrong:** "שלי / הכול" and the channel row both use `Chip` (48 px tall, tekhelet fill), so two rows of identical
+big pills compete; the first row is two short pills hugging the start edge while the second is a scroller, so their
+widths and rhythm don't line up; the scroller is clipped at the 16 px content padding, so the last chip is cut with a
+hard edge and no sign that it scrolls (owner's "…es"). Every selected control is tekhelet, the action colour.
+
+**Fix** (frame P16; M2 already intended a segmented control and small chips):
+
+1. **New kit `Segmented`** (`src/kit/components.tsx`): `Segmented({ options: {key,label}[], value, onChange })`.
+   Track: full width, `minHeight: TOUCH` (48), `padding: 4`, `gap: 4`, `borderRadius: 12`, `backgroundColor: k.stone`,
+   `borderWidth: 1, borderColor: k.line`. Segment: `flex: 1`, `minHeight: 38`, `borderRadius: 9`, centred
+   `Txt size="small" bold`. Selected: `backgroundColor: k.surface`, `borderWidth: 1, borderColor: k.tekhelet`, text
+   `k.tekhelet`; unselected: transparent border, text `k.muted`. `accessibilityRole="tab"` per segment inside a
+   `tablist` row, `accessibilityState={{ selected }}`. Use it for "שלי / הכול" (Mine / Everything).
+2. **`Chip` gets `size?: 'regular' | 'filter'`** (default regular, unchanged elsewhere). `filter`: `height: 36`,
+   `paddingHorizontal: 14`, `borderRadius: 18`, `borderWidth: 1`, `hitSlop={{ top: 6, bottom: 6 }}` (48 touch),
+   `Txt size="small" bold`. Unselected: `k.surface` fill, `k.line` border, `k.ink` text. Selected: `k.ink` fill and
+   border, `k.stone` text (ink, not tekhelet: tekhelet stays the action colour). Optional `icon?: IconName` drawn at
+   16 px before the label, `gap: 6`.
+3. **Channel row** uses `Chip size="filter"`. The horizontal `ScrollView` bleeds to the screen edge so a cut chip
+   reads as "more": `style={{ marginHorizontal: -16 }}`, `contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}`.
+   Conversation channels: `icon="msg"` instead of the `💬 ` prefix (same in Search).
+4. Header order and spacing: title row (title + search icon button, 11.3) / Segmented / channel chips, `gap: 12`,
+   then the day label. All three rows share the same 16 px start edge.
+5. Compose (M4) channel picker and admin chip pickers keep wrapping rows but use `size="filter"` for the same look.
+
+### 11.3 Emoji and text glyphs as icons (top bar, Messages, tabs, FAB, phone list, chevrons)
+
+**Wrong:** 🔔 and 🔍 render as colour emoji (Android's yellow bell, a blue magnifier) beside a typographic UI;
+tab glyphs ⌂ ✉ ☺ (▦ ✓ ☷ in management) come from fallback fonts at different weights; ＋ is a full-width glyph;
+☎, 🔒, 💬, ✕, ⎙ likewise. The text chevrons ‹ › are bidi-mirrored characters, so in RTL they can flip (the Home
+phone-list card's "forward" chevron points right at 1440 px).
+
+**Fix: new kit `Icon`** (`src/kit/Icon.tsx`), drawing the frames' own line icons (the `<symbol>` sprite in every
+frame: 24 viewBox, stroke 1.8, round caps and joins, no fill). No new dependency: render the SVG through
+`expo-image` (already installed; it renders SVG on Android, iOS and web) from a data URI:
+
+```tsx
+export function Icon({ name, size = 24, color }: { name: IconName; size?: number; color?: string }) {
+  const k = useTokens();
+  const c = color ?? k.ink;
+  const uri = React.useMemo(() => 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PATHS[name]}</svg>`), [name, c]);
+  return <Image source={{ uri }} style={{ width: size, height: size }} contentFit="contain" accessible={false} />;
+}
+```
+
+`PATHS` is copied verbatim from the sprite in `design/mockups/frames/P1.html` (`bell, search, home, msg, user, plus,
+phone, lock, check, grid, users, back, fwd, chev, x, belloff, pin, send`). Icons are images, so they are never
+bidi-mirrored: pick the direction explicitly (`back` points right, `fwd` points left; in LTR swap them). The
+pressable around an icon carries the `accessibilityLabel`, as today. `react-native-svg` was not chosen: it would add
+a native module and need a new store build for a cosmetic change.
+
+| Where | Today | Icon | Size / colour |
+|---|---|---|---|
+| TopBar bell | 🔔 | `bell` | 24, `k.ink`, in the existing 48x48 pressable |
+| TopBar Kehila chevron | ⌄ | `chev` | 16, `k.muted` |
+| Messages search | 🔍 | `search` | 24, `k.ink`, 48x48 pressable |
+| Bottom tabs | ⌂ ✉ ☺ / ▦ ✓ ☷ ✉ ☷ | `home msg user` / `grid check msg users` | 24, active `k.tekhelet`, else `k.muted` (11.4) |
+| Messages FAB | ＋ | `plus` | 20, `k.onAction` |
+| Conversation chips (Messages, Search) | 💬 | `msg` | 16 via `Chip icon` |
+| Phone list "חיוג", Home phone card | ☎ | `phone` | 18, `k.tekhelet` (inside secondary Button: `[Icon, label]` row, gap 8) |
+| NotifyPrefs, admin Members lock | 🔒 | `lock` | 16, `k.muted` |
+| Back links (M3, Compose, Me, Chat, Search, Delete, NotifyPrefs, KehilaInfo, FamilyCard) | › / ‹ | `back` (RTL) / `fwd` (LTR) | 20, `k.tekhelet`, row gap 4 |
+| Forward affordances (Home cards, "לכל ההודעות", Search rows) | ‹ / › | `fwd` (RTL) / `back` (LTR) | 20, `k.tekhelet` |
+| ImageViewer close | ✕ | `x` | 24, white on the dark viewer |
+
+Leave as text: ✓ inside `Check` and `PickList` (it is a typographic tick on a filled box), ↗ external-link marks in
+running text, and the Home zmanim glyphs (☀ ◷ ✧) which belong to the arc design, not chrome.
+
+### 11.4 Bottom tab bar (all signed-in screens)
+
+**Wrong:** icon and label side by side in one 56 px row; the glyphs are uneven (above); on a desktop browser the
+three tabs spread across the full 1440 px window, far from the 680 px content column.
+
+**Fix** (`Main.tsx` tab bar; frame `.ktabs`): outer bar unchanged (`k.surface`, top hairline `k.line`). Inner row
+`width: '100%', maxWidth: 680, alignSelf: 'center', flexDirection: 'row'`. Each tab: `flex: 1, minHeight: 64`,
+column, `gap: 2`: `Icon` 24 then label `Txt size="caption" bold` (12.5). Active: tekhelet icon and label plus a
+`36x3` tekhelet indicator at the top edge (`position: 'absolute', top: 0`, radius `0 0 3 3`). Badge: `k.pomegranate`
+circle 18 px, white 11 px bold numeral, `position: 'absolute', top: 6`, offset to the icon's end side by 6 px from
+centre. Accessibility labels unchanged.
+
+### 11.5 Hebrew content in the English UI, and names inside sentences (MessageRow, M3, Chat, replier chip)
+
+**Wrong (English, 390 px):** Hebrew message titles and bodies are left-aligned with `writingDirection: 'ltr'`, so
+the full stop lands at the wrong end (".זכרו ברוך") and lines break oddly. "3 members sent a private blessing to the
+בדיוני family" mixes runs without isolation. The same happens in reverse for English content in the Hebrew UI.
+
+**Fix:**
+1. `Txt` gets `content?: boolean`. When set, direction comes from the text, not the UI language:
+   `contentDir(s)` in `src/i18n/direction.ts` returns `'rtl'` if the first strong letter is Hebrew/Arabic
+   (`[֐-׿؀-ۿ]`), `'ltr'` if it is Latin, else the UI `dir`. Apply `writingDirection` and
+   `textAlign` (`'right'` for rtl, `'left'` for ltr) from it. Use `content` on user text: message titles and bodies
+   (MessageRow, MessageDetail), replies and private blessings, chat bubbles, Kehila names in TopBar and the switcher,
+   family and person names in lists.
+2. `translate()` (`src/i18n/translate.ts`) wraps every interpolated string parameter in Unicode isolates
+   (`'⁨' + value + '⁩'`) so a Hebrew name inside an English sentence (and the reverse) keeps its own
+   direction. Numbers are left as they are. Update tests that compare translated strings with parameters.
+
+### 11.6 Dates follow the UI language; Hebrew date in letters (Home, Shabbat card)
+
+**Wrong:** in English, Home shows "יום שלישי, 27 באוקטובר · 16 בחשוון 5787" and the Shabbat line in Hebrew
+(`dates.ts` hard-codes `he-IL`). In Hebrew, the Hebrew date uses digits, against §2 ("ט״ו בחשוון תשפ״ז"; P15 already
+draws "ט״ז בחשוון תשפ״ז").
+
+**Fix:** `displayDate(date, lang)` and `hebrewDate(date, lang)` take the UI language. Hebrew: `displayDate` as today;
+`hebrewDate` uses `formatToParts` of `he-IL-u-ca-hebrew` and replaces the `day` and `year` parts with `gematriya()`
+from `@hebcal/hdate` (already a dependency) → "ט״ז בחשוון תשפ״ז". English: `en-GB` → "Tuesday 27 October" and
+`en-GB-u-ca-hebrew` → "16 Heshvan 5787". The parasha comes from the server in Hebrew; keep it and let 11.5's
+isolates handle it.
+
+### 11.7 Desktop and wide browsers
+
+**Wrong (1440x900):** content is correctly capped at 680 px and centred, but the "הודעה חדשה" FAB sits at the
+window's bottom-left corner, about 380 px away from the column, and the tab bar spans the window (11.4).
+
+**Fix:** the FAB is positioned inside a full-width absolute wrapper that is itself capped:
+`position: 'absolute', bottom: 16, left: 0, right: 0, alignItems: 'center'` → inner
+`width: '100%', maxWidth: 680, paddingHorizontal: 16, alignItems: 'flex-end'` (logical end, i.e. left in RTL, the
+side it is on today), `pointerEvents="box-none"` on both. The FAB itself follows the frame: `height: 56`,
+`borderRadius: 18`, `paddingHorizontal: 20`, `[Icon plus 20, label]` with `gap: 8`. On web with window width
+≥ 600 (`useWindowDimensions`), the channel chips wrap (`flexWrap: 'wrap'`, no ScrollView): a mouse cannot drag a
+horizontal scroller.
+
+### 11.8 Checked and fine (no change)
+
+- Dark-mode contrast: `k.muted` on `k.surface`, tekhelet chips with `k.onAction` text, badges and the stripe colours
+  all read clearly on the owner's device class; disabled buttons at 0.6 opacity are intentionally dim.
+- Sign-in (he and en), Me, phone list, M3 and Compose layouts match P1–P4 and M3/M4 apart from the icon and
+  channel-name items above. No horizontal page scroll at 390 px on any screen checked.
+- Not checked: management screens beyond the tab bar, native Android/iOS rendering of `Icon` (verify once on a dev
+  build: `expo-image` SVG data URI), real (non-fixture) channel data.
