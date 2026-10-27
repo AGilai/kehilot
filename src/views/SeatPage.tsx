@@ -14,7 +14,7 @@ import { useShabbat } from '../seats/useShabbat.ts';
 import { cardWindow, whenParts } from '../seats/window.ts';
 import { BackLink } from './Me.tsx';
 
-const ROW_NO = 22;
+const ROW_NO = 40;
 const HATCH = 'repeating-linear-gradient(135deg, rgba(128,134,160,.45) 0 4px, transparent 4px 9px)';
 
 /** P25: the member's seat page (UX-DESIGN §15.3). It gets only its own cut (`data.frames`): there is no whole-hall map here, by design. */
@@ -98,15 +98,16 @@ function FrameCard({ frame, released, locked, onTap, showZoom }: { frame: Frame;
   const only = mine.length === 1 ? mine[0]! : null;
   // Consecutive bimah rows draw as one bar.
   const rows = frame.rows.filter((r, i) => !(r.bimah && frame.rows[i - 1]?.bimah));
+  const rowName = (n: number | null) => (n === null ? t('seats.frontShort') : String(n));
   return (
     <Card style={{ gap: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <Txt bold accessibilityRole="header">{t('seats.block', { block: frame.blockName, range: `${frame.rowFrom + 1}–${frame.rowTo + 1}` })}</Txt>
-        {only ? <Txt size="small" color={k.muted}>{t('seats.row', { n: only.label })}</Txt> : null}
+        <Txt bold accessibilityRole="header">{t('seats.block', { block: frame.blockName, range: `${rowName(frame.rowFrom === 0 ? null : frame.rowFrom)}–${rowName(frame.rowTo === 0 ? null : frame.rowTo)}` })}</Txt>
+        {only ? <Txt size="small" color={k.muted}>{only.label === null ? t('seats.frontRow') : t('seats.row', { n: only.label })}</Txt> : null}
       </View>
       <View style={{ backgroundColor: k.stone, borderWidth: 1, borderColor: k.line, borderRadius: 12, padding: 10, gap: 6 }}>
         <Txt size="caption" bold color={k.muted} style={{ textAlign: 'center' }}>{t('seats.toArk')}</Txt>
-        <View style={{ gap: 6, width: '100%', maxWidth: 380, alignSelf: 'center' }}>
+        <View style={{ gap: 6, width: '100%', maxWidth: Math.min(380, frame.cols * 76 + ROW_NO), alignSelf: 'center' }}>
           {rows.map(r => <Row key={r.row} row={r} frame={frame} released={released} locked={locked} onTap={onTap} />)}
         </View>
       </View>
@@ -140,7 +141,7 @@ function Row({ row, frame, released, locked, onTap }: { row: FrameRow; frame: Fr
         if (c.kind === 'gap' || c.kind === 'bimah') return <View key={i} style={tile} />;
         if (c.kind === 'other') return <View key={i} aria-hidden importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[tile, { backgroundColor: k.line }]} />;
         const free = released.has(c.key);
-        const a11y = t(free ? 'seats.seatLabelFree' : 'seats.seatLabelComing', { block: frame.blockName, row: row.label, n: c.seatNo });
+        const a11y = t(free ? 'seats.seatLabelFree' : 'seats.seatLabelComing', { block: frame.blockName, row: row.label ?? t('seats.frontShort'), n: c.seatNo });
         return (
           <Pressable key={i} accessibilityRole="switch" accessibilityState={{ checked: !free, disabled: locked }} accessibilityLabel={a11y} disabled={locked} onPress={() => onTap(c.key)}
             style={[tile, { alignItems: 'center', justifyContent: 'center', borderWidth: 2, opacity: locked ? 0.75 : 1 },
@@ -151,7 +152,7 @@ function Row({ row, frame, released, locked, onTap }: { row: FrameRow; frame: Fr
         );
       })}
       <View style={{ width: ROW_NO, alignItems: 'center', justifyContent: 'center' }}>
-        {row.bimah ? null : <Txt size="caption" bold={row.mine} color={row.mine ? k.tekhelet : k.muted} style={{ textAlign: 'center', fontVariant: ['tabular-nums'] }}>{row.label}</Txt>}
+        {row.bimah ? null : <Txt size="caption" bold={row.mine} color={row.mine ? k.tekhelet : k.muted} style={{ textAlign: 'center', fontVariant: ['tabular-nums'] }}>{row.label ?? t('seats.frontShort')}</Txt>}
       </View>
     </View>
   );

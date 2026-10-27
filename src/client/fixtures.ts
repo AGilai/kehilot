@@ -479,10 +479,10 @@ export type SeatVariant = 'default' | 'split' | 'none' | 'closed' | 'gabbai';
 const SURNAMES = ['בדיוני', 'דוגמה', 'ניסוי', 'אלמוני', 'פלוני', 'מדומה', 'קהילתי', 'ניסיון', 'דגמי', 'שמי', 'תבנית', 'דמיוני', 'אקראי', 'מקרי', 'פיקטיבי'];
 const MINE: Record<'default' | 'split', SeatRef[]> = {
   default: [{ block: 'CR', row: 6, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
-  split: [{ block: 'R', row: 2, col: 0 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
+  split: [{ block: 'FL', row: 2, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
 };
 
-/** The whole hall for the gabbai: fixed pseudo-random households over the 205 seats (about one in eight stays unallocated) and what each prayer released. */
+/** The whole hall for the gabbai: fixed pseudo-random households over the 225 seats (about one in eight stays unallocated) and what each prayer released. */
 export function fixtureSeatHall(hall: Hall = HALL): { hall: Hall; allocations: Allocation[]; released: Record<Prayer, Set<string>> } {
   let seed = 11;
   const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };

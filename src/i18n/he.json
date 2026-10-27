@@ -1225,6 +1225,8 @@
     "summary": "{prayer}: {need} מגיעים · {free} פנוי לאחרים",
     "block": "{block} · שורות {range}",
     "row": "שורה {n}",
+    "frontRow": "שורה קדמית",
+    "frontShort": "קדמית",
     "toArk": "↑ לכיוון ארון הקודש",
     "coming": "מגיע",
     "notComing": "לא מגיע",

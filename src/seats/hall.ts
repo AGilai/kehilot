@@ -1,13 +1,15 @@
 /**
- * The first Kehila's hall, SHAPE ONLY (UX-DESIGN §15.1): 26 columns, rows 0-13, five blocks, a bimah in the middle
- * block, 205 seats. Taken from the layout object of the gabbai-folder mockup; no names live here.
- * Blocks are listed right to left, as they stand in the room. Rows are indexes (0-13); people see row + 1.
+ * The first Kehila's men's hall, SHAPE ONLY (UX-DESIGN §15.1): 29 columns, rows 0-13, six blocks, a bimah in the middle
+ * block, 225 seats. Derived from the real workbook's shape (spec "The real workbook"); no names live here.
+ * Blocks are listed right to left, as they stand in the room. Row 0 is the unnumbered front row (nearest the ark);
+ * rows 1-13 are numbered as they are.
  */
-export type BlockId = 'R' | 'CR' | 'C' | 'CL' | 'L';
+export type BlockId = 'R' | 'CR' | 'C' | 'CL' | 'L' | 'FL';
 export type Block = {
   id: BlockId;
+  /** Hebrew name (what the preview shows). The English one is in BLOCK_NAMES. */
   name: string;
-  /** First hall column of the block (0 = leftmost of the 26). */
+  /** First hall column of the block (0 = leftmost of the 29). */
   x: number;
   cols: number;
   /** Row index to the block columns that hold a seat in that row. */
@@ -18,33 +20,71 @@ export type Block = {
 export type Hall = { cols: number; rows: number; blocks: Block[] };
 export type SeatRef = { block: BlockId; row: number; col: number };
 
-/** PROVISIONAL (to confirm with the owner against the real hall): the ark is drawn above row 1. */
-export const ARK_SIDE: 'row-1' | 'row-last' = 'row-1';
-/** PROVISIONAL (same): seats are numbered from the right inside their row, as people sit. */
+/** Confirmed by the owner (2026-10-27): the ark is at the front, the top of the map, beside row 0. */
+export const ARK_SIDE = 'front' as const;
+/** The front row is row 0 and carries no number; rows 1-13 are numbered as they are. */
+export const FRONT_ROW = 0;
+/** PROVISIONAL (not in the workbook, still to confirm): seats are numbered from the right inside their row, as people sit. */
 export const SEAT_NUMBERING: 'from-right' | 'from-left' = 'from-right';
 
-const all = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
-function rowsFrom(spec: [from: number, to: number, cols: number[]][]): Record<number, number[]> {
-  const out: Record<number, number[]> = {};
-  for (const [from, to, cols] of spec) for (let r = from; r <= to; r++) out[r] = cols;
-  return out;
+/** The one table of block names, right to left. */
+export const BLOCK_NAMES: { id: BlockId; he: string; en: string }[] = [
+  { id: 'R', he: 'ימין', en: 'Right' },
+  { id: 'CR', he: 'מרכז ימין', en: 'Center right' },
+  { id: 'C', he: 'מרכז', en: 'Center' },
+  { id: 'CL', he: 'מרכז שמאל', en: 'Center left' },
+  { id: 'L', he: 'שמאל', en: 'Left' },
+  { id: 'FL', he: 'צד שמאל', en: 'Far left' },
+];
+
+/** The workbook's shape, rows 0-13 top (ark side) to bottom, left to right as in the sheet: S seat, B bimah, . empty. */
+export const HALL_GRID = `
+....SS..................SSS..
+SS.SSSSS................SSSSS
+SS.SSSSS................SSSSS
+SS.SSSSS................SSSSS
+SS.SSSSS.SSSS.SSSS.SSSS.SSSSS
+SS.SSSSS.SSSS......SSSS.SSSSS
+SS.SSSSS.SSSS.BBBB.SSSS.SSSSS
+SS.SSSSS.SSSS.BBBB.SSSS.SSSSS
+SS.SSSSS.SSSS.BBBB.SSSS.SSSSS
+SS.SSSSS.SSSS......SSSS.SSSSS
+SS..SSS..SSSS.SSSS.SSSS.SSSSS
+.........SSSS.SSSS.SSSS.SSSSS
+.........SSSS.SSSS.SSSS.SSSSS
+........................SSSS.
+`;
+
+/** Blocks are the maximal column groups (seat or bimah cells) separated by empty columns; named left to right from BLOCK_NAMES. */
+export function parseHall(grid: string): Hall {
+  const lines = grid.trim().split('\n').map(l => l.trim());
+  const cols = Math.max(...lines.map(l => l.length));
+  const used = Array.from({ length: cols }, (_, c) => lines.some(l => l[c] === 'S' || l[c] === 'B'));
+  const spans: [number, number][] = [];
+  for (let c = 0; c < cols; c++) if (used[c]) { if (c > 0 && used[c - 1]) spans[spans.length - 1]![1] = c; else spans.push([c, c]); }
+  const leftToRight = [...BLOCK_NAMES].reverse();
+  if (spans.length !== leftToRight.length) throw new Error(`hall grid has ${spans.length} blocks, expected ${leftToRight.length}`);
+  const blocks = spans.map(([from, to], i): Block => {
+    const rows: Record<number, number[]> = {};
+    const bimah: number[] = [];
+    lines.forEach((l, r) => {
+      const seats: number[] = [];
+      let b = 0;
+      for (let c = from; c <= to; c++) { if (l[c] === 'S') seats.push(c - from); else if (l[c] === 'B') b++; }
+      if (seats.length) rows[r] = seats;
+      if (b) bimah.push(r);
+    });
+    const n = leftToRight[i]!;
+    return { id: n.id, name: n.he, x: from, cols: to - from + 1, rows, ...(bimah.length ? { bimah } : {}) };
+  });
+  return { cols, rows: lines.length, blocks: blocks.reverse() };
 }
 
-export const HALL: Hall = {
-  cols: 26,
-  rows: 14,
-  blocks: [
-    { id: 'R', name: 'ימין', x: 21, cols: 5, rows: rowsFrom([[0, 0, [0, 1, 2]], [1, 12, all(5)], [13, 13, [0, 1, 2, 3]]]) },
-    { id: 'CR', name: 'מרכז ימין', x: 16, cols: 4, rows: rowsFrom([[4, 12, all(4)]]) },
-    { id: 'C', name: 'מרכז', x: 11, cols: 4, rows: rowsFrom([[4, 4, all(4)], [10, 12, all(4)]]), bimah: [6, 7, 8] },
-    { id: 'CL', name: 'מרכז שמאל', x: 6, cols: 4, rows: rowsFrom([[4, 12, all(4)]]) },
-    { id: 'L', name: 'שמאל', x: 0, cols: 5, rows: rowsFrom([[0, 0, [1, 2]], [1, 9, all(5)], [10, 10, [1, 2, 3]]]) },
-  ],
-};
+export const HALL: Hall = parseHall(HALL_GRID);
 
 export const seatKey = (s: SeatRef): string => `${s.block}:${s.row}:${s.col}`;
 export function parseSeatKey(key: string): SeatRef | null {
-  const m = /^(R|CR|C|CL|L):(\d+):(\d+)$/.exec(key);
+  const m = /^(R|CR|C|CL|L|FL):(\d+):(\d+)$/.exec(key);
   return m ? { block: m[1] as BlockId, row: Number(m[2]), col: Number(m[3]) } : null;
 }
 

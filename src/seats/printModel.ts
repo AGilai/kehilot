@@ -4,7 +4,7 @@ import type { Allocation } from './frame.ts';
 
 /** taken: allocated and coming; released: allocated, freed for this prayer; free: not allocated to anyone. */
 export type PrintState = 'taken' | 'released' | 'free';
-export type PrintSeat = { key: string; block: BlockId; row: number; /** Hall column 0-25. */ x: number; state: PrintState; /** Only when the gabbai chose to print names. */ name?: string };
+export type PrintSeat = { key: string; block: BlockId; row: number; /** Hall column 0-28. */ x: number; state: PrintState; /** Only when the gabbai chose to print names. */ name?: string };
 export type Counts = { taken: number; released: number; free: number };
 export type PrintModel = { seats: PrintSeat[]; total: Counts; blocks: ({ id: BlockId; name: string } & Counts)[] };
 

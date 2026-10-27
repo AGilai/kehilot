@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HALL, allSeats, seatKey, seatNumber } from '../src/seats/hall.ts';
+import { ARK_SIDE, BLOCK_NAMES, FRONT_ROW, HALL, HALL_GRID, allSeats, seatKey, seatNumber } from '../src/seats/hall.ts';
 import type { SeatRef } from '../src/seats/hall.ts';
 import { blockFrames, memberView } from '../src/seats/frame.ts';
 import type { Allocation } from '../src/seats/frame.ts';
@@ -13,21 +13,36 @@ import { pushDestination, routeFromPush } from '../src/client/push.ts';
 
 const ref = (block: string, row: number, col: number): SeatRef => ({ block: block as SeatRef['block'], row, col });
 
-test('hall: 205 seats, five named blocks right to left, rows 0-13, bimah in the middle block', () => {
-  assert.equal(allSeats(HALL).length, 205);
-  assert.equal(new Set(allSeats(HALL).map(seatKey)).size, 205);
-  assert.deepEqual(HALL.blocks.map(b => b.name), ['ימין', 'מרכז ימין', 'מרכז', 'מרכז שמאל', 'שמאל']);
-  assert.deepEqual(HALL.blocks.map(b => b.id), ['R', 'CR', 'C', 'CL', 'L']);
+test('hall: 225 seats, six named blocks right to left, rows 0-13, bimah in the middle block', () => {
+  assert.equal(allSeats(HALL).length, 225);
+  assert.equal(new Set(allSeats(HALL).map(seatKey)).size, 225);
+  assert.equal(HALL.cols, 29);
+  assert.equal(HALL.rows, 14);
+  assert.equal(HALL.blocks.length, 6);
+  assert.deepEqual(HALL.blocks.map(b => b.name), ['ימין', 'מרכז ימין', 'מרכז', 'מרכז שמאל', 'שמאל', 'צד שמאל']);
+  assert.deepEqual(HALL.blocks.map(b => b.id), ['R', 'CR', 'C', 'CL', 'L', 'FL']);
+  assert.deepEqual(BLOCK_NAMES.map(n => n.id), HALL.blocks.map(b => b.id));
+  assert.deepEqual(HALL.blocks.map(b => [b.x, b.cols]), [[24, 5], [19, 4], [14, 4], [9, 4], [3, 5], [0, 2]]);
   assert.deepEqual(HALL.blocks.find(b => b.id === 'C')!.bimah, [6, 7, 8]);
+  assert.equal(HALL.blocks.filter(b => b.bimah).length, 1);
   assert.ok(allSeats(HALL).every(s => s.row >= 0 && s.row <= 13));
   const per = Object.fromEntries(HALL.blocks.map(b => [b.id, allSeats(HALL).filter(s => s.block === b.id).length]));
-  assert.deepEqual(per, { R: 67, CR: 36, C: 16, CL: 36, L: 50 });
+  assert.deepEqual(per, { R: 67, CR: 36, C: 16, CL: 36, L: 50, FL: 20 });
+});
+
+test('hall: the grid is the spec shape (bimah 4x3 cells, front row 0 is unnumbered, ark at the front)', () => {
+  const lines = HALL_GRID.trim().split('\n');
+  assert.equal(lines.length, 14);
+  assert.equal(lines.join('').split('B').length - 1, 12);
+  assert.equal(lines.join('').split('S').length - 1, 225);
+  assert.equal(ARK_SIDE, 'front');
+  assert.equal(FRONT_ROW, 0);
 });
 
 test('seat numbers run from the right inside the row', () => {
   assert.deepEqual([3, 2, 1, 0].map(c => seatNumber(HALL, ref('CR', 6, c))), [1, 2, 3, 4]);
-  // Row 1 of the left block has only columns 1 and 2.
-  assert.deepEqual([2, 1].map(c => seatNumber(HALL, ref('L', 0, c))), [1, 2]);
+  // The front row of the right block has only columns 0-2.
+  assert.deepEqual([2, 1, 0].map(c => seatNumber(HALL, ref('R', 0, c))), [1, 2, 3]);
 });
 
 const rowsOf = (f: { rows: { row: number }[] }) => f.rows.map(r => r.row);
@@ -42,7 +57,7 @@ test('frame: a mid-hall seat shows rows r-2..r+2 of its own block only', () => {
   assert.equal(f.rows.length, 5);
   assert.ok(f.rows.every(r => r.cells.length === 4));
   assert.equal(mineIn(f), 3);
-  assert.deepEqual(f.rows.map(r => r.label), [5, 6, 7, 8, 9]);
+  assert.deepEqual(f.rows.map(r => r.label), [4, 5, 6, 7, 8]);
   // Others are plain cells: no key, no seat number, nothing to identify them.
   const other = f.rows[0]!.cells[0]!;
   assert.deepEqual(other, { kind: 'other' });
@@ -51,11 +66,20 @@ test('frame: a mid-hall seat shows rows r-2..r+2 of its own block only', () => {
 test('frame: clips at the hall edges, never out of range', () => {
   const top = blockFrames(HALL, [ref('R', 0, 0)])[0]!;
   assert.deepEqual(rowsOf(top), [0, 1, 2]);
+  assert.deepEqual(top.rows.map(r => r.label), [null, 1, 2]); // the front row has no number
   const bottom = blockFrames(HALL, [ref('R', 13, 3)])[0]!;
+  assert.equal(bottom.rows.length, 3);
   assert.deepEqual(rowsOf(bottom), [11, 12, 13]);
   const edges = blockFrames(HALL, [ref('L', 5, 0), ref('L', 5, 4)])[0]!;
   assert.equal(edges.rows[0]!.cells.length, 5);
   assert.equal(mineIn(edges), 2);
+  // The far-left block is 2 columns wide and starts at row 1 (nothing in row 0), so a frame there clips at row 1.
+  const far = blockFrames(HALL, [ref('FL', 2, 0), ref('FL', 2, 1)])[0]!;
+  assert.equal(far.blockId, 'FL');
+  assert.ok(far.rows.every(r => r.cells.length === 2));
+  assert.deepEqual(rowsOf(far), [1, 2, 3, 4]);
+  assert.equal(mineIn(far), 2);
+  assert.deepEqual(rowsOf(blockFrames(HALL, [ref('FL', 10, 1)])[0]!), [8, 9, 10]); // block ends at row 10
   for (const s of allSeats(HALL)) {
     const f = blockFrames(HALL, [s])[0]!;
     assert.ok(f.rowFrom >= 0 && f.rowTo <= 13, seatKey(s));
@@ -85,8 +109,10 @@ test('split seats: 5 rows apart, or another block, give one frame each in hall o
   const far = blockFrames(HALL, [ref('CR', 6, 1), ref('CR', 11, 2)]);
   assert.equal(far.length, 2);
   assert.deepEqual(far.map(f => [f.rowFrom, f.rowTo]), [[4, 8], [9, 12]]);
-  const blocks = blockFrames(HALL, [ref('L', 5, 1), ref('R', 3, 0), ref('CR', 6, 1)]);
-  assert.deepEqual(blocks.map(f => f.blockId), ['R', 'CR', 'L']);
+  const blocks = blockFrames(HALL, [ref('FL', 2, 1), ref('L', 5, 1), ref('R', 3, 0), ref('CR', 6, 1)]);
+  assert.deepEqual(blocks.map(f => f.blockId), ['R', 'CR', 'L', 'FL']);
+  // Seats apart in the far-left block and the left block are never merged.
+  assert.equal(blockFrames(HALL, [ref('FL', 2, 0), ref('L', 2, 0)]).length, 2);
   // Chain: 1-5, 5-9 are both within 4, so all three merge.
   const chain = blockFrames(HALL, [ref('CR', 4, 0), ref('CR', 8, 0), ref('CR', 12, 0)]);
   assert.equal(chain.length, 1);
@@ -94,7 +120,7 @@ test('split seats: 5 rows apart, or another block, give one frame each in hall o
 
 test('frame: no seats, or seats that are not in the hall, give no frame', () => {
   assert.deepEqual(blockFrames(HALL, []), []);
-  assert.deepEqual(blockFrames(HALL, [ref('C', 0, 0)]), []);
+  assert.deepEqual(blockFrames(HALL, [ref('C', 0, 0), ref('FL', 0, 0)]), []);
 });
 
 test('memberView: returns only the cut of the asked household', () => {
@@ -172,14 +198,14 @@ test('window: custom reminder and deadline', () => {
   assert.equal(w.closesAt.toISOString(), '2026-12-18T07:30:00.000Z');
 });
 
-test('print model: counts add up to 205 per prayer and names are off by default', () => {
+test('print model: counts add up to 225 per prayer and names are off by default', () => {
   const h = fixtureSeatHall();
   const m = printModel(h.hall, h.allocations, h.released.arvit);
-  assert.equal(m.total.taken + m.total.released + m.total.free, 205);
-  assert.equal(m.blocks.reduce((n, b) => n + b.taken + b.released + b.free, 0), 205);
-  assert.deepEqual(m.blocks.map(b => b.name), ['ימין', 'מרכז ימין', 'מרכז', 'מרכז שמאל', 'שמאל']);
+  assert.equal(m.total.taken + m.total.released + m.total.free, 225);
+  assert.equal(m.blocks.reduce((n, b) => n + b.taken + b.released + b.free, 0), 225);
+  assert.deepEqual(m.blocks.map(b => b.name), ['ימין', 'מרכז ימין', 'מרכז', 'מרכז שמאל', 'שמאל', 'צד שמאל']);
   assert.ok(m.seats.every(s => s.name === undefined));
-  assert.equal(m.seats.length, 205);
+  assert.equal(m.seats.length, 225);
   const named = printModel(h.hall, h.allocations, h.released.arvit, { names: true });
   assert.ok(named.seats.some(s => s.name));
   assert.ok(named.seats.filter(s => s.state === 'free').every(s => s.name === undefined));

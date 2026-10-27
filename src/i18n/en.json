@@ -1225,6 +1225,8 @@
     "summary": "{prayer}: {need} coming · {free} free for others",
     "block": "{block} · rows {range}",
     "row": "Row {n}",
+    "frontRow": "Front row",
+    "frontShort": "Front",
     "toArk": "↑ Toward the ark",
     "coming": "Coming",
     "notComing": "Not coming",

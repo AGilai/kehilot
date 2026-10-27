@@ -1,4 +1,4 @@
-import { blockExtent, hasSeat, seatKey, seatNumber } from './hall.ts';
+import { FRONT_ROW, blockExtent, hasSeat, seatKey, seatNumber } from './hall.ts';
 import type { Block, BlockId, Hall, SeatRef } from './hall.ts';
 
 /** The member's cut of the hall: his block, his rows, two more each way (UX-DESIGN §15.3). */
@@ -12,7 +12,7 @@ export type FrameCell =
   | { kind: 'other' }
   | { kind: 'bimah' }
   | { kind: 'mine'; key: string; seatNo: number };
-export type FrameRow = { row: number; /** What people see: row + 1. */ label: number; mine: boolean; bimah: boolean; cells: FrameCell[] };
+export type FrameRow = { row: number; /** What people see: the row number, null for the unnumbered front row. */ label: number | null; mine: boolean; bimah: boolean; cells: FrameCell[] };
 export type Frame = { blockId: BlockId; blockName: string; cols: number; rowFrom: number; rowTo: number; rows: FrameRow[] };
 
 /** A gabbai-side record: who holds which seats. Never sent to a member except through memberView. */
@@ -31,7 +31,7 @@ function buildFrame(hall: Hall, block: Block, rowFrom: number, rowTo: number, mi
       const key = seatKey(ref);
       return mineKeys.has(key) ? { kind: 'mine', key, seatNo: seatNumber(hall, ref) } : { kind: 'other' };
     });
-    rows.push({ row, label: row + 1, mine: cells.some(c => c.kind === 'mine'), bimah, cells });
+    rows.push({ row, label: row === FRONT_ROW ? null : row, mine: cells.some(c => c.kind === 'mine'), bimah, cells });
   }
   return { blockId: block.id, blockName: block.name, cols: block.cols, rowFrom, rowTo, rows };
 }
@@ -73,6 +73,7 @@ export function memberView(hall: Hall, allocations: Allocation[], householdId: s
   return { seatCount: mine.length, frames: blockFrames(hall, mine) };
 }
 
-export function frameTitleRows(f: Frame): { from: number; to: number } {
-  return { from: f.rowFrom + 1, to: f.rowTo + 1 };
+/** First and last row as people name them; null is the front row. */
+export function frameTitleRows(f: Frame): { from: number | null; to: number | null } {
+  return { from: f.rowFrom === FRONT_ROW ? null : f.rowFrom, to: f.rowTo === FRONT_ROW ? null : f.rowTo };
 }

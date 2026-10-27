@@ -8,7 +8,7 @@ import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Button, Card, Check, Chip, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { fonts } from '../../kit/theme.ts';
 import { PadScroll } from '../../kit/PadScroll.tsx';
-import { HALL } from '../../seats/hall.ts';
+import { FRONT_ROW, HALL } from '../../seats/hall.ts';
 import { printModel } from '../../seats/printModel.ts';
 import type { PrintModel, PrintSeat } from '../../seats/printModel.ts';
 import type { Prayer } from '../../seats/release.ts';
@@ -19,10 +19,10 @@ import { BackLink } from '../Me.tsx';
 type Choice = Prayer | 'both';
 const PAGE_W = 1123;
 const PAGE_H = 794;
-// Hall geometry on paper (px): 26 columns of 36 with a 2 px gap, a row-number column on each side.
-const CELL_W = 36, GAP = 2, PITCH = CELL_W + GAP, ROW_W = 22, ROW_H = 24, ROW_PITCH = 28, HEAD = 22;
-const HALL_W = ROW_W * 2 + 26 * PITCH + 4;
-const HALL_H = HEAD + 14 * ROW_PITCH;
+// Hall geometry on paper (px): 29 columns of 32 with a 2 px gap (6 blocks), a row-number column on each side. Fits the 1043 px inside the page margins.
+const CELL_W = 32, GAP = 2, PITCH = CELL_W + GAP, ROW_W = 30, ROW_H = 24, ROW_PITCH = 28, HEAD = 22;
+const HALL_W = ROW_W * 2 + HALL.cols * PITCH + 4;
+const HALL_H = HEAD + HALL.rows * ROW_PITCH;
 const HATCH = 'repeating-linear-gradient(135deg, #e6e6e6 0 4px, #fff 4px 9px)';
 const INK = '#000000';
 const PAPER = '#FFFFFF';
@@ -99,7 +99,7 @@ function PrintPage({ model, prayer, names, sheet }: { model: PrintModel; prayer:
   const left = (x: number) => ROW_W + 2 + x * PITCH;
   const top = (row: number) => HEAD + row * ROW_PITCH;
   return (
-    <View {...({ dataSet: { seatPage: prayer } } as object)} style={{ width: PAGE_W, height: PAGE_H, backgroundColor: PAPER, paddingHorizontal: 40, paddingVertical: 34, gap: 12 }}>
+    <View {...({ dataSet: { seatPage: prayer } } as object)} style={{ width: PAGE_W, height: PAGE_H, backgroundColor: PAPER, paddingHorizontal: 34, paddingVertical: 34, gap: 12 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', borderBottomWidth: 2, borderBottomColor: INK, paddingBottom: 8 }}>
         <View style={{ flex: 1 }}>
           {T(t('seats.print.page', { parasha: sheet.parasha }), { size: 24, serif: true })}
@@ -119,8 +119,8 @@ function PrintPage({ model, prayer, names, sheet }: { model: PrintModel; prayer:
         ))}
         {Array.from({ length: HALL.rows }, (_, r) => (
           <React.Fragment key={r}>
-            <View style={{ position: 'absolute', left: 0, top: top(r), width: ROW_W, height: ROW_H, alignItems: 'center', justifyContent: 'center' }}>{T(r + 1, { size: 11, style: { textAlign: 'center' } })}</View>
-            <View style={{ position: 'absolute', left: ROW_W + 4 + 26 * PITCH, top: top(r), width: ROW_W, height: ROW_H, alignItems: 'center', justifyContent: 'center' }}>{T(r + 1, { size: 11, style: { textAlign: 'center' } })}</View>
+            <View style={{ position: 'absolute', left: 0, top: top(r), width: ROW_W, height: ROW_H, alignItems: 'center', justifyContent: 'center' }}>{T(r === FRONT_ROW ? t('seats.frontShort') : r, { size: r === FRONT_ROW ? 9 : 11, style: { textAlign: 'center' } })}</View>
+            <View style={{ position: 'absolute', left: ROW_W + 4 + HALL.cols * PITCH, top: top(r), width: ROW_W, height: ROW_H, alignItems: 'center', justifyContent: 'center' }}>{T(r === FRONT_ROW ? t('seats.frontShort') : r, { size: r === FRONT_ROW ? 9 : 11, style: { textAlign: 'center' } })}</View>
           </React.Fragment>
         ))}
         <View style={{ position: 'absolute', left: left(bimah.x), top: top(bimah.bimah![0]!), width: bimah.cols * PITCH - GAP, height: bimah.bimah!.length * ROW_PITCH - 4, borderWidth: 2, borderColor: INK, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eeeeee', ...(Platform.OS === 'web' ? ({ backgroundImage: HATCH } as object) : null) }}>
