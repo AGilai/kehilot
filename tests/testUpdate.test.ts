@@ -44,3 +44,22 @@ test('shouldCheck: at most once per 6 hours', () => {
   assert.equal(shouldCheck(0, 5 * H), false);
   assert.equal(shouldCheck(0, 6 * H), true);
 });
+
+test('checkLatest: replied is true only when GitHub answered 200 with JSON', async () => {
+  const { checkLatest } = await import('../src/update/check.ts');
+  assert.deepEqual(await checkLatest(reply(200, release('android-test-13', [APK])), 'o/r', 12), { replied: true, update: { build: 13, url: APK.browser_download_url } });
+  assert.deepEqual(await checkLatest(reply(200, release('android-test-12', [APK])), 'o/r', 12), { replied: true, update: null });
+  assert.deepEqual(await checkLatest(reply(404, '{}'), 'o/r', 12), { replied: false, update: null });
+  assert.deepEqual(await checkLatest((async () => { throw new Error('offline'); }) as unknown as typeof fetch, 'o/r', 12), { replied: false, update: null });
+});
+
+test('visibleUpdate: hidden until dismissal is read, and once dismissed or installed', async () => {
+  const { visibleUpdate } = await import('../src/update/check.ts');
+  const f = { build: 13, url: 'u' };
+  assert.equal(visibleUpdate(f, null, 12), null);
+  assert.equal(visibleUpdate(null, 0, 12), null);
+  assert.deepEqual(visibleUpdate(f, 0, 12), f);
+  assert.equal(visibleUpdate(f, 13, 12), null);
+  assert.deepEqual(visibleUpdate(f, 12, 12), f);
+  assert.equal(visibleUpdate(f, 0, 13), null);
+});

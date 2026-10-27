@@ -34,6 +34,8 @@ jobs:
       EXPO_PUBLIC_RELEASES_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -53,7 +55,18 @@ jobs:
           [ -n "$KEYSTORE_B64" ] || { echo "::error::secret ANDROID_TEST_KEYSTORE_B64 is missing; refusing to sign with any other key"; exit 1; }
           [ -n "$KS_PASS" ] || { echo "::error::secret ANDROID_TEST_KEYSTORE_PASSWORD is missing"; exit 1; }
           # Appended to GITHUB_ENV (no file on disk) so the Metro bundle inlines them.
-          printf '%s\n' "$TEST_ENV" >> "$GITHUB_ENV"
+          # Only EXPO_PUBLIC_* assignments are accepted; the value is never printed.
+          n=0
+          while IFS= read -r line || [ -n "$line" ]; do
+            n=$((n + 1))
+            line=${line//$'\r'/}
+            [ -n "${line//[[:space:]]/}" ] || continue
+            if [[ "$line" =~ ^EXPO_PUBLIC_[A-Z0-9_]+=[^\<]*$ ]]; then
+              printf '%s\n' "$line" >> "$GITHUB_ENV"
+            else
+              echo "::error::ANDROID_TEST_ENV line $n is not KEY=value with an EXPO_PUBLIC_ key (and no '<')"; exit 1
+            fi
+          done <<< "$TEST_ENV"
 
       - run: npm ci
       - run: npx expo prebuild --platform android --no-install --clean
@@ -70,7 +83,7 @@ jobs:
           src="$out/app-release.apk"
           [ -f "$src" ] || src="$out/app-release-unsigned.apk"
           [ -f "$src" ] || { echo "::error::no release APK in $out"; ls -R "$out"; exit 1; }
-          bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | grep -v -- - | sort -V | tail -n 1)"
           echo "build-tools: $bt"
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/test.p12"
           "$bt/zipalign" -p -f 4 "$src" "$RUNNER_TEMP/aligned.apk"
