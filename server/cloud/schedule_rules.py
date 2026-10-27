@@ -17,7 +17,7 @@ LABEL_MAX = 60
 NOTE_MAX = 200
 MAX_OVERRIDE_ROWS = 200
 MAX_EXTRA_ROWS = 40
-SCHEDULE_BODY_MAX = 192 * 1024
+SCHEDULE_BODY_MAX = 360 * 1024  # under DynamoDB's 400 KB item limit; a 12x40 schedule of maximal labels and notes (~420 KB) is refused
 WEEK_BODY_MAX = 48 * 1024
 CITY_COUNT_MAX = 2
 
@@ -43,8 +43,8 @@ class Checker:
         if not isinstance(value, dict):
             self.fail(path)
         for key in value:
-            if key not in required and key not in optional:
-                self.fail(f'{path}.{key}' if path else key)
+            if key not in required and key not in optional:  # never echo a caller's key
+                self.fail(f'{path}.<unknown>' if path else '<unknown>')
         for key in required:
             if key not in value:
                 self.fail(f'{path}.{key}' if path else key)
@@ -192,8 +192,9 @@ def validate_week_overrides(value):
             c.fail('rows')
         out['rows'] = {}
         for rid, o in rows.items():
+            if not isinstance(rid, str) or not _ID.fullmatch(rid):
+                c.fail('rows.<id>')
             path = f'rows.{rid}'
-            c.ident(rid, path)
             if not isinstance(o, dict):
                 c.fail(path)
             if c.enum(o.get('kind'), ('time', 'hide'), path + '.kind') == 'hide':
@@ -244,7 +245,7 @@ def week_start(value):
 
 
 def week_expiry(friday):
-    """Epoch seconds (UTC midnight) a week after the week ends: Thursday = friday + 6, plus 7 days."""
+    """Epoch seconds: UTC midnight starting Friday + 14 days (the week ends Thursday = Friday + 6; a week after that)."""
     end = friday + timedelta(days=14)
     return int((end - date(1970, 1, 1)).total_seconds())
 

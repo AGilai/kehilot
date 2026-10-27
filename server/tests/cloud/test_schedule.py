@@ -42,6 +42,15 @@ class ScheduleTest(test_messages.MessagesTest):
     def get(self, sub='gabbai-sub'):
         return self.call('GET', f'{self.base()}/schedule', sub=sub)
 
+    def put_raw(self, sections):
+        """Like a real client: UTF-8 JSON, not ASCII-escaped."""
+        import json
+        from server.tests.cloud.test_handler import Context, event
+        from server.cloud import handler as handler_module
+        response = handler_module.handler(event('PUT', self.url(), sub='gabbai-sub',
+                                                body=json.dumps({'sections': sections}, ensure_ascii=False)), Context())
+        return response['statusCode'], json.loads(response['body'])
+
     def mutated(self, fn):
         sections = copy.deepcopy(SECTIONS)
         fn(sections)
@@ -78,7 +87,7 @@ class ScheduleTest(test_messages.MessagesTest):
         def formula(fn):
             return row(lambda r: fn(r['time']['formula']))
         cases = {
-            'sections[0].extra': self.mutated(lambda s: s[0].update(extra=1)),
+            'sections[0].<unknown>': self.mutated(lambda s: s[0].update(extra=1)),
             'sections[0].kind': self.mutated(lambda s: s[0].update(kind='holiday')),
             'sections[0].rows[0].time.formula.anchor': formula(lambda f: f.update(anchor='noon')),
             'sections[0].rows[0].time.formula.day': formula(lambda f: f.update(day='earliest')),
@@ -86,18 +95,18 @@ class ScheduleTest(test_messages.MessagesTest):
             'sections[0].rows[0].time.formula.offset.direction': formula(lambda f: f['offset'].update(direction='x')),
             'sections[0].rows[0].time.formula.rounding.step': formula(lambda f: f['rounding'].update(step=7)),
             'sections[0].rows[0].time.formula.notLaterThan': formula(lambda f: f.update(notLaterThan='24:00')),
-            'sections[0].rows[0].time.formula.bogus': formula(lambda f: f.update(bogus=1)),
+            'sections[0].rows[0].time.formula.<unknown>': formula(lambda f: f.update(bogus=1)),
             'sections[0].rows[0].day': row(lambda r: r.update(day='sunday')),
             'sections[0].rows[0].role': row(lambda r: r.update(role='other')),
             'sections[0].rows[0].label.he': row(lambda r: r.update(label={'he': ' '})),
-            'sections[0].rows[0].label.fr': row(lambda r: r.update(label={'he': 'a', 'fr': 'b'})),
+            'sections[0].rows[0].label.<unknown>': row(lambda r: r.update(label={'he': 'a', 'fr': 'b'})),
             'sections[0].rows[0].note': row(lambda r: r.update(note='n' * 201)),
             'sections[0].rows[0].time.at': row(lambda r: r.update(time={'kind': 'fixed', 'at': '8:30'})),
             'sections[0].rows[1].id': self.mutated(lambda s: s[0]['rows'][1].update(id='candles')),
             'sections[1].id': self.mutated(lambda s: s[1].update(id='shabbat')),
             'sections[1].rows[0].time.formula.day': self.mutated(lambda s: s[1]['rows'][0]['time']['formula'].update(day='shabbat')),
             'sections[1].rows[0].day': self.mutated(lambda s: s[1]['rows'][0].update(day='friday')),
-            'sections[0].rows[0].time.formula.rounding.step#': formula(lambda f: f.update(rounding={'mode': 'none', 'step': 5})),
+            'sections[0].rows[0].time.formula.rounding.<unknown>#': formula(lambda f: f.update(rounding={'mode': 'none', 'step': 5})),
         }
         for field, sections in cases.items():
             self.assertEqual(self.put(sections), (400, {'error': 'invalid_schedule', 'field': field.rstrip('#')}), field)
@@ -105,6 +114,54 @@ class ScheduleTest(test_messages.MessagesTest):
         for body in ({}, {'sections': {}}, {'sections': [], 'weekOverrides': {}}, {'sections': [], 'version': 2},
                      {'sections': [], 'ifUpdatedAt': 'x'}):
             self.assertEqual(self.call('PUT', self.url(), body=body)[1]['error'], 'invalid_schedule', body)
+
+    def test_field_never_echoes_caller_text(self):
+        junk = 'Q' * 1000
+        status, got = self.put(self.mutated(lambda s: s[0].update({junk: 1})))
+        self.assertEqual((status, got), (400, {'error': 'invalid_schedule', 'field': 'sections[0].<unknown>'}))
+        week = self.url(f'/weeks/{friday_ahead(1)}')
+        for body in ({junk: 1}, {'rows': {junk: {'kind': 'hide'}}}, {'rows': {'a': {'kind': 'hide', junk: 1}}},
+                     {'extra': [{junk: 1}]}):
+            status, got = self.call('PUT', week, body=body)
+            self.assertEqual(status, 400)
+            self.assertNotIn('Q' * 5, got['field'], body)
+        status, got = self.settings({'location': {**LOCATION, junk: 1}})
+        self.assertNotIn('Q' * 5, got['field'])
+        self.assertEqual(self.call('PUT', week, body={'rows': {junk: {'kind': 'hide'}}})[1]['field'], 'rows.<id>')
+
+    def test_oversized_bodies_are_refused(self):
+        big = [{'id': 's', 'kind': 'weekday', 'title': {'he': 'א'}, 'rows': [], 'pad': 'x' * 400000}]
+        self.assertEqual(self.put(big), (400, {'error': 'invalid_body'}))
+        week = self.url(f'/weeks/{friday_ahead(1)}')
+        self.assertEqual(self.call('PUT', week, body={'rows': {}, 'pad': 'x' * 50000}), (400, {'error': 'invalid_body'}))
+
+    def test_a_max_size_realistic_schedule_fits_the_cap(self):
+        import json
+        label = {'he': 'א' * 60, 'en': 'b' * 60}
+        sections = [{'id': f'section-{i}', 'kind': 'shabbat' if i % 2 else 'weekday', 'title': label, 'rows': [
+            {'id': f'row-{i}-{j}', 'label': label, 'note': 'ג' * 80,
+             'time': {'kind': 'formula', 'formula': {**FORMULA, 'day': 'shabbat' if i % 2 else 'earliest'}}}
+            for j in range(40)]} for i in range(12)]
+        size = len(json.dumps({'sections': sections}, ensure_ascii=False).encode())
+        self.assertLess(size, schedule_rules.SCHEDULE_BODY_MAX)
+        self.assertEqual(self.put_raw(sections)[0], 200)
+
+    def test_the_absolute_worst_case_is_refused_cleanly_not_a_dynamodb_error(self):
+        label = {'he': 'א' * 60, 'en': 'b' * 60}
+        sections = [{'id': f'section-{i}', 'kind': 'weekday', 'title': label, 'rows': [
+            {'id': f'row-{i}-{j}', 'label': label, 'note': 'ג' * 200, 'time': {'kind': 'formula', 'formula': {**FORMULA, 'day': 'earliest'}}}
+            for j in range(40)]} for i in range(12)]
+        self.assertEqual(self.put_raw(sections), (400, {'error': 'invalid_body'}))
+
+    def test_a_lost_write_race_is_try_again_or_schedule_changed(self):
+        from botocore.exceptions import ClientError
+        lost = ClientError({'Error': {'Code': 'ConditionalCheckFailedException'}}, 'PutItem')
+        self.put()  # a schedule exists, so the write is conditional
+        real = self.repo.table
+        with mock.patch.object(type(real), 'put_item', side_effect=lost):
+            self.assertEqual(self.put(), (409, {'error': 'try_again'}))
+            updated = self.get()[1]['updatedAt']
+            self.assertEqual(self.put(ifUpdatedAt=updated), (409, {'error': 'schedule_changed'}))
 
     def test_size_limits(self):
         def rows(n):
