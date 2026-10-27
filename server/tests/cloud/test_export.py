@@ -1,10 +1,12 @@
 import io
 import json
+import os
 import time
 import zipfile
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from server.cloud import export, media
@@ -46,12 +48,11 @@ class ExportTest(test_conversation.ConversationTest):
                            ContentType='image/jpeg')
         _, photo = self.chat_post('chat-all', 'quiet-sub', 'my picture', imageUploadId=g['uploadId'])
         _, plain = self.chat_post('chat-all', 'quiet-sub', 'hello chat')
-        theirs = {'messageId': self.repo.put_message(
+        theirs = self.repo.put_message(
             self.k, self.channels['chat-all'], 'celebration', 't', 'secret words of another', self.gabbai, 'Gabi Gabbai',
-            'management', self.member, 'Mia Member')['sk'][4:]}
-        self.repo.put_reply(self.k, theirs['messageId'], self.quiet, 'Quinn Quiet', 'my reply')
-        self.repo.put_reply(self.k, theirs['messageId'], self.member, 'Mia Member', 'their private reply')
-        reply = None
+            'management', self.member, 'Mia Member')['sk'][4:]
+        self.repo.put_reply(self.k, theirs, self.quiet, 'Quinn Quiet', 'my reply')
+        self.repo.put_reply(self.k, theirs, self.member, 'Mia Member', 'their private reply')
         own = self.repo.put_message(self.k, self.channels['chat-all'], 'celebration', 'mazal', 'for you', self.quiet,
                                     'Quinn Quiet', 'member', self.other, 'Olly Other')
         self.own_blessing = own['sk'][4:]
@@ -61,14 +62,14 @@ class ExportTest(test_conversation.ConversationTest):
         self.call('POST', f'{self.base()}/family/children', sub='quiet-sub',
                   body={'firstName': 'Noa', 'gender': 'f', 'birthDate': '2018-05-01'})
         self.call('POST', f'{self.base()}/family/children', sub='quiet-sub', body={'firstName': 'Ben', 'gender': 'm'})
-        return photo, plain, theirs, reply
+        return photo, plain
 
     def open_zip(self, key=None):
         body = self.s3.get_object(Bucket=MEDIA_BUCKET, Key=key or self.key)['Body'].read()
         return zipfile.ZipFile(io.BytesIO(body))
 
     def test_export_contents(self):
-        photo, plain, theirs, reply = self.seed()
+        photo, plain = self.seed()
         status, out = self.post()
         self.assertEqual(status, 200, out)
         self.assertAlmostEqual(out['expiresAt'], time.time() + 600, delta=10)
@@ -100,6 +101,28 @@ class ExportTest(test_conversation.ConversationTest):
         self.assertNotIn('Gabi', text)
         self.assertEqual(by_id[self.own_blessing]['targetName'], 'Olly Other')
         self.assertNotIn(self.other, text)
+
+    def test_muted_member_is_a_count_only(self):
+        self.repo.put_profile(self.quiet, 'Quinn', 'Quiet', 'en')
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.quiet}'},
+                                    UpdateExpression='SET notify = :n',
+                                    ExpressionAttributeValues={':n': {'mutedMembers': [self.member],
+                                                                      'mutedTypes': ['weekly']}})
+        self.post()
+        text = self.open_zip().read('data.json').decode('utf-8')
+        notify = json.loads(text)['kehilot'][0]['notify']
+        self.assertEqual((notify['mutedMembersCount'], notify['mutedTypes']), (1, ['weekly']))
+        self.assertNotIn('mutedMembers"', text)
+        self.assertNotIn(self.member, text)
+        self.assertNotIn('Mia', text)
+
+    def test_photo_s3_error_is_503(self):
+        self.seed()
+        error = ClientError({'Error': {'Code': 'InternalError', 'Message': 'x'},
+                             'ResponseMetadata': {'HTTPStatusCode': 500}}, 'GetObject')
+        with mock.patch.object(media.s3_client(), 'get_object', side_effect=error):
+            self.assertEqual(self.post(), (503, {'error': 'try_again'}))
+        self.assertEqual((self.markers(), self.objects()), ([], []))
 
     def test_partner_appears_only_as_name(self):
         self.repo.put_profile(self.quiet, 'Quinn', 'Quiet', 'en')
@@ -147,7 +170,6 @@ class ExportTest(test_conversation.ConversationTest):
         def spy(*a, **k):
             paths.append(real(*a, **k))
             return paths[-1]
-        import os
         with mock.patch.object(export, 'build', side_effect=spy):
             self.post()
         self.assertTrue(paths and not os.path.exists(paths[0]))
@@ -175,7 +197,7 @@ class ExportTest(test_conversation.ConversationTest):
         self.assertEqual((head['ContentType'], head['CacheControl']), ('application/zip', 'private, no-store'))
 
     def test_photos_omitted_near_deadline(self):
-        photo, plain, theirs, reply = self.seed()
+        photo, plain = self.seed()
         path = export.build(self.repo, self.quiet, 'a@example.test', remaining_ms=lambda: 1000)
         try:
             with zipfile.ZipFile(path) as archive:
@@ -184,5 +206,4 @@ class ExportTest(test_conversation.ConversationTest):
                 self.assertFalse([n for n in archive.namelist() if n.startswith('photos/')])
                 self.assertIsNone(next(m for m in data['messages'] if m['messageId'] == photo['messageId'])['photo'])
         finally:
-            import os
-            os.remove(path)
+                os.remove(path)

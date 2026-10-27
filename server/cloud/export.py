@@ -29,6 +29,13 @@ def _family(repo, k, membership):
     return {'partnerName': (partner or {}).get('displayName') or None, 'children': children}
 
 
+def _own_notify(notify):
+    """The person's notification settings without other people's IDs: mutedMembers becomes a count."""
+    notify = dict(notify or {})
+    notify['mutedMembersCount'] = len(notify.pop('mutedMembers', None) or ())
+    return notify
+
+
 def _kehilot(repo, user_id):
     out = []
     for m in sorted(repo.list_memberships(user_id), key=lambda m: m['kehilaId']):
@@ -36,7 +43,7 @@ def _kehilot(repo, user_id):
         kehila = repo.get_kehila(k) or {}
         out.append({'kehilaId': k, 'name': kehila.get('name', ''), 'role': m['role'],
                     'classification': m.get('classification', ''), 'groups': sorted(m.get('groups') or ()),
-                    'showPhone': bool(m.get('showPhone')), 'notify': m.get('notify', {}),
+                    'showPhone': bool(m.get('showPhone')), 'notify': _own_notify(m.get('notify')),
                     'family': _family(repo, k, {**m, 'userId': user_id})})
     return out
 
@@ -50,7 +57,7 @@ def _add_photo(client, bucket, archive, k, message_id, content_type):
     except ClientError as error:
         if media._codes(error) & set(media.MISSING):
             return None
-        raise
+        raise media._try_again(error)
     with archive.open(name, 'w') as out:
         shutil.copyfileobj(body, out, CHUNK)
     return name
