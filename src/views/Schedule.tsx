@@ -1,21 +1,24 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { fixtureNow } from '../client/fixtures.ts';
 import { config } from '../config.ts';
 import { clockTime, israelDate } from '../dates.ts';
 import { useSchedule } from '../client/useSchedule.ts';
+import { useSession } from '../client/SessionProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
 import { BackIcon, ForwardIcon } from '../kit/Icon.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
 import { candleRowTime, clockLabel, dateRange, fullModel, hasTimedRows, isDefaultPlace, shortDate, textIn } from '../schedule/memberView.ts';
+import { openPrintPage, sharePdf } from '../schedule/printSheet.ts';
+import { buildSheet } from '../schedule/sheetSource.ts';
 import { israelNow } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
 import type { ComputedRow } from '../schedule/types.ts';
 import { CandleLine, useCountdownText, useShabbatTitle } from './ScheduleCard.tsx';
 import { ScheduleRow } from './ScheduleRow.tsx';
 
-/** P22: every section of the saved schedule for the current or the next schedule week, with this week's changes. Print is Task 4 (a toast for now). */
+/** P22: every section of the saved schedule for the current or the next schedule week, with this week's changes. Print: web opens the print page, phone makes a PDF and shares it. */
 export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (text: string) => void }) {
   const { t, lang } = useI18n();
   const k = useTokens();
@@ -33,10 +36,25 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
   const zmanimFor = React.useMemo(() => zmanimForLocation(doc?.location), [doc]);
   const model = React.useMemo(() => (doc && hasTimedRows(doc) ? fullModel(doc, israelNow(now), zmanimFor, weekIndex) : null), [doc, now, zmanimFor, weekIndex]);
 
+  const session = useSession();
+  const [printing, setPrinting] = React.useState(false);
+  const [printFailed, setPrintFailed] = React.useState(false);
+  async function print() {
+    setPrintFailed(false);
+    if (Platform.OS === 'web') { if (!openPrintPage(weekIndex)) setPrintFailed(true); return; }
+    const kehila = session.state.kehila;
+    if (!doc || !model || !kehila) return;
+    setPrinting(true);
+    try {
+      const logoUri = await session.logo(kehila.kehilaId, kehila.logoVersion).catch(() => null);
+      await sharePdf(buildSheet(doc, model.computed, { kehilaName: kehila.name, logoUri, messages: Object.values(session.state.feed.messages) }));
+    } catch { setPrintFailed(true); } finally { setPrinting(false); }
+  }
+
   const heading = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Txt serif size="display" accessibilityRole="header" style={{ flex: 1 }}>{t('schedule.title')}</Txt>
-      <Button kind="secondary" icon="print" title={t('schedule.print')} accessibilityLabel={t('schedule.printA11y')} onPress={() => onToast(t('schedule.soon'))} />
+      <Button kind="secondary" icon="print" title={printing ? t('schedule.printing') : t('schedule.print')} accessibilityLabel={t('schedule.printA11y')} busy={printing} disabled={!model} onPress={() => { void print(); }} />
     </View>
   );
   const back = (
@@ -56,6 +74,7 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
       {state.status === 'loading' ? <Card><Txt color={k.muted}>{t('common.loading')}</Txt></Card> : null}
       {state.status === 'error' ? <Banner tone="error" text={t('schedule.error')} action={{ title: t('common.retry'), onPress: retry }} /> : null}
       {state.status === 'ready' && state.cachedAt !== null ? <Banner text={t('schedule.offline', { time: clockLabel(clockTime(new Date(state.cachedAt).toISOString())) })} /> : null}
+      {printFailed ? <Banner tone="error" text={t('schedule.printError')} action={{ title: t('common.retry'), onPress: () => { void print(); } }} /> : null}
       {doc && !model ? <Card><Txt color={k.muted}>{t('schedule.empty')}</Txt></Card> : null}
       {doc && model ? (
         <>

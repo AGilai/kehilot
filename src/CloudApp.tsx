@@ -28,6 +28,8 @@ import { Register } from './views/auth/Register.tsx';
 import { SignIn } from './views/auth/SignIn.tsx';
 import { ViewerHost } from './views/ViewerHost.tsx';
 import { ReportHost } from './views/ReportSheet.tsx';
+import { SchedulePrintPage } from './views/SchedulePrint.tsx';
+import { currentPrintRequest } from './schedule/printSheet.ts';
 import { useReportScreen } from './client/reportUi.ts';
 import { Verify } from './views/auth/Verify.tsx';
 
@@ -88,6 +90,7 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
     hasTabs: false,
   });
   const hasKehila = state.kehilaId !== null;
+  const printRequest = React.useMemo(currentPrintRequest, []);
 
   // Push registration is offered once the first Kehila is open (never on the sign-in screens).
   React.useEffect(() => {
@@ -141,6 +144,8 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} onManage={() => { setSwitcher(false); manageReq.current = Date.now(); setManageSignal(n => n + 1); }} />;
   // Every role uses Main; what a listener may do is decided by roleFeatures (client/roleView.ts) and the server.
   if (route === 'ready' && state.kehila) {
+    // The print page (a new tab, web only): the sheet and nothing else.
+    if (printRequest) return <SchedulePrintPage request={printRequest} />;
     return <><Main key={mainKey(state.kehilaId)} onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} manageSignal={manageSignal} takeManage={takeManage} />{sheet}</>;
   }
   return (

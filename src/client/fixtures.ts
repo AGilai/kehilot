@@ -102,6 +102,14 @@ export function fixtureScheduleDoc(friday: string): ScheduleDoc {
   };
 }
 
+/** Fixture mode only: `?long=1` adds long labels and extra rows, to see the sheet's fitting rules work (UX-DESIGN §14.5). */
+function fixtureLongRows(doc: ScheduleDoc): ScheduleDoc {
+  const search = typeof window !== 'undefined' && window.location ? window.location.search : '';
+  if (new URLSearchParams(search).get('long') !== '1') return doc;
+  const more = (prefix: string, at: string[]): Row[] => at.map((time, i) => fx(`${prefix}${i}`, `שיעור מיוחד בנושא הלכות שבת ומועד מפי הרב לדוגמה מספר ${i + 1}`, fixedAt(time)));
+  return { ...doc, sections: doc.sections.map(s => ({ ...s, rows: [...s.rows, ...more(s.id, s.kind === 'shabbat' ? ['09:30', '10:15', '11:00', '14:30', '15:15'] : ['06:45', '09:00', '10:00', '12:00', '14:00', '15:00', '18:30', '19:00'])] })) };
+}
+
 export function parseFixtureParams(search: string): FixtureParams {
   const q = new URLSearchParams(search);
   const role = q.get('role');
@@ -117,6 +125,12 @@ export function parseFixtureParams(search: string): FixtureParams {
 export function fixtureParams(): FixtureParams {
   const search = typeof window !== 'undefined' && window.location ? window.location.search : '';
   return parseFixtureParams(search);
+}
+
+/** Fixture mode only: `?hide=celebration` leaves those message types out of the feed (a guest whose type rules hide mazal tov). */
+function hiddenTypes(): string[] {
+  const search = typeof window !== 'undefined' && window.location ? window.location.search : '';
+  return (new URLSearchParams(search).get('hide') ?? '').split(',').filter(Boolean);
 }
 
 // All names below are invented.
@@ -233,7 +247,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     'PUT /v1/me/profile': { firstName: 'דנה', lastName: 'בדויה', lang: 'he' },
     [`GET /v1/kehilot/${kehila.kehilaId}`]: kehila,
     [`GET /v1/kehilot/${kehila.kehilaId}/channels`]: channels,
-    [`GET /v1/kehilot/${kehila.kehilaId}/messages`]: messages,
+    [`GET /v1/kehilot/${kehila.kehilaId}/messages`]: messages.filter(m => !hiddenTypes().includes(m.type)),
     [`GET /v1/kehilot/${kehila.kehilaId}/changes`]: { cursor: 'fixture', more: false, changes: [] },
   };
   for (const m of messages) {
@@ -362,7 +376,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { familyId: '01FIXTUREFAMILY0000000004', name: 'דוגמה', people: [{ userId: 'u24', name: 'מיכל דוגמה', phone: '+972500000003', tags: tagNamed('טכני') }] },
     { familyId: '01FIXTUREFAMILY0000000005', name: 'ניסיון · דמיון', people: [{ userId: 'u25', name: 'אבי ניסיון', phone: '+972500000004', tags: [] }, { userId: 'u26', name: 'רותי דמיון', phone: '+972500000006', tags: tagNamed('רב') }] },
   ];
-  if (screen !== 'schedule-none') routes[`GET ${K}/schedule`] = fixtureScheduleDoc(overrideFriday(israelDate(fixtureNow() ?? new Date())));
+  if (screen !== 'schedule-none') routes[`GET ${K}/schedule`] = fixtureLongRows(fixtureScheduleDoc(overrideFriday(israelDate(fixtureNow() ?? new Date()))));
   else routes[`GET ${K}/schedule`] = { version: 1, sections: [], weekOverrides: {}, sheet: { candleCities: [] }, location: { latitude: 32.0878, longitude: 34.8878, elevation: 'sea', candleMinutes: 40 }, updatedAt: null };
   routes[`GET ${K}/phone-list`] = phoneFamilies;
   routes[`PUT ${K}/me/phone-list`] = { show: true };
