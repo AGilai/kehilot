@@ -77,6 +77,24 @@ export const israelNow = (now = new Date()) => ({ date: israelDate(now), minutes
 
 export type NextRow = { row: ComputedRow; section: ComputedSection; date: string; dayOffset: number; time: Clock };
 
+export type TimedRow = { row: ComputedRow; section: ComputedSection; time: Clock; minutes: number };
+
+// The timed rows (never text-only, never candle lighting) that happen on `date` in its schedule week, in time order:
+// weekday sections on Sunday-Thursday, Shabbat sections on their Friday or Shabbat.
+export function timedRowsOn(computed: ComputedWeek, date: string): TimedRow[] {
+  const weekday = dayOfWeek(date) <= 4;
+  const out: TimedRow[] = [];
+  for (const section of computed.sections) {
+    for (const row of section.rows) {
+      if (row.time === null || row.role === 'candles' || row.source === 'text') continue;
+      if (section.kind === 'weekday' ? !weekday : (row.day === 'friday' ? computed.week.friday : computed.week.shabbat) !== date) continue;
+      const minutes = parseClock(row.time);
+      if (minutes !== null) out.push({ row, section, time: row.time, minutes });
+    }
+  }
+  return out.sort((a, b) => a.minutes - b.minutes);
+}
+
 // Next prayer per §14.1: the next timed row in time over today's weekday rows (Sun-Thu) and the Shabbat rows
 // of the schedule week; text-only rows and candle lighting are never "next". A row at exactly `now` still counts.
 // When today has nothing left it is the first row of the following days (tomorrow's first, `dayOffset` 1).
@@ -87,19 +105,8 @@ export function nextRow(schedule: Schedule, now: { date: string; minutes: number
     const date = addDays(now.date, dayOffset);
     const friday = scheduleWeekOf(date).friday;
     if (!weeks.has(friday)) weeks.set(friday, computeWeek(schedule, date, zmanimFor));
-    const computed = weeks.get(friday)!;
-    const weekday = dayOfWeek(date) <= 4;
-    let best: NextRow | null = null;
-    for (const section of computed.sections) {
-      for (const row of section.rows) {
-        if (row.time === null || row.role === 'candles' || row.source === 'text') continue;
-        if (section.kind === 'weekday' ? !weekday : (row.day === 'friday' ? computed.week.friday : computed.week.shabbat) !== date) continue;
-        const minutes = parseClock(row.time);
-        if (minutes === null || (dayOffset === 0 && minutes < now.minutes)) continue;
-        if (!best || minutes < parseClock(best.time)!) best = { row, section, date, dayOffset, time: row.time };
-      }
-    }
-    if (best) return best;
+    const best = timedRowsOn(weeks.get(friday)!, date).find(item => dayOffset > 0 || item.minutes >= now.minutes);
+    if (best) return { row: best.row, section: best.section, date, dayOffset, time: best.time };
   }
   return null;
 }

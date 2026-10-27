@@ -3,13 +3,14 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadShabbat, loadZmanim } from '../api.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import { fixtureShabbat, fixtureZmanim } from '../client/fixtures.ts';
+import { fixtureNow, fixtureShabbat, fixtureZmanim } from '../client/fixtures.ts';
+import { useSchedule } from '../client/useSchedule.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { visibleList } from '../client/messageView.ts';
 import { config } from '../config.ts';
 import { clockTime, dayOfWeek, displayDate, hebrewDate, israelDate, upcomingFriday } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Tag, Txt, useTokens } from '../kit/components.tsx';
+import { Banner, Button, Card, CollapsibleCard, Tag, Txt, useTokens } from '../kit/components.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
@@ -23,6 +24,10 @@ import { cardWindow, shabbatFriday, whenParts } from '../seats/window.ts';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
 import { ForwardIcon, Icon } from '../kit/Icon.tsx';
+import { homeCardModel, zmanimOpen, zmanimOpenKey } from '../schedule/memberView.ts';
+import { israelNow } from '../schedule/week.ts';
+import { zmanimForLocation } from '../schedule/zmanim.ts';
+import { ScheduleCard, ScheduleSkeleton } from './ScheduleCard.tsx';
 
 const TIMES = ['sunrise', 'sofZmanShma', 'sofZmanTfilla', 'minchaGedola', 'plagHaMincha', 'sunset', 'nightfall'] as const;
 
@@ -31,12 +36,12 @@ const loaders = config.fixtures
   : { zmanim: loadZmanim, shabbat: loadShabbat };
 
 /** M1 (the day arc comes later): greeting, dates, zmanim grid, Shabbat card, and the latest three titles. */
-export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeats }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void; /** The terms card's button (management mode until the terms gate exists). */ onTerms?: () => void; onToast?: (text: string) => void; /** The seat-release preview (UX §15): opens the seat page. */ onSeats?: () => void }) {
+export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeats, onSchedule }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void; /** The terms card's button (management mode until the terms gate exists). */ onTerms?: () => void; onToast?: (text: string) => void; /** The seat-release preview (UX §15): opens the seat page. */ onSeats?: () => void; /** "Full schedule" on the schedule card. */ onSchedule?: () => void }) {
   const { t, lang } = useI18n();
   const k = useTokens();
   const { signOut } = useAuth();
   const { state } = useSession();
-  const [now, setNow] = React.useState(new Date());
+  const [now, setNow] = React.useState(() => fixtureNow() ?? new Date());
   const date = israelDate(now);
   const [zmanim, setZmanim] = React.useState<Zmanim | null>(null);
   const [shabbat, setShabbat] = React.useState<Shabbat | null>(null);
@@ -47,6 +52,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
   const [cached, setCached] = React.useState(false);
 
   React.useEffect(() => {
+    if (config.fixtures && fixtureNow()) return;
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
@@ -73,6 +79,26 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
     loaders.shabbat(date).then(v => { if (active) setShabbat(v); }, () => { if (active) setShabbatError(true); });
     return () => { active = false; };
   }, [date, revision, t]);
+
+  // The Kehila's prayer schedule (UX §14.3): its card, and whether the city zmanim card is open by default.
+  const schedule = useSchedule();
+  const doc = schedule.state.status === 'ready' ? schedule.state.doc : null;
+  const cardModel = React.useMemo(() => (doc ? homeCardModel(doc, israelNow(now), zmanimForLocation(doc.location)) : null), [doc, now]);
+  const hasSchedule = !!cardModel;
+  const [zmanimStored, setZmanimStored] = React.useState<Record<string, string | null>>({});
+  React.useEffect(() => {
+    let live = true;
+    void Promise.all([true, false].map(async has => [zmanimOpenKey(has), await AsyncStorage.getItem(zmanimOpenKey(has)).catch(() => null)] as const))
+      .then(pairs => { if (live) setZmanimStored(Object.fromEntries(pairs)); });
+    return () => { live = false; };
+  }, []);
+  const zmanimIsOpen = zmanimOpen(zmanimStored[zmanimOpenKey(hasSchedule)] ?? null, hasSchedule);
+  const toggleZmanim = () => {
+    const key = zmanimOpenKey(hasSchedule);
+    const value = zmanimIsOpen ? 'closed' : 'open';
+    setZmanimStored(prev => ({ ...prev, [key]: value }));
+    void AsyncStorage.setItem(key, value).catch(() => {});
+  };
 
   const seatPreview = React.useMemo(() => (config.seatsPreview ? previewMemberSeats() : null), []);
   const kehila = state.kehila;
@@ -102,27 +128,23 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
 
       {onToast ? <HomeCards onTerms={onTerms ?? (() => {})} onToast={onToast} /> : null}
 
-      <Card>
-        <Txt bold>{t('home.zmanimTitle')}</Txt>
+      {schedule.state.status === 'loading' ? <ScheduleSkeleton /> : null}
+      {schedule.state.status === 'error' ? <Card edgeColor={k.tekhelet}><Banner tone="error" text={t('schedule.error')} action={{ title: t('common.retry'), onPress: schedule.retry }} /></Card> : null}
+      {doc && cardModel ? <ScheduleCard model={cardModel} doc={doc} cachedAt={schedule.state.status === 'ready' ? schedule.state.cachedAt : null} onFull={onSchedule ?? (() => {})} /> : null}
+
+      <CollapsibleCard title={t('home.zmanimTitle')} open={zmanimIsOpen} onToggle={toggleZmanim}
+        summary={next && today ? t('home.zmanimNext', { zman: t(`zmanim.${next}`), time: clockTime(today.times[next]) }) : note ?? undefined}>
         {busy && !today ? <ActivityIndicator color={k.tekhelet} /> : null}
-        {next && today ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ flexShrink: 1 }}>
-              <Txt bold size="heading">{t(`zmanim.${next}`)}</Txt>
-              <Txt size="caption" color={k.muted}>{cached ? t('home.nextCached') : t('home.next')}</Txt>
-            </View>
-            <Txt size="display" color={k.tekhelet} style={{ fontVariant: ['tabular-nums'] }}>{clockTime(today.times[next])}</Txt>
-          </View>
-        ) : null}
         {TIMES.map((key, i) => (
-          <View key={key} style={{ minHeight: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: i === 0 ? 0 : 1, borderTopColor: k.line }}>
+          <View key={key} style={{ minHeight: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: k.line }}>
             <Txt bold={next === key} color={next === key ? k.tekhelet : k.ink}>{t(`zmanim.${key}`)}</Txt>
             <Txt bold={next === key} style={{ fontVariant: ['tabular-nums'] }}>{clockTime(today?.times[key])}</Txt>
           </View>
         ))}
         {note ? <Banner tone={cached ? 'info' : 'error'} text={note} action={cached ? undefined : { title: t('common.retry'), onPress: () => setRevision(n => n + 1) }} /> : null}
-      </Card>
+      </CollapsibleCard>
 
+      {!hasSchedule && schedule.state.status !== 'loading' ? (
       <Card edgeColor={k.gold}>
         <Txt bold size="heading">{dayOfWeek(date) === 5 ? t('home.shabbatToday') : t('home.shabbat')}</Txt>
         {shabbat ? <Txt size="small" color={k.muted}>{shabbat.parasha} · {displayDate(shabbat.friday, lang)}</Txt> : shabbatError ? null : <ActivityIndicator color={k.gold} />}
@@ -134,6 +156,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
         ) : null}
         {shabbatError ? <Banner tone="error" text={t('home.shabbatError')} action={{ title: t('common.retry'), onPress: () => setRevision(n => n + 1) }} /> : null}
       </Card>
+      ) : null}
 
       {onPhoneList && roleFeatures(kehila.role).phoneList ? (
         <Pressable accessibilityRole="button" accessibilityLabel={`${t('home.phoneList')}. ${t('home.phoneListSub')}`} onPress={onPhoneList}>

@@ -35,6 +35,7 @@ import { Compose } from './Compose.tsx';
 import type { ComposeInitial } from './Compose.tsx';
 import { ChatView } from './ChatView.tsx';
 import { Home } from './Home.tsx';
+import { Schedule } from './Schedule.tsx';
 import { Me } from './Me.tsx';
 import { NotifyPrefs } from './NotifyPrefs.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
@@ -59,6 +60,7 @@ type Nav =
   | { tab: 'import' }
   | { tab: 'pushTexts' }
   | { tab: 'seats' }
+  | { tab: 'schedule' }
   | { tab: 'seatPrint' }
   | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'me' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
@@ -88,6 +90,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   const seat = seatScreenFor(s, state.kehila?.role, config.seatsPreview);
   if (seat === 'seats') return { nav: { tab: 'seats' } };
   if (seat === 'seatPrint') return { nav: { tab: 'seatPrint' }, manage: true };
+  if (s === 'schedule') return { nav: { tab: 'schedule' } };
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003' } };
   if (s === 'compose-family') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003', query: 'ב' } };
@@ -185,7 +188,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
   const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
-    : nav.tab === 'home' || nav.tab === 'seats' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
+    : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
     { key: 'overview' as const, label: t('admin.tabs.overview'), icon: 'grid' as const, badge: 0 },
     { key: 'approvals' as const, label: t('admin.tabs.approvals'), icon: 'check' as const, badge: pending },
@@ -202,7 +205,10 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   switch (nav.tab) {
     case 'home':
       body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'home' }) : undefined}
-        onTerms={() => { setManage(true); setNav({ tab: 'overview' }); }} onToast={showToast} onSeats={config.seatsPreview ? () => setNav({ tab: 'seats' }) : undefined} />;
+        onTerms={() => { setManage(true); setNav({ tab: 'overview' }); }} onToast={showToast} onSeats={config.seatsPreview ? () => setNav({ tab: 'seats' }) : undefined} onSchedule={() => setNav({ tab: 'schedule' })} />;
+      break;
+    case 'schedule':
+      body = <Schedule onBack={() => setNav({ tab: 'home' })} onToast={showToast} />;
       break;
     case 'seats':
       body = config.seatsPreview ? <SeatPage data={seatData!} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;

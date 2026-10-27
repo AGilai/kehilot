@@ -24,15 +24,21 @@ export const SHABBAT_END_DEFAULT: TzeitRule = { kind: 'degrees', degrees: 8.5 };
 export const DEFAULT_ZMANIM_SETTINGS: ZmanimSettings = { candleMinutes: 40, tzeit: { kind: 'yeshiva' }, shabbatEnd: SHABBAT_END_DEFAULT };
 
 const MINUTE = 60000;
-const geo = new GeoLocation(null, KEHILA_LOCATION.latitude, KEHILA_LOCATION.longitude, 0, KEHILA_LOCATION.tzid);
+
+// A Kehila's calculation place: the server's `location` setting (GET /schedule). `ground` uses `elevationMeters`.
+export type ScheduleLocation = { latitude: number; longitude: number; elevation: 'sea' | 'ground'; elevationMeters?: number; candleMinutes: number };
+export const DEFAULT_LOCATION: ScheduleLocation = { latitude: KEHILA_LOCATION.latitude, longitude: KEHILA_LOCATION.longitude, elevation: 'sea', candleMinutes: 40 };
+type Place = { latitude: number; longitude: number; elevationMeters?: number };
+const defaultGeo = new GeoLocation(null, KEHILA_LOCATION.latitude, KEHILA_LOCATION.longitude, 0, KEHILA_LOCATION.tzid);
+const geoOf = (place?: Place) => !place ? defaultGeo : new GeoLocation(null, place.latitude, place.longitude, place.elevationMeters ?? 0, KEHILA_LOCATION.tzid);
 
 const roundMs = (ms: number, direction: 'up' | 'down' | 'nearest') =>
   new Date((direction === 'up' ? Math.ceil : direction === 'down' ? Math.floor : Math.round)(ms / MINUTE) * MINUTE);
 const clock = (value: Date | string) => clockTime(typeof value === 'string' ? value : value.toISOString());
 
-export function offlineDayZmanim(date: string, settings: ZmanimSettings = DEFAULT_ZMANIM_SETTINGS): DayZmanim | null {
+export function offlineDayZmanim(date: string, settings: ZmanimSettings = DEFAULT_ZMANIM_SETTINGS, place?: Place): DayZmanim | null {
   const [year, month, day] = date.split('-').map(Number) as [number, number, number];
-  const z = new HebcalZmanim(geo, new Date(year, month - 1, day), false);
+  const z = new HebcalZmanim(geoOf(place), new Date(year, month - 1, day), !!place?.elevationMeters);
   const astronomy = { sunrise: z.sunrise(), sunset: z.sunset(), chatzot: z.chatzot(), sofZmanShma: z.sofZmanShma(),
     sofZmanTfilla: z.sofZmanTfilla(), plagHaMincha: z.plagHaMincha() };
   if (Object.values(astronomy).some(value => !value || Number.isNaN(value.getTime()))) return null;
@@ -64,10 +70,22 @@ function dateOrNull(value: Date | null | undefined, direction: 'up' | 'down'): D
   return value && !Number.isNaN(value.getTime()) ? roundMs(value.getTime(), direction) : null;
 }
 
-export function offlineZmanimFor(settings: ZmanimSettings = DEFAULT_ZMANIM_SETTINGS): ZmanimFor {
+export function offlineZmanimFor(settings: ZmanimSettings = DEFAULT_ZMANIM_SETTINGS, place?: Place): ZmanimFor {
   const cache = new Map<string, DayZmanim | null>();
   return date => {
-    if (!cache.has(date)) cache.set(date, offlineDayZmanim(date, settings));
+    if (!cache.has(date)) cache.set(date, offlineDayZmanim(date, settings, place));
     return cache.get(date)!;
   };
+}
+
+// The Kehila's zmanim from its saved `location` (falls back to the Petah Tikva default when it is missing).
+export function zmanimForLocation(location?: ScheduleLocation | null): ZmanimFor {
+  if (!location) return offlineZmanimFor();
+  return offlineZmanimFor({ ...DEFAULT_ZMANIM_SETTINGS, candleMinutes: location.candleMinutes },
+    { latitude: location.latitude, longitude: location.longitude, elevationMeters: location.elevation === 'ground' ? location.elevationMeters : undefined });
+}
+
+// Candle lighting (sunset minus N, rounded down) for one of the sheet's cities.
+export function candleTimeAt(date: string, city: { latitude: number; longitude: number; candleMinutes: number }): string | null {
+  return offlineDayZmanim(date, { ...DEFAULT_ZMANIM_SETTINGS, candleMinutes: city.candleMinutes }, city)?.candleLighting ?? null;
 }

@@ -56,6 +56,24 @@ export function Card({ children, edgeColor, style }: { children: React.ReactNode
   );
 }
 
+/** A Card with a pressable header (min 56): `title` bold, `summary` caption, a chevron that turns when open (UX §14.7). */
+export function CollapsibleCard({ title, summary, open, onToggle, children }: { title: string; summary?: string; open: boolean; onToggle: () => void; children?: React.ReactNode }) {
+  const k = useTokens();
+  return (
+    <View style={{ backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line }}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel={summary ? `${title}. ${summary}` : title} onPress={onToggle}
+        style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 16 }}>
+        <View style={{ flex: 1 }}>
+          <Txt bold>{title}</Txt>
+          {summary ? <Txt size="caption" color={k.muted}>{summary}</Txt> : null}
+        </View>
+        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}><Icon name="chev" size={20} color={k.muted} /></View>
+      </Pressable>
+      {open ? <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>{children}</View> : null}
+    </View>
+  );
+}
+
 export function Button({ title, onPress, kind = 'primary', busy, disabled, accessibilityLabel, icon }: { icon?: IconName; title: string; onPress: () => void; kind?: 'primary' | 'secondary' | 'danger'; busy?: boolean; disabled?: boolean; accessibilityLabel?: string }) {
   const k = useTokens();
   const bg = kind === 'primary' ? k.tekhelet : kind === 'danger' ? k.danger : 'transparent';

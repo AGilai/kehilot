@@ -1,4 +1,5 @@
 import type { Http } from './http.ts';
+import type { ScheduleDoc } from '../schedule/types.ts';
 import type { ReportContext } from './reportContext.ts';
 import type {
   TypeRules,
@@ -49,6 +50,9 @@ export function endpoints(http: Http) {
     acceptInvite: (code: string) => r<{ kehilaId: string; role: Role }>('POST', `/v1/invites/${e(code)}/accept`),
     requestMembership: (k: string) => r<Record<string, never>>('POST', `${K(k)}/membership-request`),
     leave: (k: string) => r<void>('DELETE', `${K(k)}/membership`),
+
+    // prayer schedule (every role; the saved schedule, week overrides, sheet cities and location)
+    schedule: (k: string) => r<ScheduleDoc>('GET', `${K(k)}/schedule`),
 
     // channels and messages
     channels: (k: string) => r<Channel[]>('GET', `${K(k)}/channels`),

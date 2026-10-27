@@ -95,3 +95,11 @@ export type ComputedRow = {
 };
 export type ComputedSection = { id: string; kind: Section['kind']; title: Text; rows: ComputedRow[]; hidden: ComputedRow[] };
 export type ComputedWeek = { week: ScheduleWeek; sections: ComputedSection[] };
+
+// GET /v1/kehilot/{k}/schedule (server/API.md "Prayer schedule"); `sections` is [] and `updatedAt` null when nothing is saved.
+export type CandleCity = { name: Text; latitude: number; longitude: number; candleMinutes: number };
+export type ScheduleDoc = Schedule & {
+  sheet: { candleCities: CandleCity[] };
+  location: { latitude: number; longitude: number; elevation: 'sea' | 'ground'; elevationMeters?: number; candleMinutes: number };
+  updatedAt: number | null;
+};

@@ -8,6 +8,10 @@ import type { Hall, SeatRef } from '../seats/hall.ts';
 import { memberView } from '../seats/frame.ts';
 import type { Allocation, MemberSeats } from '../seats/frame.ts';
 import type { Prayer } from '../seats/release.ts';
+import { dayOfWeek, israelDate, upcomingFriday } from '../dates.ts';
+import { addDays } from '../schedule/week.ts';
+import { israelInstant } from '../seats/window.ts';
+import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
 import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
@@ -23,7 +27,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -42,6 +46,60 @@ export function fixtureZmanim(date: string): Zmanim {
 }
 export function fixtureShabbat(friday: string): Shabbat {
   return { friday, parasha: 'פרשת נח', petahTikva: new Date(`${friday}T16:17:00+02:00`).toISOString(), telAviv: new Date(`${friday}T16:36:00+02:00`).toISOString() };
+}
+
+
+/** Fixture mode only: `?now=2026-10-30T15:40` (Israel time) fixes the clock Home and the schedule use. */
+export function fixtureNow(search: string = typeof window !== 'undefined' && window.location ? window.location.search : ''): Date | null {
+  if (!config.fixtures) return null;
+  const raw = new URLSearchParams(search).get('now');
+  const local = raw ? /^(\d{4}-\d\d-\d\d)T(\d\d:\d\d)$/.exec(raw) : null;
+  const at = local ? israelInstant(local[1]!, local[2]!) : raw ? new Date(raw) : null;
+  return at && !Number.isNaN(at.getTime()) ? at : null;
+}
+
+// The Shabbat the fixture override belongs to: the one in progress on Saturday, else the coming one.
+const overrideFriday = (date: string) => (dayOfWeek(date) === 6 ? addDays(date, -1) : upcomingFriday(date));
+
+const fx = (id: string, label: string, time: Row['time'], more: Partial<Row> = {}): Row => ({ id, label: { he: label }, time, ...more });
+const fixedAt = (at: string): Row['time'] => ({ kind: 'fixed', at });
+const formula = (anchor: 'candleLighting' | 'sunset' | 'shabbatEnd', day: 'friday' | 'shabbat' | 'earliest', minutes: number, direction: 'before' | 'after', rounding: Formula['rounding'] = { mode: 'none' }): Row['time'] => ({ kind: 'formula', formula: { anchor, day, offset: { minutes, direction }, rounding } });
+
+/** A realistic weekly sheet (invented content): candle lighting, Kabbalat Shabbat as candles + 10, two Daf Yomi slots, a text-only
+ *  line, the earliest-sunset Mincha, two Maariv minyanim; one "this week only" override for the week of `friday`. */
+export function fixtureScheduleDoc(friday: string): ScheduleDoc {
+  return {
+    version: 1,
+    sections: [
+      { id: 'shabbat', kind: 'shabbat', title: { he: 'שבת קודש', en: 'Shabbat' }, rows: [
+        fx('candles', 'הדלקת נרות', formula('candleLighting', 'friday', 0, 'before'), { role: 'candles', day: 'friday', label: { he: 'הדלקת נרות', en: 'Candle lighting' } }),
+        fx('kabbalat', 'מנחה וקבלת שבת', formula('candleLighting', 'friday', 10, 'after', { mode: 'nearest', step: 5 }), { label: { he: 'מנחה וקבלת שבת', en: 'Mincha and Kabbalat Shabbat' } }),
+        fx('s-daf', 'דף יומי', fixedAt('07:45'), { label: { he: 'דף יומי', en: 'Daf Yomi' } }),
+        fx('s-shacharit', 'שחרית', fixedAt('08:30'), { label: { he: 'שחרית', en: 'Shacharit' }, note: 'בבית הכנסת הגדול' }),
+        fx('s-shiur', 'שיעורים לגברים, נשים וילדים לאחר התפילה', { kind: 'none' }, { label: { he: 'שיעורים לגברים, נשים וילדים לאחר התפילה', en: 'Classes for men, women and children after the service' } }),
+        fx('s-gedola', 'מנחה גדולה', fixedAt('13:15'), { label: { he: 'מנחה גדולה', en: 'Mincha Gedola' } }),
+        fx('s-third', 'מנחה וסעודה שלישית', formula('sunset', 'shabbat', 40, 'before', { mode: 'down', step: 5 }), { label: { he: 'מנחה וסעודה שלישית', en: 'Mincha and third meal' } }),
+        fx('s-end', 'צאת השבת', formula('shabbatEnd', 'shabbat', 0, 'before'), { label: { he: 'צאת השבת', en: 'Shabbat ends' } }),
+        fx('s-daf2', 'דף יומי', fixedAt('19:30'), { label: { he: 'דף יומי', en: 'Daf Yomi' } }),
+      ] },
+      { id: 'weekday', kind: 'weekday', title: { he: 'תפילות ימי החול', en: 'Weekday prayers' }, rows: [
+        fx('w-sh1', 'שחרית מניין א׳', fixedAt('06:15'), { label: { he: 'שחרית מניין א׳', en: 'Shacharit, first minyan' } }),
+        fx('w-daf', 'שיעור דף יומי', fixedAt('07:00'), { label: { he: 'שיעור דף יומי', en: 'Daf Yomi class' } }),
+        fx('w-sh2', 'שחרית מניין ב׳', fixedAt('08:00'), { label: { he: 'שחרית מניין ב׳', en: 'Shacharit, second minyan' } }),
+        fx('w-gedola', 'מנחה גדולה', fixedAt('13:15'), { label: { he: 'מנחה גדולה', en: 'Mincha Gedola' } }),
+        fx('w-mincha', 'מנחה', { kind: 'formula', formula: { anchor: 'sunset', day: 'earliest', offset: { minutes: 20, direction: 'before' }, rounding: { mode: 'down', step: 5 } } }, { label: { he: 'מנחה', en: 'Mincha' } }),
+        fx('w-arvit', 'ערבית', fixedAt('17:15'), { label: { he: 'ערבית', en: 'Maariv' } }),
+        fx('w-arvit2', 'מניין ערבית ב׳', fixedAt('20:15'), { label: { he: 'מניין ערבית ב׳', en: 'Maariv, second minyan' } }),
+      ] },
+    ],
+    weekOverrides: { [friday]: { rows: { 's-gedola': { kind: 'time', at: '12:45', note: 'בגלל הקידוש' } } } },
+    sheet: { candleCities: [
+      { name: { he: 'ירושלים', en: 'Jerusalem' }, latitude: 31.7683, longitude: 35.2137, candleMinutes: 40 },
+      { name: { he: 'ת״א', en: 'Tel Aviv' }, latitude: 32.0853, longitude: 34.7818, candleMinutes: 20 },
+    ] },
+    location: { latitude: 32.0878, longitude: 34.8878, elevation: 'sea', candleMinutes: 40 },
+    updatedAt: Date.parse('2026-10-27T09:02:00+02:00'),
+  };
 }
 
 export function parseFixtureParams(search: string): FixtureParams {
@@ -304,6 +362,8 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { familyId: '01FIXTUREFAMILY0000000004', name: 'דוגמה', people: [{ userId: 'u24', name: 'מיכל דוגמה', phone: '+972500000003', tags: tagNamed('טכני') }] },
     { familyId: '01FIXTUREFAMILY0000000005', name: 'ניסיון · דמיון', people: [{ userId: 'u25', name: 'אבי ניסיון', phone: '+972500000004', tags: [] }, { userId: 'u26', name: 'רותי דמיון', phone: '+972500000006', tags: tagNamed('רב') }] },
   ];
+  if (screen !== 'schedule-none') routes[`GET ${K}/schedule`] = fixtureScheduleDoc(overrideFriday(israelDate(fixtureNow() ?? new Date())));
+  else routes[`GET ${K}/schedule`] = { version: 1, sections: [], weekOverrides: {}, sheet: { candleCities: [] }, location: { latitude: 32.0878, longitude: 34.8878, elevation: 'sea', candleMinutes: 40 }, updatedAt: null };
   routes[`GET ${K}/phone-list`] = phoneFamilies;
   routes[`PUT ${K}/me/phone-list`] = { show: true };
   routes[`GET ${K}/families`] = [
