@@ -26,3 +26,18 @@ federation; the app never shows the hosted pages. CORS allows the web URL and `h
 uploads into `up/` with a presigned PUT; unclaimed uploads expire after a day. Attached images live under
 `m/<kehila>/<message>` and are shown through short-lived presigned GET URLs. The API role may Put/Get/Delete
 objects under those two prefixes only. CORS on the bucket allows the web URL and `http://localhost:8081`.
+
+## Viewing the app
+
+Two ways to see the web app against the dev API:
+
+**(a) Dev server on this EC2.** `npm run web:dev` serves on port 8081 (reads `.env.dev`, see above). On the Mac:
+
+    ssh -L 8081:localhost:8081 ubuntu@<host>
+
+then open `http://localhost:8081`. The browser calls the dev API directly; CORS allows that origin.
+
+**(b) The deployed build** at `web_url` (`terraform -chdir=infra/envs/dev output -raw web_url`, a
+`https://<id>.cloudfront.net` address). Publish with `npm run deploy:web` (runs `tools/deploy_web.sh --env dev`:
+export, upload with cache headers, `index.html` last, invalidation). The export is heavy; run it alone.
+The privacy page is at `<web_url>/privacy/` (a draft, source in `public/privacy/index.html`).

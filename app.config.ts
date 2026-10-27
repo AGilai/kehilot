@@ -17,6 +17,7 @@ export default {
       package: 'com.shulregular.member',
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },
+    web: { bundler: 'metro', output: 'single', name: 'הקהילה שלי', lang: 'he' },
     plugins: [
       ['expo-build-properties', { ios: { enableSceneSupport: true } }],
       ['expo-localization', { supportsRTL: true }],

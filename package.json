@@ -22,6 +22,7 @@
     "export": "expo export --platform all",
     "test:server": ".venv/bin/python -m unittest discover -s server/tests -v",
     "web:dev": "node --env-file=.env.dev node_modules/expo/bin/cli start --web --port 8081",
+    "deploy:web": "bash tools/deploy_web.sh --env dev",
     "export:web": "node --env-file=.env.dev node_modules/expo/bin/cli export --platform web --output-dir dist/web",
     "web:fixtures": "EXPO_PUBLIC_FIXTURES=1 expo start --web --port 8081"
   },

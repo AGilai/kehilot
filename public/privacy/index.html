@@ -1,0 +1,81 @@
+<!doctype html>
+<!-- DRAFT: for the owner's review before publication. Not legal advice. -->
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מדיניות פרטיות – הקהילה שלי</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; line-height: 1.6; margin: 0; padding: 16px; color: #1c1c1c; background: #fff; }
+  main { max-width: 42rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; margin-top: 1.6rem; }
+  section[lang="en"] { border-top: 1px solid #ccc; margin-top: 2.5rem; padding-top: 1rem; }
+  @media (prefers-color-scheme: dark) { body { background: #151515; color: #eee; } section[lang="en"] { border-color: #444; } }
+</style>
+</head>
+<body>
+<main>
+<section lang="he" dir="rtl">
+<h1>מדיניות פרטיות – הקהילה שלי</h1>
+
+<h2>איזה מידע נשמר</h2>
+<ul>
+  <li>כתובת הדוא"ל שלך, לצורך ההתחברות. היא נשמרת בשירות ההתחברות (Amazon Cognito).</li>
+  <li>השם שלך, שפת הממשק והשתייכותך לקהילות (כולל התפקיד שלך בכל קהילה). אלה נשמרים במסד הנתונים של השירות (Amazon DynamoDB), באזור AWS בישראל.</li>
+  <li>מזהי התראות (push token) של המכשירים שלך, כדי לשלוח לך התראות. ההתראות עצמן כלליות (למשל "הודעה חדשה") ואינן כוללות את תוכן ההודעה.</li>
+  <li>הודעות שכתבת בקהילה, ותמונה אחת לכל היותר המצורפת להודעה.</li>
+</ul>
+
+<h2>מי רואה מה</h2>
+<ul>
+  <li>המידע של כל קהילה נפרד מזה של קהילות אחרות. חברי קהילה אחת אינם רואים מידע של קהילה אחרת.</li>
+  <li>ברכות פרטיות נשלחות רק למשפחה הנוגעת בדבר ולגבאים, ולא לשאר חברי הקהילה.</li>
+  <li>גבאי הקהילה יכולים לראות את ההודעות בקהילה שלהם ולמחוק אותן.</li>
+</ul>
+
+<h2>תמונות</h2>
+<p>תמונות מאוחסנות באחסון פרטי (Amazon S3), ללא כתובות ציבוריות. הצגת תמונה נעשית דרך קישור זמני התקף חמש דקות בלבד, ורק למי שמורשה לראות את ההודעה. כשהודעה נמחקת, גם התמונה שלה נמחקת.</p>
+
+<h2>מטמון חיפוש בטלפון</h2>
+<p>כדי לאפשר חיפוש גם בלי חיבור, האפליקציה שומרת בטלפון עותק של ההודעות שאתה רשאי לראות. ברכות פרטיות אינן נשמרות במטמון זה. העותק של קהילה נמחק כשאתה עוזב אותה, וכל העותקים נמחקים בהתנתקות.</p>
+
+<h2>מחיקת חשבון</h2>
+<p>אפשר למחוק את החשבון בתוך האפליקציה. המחיקה מסירה את משתמש ההתחברות, את החברות שלך בקהילות, את מזהי ההתראות של המכשירים שלך, סימוני הקריאה שלך ואת בקשות התפילה לרפואה שהזנת. רשומות הרשימה הקהילתית שלך נשמרות בלי הפרטים האישיים, כדי שההיסטוריה של העליות תישאר תקינה. הודעות שכתבת נשארות בקהילה בלי שמך, ותמונות המצורפות אליהן נשארות איתן; גבאי יכול למחוק הודעה, ואז גם התמונה נמחקת.</p>
+
+<h2>יצירת קשר</h2>
+<p>לשאלות בנושא פרטיות: &lt;privacy contact&gt;</p>
+</section>
+
+<section lang="en" dir="ltr">
+<h1>Privacy policy – My Community</h1>
+
+<h2>What we store</h2>
+<ul>
+  <li>Your email address, used to sign in. It is kept in the sign-in service (Amazon Cognito).</li>
+  <li>Your name, interface language and your community memberships (including your role in each). These are kept in the service database (Amazon DynamoDB), in an AWS region in Israel.</li>
+  <li>Push tokens of your devices, used to send notifications. Notifications are generic (for example "new message") and never contain message content.</li>
+  <li>Messages you write in a community, and at most one image attached to a message.</li>
+</ul>
+
+<h2>Who can see what</h2>
+<ul>
+  <li>Each community's data is separate from every other community's. Members of one community cannot see another's data.</li>
+  <li>Private blessings go only to the family concerned and to the gabbaim, not to the rest of the community.</li>
+  <li>A community's gabbaim can see and delete messages in their community.</li>
+</ul>
+
+<h2>Images</h2>
+<p>Images are stored in private storage (Amazon S3) with no public addresses. An image is shown through a temporary link that is valid for five minutes and only for people allowed to see the message. When a message is deleted, its image is deleted too.</p>
+
+<h2>Search cache on your phone</h2>
+<p>To allow searching without a connection, the app keeps a copy of the messages you are allowed to see on your phone. Private blessings are not cached. A community's copy is deleted when you leave it, and all copies are deleted when you sign out.</p>
+
+<h2>Deleting your account</h2>
+<p>You can delete your account inside the app. Deletion removes your sign-in user, your community memberships, your devices' push tokens, your read marks and the healing-prayer entries you added. Your entries in the community roster are kept without personal details, so aliyah history stays consistent. Messages you wrote stay in the community with your name removed, and their images stay with them; a gabbai can delete a message, which also deletes its image.</p>
+
+<h2>Contact</h2>
+<p>Privacy questions: &lt;privacy contact&gt;</p>
+</section>
+</main>
+</body>
+</html>
