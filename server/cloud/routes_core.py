@@ -39,6 +39,7 @@ def kehila(ctx, params):
         extra['typeRules'] = type_rules.rules(settings)  # members get postableTypes per channel instead
         extra['location'] = schedule_rules.location_of(settings)
         extra['sheet'] = schedule_rules.sheet_of(settings)
+        extra['seatDeadline'] = settings.get('seatDeadline') or '12:00'
         extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
     is_member = membership['role'] in MEMBERS
     cards = {'gabbaiLink': None, 'request': None, 'imported': bool(membership.get('importNotice')),

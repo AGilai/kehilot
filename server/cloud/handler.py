@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_seating, routes_tags
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_seating, routes_seatweek, routes_tags
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -59,6 +59,14 @@ ROUTES = [
      routes_seating.get_assignments),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts/(?P<from>[^/]+)/assignments$'),
      routes_seating.put_assignments),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/seats/me$'), routes_seatweek.get_mine),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/seats/me$'), routes_seatweek.put_mine),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/week/(?P<week>[^/]+)$'), routes_seatweek.get_week),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/week/(?P<week>[^/]+)$'), routes_seatweek.put_week),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/week/(?P<week>[^/]+)/responses$'),
+     routes_seatweek.apply_responses),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/week/(?P<week>[^/]+)/responses/undo$'),
+     routes_seatweek.undo_responses),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.list_holders),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.create_holder),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)$'), routes_seating.update_holder),

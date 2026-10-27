@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import accounts, consents, importer, inputs, push, routes_me, schedule_rules, tags, type_rules
+from . import seating_week, accounts, consents, importer, inputs, push, routes_me, schedule_rules, tags, type_rules
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -241,11 +241,12 @@ def set_settings(ctx, params):
     """maxListeners, privacyContact, typeRules, location and/or sheet (at least one). The contact is never logged."""
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     d = inputs.body_object(ctx)
-    if not any(key in d for key in ('maxListeners', 'privacyContact', 'typeRules', 'location', 'sheet')):
+    if not any(key in d for key in ('maxListeners', 'privacyContact', 'typeRules', 'location', 'sheet', 'seatDeadline')):
         raise ApiError(400, 'invalid_body')
     location = schedule_rules.validate_location(d['location']) if 'location' in d else None
     sheet = schedule_rules.validate_sheet(d['sheet']) if 'sheet' in d else None
     new_rules = _type_rules(d['typeRules']) if 'typeRules' in d else None
+    seat_deadline = seating_week.valid_deadline(d['seatDeadline']) if 'seatDeadline' in d else None
     limit = inputs.integer(d, 'maxListeners', 0, 5000) if 'maxListeners' in d else None
     contact = None
     if 'privacyContact' in d:
@@ -255,7 +256,7 @@ def set_settings(ctx, params):
         contact = contact.strip()
         if len(contact) > PRIVACY_CONTACT_MAX:
             raise ApiError(400, 'invalid_privacy_contact')
-    ctx.repo.set_settings(params['k'], limit, contact, new_rules, location, sheet)
+    ctx.repo.set_settings(params['k'], limit, contact, new_rules, location, sheet, seat_deadline)
     return 200, {}
 
 

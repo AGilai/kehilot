@@ -120,3 +120,27 @@ class SeatingRepo:
         """Two families merged: the seats of `from_id` go to `to_id` in every layout version."""
         old, new = f'family:{from_id}', f'family:{to_id}'
         self._rewrite_assignments(k, lambda a: {s: (new if r == old else r) for s, r in a.items()})
+
+    # weekly state: SEATWK#<friday>#<prayer> {seats: {seatId: {r, by, at}}, requests: {household: {area: n}}, undo?}
+    def get_week(self, k, friday, prayer):
+        return self._seat_get(k, f'SEATWK#{friday}#{prayer}')
+
+    def put_week(self, k, friday, prayer, fields, guard):
+        return self._guarded_put(k, f'SEATWK#{friday}#{prayer}', fields, guard, 'week_changed')[0]
+
+    def change_week(self, k, friday, prayer, change):
+        """Read, change(item or None) -> fields, guarded write; retried when someone saved meanwhile."""
+        for _ in range(6):
+            item = self.get_week(k, friday, prayer)
+            fields = change(item)
+            try:
+                return self.put_week(k, friday, prayer, fields, item['updatedAt'] if item else None)
+            except ApiError as error:
+                if error.code != 'week_changed':
+                    raise
+        raise ApiError(409, 'week_changed')
+
+    def layout_for(self, k, friday):
+        """The latest layout version taking effect on or before that Friday, or None."""
+        found = [i for i in self.list_layouts(k) if i['effectiveFrom'] <= friday]
+        return max(found, key=lambda i: i['effectiveFrom']) if found else None
