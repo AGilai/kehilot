@@ -1,80 +1,157 @@
 <!doctype html>
-<!-- DRAFT: for the owner's review before publication. Not legal advice. -->
+<!-- DRAFT: for the owner's and a lawyer's review before publication. Not legal advice. -->
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>מדיניות פרטיות – הקהילה שלי</title>
+<title>מדיניות פרטיות – קהילות</title>
 <style>
   body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; line-height: 1.6; margin: 0; padding: 16px; color: #1c1c1c; background: #fff; }
   main { max-width: 42rem; margin: 0 auto; }
   h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; margin-top: 1.6rem; }
+  .ver { color: #555; font-size: 0.9rem; }
   section[lang="en"] { border-top: 1px solid #ccc; margin-top: 2.5rem; padding-top: 1rem; }
-  @media (prefers-color-scheme: dark) { body { background: #151515; color: #eee; } section[lang="en"] { border-color: #444; } }
+  @media (prefers-color-scheme: dark) { body { background: #151515; color: #eee; } .ver { color: #aaa; } section[lang="en"] { border-color: #444; } }
 </style>
 </head>
 <body>
 <main>
 <section lang="he" dir="rtl">
-<h1>מדיניות פרטיות – הקהילה שלי</h1>
+<h1>מדיניות פרטיות – קהילות</h1>
+<p class="ver">עודכן 27.10.2026</p>
 
-<h2>איזה מידע נשמר</h2>
+<h2>מי אחראי למידע</h2>
+<p>כל קהילה אחראית למידע של חבריה. "קהילות" מפעילה את הפלטפורמה עבור הקהילות, ומשתמשת במידע רק כדי להפעיל אותה. בקשות על המידע שלך בקהילה מסוימת מופנות לאיש הקשר לפרטיות של אותה קהילה. הוא מופיע באפליקציה, ב"על הקהילה" ובמסך "אני".</p>
+
+<h2>איזה מידע נשמר ולמה</h2>
 <ul>
   <li>כתובת הדוא"ל שלך, לצורך ההתחברות. היא נשמרת בשירות ההתחברות (Amazon Cognito).</li>
-  <li>השם שלך, שפת הממשק והשתייכותך לקהילות (כולל התפקיד שלך בכל קהילה). אלה נשמרים במסד הנתונים של השירות (Amazon DynamoDB), באזור AWS בישראל.</li>
-  <li>מזהי התראות (push token) של המכשירים שלך, כדי לשלוח לך התראות. ההתראות עצמן כלליות (למשל "הודעה חדשה") ואינן כוללות את תוכן ההודעה.</li>
-  <li>הודעות שכתבת בקהילה, ותמונה אחת לכל היותר המצורפת להודעה.</li>
+  <li>השם שלך, שפת הממשק והשתייכותך לקהילות, כולל התפקיד שלך בכל קהילה. אלה נשמרים במסד הנתונים של השירות (Amazon DynamoDB).</li>
+  <li>הסימון שאתה בן 13 או יותר, ותאריך ונוסח ההסכמה.</li>
+  <li>מספר טלפון, רק אם הזנת אותו בעצמך. הוא משמש רק לרשימת הטלפונים (ראו להלן).</li>
+  <li>פרטי המשפחה: מי הבוגרים במשפחה, ושם פרטי, מין ותאריך לידה (לא חובה) של הילדים שהוספת.</li>
+  <li>מזהי התראות (push token) של המכשירים שלך, כדי לשלוח לך התראות.</li>
+  <li>הודעות, הודעות צ'אט וברכות שכתבת בקהילה, ותמונה אחת לכל היותר לכל הודעה.</li>
+  <li>רישום של הסכמות שנתת, כדי שנדע מה הסכמת ומתי.</li>
+</ul>
+
+<h2>משפחות</h2>
+<p>כל חבר וגבאי בקהילה שייך למשפחה. משפחה יכולה לכלול בוגר אחד או שניים. קישור בין שני בוגרים נעשה בבקשה שהצד השני מאשר, או על ידי גבאי, ואז שניהם מקבלים הודעה ואפשר לבטל. כל אחד מהם יכול לנתק את הקישור בכל עת. את פרטי הילדים רואים הבוגרים במשפחה והגבאים של הקהילה. רק הבוגרים עורכים אותם.</p>
+
+<h2>רשימת הטלפונים</h2>
+<ul>
+  <li>הרשימה מציגה מספרי טלפון בלבד.</li>
+  <li>היא כבויה כברירת מחדל. כל בוגר מפעיל בעצמו מתג "להציג את הטלפון שלי ברשימה", לכל קהילה בנפרד, ויכול לכבות אותו בכל עת.</li>
+  <li>הרשימה גלויה רק לחברים מאושרים ולגבאים של אותה קהילה. מאזינים וקהילות אחרות לא רואים אותה.</li>
+  <li>הרשימה נטענת כשפותחים את המסך ונשמרת בזיכרון בלבד. היא לא נשמרת בטלפון, ואין בה העתקה או שיתוף.</li>
 </ul>
 
 <h2>מי רואה מה</h2>
 <ul>
-  <li>המידע של כל קהילה נפרד מזה של קהילות אחרות. חברי קהילה אחת אינם רואים מידע של קהילה אחרת.</li>
-  <li>ברכה פרטית גלויה רק למשפחה שאליה נשלחה ולמי שכתב אותה. גם הגבאים לא רואים אותה.</li>
-  <li>גבאי הקהילה יכולים לראות את ההודעות בקהילה שלהם ולמחוק אותן, חוץ מברכות פרטיות, שאותן הם לא רואים.</li>
+  <li>המידע של כל קהילה נפרד מזה של קהילות אחרות.</li>
+  <li>מאזינים רואים רק את מה שהקהילה פתחה להם. הם אינם משפחה ואינם ברשימת הטלפונים.</li>
+  <li>חברים רואים את ההודעות והערוצים שפתוחים להם בקהילה.</li>
+  <li>גבאים מנהלים את הקהילה: הם רואים ויכולים למחוק הודעות בקהילה שלהם.</li>
+  <li>ברכה פרטית גלויה רק לבוגרים במשפחה שאליה נשלחה ולמי שכתב אותה. גם הגבאים לא רואים אותה.</li>
 </ul>
 
 <h2>תמונות</h2>
 <p>תמונות מאוחסנות באחסון פרטי (Amazon S3), ללא כתובות ציבוריות. הצגת תמונה נעשית דרך קישור זמני התקף חמש דקות בלבד, ורק למי שמורשה לראות את ההודעה. כשהודעה נמחקת, גם התמונה שלה נמחקת.</p>
 
 <h2>מטמון חיפוש בטלפון</h2>
-<p>כדי לאפשר חיפוש גם בלי חיבור, האפליקציה שומרת בטלפון עותק של ההודעות שאתה רשאי לראות. ברכות פרטיות אינן נשמרות במטמון זה. העותק של קהילה נמחק כשאתה עוזב אותה, וכל העותקים נמחקים בהתנתקות.</p>
+<p>כדי לאפשר חיפוש גם בלי חיבור, האפליקציה שומרת בטלפון עותק של ההודעות שאתה רשאי לראות. ברכות פרטיות ורשימת הטלפונים אינן נשמרות בו. העותק של קהילה נמחק כשאתה עוזב אותה, וכל העותקים נמחקים בהתנתקות.</p>
 
 <h2>מחיקת חשבון</h2>
-<p>אפשר למחוק את החשבון בתוך האפליקציה. המחיקה מסירה את משתמש ההתחברות, את החברות שלך בקהילות, את מזהי ההתראות של המכשירים שלך, סימוני הקריאה שלך ואת בקשות התפילה לרפואה שהזנת. רשומות הרשימה הקהילתית שלך נשמרות בלי הפרטים האישיים, כדי שההיסטוריה של העליות תישאר תקינה. הודעות שכתבת נשארות בקהילה בלי שמך, ותמונות המצורפות אליהן נשארות איתן; גבאי יכול למחוק הודעה, ואז גם התמונה נמחקת.</p>
+<p>אפשר למחוק את החשבון בתוך האפליקציה. המחיקה מסירה את משתמש ההתחברות, את החברות שלך בקהילות, את הטלפון והמתגים שלך, את בקשות הקישור הממתינות, את מזהי ההתראות ואת רישום ההסכמות. אתה יוצא מהמשפחה, והבוגר האחר נשאר בה עם הילדים. ברירת המחדל: ההודעות שכתבת נשארות בקהילה בלי שמך. אפשר לסמן גם "למחוק את כל מה שפרסמתי", ואז כל ההודעות, הודעות הצ'אט והתגובות הפרטיות שכתבת נמחקות לכולם, יחד עם התמונות שלהן. ברכות שאחרים כתבו עליך נשארות בלי שמך, וגבאי יכול למחוק ברכה כזו לפי בקשה.</p>
+
+<h2>גיבויים</h2>
+<p>המסד מגובה (DynamoDB point-in-time recovery). מידע שנמחק נשאר בגיבויים עד 35 ימים, ואז נעלם.</p>
+
+<h2>להוריד את המידע שלי</h2>
+<p>במסך "אני" אפשר לבקש קובץ ZIP עם המידע שלך: הפרופיל, הטלפון, החברויות, המשפחה (שם בן הזוג בלבד והילדים), ההסכמות וכל מה שכתבת, עם התמונות שלך. הקישור תקף 10 דקות, ואפשר לבקש קובץ אחד ליום.</p>
+
+<h2>גיל מינימום</h2>
+<p>השירות מיועד לבני 13 ומעלה. בהגדרת הפרופיל צריך לסמן שאתה בן 13 או יותר.</p>
+
+<h2>ספקי משנה</h2>
+<ul>
+  <li>AWS: שרתים ואחסון, באזור ישראל (il-central-1).</li>
+  <li>Expo: שליחת התראות. הם מקבלים טקסטים כלליים בלבד (למשל "הודעה חדשה"), בלי תוכן ההודעה ובלי שמות.</li>
+  <li>Google ו-Apple: רק אם בחרת להתחבר איתם.</li>
+</ul>
 
 <h2>יצירת קשר</h2>
-<p>לשאלות בנושא פרטיות: &lt;privacy contact&gt;</p>
+<p>על המידע שלך בקהילה מסוימת: איש הקשר לפרטיות של הקהילה, באפליקציה ("על הקהילה"). על הפלטפורמה: {{PLATFORM_CONTACT}}</p>
+<p>ההסכם בין הקהילה לבין קהילות: <a href="/terms/">תנאי השימוש לקהילות</a>.</p>
 </section>
 
 <section lang="en" dir="ltr">
-<h1>Privacy policy – My Community</h1>
+<h1>Privacy policy – Kehilot</h1>
+<p class="ver">Updated 27 October 2026</p>
 
-<h2>What we store</h2>
+<h2>Who is responsible for the data</h2>
+<p>Each Kehila is responsible for its members' data. "Kehilot" runs the platform for the Kehilot and uses the data only to run it. Requests about your data in a particular Kehila go to that Kehila's privacy contact. It is shown in the app, in "About this Kehila" and in the Me screen.</p>
+
+<h2>What we store and why</h2>
 <ul>
   <li>Your email address, used to sign in. It is kept in the sign-in service (Amazon Cognito).</li>
-  <li>Your name, interface language and your community memberships (including your role in each). These are kept in the service database (Amazon DynamoDB), in an AWS region in Israel.</li>
-  <li>Push tokens of your devices, used to send notifications. Notifications are generic (for example "new message") and never contain message content.</li>
-  <li>Messages you write in a community, and at most one image attached to a message.</li>
+  <li>Your name, interface language and your Kehila memberships, including your role in each. These are kept in the service database (Amazon DynamoDB).</li>
+  <li>The mark that you are 13 or older, with the date and wording version.</li>
+  <li>A phone number, only if you enter it yourself. It is used only for the phone list (see below).</li>
+  <li>Family details: who the adults of the family are, and the first name, gender and (optional) birth date of the children you add.</li>
+  <li>Push tokens of your devices, used to send notifications.</li>
+  <li>Messages, chat messages and blessings you write in a Kehila, and at most one image per message.</li>
+  <li>A record of the consents you gave, so we know what you agreed to and when.</li>
+</ul>
+
+<h2>Families</h2>
+<p>Every member and gabbai of a Kehila belongs to a family. A family has one or two adults. Two adults are linked by a request that the other person confirms, or by a gabbai; both are told and the link can be undone. Either adult can unlink at any time. The children's details are seen by the family's adults and the Kehila's gabbaim. Only the adults edit them.</p>
+
+<h2>The phone list</h2>
+<ul>
+  <li>The list shows phone numbers only.</li>
+  <li>It is off by default. Each adult turns on their own switch, "show my phone in the list", separately for each Kehila, and can turn it off at any time.</li>
+  <li>It is visible only to approved members and gabbaim of that Kehila. Listeners and other Kehilot do not see it.</li>
+  <li>The list is loaded when the screen opens and kept in memory only. It is not stored on your phone, and there is no copy or share.</li>
 </ul>
 
 <h2>Who can see what</h2>
 <ul>
-  <li>Each community's data is separate from every other community's. Members of one community cannot see another's data.</li>
-  <li>A private blessing is visible only to the family it was sent to and to the person who wrote it. Gabbaim do not see it either.</li>
-  <li>A community's gabbaim can see and delete messages in their community, except private blessings, which they cannot see.</li>
+  <li>Each Kehila's data is separate from every other Kehila's.</li>
+  <li>Listeners see only what the Kehila has opened to them. They are not in families and not in the phone list.</li>
+  <li>Members see the messages and channels open to them in the Kehila.</li>
+  <li>Gabbaim run the Kehila: they can see and delete messages in their Kehila.</li>
+  <li>A private blessing is visible only to the adults of the family it was sent to and to the person who wrote it. Gabbaim do not see it either.</li>
 </ul>
 
 <h2>Images</h2>
 <p>Images are stored in private storage (Amazon S3) with no public addresses. An image is shown through a temporary link that is valid for five minutes and only for people allowed to see the message. When a message is deleted, its image is deleted too.</p>
 
 <h2>Search cache on your phone</h2>
-<p>To allow searching without a connection, the app keeps a copy of the messages you are allowed to see on your phone. Private blessings are not cached. A community's copy is deleted when you leave it, and all copies are deleted when you sign out.</p>
+<p>To allow searching without a connection, the app keeps a copy of the messages you are allowed to see on your phone. Private blessings and the phone list are not kept there. A Kehila's copy is deleted when you leave it, and all copies are deleted when you sign out.</p>
 
 <h2>Deleting your account</h2>
-<p>You can delete your account inside the app. Deletion removes your sign-in user, your community memberships, your devices' push tokens, your read marks and the healing-prayer entries you added. Your entries in the community roster are kept without personal details, so aliyah history stays consistent. Messages you wrote stay in the community with your name removed, and their images stay with them; a gabbai can delete a message, which also deletes its image.</p>
+<p>You can delete your account inside the app. Deletion removes your sign-in user, your Kehila memberships, your phone and switches, pending link requests, push tokens and consent records. You leave your family, and the other adult keeps it with the children. By default, messages you wrote stay in the Kehila without your name. You can also tick "delete everything I posted"; then all messages, chat messages and private replies you wrote are deleted for everyone, with their images. Blessings that others wrote about you stay without your name, and a gabbai can delete such a blessing on request.</p>
+
+<h2>Backups</h2>
+<p>The database is backed up (DynamoDB point-in-time recovery). Deleted data stays in backups for up to 35 days, then disappears.</p>
+
+<h2>Download my data</h2>
+<p>In the Me screen you can ask for a ZIP file with your data: your profile, phone, memberships, family (the partner's name only, and the children), consents, and everything you wrote, with your images. The link is valid for 10 minutes, and you can ask for one file per day.</p>
+
+<h2>Minimum age</h2>
+<p>The service is for people aged 13 or older. When you set up your profile you must tick that you are 13 or older.</p>
+
+<h2>Sub-processors</h2>
+<ul>
+  <li>AWS: servers and storage, in Israel (il-central-1).</li>
+  <li>Expo: sends notifications. It gets generic texts only (for example "new message"), with no message content and no names.</li>
+  <li>Google and Apple: only if you choose to sign in with them.</li>
+</ul>
 
 <h2>Contact</h2>
-<p>Privacy questions: &lt;privacy contact&gt;</p>
+<p>About your data in a particular Kehila: that Kehila's privacy contact, in the app ("About this Kehila"). About the platform: {{PLATFORM_CONTACT}}</p>
+<p>The agreement between a Kehila and Kehilot: <a href="/terms/">Kehila terms</a>.</p>
 </section>
 </main>
 </body>

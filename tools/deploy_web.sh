@@ -31,6 +31,9 @@ npm run export:web -- --clear
 [ -f "$DIST/index.html" ] || { echo "missing $DIST/index.html after export" >&2; exit 1; }
 # Checked before any sync: sync --delete would otherwise remove the live privacy page.
 [ -f "$DIST/privacy/index.html" ] || { echo "missing $DIST/privacy/index.html after export" >&2; exit 1; }
+[ -f "$DIST/terms/index.html" ] || { echo "missing $DIST/terms/index.html after export" >&2; exit 1; }
+# The platform contact is not in git: fill it into both pages; stops here (before any sync) when it is missing or invalid.
+python3 tools/fill_contact.py --env "$ENV_NAME" --dist "$DIST"
 API_URL="$(tf_out api_url)"
 if ! grep -rqF "${API_URL%/}" "$DIST/_expo/static/js"; then
   echo "the bundle does not contain the $ENV_NAME API URL; refusing to deploy" >&2
@@ -48,6 +51,10 @@ if [ -f "$DIST/privacy/index.html" ]; then
   aws s3 cp "$DIST/privacy/index.html" "s3://$BUCKET/privacy/index.html" \
     --content-type "text/html; charset=utf-8" --cache-control "no-cache"
 fi
+if [ -f "$DIST/terms/index.html" ]; then
+  aws s3 cp "$DIST/terms/index.html" "s3://$BUCKET/terms/index.html" \
+    --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+fi
 
 # 2. index.html next, so it never points at assets that are not uploaded yet.
 aws s3 cp "$DIST/index.html" "s3://$BUCKET/index.html" \
@@ -60,6 +67,6 @@ aws s3 sync "$DIST/_expo/static" "s3://$BUCKET/_expo/static" --delete \
   --cache-control "public,max-age=31536000,immutable"
 
 # 4. Invalidate the entry points.
-aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths /index.html /privacy /privacy/ '/privacy/*' >/dev/null
+aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths /index.html /privacy /privacy/ '/privacy/*' /terms /terms/ '/terms/*' >/dev/null
 
 echo "Deployed to $WEB_URL"
