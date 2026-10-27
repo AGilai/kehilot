@@ -1263,7 +1263,7 @@ The first Kehila's hall, shape only, from `~/work/gabay/design/mockups/phase2-se
 five blocks `R` ימין (x 21, 5 wide), `CR` מרכז ימין (x 16, 4), `C` מרכז (x 11, 4; seats in rows 4, 10–12; bimah rows
 6–8), `CL` מרכז שמאל (x 6, 4), `L` שמאל (x 0, 5); 205 seats. Shown to people as **row = index + 1** (1–14). **Seats
 have no numbers anywhere people look** (owner: "they mean nothing, at least in our Kehila") — a seat id is internal only;
-see §15.9. The ark is drawn above row 1. *The frames still draw this 205-seat shape; the real hall (225 seats, 6 blocks,
+see §15.9. The ark is drawn above row 1. *P24–P27 still draw this 205-seat shape (P28–P30, §16, draw the real hall); the real hall (225 seats, 6 blocks,
 ark at the front) is in the spec.*
 Blocks are always listed right to left (ימין → שמאל), as they stand.
 
@@ -1358,7 +1358,7 @@ After applying: success Banner at the top of the seat screen with "ביטול ה
 Undo restores every household the file changed, except ones that changed in the app since. A second upload for the same
 Shabbat first undoes the first.
 
-**Template — provisional** until the owner sends a sample of the old method's output (invented names):
+**Template — superseded by §16.6** (the real Form columns); kept for history:
 
 | Column | Meaning |
 |---|---|
@@ -1448,3 +1448,290 @@ mini legend in the chosen style, and the hint "נשמר במכשיר הזה…".
   "פנוי · לא מוקצה" — then at the end "ירוק = אפשר לשבת" (green), "ירוק = אפשר לשבת · אדום = תפוס" (green / red) or
   "צורות בלבד" (B/W), and "בלי שמות" / "עם שמות". The page title area does not repeat the style.
 - P26 shows the default at 62% and the three styles side by side at 40%, plus a colour table panel. Not checked on paper.
+
+## 16. Seating editor
+
+Added 2026-10-27 for the seat spec's "Per-Kehila hall layout and households without accounts", "The real workbook" and
+"Running beside the old method". Frames: `P28` (paste → check → match), `P29` (grid editing, assignments, effective
+date, history, conflicts, phone view), `P30` (link on registration, holders without an account), `P27` refreshed for the
+real Form columns (index section "ז"). Frames are generated from the spec's hall shape (225 seats, 6 blocks, bimah 4×3,
+ark at the front); every family name is invented (בדיוני, דוגמה, ניסיון…). Frame-only helper styles sit in each frame's
+`<style>`; nothing added to `shared.css`.
+
+**Where:** web only, desktop-first (designed at 1440; usable from 1024). Entry: management sidebar / Overview card
+"מפת המקומות", and from GD5 "עריכת המפה". Full-width page like P20 (`edk`: band 56, toolbar, body). **Phone: view
+only** — the whole hall with pinch zoom (names appear when zoomed in), a "משפחות" list with counts, Banner "עריכה
+באתר בלבד". Gabbaim only; members never reach this (§15.3: the member API returns only his block ±2).
+
+### 16.1 Terms
+
+| Term | Meaning |
+|---|---|
+| Cell | One grid position: **seat**, **aisle**, **bimah**, **ark** or **empty**. Bimah and ark are one merged cell of any size. |
+| Block | A named rectangle of columns (auto-detected from empty columns; listed right → left as they stand). |
+| Row label | Text per row, taken from the paste's number column (the real sheet: an unnumbered front row "ק" = קדמית, then 1–13). Editable. *Differs from §15.1's 1–14; the gabbai's own labels win.* |
+| Household | A registered family (app account) **or a seat holder without an account** (gabbai-created: name, optional phone). Both hold seats, appear on the map, can be released on behalf, and are matched by the responses upload. |
+| Count | A household's seats = the number of its cells. Seat ids are internal; never shown. |
+| Version | A saved map with an **effective date** (a Shabbat). Past Shabbatot keep the version they had. |
+
+### 16.2 Start (P28 frame 1)
+
+Empty state: title "מפת המקומות של בית הכנסת" and two cards.
+- **הדבקה מגיליון** (`Card edgeColor=tekhelet`, tag "מומלץ"): three numbered steps (open the Map tab · Ctrl/⌘+A,
+  Ctrl/⌘+C · come back and Ctrl/⌘+V), a 150-high dashed **paste target** (focusable button; paste works anywhere on the
+  page), and the cell grammar in one line. "Nothing is saved or linked until you confirm."
+- **בנייה מאפס**: rows × columns `Field`s (default 14 × 29 when nothing else is known), "יצירת רשת ריקה". The grid
+  opens in Layout mode (§16.4).
+
+**Parsing (what the editor does with a paste):**
+1. Read the clipboard's **HTML** flavour first (keeps merged cells: the bimah arrives as one 4×3 cell); fall back to
+   tab-separated text (a lone "בימה" then grows into the empty rectangle around it, flagged for checking).
+2. A cell is a **seat** if it matches `<family>[ <initial>.]-<n>` — also the bidi-flipped `<n>-` order the sheet shows —
+   or is exactly `פנוי`. `בימה` = bimah. Blank = aisle/empty. A column of plain numbers next to the grid = row labels.
+   Everything else (title, date, totals) is **ignored and listed** ("לא נקרא").
+3. Household key = family + initial ("בדיוני" and "בדיוני ש." are two keys). `n` is only the family's order; a gap or
+   duplicate is a **warning**, never a stop.
+4. Quirks: two names in one cell ("דמה / אלמוני") → a matching decision; two grids in the paste (ערב שבת / יום שבת) →
+   choose which is the map (ownership is one map; per-prayer state comes from releases), differing cells listed.
+   Nothing found → error Banner ("no seat cells; maybe the Form Responses tab? that goes to P27").
+5. Ark: not in the sheet → placed at the front, centred, labelled "ארון הקודש ?" until the gabbai confirms/moves it.
+
+### 16.3 Check and match (P28 frames 2–3)
+
+**Step row** (4 steps, `aria-current="step"`): הדבקה · בדיקת המפה · התאמת משפחות · שמירה.
+
+**Check:** the hall at "fit" (≈30 px cells, shapes only), legend (seat / פנוי / bimah / לבדיקה = 2 px gold border).
+Hover or focus a cell → the original cell text. Side panel 420: totals (seats, households, free, blocks, rows, bimah),
+gold warnings Banner with "הצגה" (jumps and focuses the cell), ark note, **block names** (one `Field` per detected block,
+right → left, placeholder "שם הגוש"), "לא נקרא (n)" disclosure. Primary "המשך להתאמת n משפחות".
+
+**Match:** every distinct household key gets a decision. Nothing is linked silently — not even exact matches.
+- Filter chips: הכול · להחלטה · התאמה מלאה · הצעות · לא נמצאו · לבדיקה; search.
+- **Exact matches** (one registered household with the same surname and the head's first initial) sit in an olive
+  Banner: "הצגת ה־n" (expands the rows) and **"אישור n ההתאמות"** — one deliberate act after seeing them.
+- Table rows (min 52): **בגיליון** (the pasted text in a mono chip) · **מקומות** (count) · **איפה** (blocks · rows) ·
+  **הצעה** (radio options with a 12.5 "why" line) · **החלטה** (אישור / אחר…; decided rows dim with an olive "אושר"
+  tag and "שינוי").
+- Suggestion rules: spelling variants (full/defective spelling, final א/ה, "משפחת" prefix, spaces, geresh), initial =
+  first letter of the head's (or spouse's) first name; registered households that already hold seats rank lower.
+  Several candidates → radios, none preselected unless one is clearly better.
+- **Not found** → default radio "מחזיק מקום חדש בלי חשבון" with name (prefilled "משפחת <family>") and optional phone,
+  or "קישור למשפחה רשומה…" (search). Same-surname siblings ("בדיוני" vs "בדיוני ש.") ask "same family?" — default
+  separate. Two-names cell → "the seat of A / of B / mark פנוי".
+- Side panel: the selected row's seats lit on a mini hall, the candidate's card (role, since, masked phone), "why".
+- Toolbar: "נשארו n מתוך N להחלטה" (polite live region), "שמירה כטיוטה", primary **"שמירת המפה"** disabled until n = 0
+  (`aria-disabled` + the count as its description). Saving goes through the save dialog (§16.5) with an effective date.
+
+### 16.4 Editing (P29)
+
+**Toolbar:** Segmented **שיבוץ משפחות / מבנה האולם** · effective-date button (gold outline, `cal`, "בתוקף מ־ שבת פרשת X ▾")
+· "היסטוריה" · undo / redo (40×40) · zoom ("התאמה למסך", 100%, 150%) · unsaved count (gold dot) · "ביטול השינויים" ·
+primary "שמירה". Band shows "גרסה n · נשמרה …".
+
+**Canvas:** the hall drawn LTR as the room (never mirrored, also in English), ark bar at the top, block names over the
+blocks (selected household's block in tekhelet), row labels both sides. Cells at 100%: 62×38, radius 7/4, 12.5 text:
+- seat of a household: surface + 1 px muted line + surname[ initial];
+- **פנוי**: 1.5 px dashed muted line + "פנוי";
+- selected household: tekhelet fill, "✓ name", bold;
+- picked (drag selection): 2 px dashed tekhelet outline;
+- changed since last save: 7 px gold dot in the start corner;
+- bimah / ark: merged, hatched / outlined, serif label. Aisle: faint vertical hatch, only in Layout mode.
+At "fit" cells show shapes only; names on hover/focus and in the side panel. Wide halls scroll horizontally; the side
+panel's mini hall shows the viewport rectangle.
+
+**Assign mode** (default):
+- Pick a household (side list or click one of its seats). Click a **free** seat → assign to it; click **its** seat →
+  פנוי; click **another household's** seat → dialog "המקום של X" (move to the selected household / mark פנוי). No seat
+  changes hands without that question.
+- Drag-select (or Shift+arrows) → floating dark bar: "n מקומות נבחרו · שיוך ל־<selected> · שיוך ל… · סימון פנוי ·
+  ביטול הבחירה".
+- **Move a family**: "העברת המשפחה…" → pick k seats; old seats show dashed + struck through until "אישור ההעברה".
+- Side panel 360: search, chips הכול · בלי מקום · בלי חשבון, household rows (count bubble 30, name, blocks; dashed bubble
+  for 0; "בלי חשבון" tag = 1 px dashed gold), the selected household's card (registered/no account, count "(היו n)",
+  pasted name, "העברת המשפחה…", "פינוי כל המקומות"), totals, mini hall.
+- Counts only. No seat numbers anywhere (owner: they mean nothing). Where a seat must be named in text: "<block> · שורה
+  <label> · מקום k מתוך n" (k = the family's own order, §15.9).
+
+**Layout mode:** same grid, no names; palette מושב · מעבר · בימה · ארון · ריק (keys S/A/B/K/Delete); "+ שורה מקדימה /
+מאחור", "+ עמודה", "הגדרת גוש…" (name a selected rectangle), "שם לשורה…". Turning an occupied seat into anything else
+warns with the households that lose a seat.
+
+### 16.5 Effective date, history, concurrency
+
+- **Save dialog:** a one-line diff ("3 שינויים: …"), **"בתוקף מ־"** select of Shabbatot, optional version note, Save.
+  Default = the first Shabbat **not yet open for release**. Picking a Shabbat that is open: info line "n households
+  already answered; their counts move to the new seats in order". Past Shabbatot are never changed.
+- **History** panel: versions newest first ("גרסה n · בתוקף מ־ … · when · who · n changes"; the draft on top).
+  Opening one is read-only with a band "בתוקף מ… עד…"; "שחזור" creates a new version from it with its own date.
+  Nothing is deleted. A scheduled future version shows a Banner on the editor ("יש גרסה מתוכננת מ־…").
+- **Concurrency:** the save sends the version it started from. If newer exists → dialog (gold edge, `alert`): "<name>
+  (גבאי) saved at 19:42, after you opened the map"; counts (theirs / yours / overlapping). Actions: primary **"החלת
+  השינויים שלי על הגרסה החדשה"** (non-conflicting changes apply; overlapping cells listed for choice), "הצגת השינויים
+  שלו/ה", danger-outline "שמירה בכל זאת (דריסה)" with a second confirm. Never a silent overwrite. Gabbai names are
+  fine here (gabbai-only screen).
+- Leaving with unsaved changes → the discard confirm (channel-sheet pattern). Drafts autosave locally per device.
+
+### 16.6 Responses upload — the real Form (P27 refresh)
+
+Replaces the provisional template in §15.6. The file is the Form's **responses tab** (CSV/XLSX; the whole tab is fine).
+- **Step 1 Upload:** Segmented **"התשובות הן ל־" שבת <parasha> / חג / מגילה** (which columns count), drop zone, "הורדת
+  תבנית (Excel)" = the same columns as the Form.
+- **Step 2 Columns:** recognised by keywords; one confirm, remembered per Kehila:
+
+| Form column (meaning) | Becomes |
+|---|---|
+| חותמת זמן | answer time; only answers since the last Shabbat ended count; the latest per household wins |
+| שם | household (matched) |
+| ערב שבת · seats I won't need | ערבית · **released** count |
+| יום שבת · seats I won't need | שחרית · released count |
+| חג · how many will be free | the חג event's released count |
+| מגילה · how many will be free | the מגילה event's released count |
+| נשים · בית הכנסת, גברים · אולם, נשים · אולם | **reservation requests** (counted areas, no map) |
+
+  The Form asks what is **not** needed: the import stores released counts, applied to the household's seats in its own
+  order (as the sheet does).
+- **Step 3 Match:** by phone if present, then name (same rules as §16.3), **including holders without an account**
+  (tag "בלי חשבון"). Duplicates: latest kept, earlier struck through. Older rows: "n older rows not read". A row that
+  releases seats must match a household that holds seats; a **request-only** row may be matched or created as a holder
+  without an account.
+- **Step 4 Preview:** "ישתנו n (m בלי חשבון) · בלי שינוי · דולגו · שגיאות"; errors (released > held) are not applied;
+  app-vs-file conflicts with chips **האפליקציה** (default) / **הקובץ**; a requests table per area (count, households).
+  Primary "החלת השינויים".
+- **Undo** until the Shabbat/event ends: restores every household the file changed (registered or not), removes its
+  requests; holders created by the upload stay (delete in P30). App changes made since are kept. A second upload for the
+  same event first undoes the first.
+
+### 16.7 Holders without an account and linking (P30)
+
+- **List** (editor tab "בלי חשבון · n"): table — household · phone (or —) · count · created (הדבקה / ידני / קובץ
+  תשובות, date) · link suggestion · actions. `more`: edit name/phone · link to a registered household… · show on map ·
+  delete record (seats return to פנוי; also used for a deletion request). "מחזיק מקום חדש" button.
+- **Suggestions** appear when a registering/registered household matches: **same phone** (strong) or **surname + head
+  initial** (weak, labelled "בלי טלפון להשוואה"). Shown in: the approval card (GM2/GD2, phone and web — a single
+  decision, so allowed on phone), the Overview, and an info Banner in this tab ("n הצעות קישור").
+- **Link panel:** both cards side by side (no account → registered), a "מה יקרה" Banner (seats move from now, including
+  an open Shabbat since the count doesn't change; on-behalf/file answers stay; the holder record closes; history says
+  "קושר"; the head gets a Home card), primary **"קישור והעברת המקומות"**, secondary "זו לא אותה משפחה" (hides that
+  suggestion for good). Never automatic, even on an exact phone match.
+- Registered household already holds seats → choose "add (n+m)" or "link and free the holder's seats".
+- After linking: olive Banner with "ביטול" (also from History); the member gets a one-time P7-queue card "המקומות שלכם
+  בבית הכנסת" → seat page (no gabbai name).
+- Privacy: holder records are personal data — gabbai-only, in deletion on request, never in pushes or logs. Phone shown
+  masked except in this list and the link panel.
+
+### 16.8 Components
+
+Reused: `Card`, `Txt`, `Button`, `Field`, `Segmented`, `Tag`, `Banner`, `Sheet`, `Toast`, `Icon`, `Chip` (filter),
+P20's `edk` page shell, P27's `ksrc`/step row. New:
+- **`HallGrid`** — renders a layout (cells, merged bimah/ark, blocks, row labels) at a zoom, in modes `assign` /
+  `layout` / `fit` / `readonly`; roving-focus grid; selection model (single, rectangle, Shift+arrows). Used by P28, P29,
+  phone view, and later by P26 print and P25's cut (one renderer for the room).
+- **`HouseholdList`** — searchable listbox with count bubble, tags, chips.
+- **`MatchTable`** — rows with radio candidates, reasons and decision; bulk-confirm Banner.
+- **`SelectionBar`** — floating actions for the current selection.
+- **`EffectiveDatePicker`** — Shabbat select (parasha + Hebrew date), marks open-for-release and scheduled ones.
+- **`VersionList`**, **`ConflictDialog`** (reusable for any versioned editor, incl. P20's 409).
+- **`StepRow`** — shared by P28 and P27.
+- Icons to add: `paste`, `undo`, `redo`, `hist`, `move`, `useradd`, `alert`, `zoom`, `link`, `chair`.
+
+Sizes: band 56 · toolbar controls 40 (desktop) · side panel 360 (assign) / 420 (check, link) · cells 62×38 at 100%,
+~30 at fit · household rows 52 · table rows ≥ 52 · count bubble 30 · paste target 150 high · focus ring 2 px tekhelet.
+Desktop targets ≥ 40 with 44 hit area; phone 48.
+
+### 16.9 Accessibility and keyboard
+
+- The hall is a `grid` (`role="grid"`, rows = hall rows, `aria-rowindex` with the row label as row header, blocks as
+  column-group labels). One tab stop; **arrows** move by cell (skipping nothing — aisles are focusable in Layout mode
+  only), **Home/End** row start/end, **PgUp/PgDn** front/back of the block.
+- Cell name: "ימין, שורה 3, בדיוני ש., מקום 2 מתוך 3" / "…, פנוי" / "בימה". Changed cells add ", שונה". Hidden from no
+  one (gabbai screen), unlike P25's others' seats.
+- **Space** toggles the cell in the selection; **Shift+arrows** extends a rectangle; **Enter** applies the primary
+  action (assign to the selected household / free if its own); **Delete** = mark פנוי (Layout: empty); **M** move
+  family; **Esc** clears selection, closes popovers, returns focus. Layout keys **S/A/B/K**.
+- **Ctrl/⌘+Z / Ctrl/⌘+Shift+Z** undo/redo, **Ctrl/⌘+S** save (opens the dialog), **Ctrl/⌘+F** or **/** household
+  search, **Ctrl/⌘+V** paste (start screen), **+ / −** zoom, **0** fit.
+- Matching: rows are a list with roving focus; **↑/↓** row, **Enter** confirm the selected candidate, **1–9** choose a
+  candidate, **N** new holder, **/** search.
+- Live regions (polite): unsaved count, "נשארו n להחלטה", results of actions ("2 מקומות שויכו למשפחת דוגמה י.,
+  עכשיו 5"). Dialogs trap focus and return it to the cell.
+- Drag is never the only way (Shift+arrows, "העברת המשפחה…", menu actions). Status never by colour alone: dashed =
+  free, ✓ + fill = selected household, gold dot + text "שונה" = unsaved, gold border + list = warning.
+- English: texts flip, the hall does not.
+
+### 16.10 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `seatmap.title` | מפת המקומות | Seat map |
+| `seatmap.empty` | עוד אין מפה לקהילה. אפשר להדביק את הטבלה שכבר יש לכם, או לבנות את האולם מאפס. | No seat map yet. Paste the chart you already have, or build the hall from scratch. |
+| `seatmap.paste` / `.pasteHint` | הדבקה מגיליון / מדביקים כאן את כל הלשונית. כותרות, מספרי שורות ותאים ריקים לא מפריעים. | Paste from a sheet / Paste the whole tab here. Titles, row numbers and empty cells are fine. |
+| `seatmap.pasteSteps` | פותחים את הגיליון בלשונית של המפה · בוחרים הכול ומעתיקים · חוזרים לכאן ומדביקים | Open the sheet at the map tab · Select all and copy · Come back and paste |
+| `seatmap.grammar` | משפחה-1 או משפחה ש.-2 = מקום של המשפחה · פנוי = מקום בלי משפחה · בימה · תא ריק = מעבר | Family-1 or Family S.-2 = the family's seat · פנוי = free · בימה = bimah · empty = aisle |
+| `seatmap.noLink` | שום דבר לא נשמר ושום משפחה לא מקושרת לפני שתאשרו. | Nothing is saved or linked until you confirm. |
+| `seatmap.scratch` / `.createGrid` | בנייה מאפס / יצירת רשת ריקה | Build from scratch / Create empty grid |
+| `seatmap.steps` | הדבקה · בדיקת המפה · התאמת משפחות · שמירה | Paste · Check the map · Match families · Save |
+| `seatmap.found` | מה נמצא · מקומות · משפחות · פנויים · גושים · שורות · בימה | Found · seats · families · free · blocks · rows · bimah |
+| `seatmap.checkWarn` | {n} תאים לבדיקה | {n} cells to check |
+| `seatmap.gap` | "{family}-{k}" חסר. אולי חסר מקום? | "{family}-{k}" is missing. A seat missing? |
+| `seatmap.twoNames` | שני שמות בתא אחד. בהתאמה תבחרו של מי המקום. | Two names in one cell. You'll choose whose seat it is when matching. |
+| `seatmap.arkGuess` | ארון הקודש לא מופיע בגיליון. שמנו אותו מקדימה, באמצע. | The ark isn't in the sheet. We placed it at the front, centred. |
+| `seatmap.notRead` | לא נקרא ({n}) | Not read ({n}) |
+| `seatmap.nothing` | לא מצאנו מקומות בהדבקה | We found no seats in what you pasted |
+| `seatmap.twoGrids` | נמצאו שתי מפות בלשונית. איזו מהן היא מפת המקומות? | Two maps in this tab. Which one is the seat map? |
+| `seatmap.match.intro` | כל שם בגיליון צריך להיות משויך למשפחה בקהילה: משפחה רשומה, או מחזיק מקום בלי חשבון. שום דבר לא מקושר בלי אישור שלכם. | Every name in the sheet needs a household: a registered family, or a seat holder without an account. Nothing is linked without you. |
+| `seatmap.match.exact` | {n} שמות תואמים בדיוק למשפחה אחת רשומה. עברו על הרשימה ואשרו אותם יחד. / אישור {n} ההתאמות | {n} names match exactly one registered family. Review and confirm them together. / Confirm {n} matches |
+| `seatmap.match.left` | נשארו {n} מתוך {total} להחלטה | {n} of {total} left to decide |
+| `seatmap.match.new` | מחזיק מקום חדש בלי חשבון | New seat holder without an account |
+| `seatmap.match.link` | קישור למשפחה רשומה… | Link to a registered family… |
+| `seatmap.match.same` | אותה משפחה: {household} / משפחה אחרת | Same family: {household} / A different family |
+| `seatmap.saveDraft` / `.saveMap` | שמירה כטיוטה / שמירת המפה | Save draft / Save map |
+| `seatmap.mode` | שיבוץ משפחות / מבנה האולם | Assign families / Hall layout |
+| `seatmap.effective` | בתוקף מ־ {shabbat} | Effective from {shabbat} |
+| `seatmap.selection` | {n} מקומות נבחרו · שיוך ל־{household} · שיוך ל… · סימון פנוי · ביטול הבחירה | {n} seats selected · Assign to {household} · Assign to… · Mark free · Clear |
+| `seatmap.othersSeat` | המקום של "{household}" · להעביר ל־{selected} · לפנות | "{household}"'s seat · Move to {selected} · Free it |
+| `seatmap.move` / `.moveConfirm` | העברת המשפחה… / אישור ההעברה | Move family… / Confirm move |
+| `seatmap.freeAll` | פינוי כל המקומות | Free all seats |
+| `seatmap.count` | {n} מקומות / מקום אחד / בלי מקום | {n} seats / One seat / No seat |
+| `seatmap.noAccount` | בלי חשבון | No account |
+| `seatmap.layoutTypes` | מושב · מעבר · בימה · ארון · ריק | Seat · Aisle · Bimah · Ark · Empty |
+| `seatmap.occupiedWarn` | {n} מהתאים שבחרתם תפוסים. {households} יאבדו מקום. המשך? | {n} selected cells are taken. {households} will lose a seat. Continue? |
+| `seatmap.saveDlg` | שמירת המפה · בתוקף מ־ · השבתות שכבר עברו נשארות כמו שהיו. · הערה לגרסה (לא חובה) | Save map · Effective from · Past Shabbatot stay as they were. · Version note (optional) |
+| `seatmap.openShabbat` | {n} משפחות כבר ענו לשבת הזו. הספירה שלהן תעבור למקומות החדשים לפי הסדר. | {n} households already answered for this Shabbat. Their counts move to the new seats in order. |
+| `seatmap.conflict` | יש גרסה חדשה יותר · {name} שמר/ה את המפה ב־{time}, אחרי שפתחתם אותה. | A newer version exists · {name} saved the map at {time}, after you opened it. |
+| `seatmap.conflictActions` | החלת השינויים שלי על הגרסה החדשה · הצגת השינויים · שמירה בכל זאת (דריסה) | Apply my changes to the new version · Show their changes · Save anyway (overwrite) |
+| `seatmap.history` | היסטוריה · גרסה {n} · בתוקף מ־{from} עד {to} · שחזור | History · Version {n} · Effective {from} to {to} · Restore |
+| `seatmap.webOnly` | עריכת המפה באתר בלבד. | The map is edited on the website only. |
+| `seatmap.holders` | מחזיקי מקומות בלי חשבון · מחזיק מקום חדש | Seat holders without an account · New seat holder |
+| `seatmap.linkSuggest` | אולי זו "{holder}" מהמפה? אותו טלפון. / אותו שם משפחה ואות ראשונה. | Could this be "{holder}" from the map? Same phone. / Same surname and initial. |
+| `seatmap.linkWhat` | מה יקרה · המקומות יעברו ל־{household} מהיום · דיווחים שכבר נעשו בשמם נשארים · הרשומה בלי חשבון תיסגר | What happens · The seats move to {household} from today · Answers already given for them stay · The no-account record closes |
+| `seatmap.link` / `.notThem` | קישור והעברת המקומות / זו לא אותה משפחה | Link and move seats / Not the same family |
+| `seatmap.linked` | קושר. המקומות עברו ל־{household}. ביטול | Linked. The seats moved to {household}. Undo |
+| `seatmap.memberCard` | המקומות שלכם בבית הכנסת · הגבאי חיבר לחשבון שלכם {n} מקומות. מעכשיו אפשר לעדכן כאן אם מגיעים בשבת. · למקומות שלי | Your seats in the synagogue · A gabbai connected {n} seats to your account. You can now tell us here if you're coming. · My seats |
+| `seats.upload.event` | התשובות הן ל־ · שבת {parasha} · חג · מגילה | These answers are for · Shabbat {parasha} · Holiday · Megillah |
+| `seats.upload.columns` | זיהינו את העמודות. בדקו פעם אחת; נזכור לפעם הבאה. | We recognised the columns. Check once; we'll remember. |
+| `seats.upload.released` | בטופס עונים כמה מקומות לא צריכים. זה מספר המשוחררים. | The Form asks how many seats aren't needed. That's the released count. |
+| `seats.upload.window` | {n} שורות מהשבוע. {old} שורות ישנות יותר לא נקראו. | {n} rows from this week. {old} older rows weren't read. |
+| `seats.upload.requests` | בקשות לשמירת מקומות · נשים · בית הכנסת · גברים · אולם · נשים · אולם | Seat requests · Women · synagogue · Men · hall · Women · hall |
+| `seats.upload.requestOnly` | שורה עם בקשה בלבד אפשר לשייך למשפחה חדשה בלי חשבון. | A request-only row can go to a new household without an account. |
+
+Block names in the frames (ימין, מרכז ימין, מרכז, מרכז שמאל, שמאל, ליד הקיר) are placeholders until the Kehila names
+them in the editor.
+
+### 16.11 Open points for the spec owner
+
+1. **Block names** for the 6 real blocks (the 2-column far-left block is "ליד הקיר" in the frames).
+2. **Row labels**: the sheet has an unnumbered front row + 1–13; §15.1 / P25 use 1–14. §16 keeps the gabbai's labels —
+   P25/P26 should follow (data, not index + 1).
+3. **Ark position** across the width (frames: centred over the middle block) — the sheet has no ark.
+4. **Release order** within a family: which seats a released count frees first (frames: the family's order, as the
+   sheet does — confirm which end).
+5. **Two grids** in the Map tab (one per prayer) vs one: the real workbook shows one; P28 handles both.
+6. **Counted areas** (נשים · בית הכנסת, גברים · אולם, נשים · אולם): capacities are unknown; P27 shows requests only.
+7. Whether a gabbai may choose an **open Shabbat** as the effective date (frames: allowed, with the warning).
+8. Linking when the registered family **already holds seats** (frames: ask add vs free).
+
+### 16.12 Verification
+
+Frames generated by a script from the spec's ASCII shape; the script asserts 225 seats, 80 invented households (1–6
+seats), 27 free; tag balance checked with a parser. Not rendered (no browser on this machine): check P28–P30 at 1440
+and 1280, dark mode, the phone view at 360, and P27's refreshed panels before building.
