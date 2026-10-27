@@ -116,3 +116,44 @@ test('stops on a non-retryable error, retries try_again', async () => {
   assert.equal(sum.counts.exists, 10);
   assert.deepEqual(sum.stopped, { code: 'forbidden', remaining: 5 });
 });
+
+test('physical line numbers: blank line and multi-line quoted cell before a bad row', () => {
+  const csv = `${HDR}\n\nA,"B\nC",a@x.org,,\nD,E,d@x.org,נשיא,\n`;
+  // file lines: 1 header, 2 blank, 3-4 record A, 5 bad role
+  assert.deepEqual(mapRows(parseCsv(csv)).problems, [{ line: 5, code: 'invalid_role' }]);
+});
+
+test('xlsx problem lines use the row r attribute', () => {
+  const sst = '<sst><si><t>שם פרטי</t></si><si><t>שם משפחה</t></si><si><t>אימייל</t></si><si><t>תפקיד</t></si></sst>';
+  const sheet = '<worksheet><sheetData>'
+    + '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c><c r="D1" t="s"><v>3</v></c></row>'
+    + '<row r="2"><c r="A2" t="inlineStr"><is><t>A</t></is></c><c r="B2" t="inlineStr"><is><t>B</t></is></c><c r="C2" t="inlineStr"><is><t>a@x.org</t></is></c></row>'
+    + '<row r="5"><c r="A5" t="inlineStr"><is><t>C</t></is></c><c r="B5" t="inlineStr"><is><t>D</t></is></c><c r="C5" t="inlineStr"><is><t>c@x.org</t></is></c><c r="D5" t="inlineStr"><is><t>נשיא</t></is></c></row>'
+    + '</sheetData></worksheet>';
+  const zip = zipSync({ 'xl/sharedStrings.xml': strToU8(sst), 'xl/worksheets/sheet1.xml': strToU8(sheet) });
+  assert.deepEqual(mapRows(readXlsx(zip)).problems, [{ line: 5, code: 'invalid_role' }]);
+});
+
+test('xlsx first tab is resolved through workbook.xml and its rels', () => {
+  const wb = '<workbook xmlns:r="x"><sheets><sheet name="Main" sheetId="2" r:id="rId7"/><sheet name="Other" sheetId="1" r:id="rId1"/></sheets></workbook>';
+  const rels = '<Relationships><Relationship Id="rId1" Type="t" Target="worksheets/sheet1.xml"/><Relationship Id="rId7" Type="t" Target="worksheets/sheet3.xml"/></Relationships>';
+  const mk = (v: string) => `<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>${v}</t></is></c></row></sheetData></worksheet>`;
+  const zip = zipSync({ 'xl/workbook.xml': strToU8(wb), 'xl/_rels/workbook.xml.rels': strToU8(rels), 'xl/worksheets/sheet1.xml': strToU8(mk('wrong')), 'xl/worksheets/sheet3.xml': strToU8(mk('right')) });
+  assert.deepEqual(readXlsx(zip), [['right']]);
+});
+
+test('delimiter detection ignores quoted text and finds tabs', () => {
+  assert.deepEqual(parseCsv('"a;b;c;d",e,f\n1,2,3'), [['a;b;c;d', 'e', 'f'], ['1', '2', '3']]);
+  assert.deepEqual(parseCsv('a\tb\tc\n1\t2\t3'), [['a', 'b', 'c'], ['1', '2', '3']]);
+});
+
+test('try_again backs off 1s, 2s, 4s; unmount stops the loop', async () => {
+  const waits: number[] = []; let calls = 0;
+  const sum = await runBatches(mk(1), [], async () => { calls++; throw Object.assign(new Error('x'), { code: 'try_again' }); }, () => {}, { sleep: async ms => { waits.push(ms); } });
+  assert.deepEqual(waits, [1000, 2000, 4000]);
+  assert.equal(sum.stopped?.code, 'try_again');
+  let stop = false; let sent = 0;
+  const s2 = await runBatches(mk(25), [], async b => { sent++; stop = true; return b.map((_, index): ImportResult => ({ index, status: 'created' })); }, () => {}, { shouldStop: () => stop });
+  assert.equal(sent, 1);
+  assert.equal(s2.stopped?.code, 'aborted');
+});

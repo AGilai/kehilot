@@ -8,7 +8,7 @@ import type { ImportRow } from '../../client/types.ts';
 import { config } from '../../config.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
-import { checkGroups, decodeCsv, mapRows, parseCsv, readXlsx, runBatches, type ImportSummary, type Problem } from '../../import/parse.ts';
+import { checkGroups, decodeCsv, mapRows, parseCsv, readXlsx, runBatches, MAX_FILE_BYTES, type ImportSummary, type Table, type Problem } from '../../import/parse.ts';
 import { BackLink } from '../Me.tsx';
 import { Tag, useAdminErrText } from './shared.tsx';
 
@@ -25,7 +25,8 @@ const FIXTURE_TABLE = [
 
 type Parsed = { rows: ImportRow[]; lines: number[]; problems: Problem[] };
 
-async function readFile(file: File): Promise<string[][]> {
+async function readFile(file: File): Promise<Table> {
+  if (file.size > MAX_FILE_BYTES) throw new Error('too_big');
   const bytes = new Uint8Array(await file.arrayBuffer());
   return /\.xlsx$/i.test(file.name) ? readXlsx(bytes) : parseCsv(decodeCsv(bytes));
 }
@@ -47,7 +48,7 @@ export function Import({ onBack }: { onBack: () => void }) {
   React.useEffect(() => () => { mounted.current = false; }, []);
 
   const groupNames = React.useRef<string[] | null>(null);
-  const accept = React.useCallback(async (table: string[][]) => {
+  const accept = React.useCallback(async (table: Table) => {
     const m = mapRows(table);
     let problems = m.problems;
     if (m.rows.some(r => r.groups?.length)) {
@@ -78,7 +79,7 @@ export function Import({ onBack }: { onBack: () => void }) {
       const file = input.files?.[0];
       if (!file) return;
       setFileError(null); setSummary(null); setStopText(null); setParsed(null);
-      try { await accept(await readFile(file)); } catch { if (mounted.current) setFileError(t('admin.import.readError')); }
+      try { await accept(await readFile(file)); } catch (e) { if (mounted.current) setFileError(t((e as Error).message === 'too_big' ? 'admin.import.tooBig' : 'admin.import.readError')); }
     };
     input.click();
   }
@@ -87,7 +88,7 @@ export function Import({ onBack }: { onBack: () => void }) {
     if (!parsed || parsed.rows.length === 0) return;
     const { rows, lines } = parsed;
     setSummary(null); setStopText(null); setProgress({ done: 0, total: rows.length });
-    const sum = await runBatches(rows, lines, async b => (await api.importRows(kehilaId, b)).results, (done, total) => { if (mounted.current) setProgress({ done, total }); });
+    const sum = await runBatches(rows, lines, async b => (await api.importRows(kehilaId, b)).results, (done, total) => { if (mounted.current) setProgress({ done, total }); }, { shouldStop: () => !mounted.current });
     if (!mounted.current) return;
     setSummary(sum); setProgress(null); setParsed(null); // drop the rows once sent
     if (sum.stopped) setStopText(t('admin.import.stopped', { why: sum.stopped.code === 'skipped_too_long' ? t('admin.import.stoppedSkipped') : errText({ code: sum.stopped.code }), n: sum.stopped.remaining }));

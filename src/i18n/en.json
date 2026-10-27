@@ -759,7 +759,8 @@
       },
       "stopped": "The import stopped: {why}. {n} rows were not sent; load the file and try again (rows already imported will show as existing).",
       "stoppedSkipped": "the server could not get to the rows",
-      "note": "People sign in with \"forgot password\" or with Google/Apple. The import sends no email."
+      "note": "People sign in with \"forgot password\" or with Google/Apple. The import sends no email.",
+      "tooBig": "The file is too large (up to 2 MB)."
     }
   }
 }

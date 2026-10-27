@@ -3,6 +3,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import type { Classification, ImportResult, ImportRow, Role } from '../client/types.ts';
 
 export const IMPORT_MAX_ROWS = 10;
+export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_GROUPS = 20;
 
 export const HEADERS = {
@@ -14,6 +15,13 @@ export const HEADERS = {
   groups: ['קבוצות', 'קבוצה', 'groups', 'group'],
 } as const;
 
+/** Rows of a file; `lines[i]` (non-enumerable) is the physical line / row number of `rows[i]` as the user sees it. */
+export type Table = string[][] & { lines?: number[] };
+function withLines(rows: string[][], lines: number[]): Table {
+  Object.defineProperty(rows, 'lines', { value: lines, enumerable: false });
+  return rows;
+}
+
 export type Problem = { line: number; code: string };
 
 export function decodeCsv(bytes: Uint8Array): string {
@@ -23,31 +31,43 @@ export function decodeCsv(bytes: Uint8Array): string {
   catch { return new TextDecoder('windows-1255').decode(bytes); }
 }
 
-export function parseCsv(text: string): string[][] {
-  const src = text.replace(/^﻿/, '');
-  const firstLine = src.split(/\r\n|\n|\r/, 1)[0] ?? '';
-  const delim = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ';' : ',';
-  const rows: string[][] = [];
+function detectDelimiter(src: string): string {
+  const counts: Record<string, number> = { ',': 0, ';': 0, '\t': 0 };
+  let quoted = false;
+  for (const c of src) {
+    if (c === '"') quoted = !quoted;
+    else if (!quoted && (c === '\n' || c === '\r')) break;
+    else if (!quoted && c in counts) counts[c]!++;
+  }
+  return counts[';']! > counts[',']! && counts[';']! >= counts['\t']! ? ';' : counts['\t']! > counts[',']! ? '\t' : ',';
+}
+
+export function parseCsv(text: string): Table {
+  const src = text.replace(/^\uFEFF/, '');
+  const delim = detectDelimiter(src);
+  const rows: string[][] = []; const lineNos: number[] = [];
+  let line = 1; let startLine = 1;
   let row: string[] = []; let cell = ''; let quoted = false; let wasQuoted = false;
   const endCell = () => { row.push(cell); cell = ''; wasQuoted = false; };
   const endRow = () => {
     endCell();
-    if (row.some(c => c.trim() !== '')) rows.push(row);
+    if (row.some(c => c.trim() !== '')) { rows.push(row); lineNos.push(startLine); }
     row = [];
+    startLine = line;
   };
   for (let i = 0; i < src.length; i++) {
     const c = src[i]!;
     if (quoted) {
       if (c === '"') { if (src[i + 1] === '"') { cell += '"'; i++; } else quoted = false; }
-      else cell += c;
+      else { cell += c; if (c === '\n') line++; }
     } else if (c === '"' && cell === '' && !wasQuoted) { quoted = true; wasQuoted = true; }
     else if (c === delim) endCell();
-    else if (c === '\r') { if (src[i + 1] === '\n') i++; endRow(); }
-    else if (c === '\n') endRow();
+    else if (c === '\r') { if (src[i + 1] === '\n') i++; line++; endRow(); }
+    else if (c === '\n') { line++; endRow(); }
     else cell += c;
   }
   if (cell !== '' || row.length > 0) endRow();
-  return rows;
+  return withLines(rows, lineNos);
 }
 
 function unescapeXml(s: string): string {
@@ -64,17 +84,29 @@ function colIndex(ref: string): number {
   return n - 1;
 }
 
-export function readXlsx(bytes: Uint8Array): string[][] {
+export function readXlsx(bytes: Uint8Array): Table {
   const files = unzipSync(bytes);
   const sstFile = files['xl/sharedStrings.xml'];
   const strings = sstFile ? [...strFromU8(sstFile).matchAll(/<si(?:\s[^>]*)?>([\s\S]*?)<\/si>/g)].map(m => textOf(m[1]!)) : [];
-  const sheet = files['xl/worksheets/sheet1.xml'];
-  if (!sheet) return [];
-  const out: string[][] = [];
-  for (const rm of strFromU8(sheet).matchAll(/<row(?:\s[^>]*)?>([\s\S]*?)<\/row>/g)) {
+  let path = 'xl/worksheets/sheet1.xml';
+  const wb = files['xl/workbook.xml']; const rels = files['xl/_rels/workbook.xml.rels'];
+  if (wb && rels) {
+    const rid = /<sheet\b[^>]*?\br:id="([^"]*)"/.exec(strFromU8(wb))?.[1];
+    for (const m of strFromU8(rels).matchAll(/<Relationship\b[^>]*>/g)) {
+      if (rid && new RegExp(`\\bId="${rid}"`).test(m[0])) {
+        const target = /\bTarget="([^"]*)"/.exec(m[0])?.[1];
+        if (target) path = target.startsWith('/') ? target.slice(1) : `xl/${target}`;
+      }
+    }
+  }
+  const sheet = files[path] ?? files['xl/worksheets/sheet1.xml'];
+  if (!sheet) return withLines([], []);
+  const out: string[][] = []; const lineNos: number[] = []; let rowNo = 0;
+  for (const rm of strFromU8(sheet).matchAll(/<row(\s[^>]*)?>([\s\S]*?)<\/row>/g)) {
+    rowNo = Number(/\br="(\d+)"/.exec(rm[1] ?? '')?.[1]) || rowNo + 1;
     const cells: string[] = [];
     let next = 0;
-    for (const cm of rm[1]!.matchAll(/<c(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+    for (const cm of rm[2]!.matchAll(/<c(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/c>)/g)) {
       const attrs = cm[1] ?? ''; const inner = cm[2] ?? '';
       const ref = /\br="([A-Za-z]+\d*)"/.exec(attrs)?.[1];
       const idx = ref ? colIndex(ref) : next;
@@ -88,9 +120,9 @@ export function readXlsx(bytes: Uint8Array): string[][] {
       cells[idx] = val;
       next = idx + 1;
     }
-    if (cells.some(c => c.trim() !== '')) out.push(cells);
+    if (cells.some(c => c.trim() !== '')) { out.push(cells); lineNos.push(rowNo); }
   }
-  return out;
+  return withLines(out, lineNos);
 }
 
 const ROLES: Record<string, Role> = { 'אורח': 'listener', listener: 'listener', 'חבר': 'member', member: 'member', 'גבאי': 'gabbai', gabbai: 'gabbai' };
@@ -100,15 +132,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export type MappedRows = { rows: ImportRow[]; lines: number[]; problems: Problem[] };
 
 /** `lines[i]` is the 1-based line (row of the table, header = 1) of `rows[i]`. */
-export function mapRows(table: string[][]): MappedRows {
+export function mapRows(table: Table): MappedRows {
   const head = (table[0] ?? []).map(h => h.trim().toLowerCase());
   const col = (names: readonly string[]) => head.findIndex(h => names.includes(h));
   const idx = Object.fromEntries((Object.keys(HEADERS) as (keyof typeof HEADERS)[]).map(key => [key, col(HEADERS[key])])) as Record<keyof typeof HEADERS, number>;
-  if (idx.firstName < 0 || idx.lastName < 0 || idx.email < 0) return { rows: [], lines: [], problems: [{ line: 1, code: 'missing_column' }] };
+  if (idx.firstName < 0 || idx.lastName < 0 || idx.email < 0) return { rows: [], lines: [], problems: [{ line: table.lines?.[0] ?? 1, code: 'missing_column' }] };
   const rows: ImportRow[] = []; const lines: number[] = []; const problems: Problem[] = [];
   const seen = new Set<string>();
   for (let i = 1; i < table.length; i++) {
-    const line = i + 1; const r = table[i]!;
+    const line = table.lines?.[i] ?? i + 1; const r = table[i]!;
     const get = (c: number) => (c >= 0 ? (r[c] ?? '').trim() : '');
     const firstName = get(idx.firstName); const lastName = get(idx.lastName); const email = get(idx.email).toLowerCase();
     const roleText = get(idx.role).toLowerCase();
@@ -157,20 +189,23 @@ export async function runBatches(
   rows: ImportRow[], lines: number[],
   send: (batch: ImportRow[]) => Promise<ImportResult[]>,
   onProgress: (done: number, total: number) => void,
+  opts: { shouldStop?: () => boolean; sleep?: (ms: number) => Promise<void> } = {},
 ): Promise<ImportSummary> {
   const counts = { created: 0, added: 0, upgraded: 0, skipped: 0, exists: 0, invalid: 0 };
   const invalid: Problem[] = [];
   let queue = rows.map((row, i) => ({ row, line: lines[i] ?? i + 2 }));
   let done = 0; let skipRounds = 0;
   onProgress(0, rows.length);
+  const sleep = opts.sleep ?? (ms => new Promise<void>(r => setTimeout(r, ms)));
   while (queue.length) {
+    if (opts.shouldStop?.()) return { counts, invalid, stopped: { code: 'aborted', remaining: queue.length } };
     const batch = queue.slice(0, IMPORT_MAX_ROWS);
     let results: ImportResult[] | null = null;
     for (let attempt = 0; results === null; attempt++) {
       try { results = await send(batch.map(b => b.row)); }
       catch (e) {
         const code = (e as { code?: unknown } | null)?.code;
-        if (code === 'try_again' && attempt < 3) continue;
+        if (code === 'try_again' && attempt < 3) { await sleep(1000 * 2 ** attempt); continue; }
         return { counts, invalid, stopped: { code: typeof code === 'string' ? code : 'network', remaining: queue.length } };
       }
     }
