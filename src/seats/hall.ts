@@ -24,8 +24,6 @@ export type SeatRef = { block: BlockId; row: number; col: number };
 export const ARK_SIDE = 'front' as const;
 /** The front row is row 0 and carries no number; rows 1-13 are numbered as they are. */
 export const FRONT_ROW = 0;
-/** PROVISIONAL (not in the workbook, still to confirm): seats are numbered from the right inside their row, as people sit. */
-export const SEAT_NUMBERING: 'from-right' | 'from-left' = 'from-right';
 
 /** The one table of block names, right to left. */
 export const BLOCK_NAMES: { id: BlockId; he: string; en: string }[] = [
@@ -96,12 +94,6 @@ export function hasSeat(hall: Hall, s: SeatRef): boolean {
 /** Every seat, blocks right to left, rows top to bottom, columns left to right. */
 export function allSeats(hall: Hall): SeatRef[] {
   return hall.blocks.flatMap(b => Object.keys(b.rows).map(Number).sort((a, c) => a - c).flatMap(row => b.rows[row]!.map(col => ({ block: b.id, row, col }))));
-}
-
-/** The seat's number inside its row (1-based), counted from the right unless SEAT_NUMBERING says otherwise. */
-export function seatNumber(hall: Hall, s: SeatRef): number {
-  const cols = blockOf(hall, s.block)?.rows[s.row] ?? [];
-  return SEAT_NUMBERING === 'from-right' ? cols.filter(c => c > s.col).length + 1 : cols.filter(c => c < s.col).length + 1;
 }
 
 /** First and last row that hold a seat or the bimah in the block. */

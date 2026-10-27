@@ -1230,7 +1230,6 @@
     "toArk": "↑ Toward the ark",
     "coming": "Coming",
     "notComing": "Not coming",
-    "seatNo": "Seat {n}",
     "legendComing": "Coming",
     "legendFree": "Not coming · free for others",
     "legendOthers": "Other people's seats",
@@ -1250,8 +1249,8 @@
     "discardBody": "You marked seats and did not save.",
     "discardYes": "Discard changes",
     "discardKeep": "Keep editing",
-    "seatLabelComing": "{block}, row {row}, seat {n}, coming",
-    "seatLabelFree": "{block}, row {row}, seat {n}, not coming",
+    "seatLabelComing": "{block}, row {row}, place {k} of {n}, coming",
+    "seatLabelFree": "{block}, row {row}, place {k} of {n}, not coming",
     "print": {
       "link": "Hall map to print",
       "title": "Print the hall map",
@@ -1277,6 +1276,14 @@
       "legendFree": "Free · not allocated",
       "noNames": "No names",
       "withNames": "With names",
+      "style": "Style",
+      "styleGreen": "Green for free",
+      "styleGreenRed": "Green / red",
+      "styleBw": "Black & white",
+      "styleNote": "Remembered on this device. Shapes and labels are the same in every style.",
+      "noteGreen": "Green = can be used",
+      "noteGreenRed": "Green = can be used · red = taken",
+      "noteBw": "Shapes only",
       "fixture": "Sample data · preview"
     }
   },

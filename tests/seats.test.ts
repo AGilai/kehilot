@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ARK_SIDE, BLOCK_NAMES, FRONT_ROW, HALL, HALL_GRID, allSeats, seatKey, seatNumber } from '../src/seats/hall.ts';
+import { ARK_SIDE, BLOCK_NAMES, FRONT_ROW, HALL, HALL_GRID, allSeats, seatKey } from '../src/seats/hall.ts';
 import type { SeatRef } from '../src/seats/hall.ts';
 import { blockFrames, memberView } from '../src/seats/frame.ts';
 import type { Allocation } from '../src/seats/frame.ts';
 import { cardWindow, israelInstant, seatCardState, shabbatFriday } from '../src/seats/window.ts';
 import { printModel } from '../src/seats/printModel.ts';
+import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, parsePrintStyle, seatFill } from '../src/seats/printStyle.ts';
+import he from '../src/i18n/he.json' with { type: 'json' };
+import en from '../src/i18n/en.json' with { type: 'json' };
 import { releaseCounts, toggleRelease } from '../src/seats/release.ts';
 import { seatPrintAllowed, seatScreenFor } from '../src/seats/access.ts';
 import { fixtureSeatHall, fixtureMemberSeats } from '../src/client/fixtures.ts';
@@ -39,10 +42,54 @@ test('hall: the grid is the spec shape (bimah 4x3 cells, front row 0 is unnumber
   assert.equal(FRONT_ROW, 0);
 });
 
-test('seat numbers run from the right inside the row', () => {
-  assert.deepEqual([3, 2, 1, 0].map(c => seatNumber(HALL, ref('CR', 6, c))), [1, 2, 3, 4]);
-  // The front row of the right block has only columns 0-2.
-  assert.deepEqual([2, 1, 0].map(c => seatNumber(HALL, ref('R', 0, c))), [1, 2, 3]);
+test('seat numbers are internal: no numbering constant or helper is exported from the hall', async () => {
+  const hall = await import('../src/seats/hall.ts');
+  assert.equal('SEAT_NUMBERING' in hall, false);
+  assert.equal('seatNumber' in hall, false);
+});
+
+test('member view: cells carry only the family order (k of n), never a seat number', () => {
+  const view = memberView(HALL, [{ householdId: 'h', name: 'x', seats: [ref('CR', 6, 0), ref('R', 3, 4), ref('R', 3, 2), ref('R', 1, 0)] }], 'h');
+  const mine = view.frames.flatMap(f => f.rows.flatMap(r => r.cells)).filter(c => c.kind === 'mine') as unknown as Record<string, unknown>[];
+  assert.equal(mine.length, 4);
+  assert.ok(mine.every(c => !('seatNo' in c) && !('number' in c)));
+  // Block right to left, row front to back, then right to left in the row: R1/0, R3/4, R3/2, CR6/0.
+  assert.deepEqual(mine.map(c => [c.key, c.k, c.n]).sort((a, b) => (a[1] as number) - (b[1] as number)),
+    [['R:1:0', 1, 4], ['R:3:4', 2, 4], ['R:3:2', 3, 4], ['CR:6:0', 4, 4]]);
+});
+
+test('screen-reader labels say "place k of n" and never "seat N"', () => {
+  for (const [lang, d] of [['he', he], ['en', en]] as const) {
+    const seats = d.seats as unknown as Record<string, string>;
+    for (const key of ['seatLabelComing', 'seatLabelFree']) {
+      assert.ok(seats[key]!.includes('{k}') && seats[key]!.includes('{n}'), `${lang} ${key}`);
+      assert.ok(!/כיסא|seat \d|seat \{/i.test(seats[key]!), `${lang} ${key}`);
+    }
+    assert.equal('seatNo' in seats, false);
+  }
+});
+
+test('print styles: fills per state follow the designer table, shapes never change', () => {
+  assert.deepEqual(PRINT_STYLES, ['green', 'greenRed', 'bw']);
+  assert.equal(PRINT_STYLE_DEFAULT, 'green');
+  assert.equal(PRINT_STYLE_KEY, 'kehilot.seatPrintStyle');
+  assert.deepEqual(['taken', 'released', 'free'].map(s => seatFill('green', s as 'taken')), ['#EBEBEB', '#9ED8AA', '#57B46C']);
+  assert.deepEqual(['taken', 'released', 'free'].map(s => seatFill('greenRed', s as 'taken')), ['#DB5B56', '#9ED8AA', '#57B46C']);
+  assert.deepEqual(['taken', 'released', 'free'].map(s => seatFill('bw', s as 'taken')), ['#C8C8C8', '#FFFFFF', '#FFFFFF']);
+});
+
+test('print style: a stored choice falls back to the default when missing or unknown', () => {
+  assert.equal(parsePrintStyle('bw'), 'bw');
+  assert.equal(parsePrintStyle('greenRed'), 'greenRed');
+  for (const bad of [null, undefined, '', 'red', 'GREEN', '{"a":1}']) assert.equal(parsePrintStyle(bad), 'green');
+});
+
+test('print style copy exists in both languages', () => {
+  for (const d of [he, en]) {
+    const p = d.seats.print as unknown as Record<string, string>;
+    for (const key of ['style', 'styleGreen', 'styleGreenRed', 'styleBw', 'styleNote', 'noteGreen', 'noteGreenRed', 'noteBw']) assert.ok(p[key], key);
+  }
+  assert.equal((he.seats.print as Record<string, string>).styleGreen, 'ירוק לפנויים');
 });
 
 const rowsOf = (f: { rows: { row: number }[] }) => f.rows.map(r => r.row);

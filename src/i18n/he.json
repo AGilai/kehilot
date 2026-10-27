@@ -1230,7 +1230,6 @@
     "toArk": "↑ לכיוון ארון הקודש",
     "coming": "מגיע",
     "notComing": "לא מגיע",
-    "seatNo": "כיסא {n}",
     "legendComing": "מגיע",
     "legendFree": "לא מגיע · פנוי לאחרים",
     "legendOthers": "מקומות של אחרים",
@@ -1250,8 +1249,8 @@
     "discardBody": "סימנתם מקומות ולא שמרתם.",
     "discardYes": "ביטול השינויים",
     "discardKeep": "להמשיך לעדכן",
-    "seatLabelComing": "{block}, שורה {row}, כיסא {n}, מגיע",
-    "seatLabelFree": "{block}, שורה {row}, כיסא {n}, לא מגיע",
+    "seatLabelComing": "{block}, שורה {row}, מקום {k} מתוך {n}, מגיע",
+    "seatLabelFree": "{block}, שורה {row}, מקום {k} מתוך {n}, לא מגיע",
     "print": {
       "link": "מפת האולם להדפסה",
       "title": "הדפסת מפת האולם",
@@ -1277,6 +1276,14 @@
       "legendFree": "פנוי · לא מוקצה",
       "noNames": "בלי שמות",
       "withNames": "עם שמות",
+      "style": "סגנון",
+      "styleGreen": "ירוק לפנויים",
+      "styleGreenRed": "ירוק / אדום",
+      "styleBw": "שחור־לבן",
+      "styleNote": "נשמר במכשיר הזה. הצורות והכיתובים זהים בכל סגנון.",
+      "noteGreen": "ירוק = אפשר לשבת",
+      "noteGreenRed": "ירוק = אפשר לשבת · אדום = תפוס",
+      "noteBw": "צורות בלבד",
       "fixture": "נתוני דוגמה · תצוגה מקדימה"
     }
   },

@@ -141,13 +141,12 @@ function Row({ row, frame, released, locked, onTap }: { row: FrameRow; frame: Fr
         if (c.kind === 'gap' || c.kind === 'bimah') return <View key={i} style={tile} />;
         if (c.kind === 'other') return <View key={i} aria-hidden importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={[tile, { backgroundColor: k.line }]} />;
         const free = released.has(c.key);
-        const a11y = t(free ? 'seats.seatLabelFree' : 'seats.seatLabelComing', { block: frame.blockName, row: row.label ?? t('seats.frontShort'), n: c.seatNo });
+        const a11y = t(free ? 'seats.seatLabelFree' : 'seats.seatLabelComing', { block: frame.blockName, row: row.label ?? t('seats.frontShort'), k: c.k, n: c.n });
         return (
           <Pressable key={i} accessibilityRole="switch" accessibilityState={{ checked: !free, disabled: locked }} accessibilityLabel={a11y} disabled={locked} onPress={() => onTap(c.key)}
             style={[tile, { alignItems: 'center', justifyContent: 'center', borderWidth: 2, opacity: locked ? 0.75 : 1 },
               free ? { backgroundColor: k.surface, borderStyle: 'dashed', borderColor: k.tekhelet } : { backgroundColor: k.tekhelet, borderColor: k.tekhelet }]}>
             <Txt size="caption" bold color={free ? k.tekhelet : k.onAction} style={{ textAlign: 'center', lineHeight: 16, fontFamily: fonts.uiBold }}>{free ? t('seats.notComing') : `✓ ${t('seats.coming')}`}</Txt>
-            <Txt size="caption" color={free ? k.tekhelet : k.onAction} style={{ textAlign: 'center', lineHeight: 15, fontSize: 11.5 }}>{t('seats.seatNo', { n: c.seatNo })}</Txt>
           </Pressable>
         );
       })}
