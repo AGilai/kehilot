@@ -7,6 +7,7 @@ import { useErrorText } from './views/auth/Frame.tsx';
 import { AuthProvider, setPushToken, useAuth } from './auth/AuthProvider.tsx';
 import { config } from './config.ts';
 import { fixtureParams } from './client/fixtures.ts';
+import { mainKey } from './client/navReset.ts';
 import { rememberOnIntent } from './client/links.ts';
 import { pendingInvite } from './client/pendingStore.ts';
 import { listenForPush, registerPush, takePushTarget } from './client/push.ts';
@@ -131,7 +132,7 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const banner = state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null;
   const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} onManage={() => { setSwitcher(false); manageReq.current = Date.now(); setManageSignal(n => n + 1); }} />;
   if (route === 'ready' && state.kehila && state.kehila.role !== 'listener') {
-    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} manageSignal={manageSignal} takeManage={takeManage} />{sheet}</>;
+    return <><Main key={mainKey(state.kehilaId)} onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} manageSignal={manageSignal} takeManage={takeManage} />{sheet}</>;
   }
   // A listener's Me: only the name, the language, sign out and delete.
   if (meOpen && route === 'ready' && state.kehila?.role === 'listener') {
