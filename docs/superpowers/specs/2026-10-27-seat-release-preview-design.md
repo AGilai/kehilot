@@ -162,3 +162,19 @@ a toggle: black-white, only green for free, and green-red?" → the gabbai print
 **green for free** (default: released + free filled green, taken light grey), **green / red** (free
 green, taken red), **black & white** (shapes only). Shapes and labels stay in every style (B/W printers,
 colour-blindness). The choice is remembered per gabbai device. Colours by the designer (contrast-checked).
+
+## CTO rulings on the seating-editor design questions (UX §16.11, 2026-10-27)
+
+1. **Block names**: defaults ימין, מרכז ימין, מרכז, מרכז שמאל, שמאל, צד שמאל (right→left as seen facing the
+   ark); the gabbai can rename in the editor.
+2. **Row labels**: the sheet's own — "קדמית" (front row) then 1–13 — everywhere (member page, print, editor).
+3. **Ark**: centred across the width at the front by default; the editor may mark ark cells later.
+4. **A released count** (from the Form upload or a gabbai entering a number) frees the family's seats from
+   the highest family order down (`-n` first), mirroring the sheet; a member in the app picks exact seats.
+   **Owner to confirm.**
+5. **Counted areas (women / hall)**: capacities are entered by the gabbai; until then requests are listed
+   without a capacity check. **Owner to provide the numbers.**
+6. **Changes on a Shabbat already open for answers**: allowed for a gabbai with a warning; members who
+   already answered are told on their seat page ("המקומות שלך עודכנו על ידי הגבאים").
+7. **Linking a family that already holds seats**: a confirm panel shows both seat sets; the result is the
+   union; the gabbai can then unassign. Nothing is linked automatically.
