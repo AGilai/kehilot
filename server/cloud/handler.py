@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_tags
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_seating, routes_tags
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -52,6 +52,18 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule$'), routes_schedule.put_schedule),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule/weeks/(?P<week>[^/]+)$'), routes_schedule.put_week),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule/weeks/(?P<week>[^/]+)$'), routes_schedule.delete_week),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts$'), routes_seating.list_layouts),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts/(?P<from>[^/]+)$'), routes_seating.get_layout),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts/(?P<from>[^/]+)$'), routes_seating.put_layout),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts/(?P<from>[^/]+)/assignments$'),
+     routes_seating.get_assignments),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts/(?P<from>[^/]+)/assignments$'),
+     routes_seating.put_assignments),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.list_holders),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.create_holder),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)$'), routes_seating.update_holder),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)$'),
+     routes_seating.delete_holder),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/push-texts$'), routes_admin.get_push_texts),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/push-texts$'), routes_admin.put_push_text),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/broadcast$'), routes_admin.set_broadcast),

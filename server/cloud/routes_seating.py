@@ -1,0 +1,153 @@
+"""Routes: hall layouts (versioned by the Friday they take effect), seat holders and seat assignments.
+Gabbai-only: members never receive the hall or any name (their own cut comes in a later route)."""
+import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from . import inputs, seating_rules as rules
+from .authz import require
+from .errors import ApiError
+from .ids import ID_RE, new_id
+from .routes_groups import GABBAI
+
+
+def _today():
+    return datetime.fromtimestamp(time.time(), ZoneInfo('Asia/Jerusalem')).date()
+
+
+def _friday(params):
+    return rules.effective_from(params['from'], _today())
+
+
+def _layout_out(item):
+    return {key: item[key] for key in ('effectiveFrom', 'rows', 'cols', 'cells', 'blocks', 'rowLabels', 'seats',
+                                       'updatedAt')}
+
+
+def list_layouts(ctx, params):
+    """History, newest first. `current` marks the version in effect today (the latest one not after today)."""
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    today = _today().isoformat()
+    layouts = sorted(ctx.repo.list_layouts(k), key=lambda i: i['effectiveFrom'], reverse=True)
+    assigned = ctx.repo.list_assignments(k)
+    current = next((i['effectiveFrom'] for i in layouts if i['effectiveFrom'] <= today), None)
+    out = []
+    for item in layouts:
+        ids = {s['id'] for s in item['seats']}
+        held = assigned.get(item['effectiveFrom'], {}).get('assignments', {})
+        out.append({'effectiveFrom': item['effectiveFrom'], 'updatedAt': item['updatedAt'],
+                    'seats': len(item['seats']), 'assigned': sum(1 for s in held if s in ids),
+                    'current': item['effectiveFrom'] == current})
+    return 200, {'layouts': out}
+
+
+def get_layout(ctx, params):
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    item = ctx.repo.get_layout(params['k'], _friday(params))
+    if not item:
+        raise ApiError(404, 'layout_not_found')
+    return 200, _layout_out(item)
+
+
+def put_layout(ctx, params):
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    friday = _friday(params)
+    d = inputs.body_object(ctx, rules.LAYOUT_BODY_MAX)
+    layout = rules.validate_layout(d)
+    guard = rules.guard_of(d, 'invalid_layout')
+    old = ctx.repo.get_layout(k, friday)
+    earlier = ctx.repo.earlier_layout(k, friday)
+    seats = rules.assign_seats(layout['cells'], old['seats'] if old else [], earlier['seats'] if earlier else [])
+    updated = ctx.repo.put_layout(k, friday, layout, seats, guard)
+    ctx.repo.prune_assignments(k, friday, {s['id'] for s in seats})
+    return 200, {**_layout_out({**layout, 'effectiveFrom': friday, 'seats': seats, 'updatedAt': updated})}
+
+
+def get_assignments(ctx, params):
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    friday = _friday(params)
+    layout = ctx.repo.get_layout(k, friday)
+    if not layout:
+        raise ApiError(404, 'layout_not_found')
+    item = ctx.repo.get_assignments(k, friday)
+    ids = {s['id'] for s in layout['seats']}
+    held = {s: r for s, r in (item['assignments'] if item else {}).items() if s in ids}
+    return 200, {'assignments': held, 'updatedAt': item['updatedAt'] if item else None}
+
+
+def put_assignments(ctx, params):
+    """`{assignments: {seatId: 'family:<id>'|'holder:<id>'|null}, ifUpdatedAt}`: a merge; null frees the seat."""
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    friday = _friday(params)
+    d = inputs.body_object(ctx, rules.ASSIGN_BODY_MAX)
+    if set(d) - {'assignments', 'ifUpdatedAt'} or 'assignments' not in d:
+        raise ApiError(400, 'invalid_assignments')
+    guard = rules.guard_of(d, 'invalid_assignments')
+    layout = ctx.repo.get_layout(k, friday)
+    if not layout:
+        raise ApiError(404, 'layout_not_found')
+    parsed = rules.validate_assignments(d['assignments'], {s['id'] for s in layout['seats']})
+    families, holders = set(), set()
+    for ref in parsed.values():
+        if ref:
+            (families if ref[0] == 'family' else holders).add(ref[1])
+    known_holders = {h['holderId'] for h in ctx.repo.list_holders(k)} if holders else set()
+    if holders - known_holders or any(not ctx.repo.get_family(k, f) for f in families):
+        raise ApiError(400, 'invalid_assignments', 'assignments.<ref>')
+    current = ctx.repo.get_assignments(k, friday)
+    merged = {s: r for s, r in (current['assignments'] if current else {}).items()}
+    for seat, ref in parsed.items():
+        if ref is None:
+            merged.pop(seat, None)
+        else:
+            merged[seat] = f'{ref[0]}:{ref[1]}'
+    updated = ctx.repo.put_assignments(k, friday, merged, guard)
+    return 200, {'updatedAt': updated}
+
+
+def _holder_out(item):
+    return {'holderId': item['holderId'], 'name': item['name'], 'phone': item.get('phone'),
+            'createdAt': item['createdAt']}
+
+
+def list_holders(ctx, params):
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    return 200, [_holder_out(h) for h in sorted(ctx.repo.list_holders(params['k']),
+                                                key=lambda h: (h['createdAt'], h['holderId']))]
+
+
+def create_holder(ctx, params):
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    name, phone = rules.validate_holder(inputs.body_object(ctx, rules.HOLDER_BODY_MAX))
+    if len(ctx.repo.list_holders(k)) >= rules.MAX_HOLDERS:
+        raise ApiError(409, 'too_many_holders')
+    return 201, _holder_out(ctx.repo.put_holder(k, new_id(), name, phone))
+
+
+def _holder(ctx, params):
+    holder_id = params['holderId']
+    item = ctx.repo.get_holder(params['k'], holder_id) if ID_RE.fullmatch(holder_id) else None
+    if not item:
+        raise ApiError(404, 'holder_not_found')
+    return item
+
+
+def update_holder(ctx, params):
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    item = _holder(ctx, params)
+    name, phone = rules.validate_holder(inputs.body_object(ctx, rules.HOLDER_BODY_MAX))
+    return 200, _holder_out(ctx.repo.put_holder(k, item['holderId'], name, phone, item['createdAt']))
+
+
+def delete_holder(ctx, params):
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    item = _holder(ctx, params)
+    ctx.repo.delete_holder(k, item['holderId'])
+    return 204, None
