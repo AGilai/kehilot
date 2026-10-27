@@ -16,7 +16,7 @@ function memory(): KeyValue & { data: Map<string, string> } {
 }
 const summary = (id: string): KehilaSummary => ({ kehilaId: id, name: `קהילת ${id}`, role: 'member', logoVersion: null });
 const meOf = (ids: string[], profile: Me['profile'] = { firstName: 'דנה', lastName: 'בדויה', lang: 'he' }): Me =>
-  ({ userId: 'u1', email: 'dana@example.invalid', profile, kehilot: ids.map(summary) });
+  ({ userId: 'u1', email: 'dana@example.invalid', profile, kehilot: ids.map(summary), age13Required: false });
 const kehilaOf = (id: string) => ({ kehilaId: id, name: `קהילת ${id}` }) as Kehila;
 
 function fakeApi(me: Me, over: Record<string, unknown> = {}) {

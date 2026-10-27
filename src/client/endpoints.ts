@@ -1,6 +1,6 @@
 import type { Http } from './http.ts';
 import type {
-  Channel, ChannelCreated, ChannelFields, ChangesPage, Classification, DirectoryEntry, Group, GroupMemberRow, GroupMembership,
+  AdminFamily, Candidate, Channel, ChannelCreated, Child, ChildFields, DismissCard, ExportLink, FamilyView, PhoneListFamily, TargetFamily, ChannelFields, ChangesPage, Classification, DirectoryEntry, Group, GroupMemberRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
   MemberFields, MemberRow, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply, RequestRow, UploadGrant,
 } from './types.ts';
@@ -22,7 +22,12 @@ export function endpoints(http: Http) {
     putProfile: (p: { firstName: string; lastName?: string; lang: Lang }) => r<Profile>('PUT', '/v1/me/profile', p),
     putDevice: (token: string, platform: 'ios' | 'android' | 'web') => r<void>('PUT', '/v1/me/devices', { token, platform }),
     deleteDevice: (token: string) => r<void>('DELETE', `/v1/me/devices/${e(token)}`),
-    deleteMe: () => r<void>('DELETE', '/v1/me'),
+    deleteMe: (o: { deletePosts?: boolean } = {}) =>
+      r<void>('DELETE', `/v1/me${o.deletePosts ? '?deletePosts=1' : ''}`),
+    putPhone: (phone: string | null) => r<{ phone: string | null }>('PUT', '/v1/me/phone', { phone }),
+    age13Consent: () => r<void>('POST', '/v1/me/consents/age13'),
+    exportStatus: () => r<ExportLink>('GET', '/v1/me/export'),
+    startExport: () => r<ExportLink>('POST', '/v1/me/export'),
 
     // kehila, invites, joining
     kehila: (k: string) => r<Kehila>('GET', K(k)),
@@ -71,7 +76,12 @@ export function endpoints(http: Http) {
     updateMember: (k: string, u: string, fields: MemberFields) =>
       r<Record<string, never>>('PUT', `${A(k)}/members/${e(u)}`, fields),
     removeMember: (k: string, u: string) => r<void>('DELETE', `${A(k)}/members/${e(u)}`),
-    putSettings: (k: string, s: { maxListeners: number }) => r<Record<string, never>>('PUT', `${A(k)}/settings`, s),
+    putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string }) =>
+      r<Record<string, never>>('PUT', `${A(k)}/settings`, s),
+    adminFamilies: (k: string) => r<AdminFamily[]>('GET', `${A(k)}/families`),
+    adminLink: (k: string, a: string, b: string) =>
+      r<{ familyId: string }>('POST', `${A(k)}/families/link`, { userIds: [a, b] }),
+    acceptTerms: (k: string) => r<{ at: number }>('POST', `${A(k)}/terms`),
     pushTexts: (k: string) => r<PushTexts>('GET', `${A(k)}/push-texts`),
     putPushText: (k: string, key: string, lang: Lang, text: string) =>
       r<Record<string, never>>('PUT', `${A(k)}/push-texts`, { key, lang, text }),
@@ -93,6 +103,26 @@ export function endpoints(http: Http) {
       r<void>('PUT', `${A(k)}/groups/${e(g)}/admins/${e(u)}`),
     unappointGroupAdmin: (k: string, g: string, u: string) =>
       r<void>('DELETE', `${A(k)}/groups/${e(g)}/admins/${e(u)}`),
+
+    // families, phone list and privacy: member-facing
+    dismissCard: (k: string, card: DismissCard) => r<void>('POST', `${K(k)}/me/cards/${e(card)}/dismiss`),
+    putPhoneList: (k: string, show: boolean) => r<{ show: boolean }>('PUT', `${K(k)}/me/phone-list`, { show }),
+    phoneList: (k: string) => r<PhoneListFamily[]>('GET', `${K(k)}/phone-list`),
+    family: (k: string) => r<FamilyView>('GET', `${K(k)}/family`),
+    addChild: (k: string, c: ChildFields) => r<Child>('POST', `${K(k)}/family/children`, c),
+    editChild: (k: string, id: string, c: ChildFields) => r<Child>('PUT', `${K(k)}/family/children/${e(id)}`, c),
+    removeChild: (k: string, id: string) => r<void>('DELETE', `${K(k)}/family/children/${e(id)}`),
+    familyCandidates: (k: string) => r<Candidate[]>('GET', `${K(k)}/family/candidates`),
+    requestPartner: (k: string, toUserId: string) =>
+      r<{ toUserId: string; expiresAt: number }>('POST', `${K(k)}/family/requests`, { toUserId }),
+    withdrawPartnerRequest: (k: string) => r<void>('DELETE', `${K(k)}/family/requests/mine`),
+    confirmPartner: (k: string, fromUserId: string) =>
+      r<FamilyView>('POST', `${K(k)}/family/requests/${e(fromUserId)}/confirm`),
+    declinePartner: (k: string, fromUserId: string) =>
+      r<void>('POST', `${K(k)}/family/requests/${e(fromUserId)}/decline`),
+    unlink: (k: string) => r<FamilyView>('POST', `${K(k)}/family/unlink`),
+    targetFamilies: (k: string, channelId: string) =>
+      r<TargetFamily[]>('GET', `${K(k)}/families${query([['channelId', channelId]])}`),
 
     // groups: member-facing and group admins
     myGroups: (k: string) => r<GroupMembership[]>('GET', `${K(k)}/groups`),

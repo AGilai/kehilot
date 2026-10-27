@@ -160,7 +160,7 @@ export function PickList({ query, onQuery, placeholder, rows, selected, onSelect
       <TextInput accessibilityLabel={placeholder} placeholder={placeholder} placeholderTextColor={k.muted} value={query} onChangeText={onQuery}
         style={{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }} />
       {state === 'loading' ? <ActivityIndicator color={k.tekhelet} /> : null}
-      {state === 'error' ? <Banner tone="error" text={errorText ?? ''} /> : null}
+      {state === 'error' && errorText ? <Banner tone="error" text={errorText} /> : null}
       {state === 'ready' && rows.length === 0 ? <Txt size="small" color={k.muted}>{empty}</Txt> : null}
       <View style={{ gap: 6 }}>
         {state === 'ready' ? rows.slice(0, max).map(r => {

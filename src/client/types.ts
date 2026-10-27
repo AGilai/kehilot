@@ -6,11 +6,11 @@ export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'c
 export type PostPolicy = 'management' | 'broadcasters';
 export type ImageType = 'image/jpeg' | 'image/png';
 
-export type Profile = { firstName: string; lastName: string; lang: Lang };
+export type Profile = { firstName: string; lastName: string; lang: Lang; phone?: string | null };
 
 export type KehilaSummary = { kehilaId: string; name: string; role: Role; logoVersion: string | null };
 
-export type Me = { userId: string; email: string; profile: Profile | null; kehilot: KehilaSummary[] };
+export type Me = { userId: string; email: string; profile: Profile | null; kehilot: KehilaSummary[]; age13Required: boolean };
 
 export type NotifyPrefs = {
   mutedChannels: string[];
@@ -35,7 +35,54 @@ export type Kehila = {
   adminGroups: string[];
   settings: { pollSeconds: number; maxListeners?: number };
   listenerCount?: number;
+  /** The Kehila's privacy contact text, or ''. */
+  privacyContact: string;
+  /** The caller's phone-list switch for this Kehila. */
+  showPhone: boolean;
+  cards: HomeCards;
+  /** Gabbaim only: who accepted the Kehila terms (null until someone has). `at` is Unix seconds. */
+  termsAccepted?: { name: string; at: number } | null;
 };
+
+export type HomeCards = {
+  gabbaiLink: { gabbaiName: string; partnerName: string } | null;
+  request: { fromUserId: string; fromName: string } | null;
+  imported: boolean;
+  phoneAsk: boolean;
+  terms: boolean;
+};
+
+export type Child = { id: string; firstName: string; gender: 'm' | 'f'; birthDate?: string };
+export type ChildFields = Omit<Child, 'id'>;
+
+/** Times are Unix seconds. */
+export type FamilyView = {
+  familyId: string;
+  name: string;
+  adults: Array<{ userId: string; displayName: string; me: boolean }>;
+  children: Child[];
+  sent: { toUserId: string; toName: string; expiresAt: number; state: 'pending' | 'declined' | 'expired' } | null;
+  received: Array<{ fromUserId: string; fromName: string; expiresAt: number }>;
+  notice: { gabbaiName: string; partnerName: string } | null;
+};
+
+export type Candidate = { userId: string; displayName: string; cooldownUntil?: number };
+
+/** Adults who chose to show a number; never children. */
+export type PhoneListFamily = { familyId: string; name: string; people: Array<{ userId: string; name: string; phone: string }> };
+
+export type TargetFamily = { familyId: string; name: string; firstNames: string[]; targetMemberId: string };
+
+/** Gabbai view: children are first name, gender and birth year only. */
+export type AdminFamily = {
+  familyId: string;
+  name: string;
+  adults: Array<{ userId: string; displayName: string }>;
+  children: Array<{ firstName: string; gender: 'm' | 'f'; birthYear?: number }>;
+};
+
+export type ExportLink = { url: string; expiresAt: number };
+export type DismissCard = 'gabbai_link' | 'imported' | 'phone';
 
 export type Logo = { logoVersion: string; contentType: 'image/png'; data: string };
 
@@ -79,6 +126,7 @@ export type Message = {
   image?: { contentType: ImageType; bytes: number };
   read?: boolean;
   targetMemberId?: string;
+  targetFamilyId?: string;
   targetName?: string;
   replierCount?: number;
 };
@@ -89,6 +137,7 @@ export type PostMessageBody = {
   title?: string;
   body?: string;
   targetMemberId?: string;
+  targetFamilyId?: string;
   imageUploadId?: string;
 };
 

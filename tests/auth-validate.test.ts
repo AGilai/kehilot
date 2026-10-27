@@ -17,8 +17,8 @@ test('passwords count code points, minimum 12', () => {
 });
 
 test('fixture params', () => {
-  assert.deepEqual(parseFixtureParams('?role=gabbai&lang=en&screen=register'), { role: 'gabbai', lang: 'en', screen: 'register' });
-  assert.deepEqual(parseFixtureParams('?role=bogus'), { role: 'member', lang: null, screen: null });
+  assert.deepEqual(parseFixtureParams('?role=gabbai&lang=en&screen=register'), { role: 'gabbai', lang: 'en', screen: 'register', card: null });
+  assert.deepEqual(parseFixtureParams('?role=bogus'), { role: 'member', lang: null, screen: null, card: null });
 });
 
 test('fixtures are refused beside a real API', () => {

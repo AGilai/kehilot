@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (config.fixtures) {
       assertFixturesAllowed();
       const p = fixtureParams();
-      return { fixtures: true as const, api: createFixtureApi(p.role, p.screen, p.lang), startSignedIn: !p.screen || FIXTURE_APP_SCREENS.includes(p.screen) };
+      return { fixtures: true as const, api: createFixtureApi(p.role, p.screen, p.lang, p.card), startSignedIn: !p.screen || FIXTURE_APP_SCREENS.includes(p.screen) };
     }
     const storage = createStorage();
     const onOut = () => forcedOut.current();

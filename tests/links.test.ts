@@ -56,7 +56,7 @@ function fakeApi(over: Record<string, unknown> = {}) {
   let kehilot: KehilaSummary[] = [];
   const accepted: string[] = [];
   const api = {
-    me: async (): Promise<Me> => ({ userId: 'u1', email: 'dana@example.invalid', profile, kehilot }),
+    me: async (): Promise<Me> => ({ userId: 'u1', email: 'dana@example.invalid', profile, kehilot, age13Required: false }),
     putProfile: async (p: { firstName: string; lang: 'he' | 'en' }) => { profile = { firstName: p.firstName, lastName: '', lang: p.lang }; return profile; },
     acceptInvite: async (code: string) => { accepted.push(code); kehilot = [summary('k1')]; return { kehilaId: 'k1', role: 'listener' as const }; },
     kehila: async (k: string) => ({ kehilaId: k, name: k, role: 'listener', pendingRequest: false, settings: { pollSeconds: 30 } }) as Kehila,

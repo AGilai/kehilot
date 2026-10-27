@@ -64,7 +64,7 @@ test('other errors are not retried', async () => {
 // Leaving a Kehila and editing the profile go through the store.
 const sum = (id: string) => ({ kehilaId: id, name: id, role: 'member' as const, logoVersion: null });
 function storeWith(kehilot: string[], over: Record<string, unknown> = {}) {
-  let me: Me = { userId: 'u1', email: 'dana@example.invalid', profile: { firstName: 'דנה', lastName: 'בדויה', lang: 'he' }, kehilot: kehilot.map(sum) };
+  let me: Me = { userId: 'u1', email: 'dana@example.invalid', profile: { firstName: 'דנה', lastName: 'בדויה', lang: 'he' }, kehilot: kehilot.map(sum), age13Required: false };
   const calls: string[] = [];
   const api = {
     me: async () => me,
@@ -91,7 +91,7 @@ test('leaving the open Kehila moves to the other one', async () => {
 
 test('a failed me() after a successful leave throws and keeps the selection for a retry', async () => {
   let left = false;
-  const m: Me = { userId: 'u1', email: 'dana@example.invalid', profile: { firstName: 'דנה', lastName: 'בדויה', lang: 'he' }, kehilot: [sum('k1'), sum('k2')] };
+  const m: Me = { userId: 'u1', email: 'dana@example.invalid', profile: { firstName: 'דנה', lastName: 'בדויה', lang: 'he' }, kehilot: [sum('k1'), sum('k2')], age13Required: false };
   const { store } = storeWith(['k1', 'k2'], {
     me: async () => { if (left) throw new ApiCodeError(0, 'network'); return m; },
     leave: async () => { left = true; },

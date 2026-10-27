@@ -1,6 +1,6 @@
 import React from 'react';
 import { fromEpochSeconds } from '../../client/time.ts';
-import { Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { useErrorText } from '../auth/Frame.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../../kit/components.tsx';
