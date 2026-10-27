@@ -64,7 +64,7 @@
     "invalid_text": "הטקסט חייב להיות שורה אחת של עד 80 תווים",
     "invalid_max_listeners": "מספר המאזינים חייב להיות בין 0 ל-5000",
     "invalid_allow": "ערך לא תקין",
-    "invalid_listeners_can_read": "ערוץ שיחה לא יכול להיות פתוח למאזינים",
+    "invalid_listeners_can_read": "ערוץ שיחה לא יכול להיות פתוח למתפללים אורחים",
     "invalid_name": "השם לא תקין (1 עד 60 תווים)",
     "invalid_post_policy": "מדיניות הפרסום לא תקינה",
     "invalid_type": "סוג ההודעה לא תקין",

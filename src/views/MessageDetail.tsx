@@ -87,7 +87,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const showBox = roleFeatures(role).blessingReply && canReply(message, me.userId, role) && !blocked;
   const canJoin = (message.type === 'celebration' || message.type === 'condolence') && roleFeatures(role).join && !isTarget;
   // Mute (or unmute) notifications from the member who broadcast this; it never hides the message.
-  const canMute = message.authorKind === 'member' && message.type !== 'chat' && message.authorId !== me.userId;
+  const canMute = roleFeatures(role).directory && message.authorKind === 'member' && message.type !== 'chat' && message.authorId !== me.userId;
   const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);
   const canDelete = message.authorId === me.userId || role === 'gabbai';
   const familyName = message.targetName?.trim() || t('chip.formerMember');
