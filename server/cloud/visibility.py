@@ -73,16 +73,21 @@ def message_visible(membership, channel, message):
     return can_read_channel(membership, channel) and not message.get('removed')
 
 
-def reply_visible(user_id, message, reply):
-    """Private replies: only the reply's author and the message's target. Gabbaim get no exception."""
+def reply_visible(user_id, message, reply, family_adults=frozenset()):
+    """Private replies: only the reply's author and the target family's current adults (`family_adults`, from
+    families.target_adults). The stored targetMemberId alone grants nothing. Gabbaim get no exception."""
     if not user_id:
         return False
-    return user_id == reply.get('authorId') or user_id == message.get('targetMemberId')
+    return user_id == reply.get('authorId') or user_id in family_adults
 
 
-def change_visible(user_id, membership, channels_by_id, change):
-    """May this user learn of this change item at all? The feed also applies the per-item checks."""
+def change_visible(user_id, membership, channels_by_id, change, family_adults=None):
+    """May this user learn of this change item at all? The feed also applies the per-item checks. A `reply`
+    change is visible to those in `visibleTo` or in `family_adults` (a partner linked after the reply)."""
+    readable = can_read_channel(membership, channels_by_id.get(change.get('channelId')))
     visible_to = change.get('visibleTo')
-    if visible_to is not None:
-        return user_id in visible_to and can_read_channel(membership, channels_by_id.get(change.get('channelId')))
-    return can_read_channel(membership, channels_by_id.get(change.get('channelId')))
+    if visible_to is None:
+        return readable
+    if change.get('kind') == 'reply' and user_id in (family_adults or ()):
+        return readable
+    return user_id in visible_to and readable

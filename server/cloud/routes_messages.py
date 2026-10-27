@@ -1,9 +1,10 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
 from datetime import datetime, timezone
 
-from . import inputs, media, push, visibility
+from . import families, inputs, media, push, visibility
 from .authz import require
 from .errors import ApiError
+from .families import family_name
 from .ids import ID_RE, new_id
 from .repo_messages import local_date
 from .routes_admin import _channel_json
@@ -25,6 +26,8 @@ def _message_json(item, read=None):
     if item.get('targetMemberId'):
         out['targetMemberId'] = item['targetMemberId']
         out['targetName'] = item.get('targetName', '')
+        if item.get('targetFamilyId'):
+            out['targetFamilyId'] = item['targetFamilyId']
         out['replierCount'] = int(item.get('replierCount', 0))  # a count only: never who or what
     if item.get('image'):  # metadata only: the URL comes from GET .../image after a visibility check
         out['image'] = {'contentType': item['image']['contentType'], 'bytes': int(item['image']['bytes'])}
@@ -93,6 +96,7 @@ def post_message(ctx, params):
         raise ApiError(404, 'channel_not_found')
     if target and not visibility.reply_target_ok(target_membership, channel):
         raise ApiError(400, 'invalid_target_member_id')
+    target_family_id = _target_family_id(ctx, k, d, target)
     if not visibility.can_post(membership, channel):
         raise ApiError(403, 'forbidden')
     if membership['role'] != 'gabbai':
@@ -102,11 +106,24 @@ def post_message(ctx, params):
     item = ctx.repo.put_message(k, channel_id, type_, title, body, ctx.user_id, membership.get('displayName', ''),
                                 'management' if membership['role'] == 'gabbai' else 'member', target,
                                 target_membership.get('displayName', '') if target else '',
-                                message_id=message_id, image=image)
+                                message_id=message_id, image=image, target_family_id=target_family_id)
     message = _message_json(item)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
     return 201, message
+
+
+def _target_family_id(ctx, k, d, target):
+    """The optional targetFamilyId: a ULID of a family of which `target` is a live adult."""
+    value = d.get('targetFamilyId')
+    if value is None:
+        return None
+    if not target or not isinstance(value, str) or not ID_RE.fullmatch(value):
+        raise ApiError(400, 'invalid_target_family_id')
+    family = ctx.repo.get_family(k, value)
+    if not family or target not in [m['userId'] for m in ctx.repo.live_adults(k, family)]:
+        raise ApiError(400, 'invalid_target_family_id')
+    return value
 
 
 def _post_chat(ctx, k, membership, channel_id, channel, d):
@@ -118,6 +135,8 @@ def _post_chat(ctx, k, membership, channel_id, channel, d):
         raise ApiError(400, 'invalid_title')
     if d.get('targetMemberId') is not None:
         raise ApiError(400, 'invalid_target_member_id')
+    if d.get('targetFamilyId') is not None:
+        raise ApiError(400, 'invalid_target_family_id')
     upload_id = _image_upload_id(d)
     body = inputs.text(d, 'body', CHAT_MAX, required=upload_id is None)
     if not visibility.can_post(membership, channel):
@@ -203,6 +222,33 @@ def list_directory(ctx, params):
     return 200, sorted(rows, key=lambda r: r['displayName'])
 
 
+def list_target_families(ctx, params):
+    """Families that can be the target of a blessing in a channel: at least one live adult who may read it."""
+    k = params['k']
+    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    channel_id = ctx.query.get('channelId')
+    if channel_id is None or not ID_RE.fullmatch(channel_id):
+        raise ApiError(400, 'invalid_channel_id')
+    channel = ctx.repo.get_channel(k, channel_id)
+    if not visibility.can_read_channel(membership, channel):
+        raise ApiError(404, 'channel_not_found')
+    family_items = ctx.repo._query_prefix(k, 'F#')
+    adult_ids = list(dict.fromkeys(u for f in family_items for u in f['adults']))
+    found = ctx.repo.batch_get([(f'K#{k}', f'M#{u}') for u in adult_ids] + [(f'U#{u}', 'PROFILE') for u in adult_ids])
+    rows = []
+    for family in family_items:
+        live = [found[(f'K#{k}', f'M#{u}')] for u in family['adults']
+                if (f'K#{k}', f'M#{u}') in found and found[(f'K#{k}', f'M#{u}')].get('role') in ('member', 'gabbai')]
+        reachable = [m for m in live if visibility.reply_target_ok(m, channel)]
+        if not reachable:
+            continue
+        profiles = [found.get((f'U#{m["userId"]}', 'PROFILE')) or {} for m in live]
+        rows.append({'familyId': family['familyId'], 'name': family_name(profiles),
+                     'firstNames': [p.get('firstName', '') for p in profiles],
+                     'targetMemberId': reachable[0]['userId']})
+    return 200, sorted(rows, key=lambda r: r['name'])
+
+
 def remove_message(ctx, params):
     k = params['k']
     membership = require(ctx.repo, ctx.user_id, k)
@@ -244,22 +290,22 @@ def post_reply(ctx, params):
     k = params['k']
     membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
     message, channel = _visible_message(ctx, k, membership, params['m'])
-    target = message.get('targetMemberId')
-    if not target:
+    if not message.get('targetMemberId'):
         raise ApiError(409, 'replies_not_allowed')
-    if target == ctx.user_id:
+    adults = families.target_adults(ctx.repo, k, message)
+    if ctx.user_id in adults:
         raise ApiError(409, 'cannot_reply_to_own')
-    if not visibility.reply_target_ok(ctx.repo.get_membership(k, target), channel):
-        # left, removed, deleted or no longer in the channel's groups: nobody would receive it
+    if not families.reachable_adults(ctx.repo, k, adults, channel):
+        # everyone left, was removed, deleted or is no longer in the channel's groups: nobody would receive it
         raise ApiError(409, 'target_left')
     body = inputs.text(inputs.body_object(ctx), 'body', REPLY_MAX, required=True)
     item, counted = ctx.repo.put_reply(k, params['m'], ctx.user_id, membership.get('displayName', ''), body)
     reply = _reply_json(item)
-    ctx.repo.put_change(k, 'reply', reply['replyId'], message['channelId'], [ctx.user_id, target],
+    ctx.repo.put_change(k, 'reply', reply['replyId'], message['channelId'], [ctx.user_id, *sorted(adults)],
                         message_id=params['m'])
     if counted:  # channel-scoped, no visibleTo: the feed serves the message JSON, never the reply
         ctx.repo.put_change(k, 'reply_count', params['m'], message['channelId'])
-    push.enqueue('reply', k, params['m'])  # ref = messageId: the target is on the message
+    push.enqueue('reply', k, params['m'])  # ref = messageId: the target family is on the message
     return 201, reply
 
 
@@ -267,5 +313,6 @@ def list_replies(ctx, params):
     k = params['k']
     membership = require(ctx.repo, ctx.user_id, k)
     message, _ = _visible_message(ctx, k, membership, params['m'])
+    adults = families.target_adults(ctx.repo, k, message)
     return 200, [_reply_json(r) for r in ctx.repo.list_replies(k, params['m'])
-                 if visibility.reply_visible(ctx.user_id, message, r)]
+                 if visibility.reply_visible(ctx.user_id, message, r, adults)]

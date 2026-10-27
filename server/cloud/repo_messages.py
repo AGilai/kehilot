@@ -186,13 +186,15 @@ class MessagesRepo:
 
     # messages
     def put_message(self, k, channel_id, type_, title, body, author_id, author_name, author_kind, target,
-                    target_name='', message_id=None, image=None):
+                    target_name='', message_id=None, image=None, target_family_id=None):
         item = {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id or new_id()}', 'channelId': channel_id, 'type': type_,
                 'title': title, 'body': body, 'authorId': author_id, 'authorName': author_name,
                 'authorKind': author_kind, 'joinCount': 0, 'removed': False}
         if target:
             item['targetMemberId'] = target
             item['targetName'] = target_name
+            if target_family_id:
+                item['targetFamilyId'] = target_family_id
         if image:
             item['image'] = {'contentType': image['contentType'], 'bytes': image['bytes']}
         self.table.put_item(Item=item)

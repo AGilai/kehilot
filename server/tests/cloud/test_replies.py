@@ -3,7 +3,7 @@ from unittest import mock
 
 from moto import mock_aws
 
-from server.cloud import push, visibility
+from server.cloud import push, push_worker, visibility
 from server.tests.cloud import test_messages
 
 
@@ -130,10 +130,118 @@ class RepliesTest(test_messages.MessagesTest):
     def test_reply_visible(self):
         message, reply = {'targetMemberId': 't'}, {'authorId': 'a'}
         self.assertTrue(visibility.reply_visible('a', message, reply))
-        self.assertTrue(visibility.reply_visible('t', message, reply))
-        self.assertFalse(visibility.reply_visible('g', message, reply))
+        self.assertTrue(visibility.reply_visible('t', message, reply, frozenset({'t'})))
+        self.assertFalse(visibility.reply_visible('t', message, reply))  # the stored member alone grants nothing
+        self.assertFalse(visibility.reply_visible('g', message, reply, frozenset({'t'})))
         self.assertFalse(visibility.reply_visible('g', {}, reply))
         self.assertFalse(visibility.reply_visible(None, {}, {}))
+
+    # --- families (Task 5) ---
+    def link(self, a, b):
+        self.repo.link(self.k, a, b)
+        return self.repo.family_of(self.k, a)['familyId']
+
+    def test_partner_sees_replies_and_gabbai_still_not(self):
+        self.link(self.quiet, self.other)
+        self.reply('member-sub', 'hello')
+        self.assertEqual(self.replies('quiet-sub'), ['hello'])
+        self.assertEqual(self.replies('other-sub'), ['hello'])
+        self.assertEqual(self.replies('gabbai-sub'), [])
+
+    def set_group(self, channel, members):
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'C#{self.channels[channel]}'},
+                                    UpdateExpression='SET #g = :g',
+                                    ExpressionAttributeNames={'#g': 'groups'}, ExpressionAttributeValues={':g': {'g1'}})
+        for uid in members:
+            self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{uid}'}, UpdateExpression='SET #g = :g',
+                                        ExpressionAttributeNames={'#g': 'groups'}, ExpressionAttributeValues={':g': {'g1'}})
+
+    def test_partner_who_cannot_read_channel_sees_nothing(self):
+        self.link(self.quiet, self.other)
+        self.set_group('simchas', [self.member, self.quiet])
+        self.assertEqual(self.reply('member-sub', 'hi')[0], 201)
+        self.assertEqual(self.call('GET', f'{self.base()}/messages/{self.mid}', sub='other-sub')[0], 404)
+        self.assertEqual(self.call('GET', f'{self.base()}/messages/{self.mid}/replies', sub='other-sub')[0], 404)
+        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid), [self.quiet])
+
+    def test_ex_partner_loses_replies_after_unlink(self):
+        self.link(self.quiet, self.other)
+        self.reply('member-sub', 'hi')
+        self.assertEqual(self.call('POST', f'{self.base()}/family/unlink', sub='other-sub')[0], 200)
+        self.assertEqual(self.replies('other-sub'), [])
+        self.assertEqual(self.replies('quiet-sub'), ['hi'])
+
+    def test_target_family_id_survives_target_member_unlink(self):
+        fid = self.link(self.quiet, self.other)
+        mid = self.post('simchas', type='celebration', targetMemberId=self.other, targetFamilyId=fid)[1]['messageId']
+        self.reply('member-sub', 'hi', mid=mid)
+        self.call('POST', f'{self.base()}/family/unlink', sub='other-sub')
+        self.assertEqual(self.replies('quiet-sub', mid=mid), ['hi'])
+        self.assertEqual(self.replies('other-sub', mid=mid), [])
+        self.assertEqual(self.reply('other-sub', mid=mid)[0], 201)  # no longer the target: may reply
+
+    def test_old_message_falls_back_to_member_family(self):
+        self.reply('member-sub', 'hi')  # self.mid has only targetMemberId
+        self.assertEqual(self.replies('other-sub'), [])
+        self.link(self.quiet, self.other)
+        self.assertEqual(self.replies('other-sub'), ['hi'])
+
+    def test_partner_cannot_reply_to_own_family(self):
+        self.link(self.quiet, self.other)
+        self.assertEqual(self.reply('other-sub'), (409, {'error': 'cannot_reply_to_own'}))
+
+    def test_reply_allowed_while_one_adult_remains(self):
+        fid = self.link(self.quiet, self.other)
+        mid = self.post('simchas', type='celebration', targetMemberId=self.quiet, targetFamilyId=fid)[1]['messageId']
+        self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='quiet-sub')[0], 204)
+        with mock.patch.object(push, 'enqueue') as enqueue:
+            self.assertEqual(self.reply('member-sub', mid=mid)[0], 201)
+        enqueue.assert_called_once_with('reply', self.k, mid)
+        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, mid), [self.other])
+        self.assertEqual(self.replies('other-sub', mid=mid), ['Mazal tov'])
+        self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='other-sub')[0], 204)
+        self.assertEqual(self.reply('member-sub', mid=mid), (409, {'error': 'target_left'}))
+
+    def test_invalid_target_family(self):
+        fid = self.link(self.quiet, self.other)
+        mia_family = self.repo.ensure_family(self.k, self.member)
+        for extra in ({'targetMemberId': self.member, 'targetFamilyId': fid},
+                      {'targetMemberId': self.quiet, 'targetFamilyId': mia_family},
+                      {'targetMemberId': self.quiet, 'targetFamilyId': 'nope'},
+                      {'targetMemberId': self.quiet, 'targetFamilyId': '0' * 26},
+                      {'targetFamilyId': fid}):
+            self.assertEqual(self.post('simchas', type='celebration', **extra),
+                             (400, {'error': 'invalid_target_family_id'}), extra)
+        status, body = self.post('simchas', type='celebration', targetMemberId=self.other, targetFamilyId=fid)
+        self.assertEqual((status, body['targetFamilyId']), (201, fid))
+        self.assertNotIn('targetFamilyId', self.post('simchas', type='celebration',
+                                                     targetMemberId=self.other)[1])
+
+    def set_names(self, **subs):
+        for sub, (first, last) in subs.items():
+            self.call('PUT', '/v1/me/profile', sub=sub, body={'firstName': first, 'lastName': last, 'lang': 'en'})
+
+    def families(self, sub='member-sub', channel='simchas'):
+        return self.call('GET', f'{self.base()}/families', sub=sub, query={'channelId': self.channels[channel]})
+
+    def test_family_picker_lists_families_once_and_hides_unreachable(self):
+        self.set_names(**{'quiet-sub': ('Quinn', 'Quiet'), 'other-sub': ('Omri', 'Other'),
+                          'member-sub': ('Mia', 'Member'), 'gabbai-sub': ('Gabi', 'Gabbai')})
+        for uid in (self.member, self.gabbai):
+            self.repo.ensure_family(self.k, uid)
+        self.link(self.quiet, self.other)
+        status, rows = self.families()
+        self.assertEqual(status, 200)
+        self.assertEqual([r['name'] for r in rows], ['Gabbai', 'Member', 'Quiet · Other'])
+        couple = rows[2]
+        self.assertEqual((couple['firstNames'], couple['targetMemberId']), (['Quinn', 'Omri'], self.quiet))
+        self.assertEqual(set(couple), {'familyId', 'name', 'firstNames', 'targetMemberId'})
+        self.set_group('simchas', [self.member])  # the couple cannot read it; the gabbai reads every channel
+        self.assertEqual([r['name'] for r in self.families()[1]], ['Gabbai', 'Member'])
+        self.assertEqual(self.families('listener-sub')[0], 403)
+        self.assertEqual(self.call('GET', f'{self.base()}/families', sub='member-sub')[1], {'error': 'invalid_channel_id'})
+        self.assertEqual(self.call('GET', f'{self.base()}/families', sub='member-sub',
+                                   query={'channelId': '0' * 26})[1], {'error': 'channel_not_found'})
 
 
 for _name in [n for n in dir(test_messages.MessagesTest) if n.startswith('test_') and n not in RepliesTest.__dict__]:

@@ -1,7 +1,7 @@
 """Routes: the change feed and notification preferences. Visibility comes from visibility.py."""
 import time
 
-from . import inputs, visibility
+from . import families, inputs, visibility
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE, floor_id, id_time_ms
@@ -18,7 +18,7 @@ def _now_ms():
     return int(time.time() * 1000)
 
 
-def _item(ctx_user, membership, channels, change, messages, replies):
+def _item(ctx_user, membership, channels, change, messages, replies, adults=frozenset()):
     """The current visible object for a change, or None to skip it.
 
     A `message` or `join` whose message was removed since is skipped: the `message_removed` change that the
@@ -35,7 +35,7 @@ def _item(ctx_user, membership, channels, change, messages, replies):
         return {'messageId': ref}
     if kind == 'reply':
         reply = replies.get(ref)
-        if not reply or not visibility.reply_visible(ctx_user, message, reply):
+        if not reply or not visibility.reply_visible(ctx_user, message, reply, adults):
             return None
         return {**_reply_json(reply), 'messageId': change['messageId']}
     return None
@@ -60,8 +60,10 @@ def changes(ctx, params):
     if not scanned:
         return 200, {'cursor': since, 'more': False, 'changes': []}  # since < bound here
     channels = {c['sk'][2:]: c for c in ctx.repo.list_channels(k)}
+    # a reply is checked against the target family below, once its message is loaded
     allowed = [c for c in scanned if c['kind'] in ('message', 'message_removed', 'join', 'read', 'reply', 'reply_count')
-               and visibility.change_visible(ctx.user_id, membership, channels, c)]
+               and (visibility.can_read_channel(membership, channels.get(c.get('channelId')))
+                    if c['kind'] == 'reply' else visibility.change_visible(ctx.user_id, membership, channels, c))]
     keys = []
     for c in allowed:
         if c['kind'] != 'message_removed':
@@ -71,9 +73,19 @@ def changes(ctx, params):
     found = ctx.repo.batch_get(keys)
     messages = {pk_sk[1][len('MSG#'):]: v for pk_sk, v in found.items() if pk_sk[1].startswith('MSG#')}
     replies = {pk_sk[1][len('R#'):]: v for pk_sk, v in found.items() if pk_sk[1].startswith('R#')}
-    out = []
+    out, family_adults = [], {}
     for c in allowed:
-        item = _item(ctx.user_id, membership, channels, c, messages, replies)
+        adults = frozenset()
+        if c['kind'] == 'reply':
+            message = messages.get(c['messageId'])
+            if not message:
+                continue
+            if c['messageId'] not in family_adults:  # once per distinct message on the page
+                family_adults[c['messageId']] = families.target_adults(ctx.repo, k, message)
+            adults = family_adults[c['messageId']]
+            if not visibility.change_visible(ctx.user_id, membership, channels, c, adults):
+                continue
+        item = _item(ctx.user_id, membership, channels, c, messages, replies, adults)
         if item is not None:
             out.append({'kind': c['kind'], 'id': c['refId'], 'item': item})
     return 200, {'cursor': scanned[-1]['sk'][len('CHG#'):], 'more': more, 'changes': out}

@@ -140,6 +140,13 @@ class PushTest(unittest.TestCase):
         self.assertEqual([s['to'] for s in self.sent], ['ExponentPushToken[fam]'])
         self.assertEqual(self.sent[0]['data'], {'kehila': self.k, 'messageId': self.mid(m)})
 
+    def test_reply_push_goes_to_every_adult_not_author(self):
+        self.repo.link(self.k, 'fam', 'eng')
+        m = self.message(author='gab', target='fam')
+        self.assertCountEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid(m)), ['fam', 'eng'])
+        self.repo.put_membership(self.k, 'eng', 'listener')  # a departed/listener adult gets nothing
+        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid(m)), ['fam'])
+
     def test_family_request_push_payload(self):
         for kind, ref in (('family_request', self.eng), ('family_gabbai', self.eng)):
             self.sent.clear()

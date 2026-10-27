@@ -2,7 +2,7 @@
 import re
 from datetime import date
 
-from . import inputs
+from . import inputs, visibility
 from .errors import ApiError
 
 SEPARATOR = ' · '
@@ -41,3 +41,25 @@ def clean_child(d, today):
         raise ApiError(400, 'invalid_birth_date')
     child['birthDate'] = birth
     return child
+
+
+def target_adults(repo, k, message):
+    """Who the message's replies are for: the live adults of `targetFamilyId` when that family exists; else of
+    the target member's current family (older messages, or a family merged away); else the target member
+    alone. Empty for an untargeted message."""
+    target = message.get('targetMemberId')
+    if not target:
+        return frozenset()
+    family = repo.get_family(k, message['targetFamilyId']) if message.get('targetFamilyId') else None
+    if not family:
+        family = repo.family_of(k, target)
+    if not family:
+        return frozenset({target})
+    return frozenset(m['userId'] for m in repo.live_adults(k, family))
+
+
+def reachable_adults(repo, k, adults, channel):
+    """Memberships of `adults` who may be the target of a reply in `channel`, sorted by userId."""
+    found = repo.batch_get([(f'K#{k}', f'M#{u}') for u in adults])
+    return sorted((m for m in found.values() if visibility.reply_target_ok(m, channel)),
+                  key=lambda m: m['userId'])

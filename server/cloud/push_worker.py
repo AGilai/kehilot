@@ -8,7 +8,7 @@ import logging
 import os
 import time
 
-from . import expo, visibility
+from . import expo, families, visibility
 from .push import MESSAGE_TYPES, PUSH_TEXT, SYSTEM_KEYS, resolve_text
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
@@ -49,7 +49,10 @@ def recipients(repo, kind, kehila, ref):
         if not target:
             return []
         channel = repo.get_channel(kehila, message['channelId'])
-        return [target] if visibility.reply_target_ok(repo.get_membership(kehila, target), channel) else []
+        # every adult of the target family who can read the channel (the author is never one of them: post_reply
+        # refuses authors in the family)
+        adults = families.target_adults(repo, kehila, message)
+        return [m['userId'] for m in families.reachable_adults(repo, kehila, adults, channel)]
     if kind != 'message':
         return []
     channel = repo.get_channel(kehila, message['channelId'])

@@ -32,6 +32,28 @@ class VisibilityTruthTable(unittest.TestCase):
         self.assertFalse(visibility.message_visible(m('gabbai'), None, {}))
 
 
+class ReplyVisibleTable(unittest.TestCase):
+    def test_truth_table(self):
+        message, reply = {'targetMemberId': 't1'}, {'authorId': 'a'}
+        adults = frozenset({'t1', 't2'})
+        for user, expected in (('a', True), ('t1', True), ('t2', True), ('g', False), ('other', False), (None, False)):
+            self.assertEqual(visibility.reply_visible(user, message, reply, adults), expected, user)
+        self.assertTrue(visibility.reply_visible('a', message, reply, frozenset()))
+        for user in ('t1', 'g'):  # empty adults: only the author
+            self.assertFalse(visibility.reply_visible(user, message, reply, frozenset()), user)
+            self.assertFalse(visibility.reply_visible(user, message, reply), user)
+
+    def test_change_visible_reply(self):
+        member, channel = m('member'), ch(True, 'management')
+        change = {'kind': 'reply', 'channelId': 'c', 'visibleTo': ['a', 't1']}
+        channels = {'c': channel}
+        self.assertTrue(visibility.change_visible('a', member, channels, change))
+        self.assertTrue(visibility.change_visible('t2', member, channels, change, frozenset({'t2'})))
+        self.assertFalse(visibility.change_visible('t2', member, channels, change))
+        self.assertFalse(visibility.change_visible('x', member, channels, change, frozenset({'t2'})))
+        self.assertFalse(visibility.change_visible('t2', member, {}, change, frozenset({'t2'})))
+
+
 def grouped(role, groups=(), readable=False, member_groups=()):
     membership = {'role': role, 'canBroadcast': False}
     if member_groups:

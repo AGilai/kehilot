@@ -96,6 +96,25 @@ class ChangesTest(test_messages.MessagesTest):
         for sub in ('other-sub', 'gabbai-sub', 'listener-sub'):
             self.assertEqual([c for c in self.since_start(sub)['changes'] if c['kind'] == 'reply'], [], sub)
 
+    def test_reply_change_reaches_partner_linked_later(self):
+        mid = self.post('simchas', type='celebration', targetMemberId=self.quiet)[1]['messageId']
+        rid = self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub',
+                        body={'body': 'Mazal tov'})[1]['replyId']
+        self.assertEqual([c for c in self.since_start('other-sub')['changes'] if c['kind'] == 'reply'], [])
+        self.repo.link(self.k, self.quiet, self.other)
+        replies = [c for c in self.since_start('other-sub')['changes'] if c['kind'] == 'reply']
+        self.assertEqual([(c['id'], c['item']['body']) for c in replies], [(rid, 'Mazal tov')])
+        self.assertEqual([c for c in self.since_start('gabbai-sub')['changes'] if c['kind'] == 'reply'], [])
+
+    def test_reply_change_hidden_from_ex_partner(self):
+        self.repo.link(self.k, self.quiet, self.other)
+        mid = self.post('simchas', type='celebration', targetMemberId=self.quiet)[1]['messageId']
+        self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub', body={'body': 'Mazal tov'})
+        self.assertEqual(len([c for c in self.since_start('other-sub')['changes'] if c['kind'] == 'reply']), 1)
+        self.call('POST', f'{self.base()}/family/unlink', sub='other-sub')
+        self.assertEqual([c for c in self.since_start('other-sub')['changes'] if c['kind'] == 'reply'], [])
+        self.assertEqual(len([c for c in self.since_start('quiet-sub')['changes'] if c['kind'] == 'reply']), 1)
+
     def test_count_change_in_feed_has_no_reply_content(self):
         mid = self.post('simchas', type='celebration', targetMemberId=self.quiet)[1]['messageId']
         self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub', body={'body': 'Secret wish'})
