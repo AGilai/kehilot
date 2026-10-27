@@ -18,23 +18,23 @@ export function isMuted(m: Message, notify: NotifyPrefs, channels: Channel[]): b
     // Chat is not a broadcast: opting into a chat channel is the member's own choice.
     if (m.type !== 'chat' && notify.membersBroadcasts === 'management_only') return true;
   }
+  // A channel the user can no longer read (or does not know yet) fails closed: never shown as theirs.
   const ch = channels.find(c => c.channelId === m.channelId);
-  if (ch) {
-    if (ch.conversation && !notify.chatChannels.includes(ch.channelId)) return true;
-    if (!ch.inAudience) return true;
-  }
-  return false;
+  if (!ch) return true;
+  if (ch.conversation && !notify.chatChannels.includes(ch.channelId)) return true;
+  return !ch.inAudience;
 }
 
 export type ListOptions = { mode: 'mine' | 'all'; channelId?: string; notify: NotifyPrefs; channels: Channel[] };
 
-/** Messages newest first. `mine` drops muted ones; `all` keeps them (use `isMuted` to flag). */
+/** Messages newest first, only of channels in `o.channels`. `mine` drops muted ones; `all` keeps them (use `isMuted` to flag). */
 export function visibleList(feed: FeedState, o: ListOptions): Message[] {
   const out: Message[] = [];
   for (const id of feed.order) {
     const m = feed.messages[id];
     if (!m) continue;
     if (o.channelId !== undefined && m.channelId !== o.channelId) continue;
+    if (!o.channels.some(c => c.channelId === m.channelId)) continue;
     if (o.mode === 'mine' && isMuted(m, o.notify, o.channels)) continue;
     out.push(m);
   }

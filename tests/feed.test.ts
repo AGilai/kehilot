@@ -298,3 +298,13 @@ test('markReadLocal sets read once and ignores unknown messages', () => {
   assert.equal(s.messages.m1!.read, true);
   assert.equal(markReadLocal(s, 'zz'), s);
 });
+
+test('pruneFeed keeps only messages (and replies) of readable channels', async () => {
+  const { pruneFeed } = await import('../src/client/feed.ts');
+  const m = (id: string, channelId: string) => ({ messageId: id, channelId, type: 'weekly', title: 't', body: '', authorId: 'a', authorName: 'n', authorKind: 'management', joinCount: 0 }) as any;
+  const f = { ...feedFromMessages([m('01A', 'c1'), m('01B', 'c2')]), replies: { '01A': [], '01B': [{ replyId: 'r', authorId: 'a', authorName: 'n', body: 'x', createdAt: 1 }] } };
+  const out = pruneFeed(f, ['c1']);
+  assert.deepEqual(out.order, ['01A']);
+  assert.deepEqual(Object.keys(out.replies), ['01A']);
+  assert.equal(pruneFeed(f, ['c1', 'c2']), f); // nothing to drop: same object
+});

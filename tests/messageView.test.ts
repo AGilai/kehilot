@@ -155,3 +155,11 @@ test('postBody drops the target for other types and empty optional fields', () =
   assert.deepEqual(postBody({ type: 'condolence', channelId: 'a', title: 't', body: 'b', targetMemberId: 'u2' }, 'U1'),
     { channelId: 'a', type: 'condolence', title: 't', body: 'b', targetMemberId: 'u2', imageUploadId: 'U1' });
 });
+
+test('a message of an unknown channel is muted and hidden (fail closed)', () => {
+  const feed = feedFromMessages([msg('01A', { channelId: 'gone' }), msg('01B', { channelId: 'c1' })]);
+  assert.equal(isMuted(msg('01A', { channelId: 'gone' }), notify(), channels), true);
+  assert.deepEqual(visibleList(feed, { mode: 'mine', notify: notify(), channels }).map(m => m.messageId), ['01B']);
+  assert.deepEqual(visibleList(feed, { mode: 'all', notify: notify(), channels }).map(m => m.messageId), ['01B']);
+  assert.equal(unreadCount(feed, notify(), channels), 1);
+});

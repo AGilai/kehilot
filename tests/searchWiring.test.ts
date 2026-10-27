@@ -105,3 +105,19 @@ test('a message the user posts is applied to the feed and the cache at once', as
   assert.equal(store.getState().feed.order.filter(id => id === m.messageId).length, 1);
   store.reset();
 });
+
+test('losing a channel drops its messages and replies from the feed at once', async () => {
+  const { store, state } = setup();
+  state.channels = ['c1', 'c2'];
+  state.history = [msg('01H0000000000000000000000A', 'c1', 'שיעור'), msg('01H0000000000000000000000B', 'c2', 'נוער')];
+  await store.start(); await idle();
+  assert.equal(store.getState().feed.order.length, 2);
+  await store.loadReplies?.('01H0000000000000000000000B').catch(() => {});
+  state.channels = ['c1']; // removed from the group
+  await store.refreshChannels();
+  const feed = store.getState().feed;
+  assert.deepEqual(feed.order, ['01H0000000000000000000000A']);
+  assert.equal(feed.messages['01H0000000000000000000000B'], undefined);
+  assert.equal(feed.replies['01H0000000000000000000000B'], undefined);
+  store.reset();
+});

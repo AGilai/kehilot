@@ -56,6 +56,18 @@ export function applyChanges(state: FeedState, changes: Change[]): FeedState {
   return { messages, order, replies, loaded: state.loaded };
 }
 
+/** Drops the messages (and their replies) of channels that are not in `readable`; the same object when nothing goes. */
+export function pruneFeed(state: FeedState, readable: string[]): FeedState {
+  const ok = new Set(readable);
+  const gone = state.order.filter(id => !ok.has(state.messages[id]?.channelId ?? ''));
+  if (gone.length === 0 && Object.keys(state.replies).every(id => id in state.messages)) return state;
+  const messages: FeedState['messages'] = {};
+  const replies: FeedState['replies'] = {};
+  const order = state.order.filter(id => ok.has(state.messages[id]?.channelId ?? ''));
+  for (const id of order) { messages[id] = state.messages[id]!; if (state.replies[id]) replies[id] = state.replies[id]!; }
+  return { messages, order, replies, loaded: state.loaded };
+}
+
 /** Adds replies fetched for one message; deduplicated by replyId, kept in the order they arrived. */
 export function mergeReplies(state: FeedState, messageId: string, list: Reply[]): FeedState {
   const have = state.replies[messageId] ?? [];

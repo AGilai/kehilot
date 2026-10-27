@@ -1,7 +1,7 @@
 import type { KeyValue } from '../auth/tokens.ts';
 import type { endpoints } from './endpoints.ts';
 import { ApiCodeError } from './errors.ts';
-import { applyChanges, createPoller, emptyFeed, feedFromMessages, markReadLocal, mergeReplies, realSleep } from './feed.ts';
+import { applyChanges, createPoller, emptyFeed, feedFromMessages, markReadLocal, mergeReplies, pruneFeed, realSleep } from './feed.ts';
 import type { FeedState, Sleep, Update } from './feed.ts';
 import type { PendingInvite } from './links.ts';
 import { runBackfill } from '../search/backfill.ts';
@@ -80,7 +80,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     if ('clear' in u) {
       void c.wipe().then(async () => {
         if (!guard(gen) || cache !== c) return;
-        try { const chs = await api.channels(k); if (guard(gen) && cache === c) set({ channels: chs }); } catch { /* keep the known set */ }
+        try { const chs = await api.channels(k); if (guard(gen) && cache === c) set({ channels: chs, feed: pruneFeed(state.feed, chs.map(x => x.channelId)) }); } catch { /* keep the known set */ }
         if (!guard(gen) || cache !== c) return;
         await c.ensureChannels(readableIds());
         startBackfill(c, k, gen, true);
@@ -233,11 +233,12 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   async function refreshChannels(): Promise<void> {
     const c = current();
     const mine = cache;
-    if (!c || !mine) return;
+    if (!c) return;
     const channels = await api.channels(c.k);
     if (!still(c) || cache !== mine) return;
-    set({ channels });
-    syncCache(mine, c.k);
+    // Channels no longer readable leave the feed at once, not only the search cache.
+    set({ channels, feed: pruneFeed(state.feed, channels.map(x => x.channelId)) });
+    if (mine) syncCache(mine, c.k);
   }
 
   /** Offline search over the cache of the open Kehila; only channels the user can read now (state.channels). */
