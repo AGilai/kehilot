@@ -1772,5 +1772,228 @@
       "removeHolder": "Remove",
       "discardPartial": "Discard the partial save"
     }
+  },
+  "seatMap": {
+    "band": {
+      "version": "Version {n} · effective {from}",
+      "saved": "saved {when}",
+      "draft": "New map, not saved yet",
+      "scheduled": "A version is scheduled from {from}.",
+      "back": "Back to the map"
+    },
+    "mode": {
+      "label": "Editing mode",
+      "assign": "Assign families",
+      "layout": "Hall layout"
+    },
+    "tool": {
+      "history": "History",
+      "undo": "Undo",
+      "redo": "Redo",
+      "zoom": "View",
+      "fit": "Fit to screen",
+      "z100": "100%",
+      "z150": "150%",
+      "unsaved": "{n} unsaved changes",
+      "saved": "Everything is saved",
+      "reset": "Discard changes",
+      "save": "Save",
+      "paste": "Paste from a sheet"
+    },
+    "start": {
+      "scratch": "Build from scratch",
+      "scratchHelp": "The Kehila has no map yet. Start from an empty grid and draw the hall."
+    },
+    "grid": {
+      "label": "Hall map",
+      "free": "Free",
+      "ark": "Ark",
+      "bimah": "Bimah",
+      "aisle": "Aisle",
+      "empty": "Empty",
+      "seat": "Seat",
+      "changed": "changed",
+      "row": "row {row}",
+      "frontRow": "front row"
+    },
+    "panel": {
+      "search": "Search a family or holder",
+      "all": "All",
+      "none": "No seats",
+      "noAccount": "No account",
+      "empty": "No families found.",
+      "new": "New",
+      "totals": "{seats} seats · {assigned} assigned · {free} free",
+      "countN": "{n} seats",
+      "countOne": "One seat",
+      "countNone": "No seat",
+      "registered": "Registered family",
+      "holder": "Seat holder without an account",
+      "move": "Move family…",
+      "freeAll": "Free all seats",
+      "pick": "Pick a family from the list, or click one of its seats on the map.",
+      "unpick": "Clear the family selection",
+      "families": "Families",
+      "newHolder": "New seat holder…"
+    },
+    "bar": {
+      "one": "One seat selected",
+      "n": "{n} seats selected",
+      "cells": "{n} cells selected",
+      "assignTo": "Assign to {name}",
+      "assignOther": "Assign to…",
+      "free": "Mark free",
+      "clear": "Clear selection"
+    },
+    "picker": {
+      "title": "Assign the seats",
+      "search": "Search a family or holder",
+      "newHolder": "New seat holder without an account",
+      "name": "Name (e.g. the Example family)",
+      "phone": "Phone (optional)",
+      "add": "Add and assign",
+      "badPhone": "That phone number is not valid.",
+      "nameNeeded": "A name is needed.",
+      "none": "None found."
+    },
+    "others": {
+      "title": "{name}'s seat",
+      "body": "This seat belongs to another household. No seat changes hands without your choice.",
+      "bodyMany": "{n} of the selected seats belong to other households: {names}. No seat changes hands without your choice.",
+      "move": "Move to {name}",
+      "free": "Free it",
+      "cancel": "Cancel"
+    },
+    "move": {
+      "banner": "Moving {name}: pick {n} new seats. {m} picked.",
+      "confirm": "Confirm the move",
+      "cancel": "Cancel the move",
+      "taken": "A seat of another household cannot be picked.",
+      "notSeat": "Only seats can be picked.",
+      "count": "Pick exactly {n} seats."
+    },
+    "layout": {
+      "hint": "Select cells on the map, then a cell type. Keys: S seat, A aisle, B bimah, K ark, Delete empty.",
+      "palette": "Cell type",
+      "addRowFront": "+ Row at the front",
+      "addRowBack": "+ Row at the back",
+      "addColLeft": "+ Column on the left",
+      "addColRight": "+ Column on the right",
+      "removeRow": "Remove the row",
+      "removeCol": "Remove the column",
+      "blocks": "Blocks",
+      "blockName": "Block name",
+      "rowLabel": "Row name",
+      "rowLabelFor": "Row {n}",
+      "size": "{rows} rows · {cols} columns",
+      "rowsCap": "Up to {n} rows.",
+      "colsCap": "Up to {n} columns.",
+      "last": "At least one row and one column must stay.",
+      "pickCell": "Pick a cell to remove its row or column.",
+      "warn": "{n} of the selected cells are taken. {names} will lose a seat. Continue?",
+      "warnYes": "Yes, continue",
+      "warnNo": "Cancel",
+      "kind": {
+        "seat": "Seat",
+        "aisle": "Aisle",
+        "bimah": "Bimah",
+        "ark": "Ark",
+        "empty": "Empty"
+      }
+    },
+    "save": {
+      "title": "Save the map",
+      "diff": "{n} changes: {parts}",
+      "diffNone": "Nothing to save.",
+      "assigned": "{n} assigned",
+      "freed": "{n} freed",
+      "cells": "{n} cells changed",
+      "names": "block or row names",
+      "size": "hall size",
+      "from": "Effective from",
+      "fromHelp": "Past Shabbatot stay as they were.",
+      "default": "Default",
+      "opened": "The version you opened",
+      "hasVersion": "Has a version",
+      "replaces": "A map already takes effect on this Shabbat, and it is not the one you opened. Saving replaces it.",
+      "openTitle": "This Shabbat is already open for answers",
+      "openBody": "You can save, but families that already answered will see that their seats were updated. Their counts move to the new seats in order.",
+      "go": "Save",
+      "saving": "Saving…",
+      "stepHolders": "Creating seat holders",
+      "stepLayout": "Saving the hall layout",
+      "stepAssign": "Assigning the seats",
+      "newHolders": "{n} new seat holders without an account will be created.",
+      "noSeats": "The map has no seat.",
+      "blockName": "A block name is empty or too long.",
+      "rowLabel": "A row name is too long (up to 8 characters).",
+      "tooManyBlocks": "Too many blocks.",
+      "cancel": "Cancel",
+      "toast": "The map was saved"
+    },
+    "conflict": {
+      "title": "A newer version exists",
+      "body": "Another gabbai saved the map at {time}, after you opened it.",
+      "bodyNoTime": "Another gabbai saved the map after you opened it.",
+      "counts": "Theirs: {theirs} · yours: {yours} · overlapping: {overlap}",
+      "apply": "Apply my changes to the new version",
+      "show": "Show their changes",
+      "hide": "Hide their changes",
+      "overwrite": "Save anyway (overwrite)",
+      "sure": "Are you sure? The newer version will be replaced by what is in the editor now.",
+      "sureYes": "Yes, overwrite",
+      "loading": "Reading the newer version…",
+      "overlapTitle": "Places you both changed",
+      "keepTheirs": "Keep theirs",
+      "useMine": "Use mine",
+      "theirs": "Theirs: {value}",
+      "mine": "Yours: {value}",
+      "noChanges": "No changes found.",
+      "applied": "Your changes were applied to the newer version. They are not saved yet.",
+      "appliedOverlap": "Your changes were applied to the newer version and are not saved yet. {n} overlapping places stayed as in the newer version.",
+      "failed": "Could not read the newer version.",
+      "later": "Later"
+    },
+    "history": {
+      "title": "History",
+      "row": "Version {n} · effective {from}",
+      "until": "until {to}",
+      "saved": "saved {when}",
+      "counts": "{seats} seats · {assigned} assigned",
+      "current": "In effect now",
+      "scheduled": "Scheduled",
+      "open": "Open to edit",
+      "view": "View",
+      "restore": "Restore",
+      "draft": "Your draft: {n} unsaved changes",
+      "opened": "Open",
+      "none": "No version saved yet.",
+      "readOnly": "A past Shabbat: view only."
+    },
+    "view": {
+      "band": "Version {n} · effective {from} until {to}. View only.",
+      "bandOpen": "Version {n} · effective {from}. View only.",
+      "back": "Back to editing",
+      "restore": "Restore this version"
+    },
+    "discard": {
+      "title": "Discard the changes?",
+      "body": "{n} unsaved changes will be lost.",
+      "yes": "Yes, discard",
+      "no": "Keep editing"
+    },
+    "live": {
+      "assigned": "{n} seats assigned to {name}, now {total}",
+      "freed": "{n} seats freed",
+      "painted": "{n} cells changed",
+      "moved": "{name} moved to the new seats",
+      "undo": "Undone"
+    },
+    "phone": {
+      "banner": "The map is edited on the website only.",
+      "hint": "You can see the hall and the list of families. Names appear when zoomed in."
+    },
+    "loadFailed": "The map did not load.",
+    "loading": "Loading the map…"
   }
 }

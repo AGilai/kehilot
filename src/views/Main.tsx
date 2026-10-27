@@ -95,7 +95,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   const seat = seatScreenFor(s, state.kehila?.role, config.seatsPreview);
   if (seat === 'seats') return { nav: { tab: 'seats' } };
   if (seat === 'seatPrint') return { nav: { tab: 'seatPrint' }, manage: true };
-  if (s?.startsWith('seat-editor')) return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatEditor' }, manage: true } : null;
+  if (s?.startsWith('seat-editor') || s === 'seat-map') return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatEditor' }, manage: true } : null;
   if (s === 'schedule') return { nav: { tab: 'schedule' } };
   if (s === 'schedule-editor' || s === 'schedule-editor-none') return scheduleEditorAllowed(state.kehila?.role) ? { nav: { tab: 'scheduleEditor' }, manage: true } : null;
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };

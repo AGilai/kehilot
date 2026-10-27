@@ -12,7 +12,7 @@ import { dayOfWeek, israelDate, upcomingFriday } from '../dates.ts';
 import { addDays } from '../schedule/week.ts';
 import { israelInstant } from '../seats/window.ts';
 import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
-import { fixtureSeatFamilies } from '../seats/fixturePaste.ts';
+import { fixtureMap, fixtureMapFamilies, fixtureSeatFamilies } from '../seats/fixturePaste.ts';
 import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
@@ -28,7 +28,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -420,30 +420,83 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   let conflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
   // Seating editor (fixture builds): holders and layouts are kept in memory, so a save shows up on the next read.
   let seatHolders: Array<{ holderId: string; name: string; phone: string | null; createdAt: number; updatedAt: number }> = [{ holderId: '01FIXTUREHOLDER00000000001', name: 'משפחת מדומה', phone: null, createdAt: 1_780_000_000_000, updatedAt: 1_780_000_000_000 }];
-  const seatLayouts = new Map<string, { body: Record<string, unknown>; seats: Array<{ id: string; row: number; col: number }>; updatedAt: number }>();
+  type SeatVersion = { body: Record<string, unknown>; seats: Array<{ id: string; row: number; col: number }>; updatedAt: number; asg: Record<string, string>; asgAt: number | null };
+  const seatLayouts = new Map<string, SeatVersion>();
+  const seatId = (row: number, col: number) => `s${String(row).padStart(3, '0')}${String(col).padStart(3, '0')}`;
+  const seatsOfBody = (cells: string[][]) => { const out: Array<{ id: string; row: number; col: number }> = []; cells.forEach((r, row) => r.forEach((kind, col) => { if (kind === 'seat') out.push({ id: seatId(row, col), row, col }); })); return out; };
+  // `?screen=seat-map`: three saved versions of an invented hall (one past, one in effect, one scheduled); `&conflict=1` makes the first layout save answer 409
+  // after "another gabbai" saved (a few seats moved), so the conflict dialog can be shot.
+  let seatConflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
+  if (screen === 'seat-map') {
+    const m = fixtureMap();
+    const seats = seatsOfBody(m.layout.cells);
+    const asgOf = (assign: Record<string, string>) => Object.fromEntries(Object.entries(assign).map(([p, ref]) => { const [r, c] = p.split(':').map(Number); return [seatId(r!, c!), ref]; }));
+    const base = asgOf(m.assign);
+    const ids = seats.map((x) => x.id);
+    const later = { ...base };
+    for (const id of ids.slice(0, 6)) delete later[id];
+    seatLayouts.set('2026-09-04', { body: m.layout as unknown as Record<string, unknown>, seats, updatedAt: 1_788_000_000_000, asg: later, asgAt: 1_788_000_000_000 });
+    seatLayouts.set('2026-10-09', { body: m.layout as unknown as Record<string, unknown>, seats, updatedAt: 1_791_000_000_000, asg: base, asgAt: 1_791_000_000_000 });
+    seatLayouts.set('2026-11-13', { body: m.layout as unknown as Record<string, unknown>, seats, updatedAt: 1_792_000_000_000, asg: base, asgAt: 1_792_000_000_000 });
+  }
   const seatingFixture = (method: string, path: string, body: unknown): unknown => {
     const p = path.split('?')[0]!;
-    if (p === `${A}/families`) return fixtureSeatFamilies();
+    if (p === `${A}/families`) return screen === 'seat-map' ? fixtureMapFamilies() : fixtureSeatFamilies();
     if (p === `${A}/seating/holders`) {
       if (method === 'GET') return structuredClone(seatHolders);
       const b = body as { name: string; phone?: string };
       const h = { holderId: fixtureUlid(Date.now() + seatHolders.length, 40), name: b.name, phone: b.phone ?? null, createdAt: Date.now(), updatedAt: Date.now() };
       seatHolders = [...seatHolders, h]; return h;
     }
-    if (p === `${A}/seating/layouts` && method === 'GET') return { layouts: [...seatLayouts.entries()].map(([effectiveFrom, l]) => ({ effectiveFrom, updatedAt: l.updatedAt, seats: l.seats.length, assigned: 0, current: false })) };
+    if (p === `${A}/seating/layouts` && method === 'GET') {
+      const today = israelDate(fixtureNow() ?? new Date());
+      const inEffect = [...seatLayouts.keys()].filter((f) => f <= today).sort().pop();
+      return { layouts: [...seatLayouts.entries()].map(([effectiveFrom, l]) => ({ effectiveFrom, updatedAt: l.updatedAt, seats: l.seats.length, assigned: Object.keys(l.asg).length, current: effectiveFrom === inEffect })).sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1)) };
+    }
     const m = /\/seating\/layouts\/([^/]+)(\/assignments)?$/.exec(p);
+    if (m && !m[2] && method === 'GET') {
+      const v = seatLayouts.get(m[1]!);
+      if (!v) throw new ApiCodeError(404, 'layout_not_found');
+      return { ...v.body, effectiveFrom: m[1], seats: v.seats, updatedAt: v.updatedAt };
+    }
     if (m && !m[2] && method === 'PUT') {
       const b = body as { cells: string[][]; ifUpdatedAt: number | null };
       const old = seatLayouts.get(m[1]!);
+      if (seatConflictPending) {
+        // "another gabbai" saved this date first: a copy of the version in effect, with three seats freed and two given to the holder
+        seatConflictPending = false;
+        const src = old ?? seatLayouts.get([...seatLayouts.keys()].filter((f) => f < m[1]!).sort().pop() ?? '');
+        if (src) {
+          const moved = { ...src.asg };
+          const ids = src.seats.map((x) => x.id).filter((id) => moved[id]);
+          for (const id of ids.slice(40, 43)) delete moved[id];
+          const free = src.seats.map((x) => x.id).filter((id) => !moved[id]);
+          for (const id of free.slice(0, 2)) moved[id] = 'holder:01FIXTUREHOLDER00000000001';
+          const at = Date.now() - 20 * 60_000;
+          seatLayouts.set(m[1]!, { ...src, asg: moved, updatedAt: at, asgAt: at });
+          throw new ApiCodeError(409, 'layout_changed');
+        }
+      }
       if ((old?.updatedAt ?? null) !== b.ifUpdatedAt) throw new ApiCodeError(409, 'layout_changed');
-      const seats: Array<{ id: string; row: number; col: number }> = [];
-      b.cells.forEach((r, row) => r.forEach((kind, col) => { if (kind === 'seat') seats.push({ id: `s${String(row).padStart(3, '0')}${String(col).padStart(3, '0')}`, row, col }); }));
-      const updatedAt = Date.now();
-      seatLayouts.set(m[1]!, { body: b as Record<string, unknown>, seats, updatedAt });
+      const seats = seatsOfBody(b.cells);
+      const updatedAt = Math.max(Date.now(), (old?.updatedAt ?? 0) + 1);
+      const keep = new Set(seats.map((x) => x.id));
+      // a new version starts from the assignments of the latest earlier one; a seat that is gone loses its holder
+      const from = old?.asg ?? seatLayouts.get([...seatLayouts.keys()].filter((f) => f < m[1]!).sort().pop() ?? '')?.asg ?? {};
+      seatLayouts.set(m[1]!, { body: b as Record<string, unknown>, seats, updatedAt, asg: Object.fromEntries(Object.entries(from).filter(([id]) => keep.has(id))), asgAt: updatedAt });
       return { ...(b as object), effectiveFrom: m[1], seats, updatedAt };
     }
-    if (m && m[2] && method === 'GET') return { assignments: {}, updatedAt: null };
-    if (m && m[2] && method === 'PUT') return { updatedAt: Date.now() };
+    if (m && m[2] && method === 'GET') { const v = seatLayouts.get(m[1]!); if (!v) throw new ApiCodeError(404, 'layout_not_found'); return { assignments: structuredClone(v.asg), updatedAt: v.asgAt }; }
+    if (m && m[2] && method === 'PUT') {
+      const v = seatLayouts.get(m[1]!);
+      if (!v) throw new ApiCodeError(404, 'layout_not_found');
+      const b = body as { assignments: Record<string, string | null>; ifUpdatedAt: number | null };
+      if (b.ifUpdatedAt !== v.asgAt) throw new ApiCodeError(409, 'assignments_changed');
+      const asg = { ...v.asg };
+      for (const [id, ref] of Object.entries(b.assignments)) { if (ref) asg[id] = ref; else delete asg[id]; }
+      v.asg = asg; v.asgAt = Math.max(Date.now(), (v.asgAt ?? 0) + 1);
+      return { updatedAt: v.asgAt };
+    }
     throw new ApiCodeError(404, 'not_found');
   };
   const http: Http = {
@@ -468,7 +521,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
         if (method === 'PUT') { scheduleDoc.weekOverrides[friday] = body as ScheduleDoc['weekOverrides'][string]; return {} as any; }
         if (method === 'DELETE') { delete scheduleDoc.weekOverrides[friday]; return undefined as any; }
       }
-      if (path.includes('/admin/seating/') || (screen?.startsWith('seat-editor') && path === `${A}/families`)) return seatingFixture(method, path, body) as any;
+      if (path.includes('/admin/seating/') || ((screen?.startsWith('seat-editor') || screen === 'seat-map') && path === `${A}/families`)) return seatingFixture(method, path, body) as any;
       if (method === 'GET' && path === '/v1/me/export' && !('GET /v1/me/export' in routes)) throw new ApiCodeError(404, 'export_not_found');
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;

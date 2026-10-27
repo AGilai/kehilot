@@ -112,6 +112,7 @@ export function endpoints(http: Http) {
       r<{ familyId: string }>('POST', `${A(k)}/families/link`, { userIds: [a, b] }),
     // seating editor (gabbai): layouts by effective Friday, holders without an account, assignments
     seatLayouts: (k: string) => r<{ layouts: SeatLayoutRow[] }>('GET', `${A(k)}/seating/layouts`),
+    seatLayout: (k: string, from: string) => r<SeatLayout>('GET', `${A(k)}/seating/layouts/${e(from)}`),
     putSeatLayout: (k: string, from: string, body: LayoutBody & { ifUpdatedAt: number | null }) =>
       r<SeatLayout>('PUT', `${A(k)}/seating/layouts/${e(from)}`, body),
     seatAssignments: (k: string, from: string) =>

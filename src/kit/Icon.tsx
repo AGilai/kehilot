@@ -39,6 +39,9 @@ const PATHS = {
   minus: '<path d="M5 12h14"/>',
   up: '<path d="M6 15l6-6 6 6"/>',
   image: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4 4 3 3-2 4 3"/>',
+  undo: '<path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-4"/>',
+  redo: '<path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h4"/>',
+  hist: '<path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4M12 8v4l3 2"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 } as const;
 

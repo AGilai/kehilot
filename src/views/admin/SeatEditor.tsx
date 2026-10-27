@@ -14,7 +14,7 @@ import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
 import { BackIcon } from '../../kit/Icon.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import { effectiveFamilies, initialMatchState, matchReducer } from '../../seats/decisions.ts';
-import { fixturePasteTsv, fixtureSeatFamilies } from '../../seats/fixturePaste.ts';
+import { fixtureMapFamilies, fixturePasteTsv, fixtureSeatFamilies } from '../../seats/fixturePaste.ts';
 import { readPaste } from '../../seats/readPaste.ts';
 import type { PasteProblem } from '../../seats/readPaste.ts';
 import { defaultBlockNames, familiesForMatch } from '../../seats/savePlan.ts';
@@ -25,9 +25,13 @@ import { CheckStep } from './seatEditor/CheckStep.tsx';
 import { MatchStep } from './seatEditor/MatchStep.tsx';
 import { SaveStep } from './seatEditor/SaveStep.tsx';
 import { StepRow } from './seatEditor/bits.tsx';
+import { MapEditor } from './seatMap/MapEditor.tsx';
 import type { StepKey } from './seatEditor/bits.tsx';
 
 type Load = { status: 'loading' } | { status: 'error'; code: unknown } | { status: 'ready'; families: AdminFamily[]; holders: SeatHolder[]; layouts: SeatLayoutRow[]; holding: Set<string> };
+
+/** Fixture builds: `?screen=seat-map` opens the map editor on an invented saved hall; the `seat-editor*` screens are the paste flow. */
+const isSeatFixture = (screen: string | null | undefined): boolean => !!screen && (screen === 'seat-map' || screen.startsWith('seat-editor'));
 
 export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; onDirty: (dirty: boolean) => void; onToast: (text: string) => void }) {
   const { t, lang, dir } = useI18n();
@@ -51,7 +55,7 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
       if (current) {
         try { for (const ref of Object.values((await api.seatAssignments(kehilaId, current.effectiveFrom)).assignments)) if (ref.startsWith('family:')) holding.add(ref.slice(7)); } catch { /* ignore */ }
       }
-      setLoad({ status: 'ready', families: config.fixtures && fixtureParams().screen?.startsWith('seat-editor') ? fixtureSeatFamilies() : families, holders, layouts: layouts.layouts, holding });
+      setLoad({ status: 'ready', families: config.fixtures && fixtureParams().screen === 'seat-map' ? fixtureMapFamilies() : isSeatFixture(fixtureParams().screen) ? fixtureSeatFamilies() : families, holders, layouts: layouts.layouts, holding });
     } catch (e) { setLoad({ status: 'error', code: e }); }
   }, [api, kehilaId]);
   React.useEffect(() => { void fetchAll(); }, [fetchAll]);
@@ -65,7 +69,11 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
   const [match, dispatch] = React.useReducer(matchReducer, undefined, initialMatchState);
   const [saveSession, dispatchSave] = React.useReducer(saveSessionReducer, undefined, initialSaveSession);
   const [layouts, setLayouts] = React.useState<SeatLayoutRow[] | null>(null);
+  const [holdersNow, setHoldersNow] = React.useState<SeatHolder[] | null>(null);
   const [saved, setSaved] = React.useState(false);
+  // The map editor (P29) is the home of a Kehila that has a map; the paste flow (P28) makes the first one or replaces it.
+  const [view, setView] = React.useState<'map' | 'paste' | null>(null);
+  const [mapDirty, setMapDirty] = React.useState(false);
 
   const accept = React.useCallback((input: { text?: string; html?: string }) => {
     const r = readPaste(input);
@@ -92,7 +100,9 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
     return () => document.removeEventListener('paste', handler);
   }, [step, accept]);
 
-  const dirty = !!parsed && !saved;
+  const hasMap = load.status === 'ready' && (preset === 'seat-map' || (layouts ?? load.layouts).length > 0);
+  const effView: 'map' | 'paste' = view ?? (hasMap ? 'map' : 'paste');
+  const dirty = (effView === 'paste' && !!parsed && !saved) || (effView === 'map' && mapDirty);
   React.useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined' || !dirty) return;
@@ -119,7 +129,10 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
     </Pressable>
   );
 
-  // phone: view only (UX §16, "Phone: view only"): the editor needs a computer
+  // phone: view only (UX §16, "Phone: view only"): the hall and the list of households, read only; without a map, a notice
+  if (!wide && load.status === 'ready' && hasMap) {
+    return <MapEditor phone scratch={false} families={load.families} holders={holdersNow ?? load.holders} layouts={layouts ?? load.layouts} onLayouts={setLayouts} onHolders={setHoldersNow} onBack={onBack} onPaste={() => {}} onDirty={() => {}} onToast={onToast} />;
+  }
   if (!wide) {
     return (
       <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
@@ -138,7 +151,7 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 24, backgroundColor: k.surface, borderBottomWidth: 1, borderBottomColor: k.line, minHeight: 56, flexWrap: 'wrap' }}>
       {back}
       <Txt serif size="heading" accessibilityRole="header">{t('seatEditor.title')}</Txt>
-      <View style={{ paddingVertical: 8 }}><StepRow step={step} /></View>
+      {effView === 'paste' ? <View style={{ paddingVertical: 8 }}><StepRow step={step} /></View> : null}
       <View style={{ flex: 1 }} />
       <Txt size="small" color={k.muted}>{session.state.kehila?.name}</Txt>
     </View>
@@ -156,7 +169,12 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
   }
 
   let body: React.ReactNode;
-  if (step === 'paste' || !parsed) {
+  if (effView === 'map') {
+    body = (
+      <MapEditor scratch={!hasMap || (layouts ?? load.layouts).length === 0} phone={false} families={load.families} holders={holdersNow ?? load.holders} layouts={layouts ?? load.layouts}
+        onLayouts={setLayouts} onHolders={setHoldersNow} onBack={onBack} onPaste={() => { setView('paste'); setStep('paste'); setParsed(null); }} onDirty={setMapDirty} onToast={onToast} />
+    );
+  } else if (step === 'paste' || !parsed) {
     body = (
       <ScrollView contentContainerStyle={{ padding: 24, gap: 16, width: '100%', maxWidth: 820, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
         <Txt serif size="display" accessibilityRole="header">{t('seatEditor.start.title')}</Txt>
@@ -186,6 +204,14 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
           <View style={{ alignSelf: 'flex-start' }}><Button kind="secondary" title={t('seatEditor.start.read')} disabled={!text.trim()} onPress={() => accept({ text })} /></View>
         </Card>
         <Banner text={t('seatEditor.start.privacy')} />
+        {(layouts ?? load.layouts).length === 0 ? (
+          <Card>
+            <Txt color={k.muted}>{t('seatMap.start.scratchHelp')}</Txt>
+            <View style={{ alignSelf: 'flex-start' }}><Button kind="secondary" title={t('seatMap.start.scratch')} onPress={() => setView('map')} /></View>
+          </Card>
+        ) : (
+          <View style={{ alignSelf: 'flex-start' }}><Button kind="secondary" title={t('seatMap.band.back')} onPress={() => setView('map')} /></View>
+        )}
       </ScrollView>
     );
   } else if (step === 'check') {

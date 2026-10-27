@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { addHolder, assignKeys, emptyDraft } from '../src/seats/editModel.ts';
+import { blocksOfRef, filterHouseholds, households } from '../src/seats/households.ts';
+import { fixtureSeatFamilies } from '../src/seats/fixturePaste.ts';
+
+test('households: counts, short names with an initial only where a surname repeats, no-account tags, pending holders', () => {
+  const fams = fixtureSeatFamilies();
+  const d0 = emptyDraft(2, 6);
+  d0.layout.blocks = [{ name: 'ימין', colStart: 0, colEnd: 2 }, { name: 'שמאל', colStart: 3, colEnd: 5 }];
+  const gal = fams.find((f) => f.adults[0]!.displayName.startsWith('גל'))!;
+  const bd = fams.find((f) => f.name === 'בדיוני')!;
+  let d = assignKeys(d0, ['0:0', '0:4'], `family:${gal.familyId}`);
+  d = assignKeys(d, ['1:1'], 'holder:H1');
+  const h = addHolder(d, 'אורח דוגמה');
+  d = assignKeys(h.draft, ['1:2'], h.ref);
+  const rows = households(d, fams, [{ holderId: 'H1', name: 'משפחת מדומה' }]);
+  const g = rows.find((r) => r.ref === `family:${gal.familyId}`)!;
+  assert.equal(g.short, 'אופק ג.');
+  assert.equal(g.count, 2);
+  assert.deepEqual(g.blocks, ['שמאל', 'ימין']);
+  assert.equal(rows.find((r) => r.ref === `family:${bd.familyId}`)!.short, 'בדיוני');
+  assert.equal(rows.find((r) => r.ref === `family:${bd.familyId}`)!.count, 0);
+  const holder = rows.find((r) => r.ref === 'holder:H1')!;
+  assert.ok(holder.noAccount && holder.count === 1);
+  assert.ok(rows.find((r) => r.ref === 'new:h1')!.pending);
+  assert.deepEqual(blocksOfRef(d, 'family:none'), []);
+  assert.ok(filterHouseholds(rows, '', 'none').every((r) => r.count === 0));
+  assert.ok(filterHouseholds(rows, '', 'noAccount').every((r) => r.noAccount));
+  assert.deepEqual(filterHouseholds(rows, 'אופק ג', 'all').map((r) => r.ref), [`family:${gal.familyId}`]);
+});
