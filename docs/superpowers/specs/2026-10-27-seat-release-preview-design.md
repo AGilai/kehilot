@@ -43,4 +43,20 @@ can use our synagogue layout — you can find a map on gabbai folder".
   rows 0–13, the bimah in the middle block, about 205 seats. It becomes the first Kehila's seat map
   (data, configurable per Kehila later); never copy names from the Excel chart.
 
+## Running beside the old method (owner, 2026-10-27)
+
+"since we will run the system in parallel to the old method also — allow an upload responses format for
+a shabbat release and allow a gabbai (regardless) release places on behalf of a person".
+- **Upload responses:** the gabbai uploads, per Shabbat, a file with the answers collected the old way
+  (CSV/Excel). One row per household: who (matched by name and/or phone, shown for confirmation —
+  unmatched rows listed for manual matching), seats needed per prayer (ערבית / שחרית). A downloadable
+  template defines the format; a preview shows what will change before applying; applying is undoable
+  for that Shabbat. Answers already given in the app win unless the gabbai chooses the file's answer
+  for that household. **Open:** the exact columns of the old method's output — ask the owner for a
+  sample (with invented names) and align the template to it.
+- **Gabbai on behalf of a person:** in the gabbai's seat screen (and the print map), any gabbai can set
+  a household's needed / released seats for the coming Shabbat, regardless of the deadline. It is
+  recorded as "updated by a gabbai" (visible to the gabbaim and to that household, without the gabbai's
+  name to others) and the household sees the current state on its seat page.
+
 Design through the designer (one look and feel): the card, the seat page with the block frame, the push copy.
