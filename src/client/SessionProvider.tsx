@@ -35,6 +35,8 @@ export type SessionApi = {
   dismissJoinError(): void;
   /** Re-run the start sequence after an error. */
   retry(): void;
+  /** Reload the channel list now (after a channel or chat-limit change). */
+  refreshChannels(): Promise<void>;
   /** Poll the change feed now (a push arrived). */
   pollNow(): Promise<void>;
   /** M5: optimistic notification-preference change; rejects (after reverting) when the server refuses. */
@@ -129,6 +131,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     requestMembership: () => store.requestMembership(),
     dismissJoinError: () => store.clearJoinError(),
     retry: () => setAttempt(a => a + 1),
+    refreshChannels: () => store.refreshChannels(),
     pollNow: () => store.pollNow(),
     setNotify: p => store.setNotify(p),
     editProfile: p => store.editProfile(p),

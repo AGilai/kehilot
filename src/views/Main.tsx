@@ -8,11 +8,15 @@ import { unreadCount } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { pushDestination } from '../client/push.ts';
 import { adminGuard, takeManageEntry } from '../client/membersView.ts';
+import { firstWithPending } from '../client/channelsView.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Toast, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { AdminContext } from './admin/shared.tsx';
 import { Approvals } from './admin/Approvals.tsx';
+import { Channels } from './admin/Channels.tsx';
+import { GroupAdmin } from './admin/GroupAdmin.tsx';
+import { Groups } from './admin/Groups.tsx';
 import { InviteWithRole } from './admin/InviteWithRole.tsx';
 import { Members } from './admin/Members.tsx';
 import { Overview } from './admin/Overview.tsx';
@@ -40,9 +44,12 @@ type Nav =
   | { tab: 'approvals' }
   | { tab: 'members' }
   | { tab: 'invite'; member?: boolean }
+  | { tab: 'groups' }
+  | { tab: 'channels' }
+  | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'me' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
-/** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat | overview | approvals | members | invite-member opens that screen (the last four in management mode). */
+/** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat | overview | approvals | members | invite-member | groups | channels | channel-sheet | group-admin opens that screen (the last four in management mode). */
 function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter; compose?: ComposeInitial; manage?: boolean } | null {
   if (!config.fixtures) return null;
   const s = fixtureParams().screen;
@@ -59,6 +66,9 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'approvals') return { nav: { tab: 'approvals' }, manage: true };
   if (s === 'members') return { nav: { tab: 'members' }, manage: true };
   if (s === 'invite-member') return { nav: { tab: 'invite', member: true }, manage: true };
+  if (s === 'groups') return { nav: { tab: 'groups' }, manage: true };
+  if (s === 'channels' || s === 'channel-sheet') return { nav: { tab: 'channels' }, manage: true };
+  if (s === 'group-admin') return { nav: { tab: 'group', groupId: '01FIXTUREGROUP00000000001', name: 'נוער', from: 'groups' }, manage: true };
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetId: '01FIXTUREUSER00000000002' } };
   if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };
@@ -84,12 +94,31 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+  // A member who administers groups: the first of them with pending requests (else Me).
+  function openGroupRequests() {
+    const kid = state.kehilaId;
+    if (!kid) { setNav({ tab: 'me' }); return; }
+    void (async () => {
+      let found: { groupId: string; name: string } | null = null;
+      try {
+        const mine = (await api.myGroups(kid)).filter(g => g.isAdmin);
+        const id = await firstWithPending(mine.map(g => g.groupId), async g => (await api.groupRequests(kid, g)).length);
+        const g = mine.find(x => x.groupId === id);
+        if (g) found = { groupId: g.groupId, name: g.name };
+      } catch { /* open Me */ }
+      setNav(found ? { tab: 'group', ...found, from: 'me' } : { tab: 'me' });
+    })();
+  }
   // A tapped push opens the message, Approvals (requests, gabbai only), or Home.
   React.useEffect(() => {
     const target = takePush?.();
     if (!target) return;
     const dest = pushDestination(target, state.kehila?.role);
     if (dest === 'approvals') { setManage(true); setNav({ tab: 'approvals' }); }
+    else if (dest === 'group_requests') {
+      if (state.kehila?.role === 'gabbai') { setManage(true); setNav({ tab: 'groups' }); }
+      else openGroupRequests();
+    }
     else setNav(dest === 'message' && target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
   }, [pushSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   const isGabbai = state.kehila?.role === 'gabbai';
@@ -130,8 +159,8 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
 
   const kehila = state.kehila;
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite';
-  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'invite' ? 'overview' : nav.tab as 'overview' | 'approvals' | 'members') : nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') ? 'me'
+  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || (nav.tab === 'group' && nav.from === 'groups');
+  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
     : nav.tab === 'home' || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
     { key: 'overview' as const, label: t('admin.tabs.overview'), icon: '▦', badge: 0 },
@@ -162,7 +191,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onCount={setPending} onToast={showToast} />;
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onCount={setPending} onToast={showToast} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} />;
@@ -170,11 +199,20 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     case 'members':
       body = <Members onToast={showToast} />;
       break;
+    case 'groups':
+      body = <Groups onBack={() => setNav({ tab: 'overview' })} onOpen={g => setNav({ tab: 'group', groupId: g.groupId, name: g.name, from: 'groups' })} onToast={showToast} />;
+      break;
+    case 'channels':
+      body = <Channels onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
+      break;
+    case 'group':
+      body = <GroupAdmin key={nav.groupId} group={nav} onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
+      break;
     case 'invite':
       body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'me':
-      body = <Me onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
+      body = <Me onGroup={g => setNav({ tab: 'group', ...g, from: 'me' })} onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
       break;
     case 'compose':
       body = <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}

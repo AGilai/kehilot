@@ -55,9 +55,10 @@ export function takePushTarget<T>(holder: { current: T | null }): T | null {
   return v;
 }
 
-/** Where a tapped push goes. `requests` is the approvals queue (gabbai only); `group_requests` waits for Task 16b. */
-export function pushDestination(t: { messageId?: string; screen?: string }, role: string | undefined): 'approvals' | 'message' | 'home' {
+/** Where a tapped push goes. `requests` is the approvals queue (gabbai only); `group_requests` is the requests of a group the user administers (the screen finds which). */
+export function pushDestination(t: { messageId?: string; screen?: string }, role: string | undefined): 'approvals' | 'group_requests' | 'message' | 'home' {
   if (t.screen === 'requests' && role === 'gabbai') return 'approvals';
+  if (t.screen === 'group_requests' && (role === 'gabbai' || role === 'member')) return 'group_requests';
   if (t.screen) return 'home';
   return t.messageId ? 'message' : 'home';
 }

@@ -84,7 +84,8 @@
     "signed_out": "Please sign in again",
     "image_too_large": "The image is still too large after shrinking. Choose another one",
     "upload_expired": "The upload expired, try again",
-    "upload_failed": "The image upload failed, try again"
+    "upload_failed": "The image upload failed, try again",
+    "not_conversation": "This is not a conversation channel"
   },
   "app": {
     "name": "Kehilot"
@@ -296,7 +297,16 @@
     "imageAlt": "Attached image",
     "chatEmpty": "No messages in this chat yet.",
     "chatPlaceholder": "Write a message",
-    "me": "Me"
+    "me": "Me",
+    "limit": {
+      "button": "Message limit",
+      "title": "Messages per hour",
+      "field": "Messages per hour (0 to 200)",
+      "zero": "0 = only channel admins write",
+      "save": "Save",
+      "saved": "Limit updated",
+      "invalid": "Enter a whole number from 0 to 200"
+    }
   },
   "detail": {
     "back": "Back to messages",
@@ -440,7 +450,25 @@
       "done": "You left the Kehila"
     },
     "signOut": "Sign out",
-    "deleteAction": "Delete account"
+    "deleteAction": "Delete account",
+    "groups": {
+      "title": "Groups",
+      "mineTitle": "Groups I manage",
+      "manage": "Manage the group",
+      "empty": "The community has no groups.",
+      "member": "You are in this group",
+      "admin": "Admin",
+      "request": "Ask to join",
+      "requested": "Waiting for approval",
+      "withdraw": "Withdraw request",
+      "leave": "Leave the group",
+      "leaveConfirm": "Leave the group {name}?",
+      "leaveYes": "Yes, leave",
+      "keep": "Stay",
+      "requestSent": "Request sent",
+      "withdrawn": "Request withdrawn",
+      "left": "You left the group"
+    }
   },
   "deleteAccount": {
     "title": "Delete account",
@@ -501,7 +529,9 @@
           "gabbai": "Gabbai"
         },
         "new": "Invite with a role"
-      }
+      },
+      "groupsLink": "Groups",
+      "channelsLink": "Channels"
     },
     "approvals": {
       "title": "Approve members",
@@ -594,6 +624,85 @@
       "ready": "The link is ready. You can share it.",
       "invalid": "Enter values within the allowed range"
     },
-    "left": "You left management mode: you no longer have the gabbai role"
+    "left": "You left management mode: you no longer have the gabbai role",
+    "groups": {
+      "title": "Groups",
+      "empty": "No groups yet.",
+      "counts": "Members: {members} · Channels: {channels}",
+      "admins": "Group admins: {n}",
+      "pending": "{n} pending requests",
+      "new": "New group",
+      "nameField": "Group name (up to 60 characters)",
+      "create": "Create",
+      "rename": "Rename",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteConfirm": "Delete the group {name}? People stay in the community.",
+      "deleteYes": "Yes, delete",
+      "keep": "Keep it",
+      "inUse": "The group is used by {n} channels: remove it from them first",
+      "open": "Manage the group",
+      "created": "Group created",
+      "renamed": "Name updated",
+      "deleted": "Group deleted"
+    },
+    "groupAdmin": {
+      "members": "Group members",
+      "membersEmpty": "No members in the group.",
+      "adminBadge": "Group admin",
+      "remove": "Remove from group",
+      "removeConfirm": "Remove {name} from the group?",
+      "removeYes": "Yes, remove",
+      "keep": "Keep",
+      "removed": "Removed from the group",
+      "appoint": "Make group admin",
+      "unappoint": "Remove as admin",
+      "appointed": "Appointed group admin",
+      "unappointed": "Appointment removed",
+      "requests": "Join requests",
+      "requestsEmpty": "No pending requests.",
+      "since": "Sent {date}",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approved": "Request approved",
+      "rejected": "Request rejected",
+      "onlyGabbai": "Only a gabbai can remove a group admin"
+    },
+    "channels": {
+      "title": "Channels",
+      "empty": "No channels.",
+      "new": "New channel",
+      "edit": "Edit",
+      "sheetNew": "New channel",
+      "sheetEdit": "Edit channel",
+      "name": "Channel name (up to 60 characters)",
+      "listeners": "Guest worshippers can read",
+      "lockGroups": "Anyone in the group sees the channel, including guest worshippers admitted to the group",
+      "lockConversation": "A conversation channel is open to members only",
+      "policyLabel": "Who posts",
+      "policyOpt": {
+        "management": "Management only",
+        "broadcasters": "Management and members who may send"
+      },
+      "conversation": "Conversation channel",
+      "groups": "Groups",
+      "groupsNone": "No groups. The channel is open to all members.",
+      "groupsHint": "No groups: all members. With groups: only people in the group.",
+      "limit": "Messages per hour",
+      "limitField": "Messages per hour (0 to 200)",
+      "limitZero": "Only channel admins write",
+      "limitInvalid": "Enter a whole number from 0 to 200",
+      "nameRequired": "Enter a name",
+      "openConfirm": "The channel will open to all members",
+      "openYes": "Yes, open to everyone",
+      "back": "Back to editing",
+      "save": "Save",
+      "close": "Close",
+      "saved": "Channel saved",
+      "tagConversation": "Conversation",
+      "tagListeners": "Open to listeners",
+      "tagAll": "All members"
+    }
   }
 }

@@ -13,7 +13,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member'];
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -81,7 +81,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   const channels = [
     ch('01FIXTURECHANNEL00000001', 'הודעות הקהילה'),
     ch('01FIXTURECHANNEL00000002', 'שמחות ואבלות'),
-    ch('01FIXTURECHANNEL00000003', 'שיחת הקהילה', { conversation: true, canPost: role !== 'listener', chatHourlyLimit: 30 }),
+    ch('01FIXTURECHANNEL00000003', 'שיחת הקהילה', { conversation: true, canPost: role !== 'listener', chatHourlyLimit: 30, ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000001'] } : {}) }),
     ...(role === 'gabbai' ? [ch('01FIXTURECHANNEL00000004', 'קבוצת הנוער', { inAudience: false })] : []),
   ];
   const [cAnn, cJoy, cChat, cYouth] = [channels[0]!.channelId, channels[1]!.channelId, channels[2]!.channelId, channels[3]?.channelId ?? channels[0]!.channelId];
@@ -163,9 +163,29 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   routes[`GET ${A}/requests`] = requests;
   routes[`GET ${A}/members`] = memberRows;
   routes[`GET ${A}/groups`] = [
-    { groupId: '01FIXTUREGROUP00000000001', name: 'נוער', memberCount: 2, channelCount: 1, adminCount: 1, pendingCount: 0 },
+    { groupId: '01FIXTUREGROUP00000000001', name: 'נוער', memberCount: 3, channelCount: 1, adminCount: 1, pendingCount: 2 },
     { groupId: '01FIXTUREGROUP00000000002', name: 'שיעור הדף', memberCount: 2, channelCount: 0, adminCount: 0, pendingCount: 0 },
+    { groupId: '01FIXTUREGROUP00000000003', name: 'נשים', memberCount: 0, channelCount: 0, adminCount: 0, pendingCount: 0 },
   ];
+  // Groups: member-facing, and one group's screen (invented names).
+  const K = `/v1/kehilot/${kehila.kehilaId}`;
+  routes[`GET ${K}/groups`] = [
+    { groupId: '01FIXTUREGROUP00000000001', name: 'נוער', isMember: true, isAdmin: false, requested: false },
+    { groupId: '01FIXTUREGROUP00000000002', name: 'שיעור הדף', isMember: true, isAdmin: true, requested: false },
+    { groupId: '01FIXTUREGROUP00000000003', name: 'נשים', isMember: false, isAdmin: false, requested: true },
+    { groupId: '01FIXTUREGROUP00000000004', name: 'גברים', isMember: false, isAdmin: false, requested: false },
+  ];
+  routes[`GET ${K}/groups/01FIXTUREGROUP00000000001/members`] = [
+    { userId: 'u7', displayName: 'רון לדוגמה', role: 'member', isAdmin: true },
+    { userId: 'u8', displayName: 'מיכל בדויה', role: 'member', isAdmin: false },
+    { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', isAdmin: true },
+  ];
+  routes[`GET ${K}/groups/01FIXTUREGROUP00000000001/requests`] = [
+    { userId: '01FIXTUREUSER00000000013', displayName: 'תמר הנחל', role: 'listener', createdAt: new Date(now - 30 * H).toISOString() },
+    { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', role: 'member', createdAt: new Date(now - 5 * H).toISOString() },
+  ];
+  routes[`GET ${K}/groups/01FIXTUREGROUP00000000002/requests`] = [];
+  routes[`GET ${K}/groups/01FIXTUREGROUP00000000002/members`] = [{ userId: 'u8', displayName: 'מיכל בדויה', role: 'member', isAdmin: true }];
   routes[`PUT ${A}/settings`] = {};
   routes[`PUT ${A}/broadcast`] = {};
   routes[`GET /v1/kehilot/${kehila.kehilaId}`] = { ...kehila, settings: { pollSeconds: 60, maxListeners: 500 }, listenerCount: 37 };
@@ -178,7 +198,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;
       if (screen === 'search-loading' && method === 'GET' && key.endsWith('/messages') && path.includes('before=')) throw new ApiCodeError(503, 'network');
-      if (method === 'GET' && key.endsWith('/members') && !key.includes('/admin/')) return [{ userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני' }, { userId: '01FIXTUREUSER00000000003', displayName: 'משפחת לדוגמה' }, { userId: '01FIXTUREUSER00000000004', displayName: 'משפחת הנחל' }] as any;
+      if (method === 'GET' && key.endsWith('/members') && !key.includes('/admin/') && !key.includes('/groups/')) return [{ userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני' }, { userId: '01FIXTUREUSER00000000003', displayName: 'משפחת לדוגמה' }, { userId: '01FIXTUREUSER00000000004', displayName: 'משפחת הנחל' }] as any;
       if (method === 'POST' && key.endsWith('/messages')) {
         const b = (body ?? {}) as Partial<Message>;
         return { messageId: fixtureUlid(Date.now(), 30), channelId: b.channelId ?? cAnn, type: b.type ?? 'chat', title: b.title ?? '', body: b.body ?? '', authorId: me.userId, authorName: 'דנה בדויה', authorKind: role === 'gabbai' ? 'management' : 'member', joinCount: 0 } as any;
@@ -187,6 +207,8 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
         const text = String((body as { body?: unknown } | undefined)?.body ?? '');
         return { replyId: fixtureUlid(Date.now(), 31), authorId: me.userId, authorName: 'דנה בדויה', body: text, createdAt: new Date().toISOString() } as any;
       }
+      if (/\/(admin\/)?groups(\/|$)/.test(key) && method !== 'GET') return (method === 'DELETE' || method === 'PUT' && /\/admins\//.test(key) ? undefined : {}) as any;
+      if (method === 'PUT' && /\/chat-settings$/.test(key)) return {} as any;
       if (method === 'POST' && /\/admin\/requests\/[^/]+\/(approve|reject)$/.test(key)) return {} as any;
       if (method === 'PUT' && /\/admin\/members\/[^/]+$/.test(key)) return {} as any;
       if (method === 'DELETE' && /\/admin\/members\/[^/]+$/.test(key)) return undefined as any;

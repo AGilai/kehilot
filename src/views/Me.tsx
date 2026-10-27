@@ -10,6 +10,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { DeleteAccount } from './DeleteAccount.tsx';
+import { MyGroups } from './MyGroups.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
 export function BackLink({ onPress }: { onPress: () => void }) {
@@ -121,7 +122,7 @@ function MyLinks({ kehilaId, version, onToast }: { kehilaId: string; version: nu
  * M7, the cloud part: name, language, invites (member, gabbai), notification preferences, leaving, sign out and
  * account deletion. A listener sees only the name, the language, sign out and delete.
  */
-export function Me({ onPrefs, onBack, onToast, onLeft, onManage }: { onPrefs?: () => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
+export function Me({ onPrefs, onBack, onToast, onLeft, onManage, onGroup }: { onPrefs?: () => void; /** A group admin opens one group's screen. */ onGroup?: (g: { groupId: string; name: string }) => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const { signOut, api } = useAuth();
   const { state, editProfile, leaveKehila } = useSession();
@@ -212,6 +213,8 @@ export function Me({ onPrefs, onBack, onToast, onLeft, onManage }: { onPrefs?: (
           <Chip label={t('lang.en')} selected={lang === 'en'} onPress={() => void chooseLang('en')} />
         </View>
       </Card>
+
+      <MyGroups onManage={onGroup} onToast={onToast} />
 
       {canInvite && kehila ? (
         <>

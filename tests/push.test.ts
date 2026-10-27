@@ -134,11 +134,14 @@ test('a failed change does not restore over a newer change to the same field', a
   store.reset();
 });
 
-test('pushDestination: requests opens approvals for a gabbai only; group_requests stays on Home', async () => {
+test('pushDestination: requests opens approvals for a gabbai only; group_requests opens the group requests (any role)', async () => {
   const { pushDestination } = await import('../src/client/push.ts');
   assert.equal(pushDestination({ screen: 'requests' }, 'gabbai'), 'approvals');
   assert.equal(pushDestination({ screen: 'requests' }, 'member'), 'home');
-  assert.equal(pushDestination({ screen: 'group_requests' }, 'gabbai'), 'home');
+  assert.equal(pushDestination({ screen: 'group_requests' }, 'gabbai'), 'group_requests');
+  assert.equal(pushDestination({ screen: 'group_requests' }, 'member'), 'group_requests');
+  assert.equal(pushDestination({ screen: 'group_requests' }, 'listener'), 'home');
+  assert.equal(pushDestination({ screen: 'other' }, 'gabbai'), 'home');
   assert.equal(pushDestination({ messageId: 'm1' }, 'gabbai'), 'message');
   assert.equal(pushDestination({}, 'member'), 'home');
 });

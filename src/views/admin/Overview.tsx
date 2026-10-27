@@ -93,7 +93,7 @@ function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged
 }
 
 /** GM1 without the seating meters: pending count, member and listener counts, the cap, the invite links. */
-export function Overview({ onApprovals, onInvite, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
+export function Overview({ onApprovals, onInvite, onGroups, onChannels, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -142,6 +142,10 @@ export function Overview({ onApprovals, onInvite, onCount, onToast }: { onApprov
           <CapCard cap={cap?.max} listeners={cap?.listeners ?? counts.listeners} onSaved={n => { setCap(c => ({ ...c, max: n })); onToast(t('admin.overview.cap.saved')); }} />
         </>
       ) : null}
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <View style={{ flex: 1, minWidth: 140 }}><Button kind="secondary" title={t('admin.overview.groupsLink')} onPress={onGroups} /></View>
+        <View style={{ flex: 1, minWidth: 140 }}><Button kind="secondary" title={t('admin.overview.channelsLink')} onPress={onChannels} /></View>
+      </View>
       <Button title={t('admin.overview.invites.new')} onPress={onInvite} />
       {invites ? <InviteList rows={invites} onChanged={loadInvites} onToast={onToast} /> : null}
     </ScrollView>

@@ -3,7 +3,9 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import { CHAT_MAX, canSendChat, timeOfDay, visibleList } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Banner, Txt, useTokens } from '../kit/components.tsx';
+import { Banner, Button, Field, Sheet, Txt, useTokens } from '../kit/components.tsx';
+import { useAuth } from '../auth/AuthProvider.tsx';
+import { CHAT_LIMIT_MAX } from '../client/channelsView.ts';
 import { Composer } from '../kit/Composer.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { AttachButton, AttachPreview } from '../kit/ImageAttach.tsx';
@@ -19,12 +21,19 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
   const { t, dir } = useI18n();
   const k = useTokens();
   const errText = useErrorText();
-  const { state, postMessage, requestUpload } = useSession();
+  const { api } = useAuth();
+  const { state, postMessage, requestUpload, refreshChannels } = useSession();
   const { feed, channels, kehila, me } = state;
   const [draft, setDraft] = React.useState('');
   const [image, setImage] = React.useState<Picked | null>(null);
   const [stage, setStage] = React.useState<Stage | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [limitOpen, setLimitOpen] = React.useState(false);
+  const [limitText, setLimitText] = React.useState('');
+  const [limitBusy, setLimitBusy] = React.useState(false);
+  const [limitError, setLimitError] = React.useState<string | null>(null);
+  const limitOnce = React.useRef(singleFlight(() => limitSave.current())).current;
+  const limitSave = React.useRef<() => Promise<void>>(async () => {});
   const alive = React.useRef(true);
   const latest = React.useRef<() => Promise<void>>(async () => {});
   const sendOnce = React.useRef(singleFlight(() => latest.current())).current;
@@ -33,6 +42,16 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
   const channel = channels.find(c => c.channelId === channelId);
   if (!kehila || !channel) return null;
   const busy = stage !== null;
+  const limitOk = /^\d+$/.test(limitText.trim()) && +limitText <= CHAT_LIMIT_MAX;
+  limitSave.current = async () => {
+    if (!limitOk || !state.kehilaId) return;
+    setLimitBusy(true); setLimitError(null);
+    try {
+      await api.setChatLimit(state.kehilaId, channelId, +limitText);
+      await refreshChannels().catch(() => {});
+      if (alive.current) setLimitOpen(false);
+    } catch (e) { if (alive.current) setLimitError(errText(e)); } finally { if (alive.current) setLimitBusy(false); }
+  };
   latest.current = send;
   async function send() {
     if (busy || !canSendChat(draft, !!image)) return;
@@ -54,7 +73,18 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
           <Txt size="heading" color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'}</Txt>
         </Pressable>
         <Txt serif size="title" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>{channel.name}</Txt>
+        {channel.isAdmin ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={t('messages.limit.button')} onPress={() => { setLimitText(String(channel.chatHourlyLimit)); setLimitError(null); setLimitOpen(true); }} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
+            <Txt size="small" bold color={k.tekhelet}>{t('messages.limit.button')}</Txt>
+          </Pressable>
+        ) : null}
       </View>
+      <Sheet visible={limitOpen} title={t('messages.limit.title')} onClose={() => setLimitOpen(false)}>
+        <Field label={t('messages.limit.field')} value={limitText} onChangeText={setLimitText} keyboardType="number-pad" editable={!limitBusy} error={limitOk ? null : t('messages.limit.invalid')} />
+        <Txt size="small" color={k.muted}>{t('messages.limit.zero')}</Txt>
+        {limitError ? <Banner tone="error" text={limitError} /> : null}
+        <Button title={t('messages.limit.save')} busy={limitBusy} disabled={!limitOk} onPress={() => void limitOnce()} />
+      </Sheet>
       <ScrollView ref={scroller} onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
         contentContainerStyle={{ padding: 16, gap: 10, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {list.length === 0 ? <Txt color={k.muted}>{t('messages.chatEmpty')}</Txt> : null}
