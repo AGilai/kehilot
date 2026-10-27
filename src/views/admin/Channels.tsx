@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { config } from '../../config.ts';
 import { fixtureParams } from '../../client/fixtures.ts';
-import { channelForm, isDirty, lockListeners, lockNote, needsOpenConfirm, toRequest, CHAT_LIMIT_MAX } from '../../client/channelsView.ts';
+import { channelForm, channelLabel, channelSaveName, isDirty, lockListeners, lockNote, needsOpenConfirm, toRequest, CHAT_LIMIT_MAX } from '../../client/channelsView.ts';
 import { singleFlight } from '../../client/singleFlight.ts';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
@@ -21,6 +21,8 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
   const { state, refreshChannels } = useSession();
   const errText = useAdminErrText();
   const kehilaId = state.kehilaId!;
+  // The name field shows the localised label of a default channel.
+  const formOf = (c?: Channel): ChannelFields => ({ ...channelForm(c), ...(c ? { name: channelLabel(c, t) } : {}) });
   const [form, setForm] = React.useState<ChannelFields>(channelForm());
   const [limitText, setLimitText] = React.useState('30');
   const [confirm, setConfirm] = React.useState(false);
@@ -29,7 +31,7 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
   const [error, setError] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (!open) return;
-    const f = channelForm(channel);
+    const f = formOf(channel);
     setForm(f); setLimitText(String(f.chatHourlyLimit ?? 30)); setConfirm(false); setDiscard(false); setError(null);
   }, [open, channel]);
 
@@ -40,7 +42,7 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
   const canSave = nameOk && (!form.conversation || limitOk);
   const current: ChannelFields = { ...form, chatHourlyLimit: limitOk ? +limitText : form.chatHourlyLimit };
   const toggleGroup = (g: string) => { setConfirm(false); setForm(f => ({ ...f, groups: f.groups.includes(g) ? f.groups.filter(x => x !== g) : [...f.groups, g] })); };
-  const dirty = isDirty({ ...channelForm(channel), chatHourlyLimit: channelForm(channel).chatHourlyLimit }, current);
+  const dirty = isDirty(formOf(channel), current);
   function requestClose() { if (dirty && !busy) setDiscard(true); else onClose(); }
   const save = React.useRef<() => Promise<void>>(async () => {});
   const once = React.useRef(singleFlight(() => save.current())).current;
@@ -48,14 +50,14 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
     if (!canSave) return;
     setBusy(true); setError(null);
     try {
-      const body = toRequest(current);
+      const body = toRequest(channel ? { ...current, name: channelSaveName(channel, current.name, t) } : current);
       if (channel) await api.updateChannel(kehilaId, channel.channelId, body); else await api.createChannel(kehilaId, body);
       void refreshChannels().catch(() => {});
       onSaved();
     } catch (e) { setError(errText(e)); setConfirm(false); } finally { setBusy(false); }
   };
   function press() {
-    if (channel && !confirm && needsOpenConfirm(channelForm(channel), current)) { setConfirm(true); return; }
+    if (channel && !confirm && needsOpenConfirm(formOf(channel), current)) { setConfirm(true); return; }
     void once();
   }
 
@@ -98,7 +100,7 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
       <Txt size="small" bold>{t('admin.channels.groups')}</Txt>
       {groups.length === 0 ? <Txt size="small">{t('admin.channels.groupsNone')}</Txt> : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {groups.map(g => <Chip key={g.groupId} label={g.name} selected={form.groups.includes(g.groupId)} onPress={() => toggleGroup(g.groupId)} />)}
+          {groups.map(g => <Chip size="filter" key={g.groupId} label={g.name} selected={form.groups.includes(g.groupId)} onPress={() => toggleGroup(g.groupId)} />)}
         </View>
       )}
       <Txt size="small">{t('admin.channels.groupsHint')}</Txt>
@@ -138,7 +140,7 @@ export function Channels({ onBack, onToast }: { onBack: () => void; onToast: (te
       {rows && rows.length === 0 && !error ? <Txt color={k.muted}>{t('admin.channels.empty')}</Txt> : null}
       {(rows ?? []).map(c => (
         <Card key={c.channelId}>
-          <Txt bold size="heading">{c.name}</Txt>
+          <Txt bold size="heading">{channelLabel(c, t)}</Txt>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
             {c.conversation ? <Tag tone="strong" label={t('admin.channels.tagConversation')} /> : null}
             {c.listenersCanRead ? <Tag label={t('admin.channels.tagListeners')} /> : null}

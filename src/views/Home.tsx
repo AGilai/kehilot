@@ -18,6 +18,7 @@ import { HomeCards } from './HomeCards.tsx';
 import { TestBuildCard } from './TestBuildCard.tsx';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
+import { ForwardIcon, Icon } from '../kit/Icon.tsx';
 
 const TIMES = ['sunrise', 'sofZmanShma', 'sofZmanTfilla', 'minchaGedola', 'plagHaMincha', 'sunset', 'nightfall'] as const;
 
@@ -27,7 +28,7 @@ const loaders = config.fixtures
 
 /** M1 (the day arc comes later): greeting, dates, zmanim grid, Shabbat card, and the latest three titles. */
 export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void; /** The terms card's button (management mode until the terms gate exists). */ onTerms?: () => void; onToast?: (text: string) => void }) {
-  const { t, dir } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const { signOut } = useAuth();
   const { state } = useSession();
@@ -81,7 +82,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <View style={{ gap: 4 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <Txt size="small" color={k.muted} style={{ flexShrink: 1 }}>{displayDate(date)} · {hebrewDate(date)}</Txt>
+          <Txt size="small" color={k.muted} style={{ flexShrink: 1 }}>{displayDate(date, lang)} · {hebrewDate(date, lang)}</Txt>
           {config.testBuild ? <Tag label={t('testBuild.tag', { version: String(config.buildNumber) })} /> : null}
         </View>
         <Txt serif size="display" accessibilityRole="header">{first ? t('home.greeting', { name: first }) : t('home.greetingAnon')}</Txt>
@@ -114,7 +115,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
 
       <Card edgeColor={k.gold}>
         <Txt bold size="heading">{dayOfWeek(date) === 5 ? t('home.shabbatToday') : t('home.shabbat')}</Txt>
-        {shabbat ? <Txt size="small" color={k.muted}>{shabbat.parasha} · {displayDate(shabbat.friday)}</Txt> : shabbatError ? null : <ActivityIndicator color={k.gold} />}
+        {shabbat ? <Txt size="small" color={k.muted}>{shabbat.parasha} · {displayDate(shabbat.friday, lang)}</Txt> : shabbatError ? null : <ActivityIndicator color={k.gold} />}
         {shabbat ? (
           <>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Txt>{t('home.petahTikva')} · {t('home.candles')}</Txt><Txt bold style={{ fontVariant: ['tabular-nums'] }}>{clockTime(shabbat.petahTikva)}</Txt></View>
@@ -127,12 +128,12 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
       {onPhoneList && roleFeatures(kehila.role).phoneList ? (
         <Pressable accessibilityRole="button" accessibilityLabel={`${t('home.phoneList')}. ${t('home.phoneListSub')}`} onPress={onPhoneList}>
           <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Txt serif size="heading">☎</Txt>
+            <Icon name="phone" size={24} color={k.tekhelet} />
             <View style={{ flex: 1 }}>
               <Txt bold>{t('home.phoneList')}</Txt>
               <Txt size="small" color={k.muted}>{t('home.phoneListSub')}</Txt>
             </View>
-            <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '‹' : '›'}</Txt>
+            <ForwardIcon color={k.tekhelet} />
           </Card>
         </Pressable>
       ) : null}
@@ -142,7 +143,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
       <View style={{ gap: 10 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Txt bold size="heading">{t('home.latest')}</Txt>
-          <Pressable accessibilityRole="button" onPress={onMessages} style={{ minHeight: TOUCH, justifyContent: 'center' }}><Txt bold color={k.tekhelet}>{t('home.allMessages')} {dir === 'rtl' ? '‹' : '›'}</Txt></Pressable>
+          <Pressable accessibilityRole="button" onPress={onMessages} style={{ minHeight: TOUCH, justifyContent: 'center' }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Txt bold color={k.tekhelet}>{t('home.allMessages')}</Txt><ForwardIcon color={k.tekhelet} /></View></Pressable>
         </View>
         {latest.length === 0 ? <Txt color={k.muted}>{t('home.noMessages')}</Txt> : null}
         {latest.map(m => (
@@ -150,7 +151,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
           <Pressable key={m.messageId} accessibilityRole="button" onPress={() => onOpen(m.messageId)}
             style={{ minHeight: TOUCH, flexDirection: 'row', backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, overflow: 'hidden' }}>
             <Stripe type={m.type} />
-            <View style={{ flex: 1, padding: 12, justifyContent: 'center' }}><Txt serif numberOfLines={2}>{m.title}</Txt></View>
+            <View style={{ flex: 1, padding: 12, justifyContent: 'center' }}><Txt content serif numberOfLines={2}>{m.title}</Txt></View>
           </Pressable>
         ))}
       </View>

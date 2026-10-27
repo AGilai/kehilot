@@ -114,7 +114,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   });
   const channels = [
     ch('01FIXTURECHANNEL00000001', 'הודעות הקהילה'),
-    ch('01FIXTURECHANNEL00000002', 'שמחות ואבלות'),
+    ch('01FIXTURECHANNEL00000002', 'simchas'), // a raw seeded key, shown through channelLabel(),
     // The server never returns the whole-Kehila chat to a listener; the one it returns is the admitted group's chat.
     ch('01FIXTURECHANNEL00000003', role === 'listener' ? 'שיחת קבוצת הנוער' : 'שיחת הקהילה', { conversation: true, listenersCanRead: role === 'listener' ? false : true, canPost: true, chatHourlyLimit: 30, ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000001'] } : {}) }),
     ...(role === 'gabbai' ? [ch('01FIXTURECHANNEL00000004', 'קבוצת הנוער', { inAudience: false })] : []),

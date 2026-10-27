@@ -50,9 +50,9 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
           <>
             <Txt bold>{t('admin.invite.class')}</Txt>
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              <Chip label={t('admin.members.class.none')} selected={classification === ''} onPress={() => setClassification('')} />
-              <Chip label={t('admin.members.class.a')} selected={classification === 'א'} onPress={() => setClassification('א')} />
-              <Chip label={t('admin.members.class.kavua')} selected={classification === 'קבוע'} onPress={() => setClassification('קבוע')} />
+              <Chip size="filter" label={t('admin.members.class.none')} selected={classification === ''} onPress={() => setClassification('')} />
+              <Chip size="filter" label={t('admin.members.class.a')} selected={classification === 'א'} onPress={() => setClassification('א')} />
+              <Chip size="filter" label={t('admin.members.class.kavua')} selected={classification === 'קבוע'} onPress={() => setClassification('קבוע')} />
             </View>
           </>
         ) : null}

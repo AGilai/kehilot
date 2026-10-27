@@ -1,12 +1,14 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, SectionList, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, SectionList, View, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSession } from '../client/SessionProvider.tsx';
+import { channelLabel } from '../client/channelsView.ts';
 import { groupByDay, isMuted, visibleList } from '../client/messageView.ts';
 import { showCompose } from '../client/roleView.ts';
 import { israelDate } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Chip, Txt, useTokens } from '../kit/components.tsx';
+import { Chip, Segmented, Txt, useTokens } from '../kit/components.tsx';
+import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { MessageRow } from './MessageRow.tsx';
 
@@ -16,6 +18,7 @@ export const filterKey = (userId: string, k: string) => `kehilot.filter.${userId
 /** M2: "mine / everything", channel chips (a chat channel's chip opens its chat), messages grouped by Israel day. */
 export function Messages({ onOpen, onChat, onNew, onSearch, initialFilter }: { onOpen: (id: string) => void; onChat: (channelId: string) => void; onNew?: () => void; onSearch?: () => void; initialFilter?: Filter }) {
   const { t, lang, dir } = useI18n();
+  const { width } = useWindowDimensions();
   const k = useTokens();
   const { state } = useSession();
   const { feed, channels, kehila, me, kehilaId } = state;
@@ -43,8 +46,19 @@ export function Messages({ onOpen, onChat, onNew, onSearch, initialFilter }: { o
   const dayLabel = (day: string) => day === today ? t('messages.today')
     : day ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${day}T12:00:00+02:00`)) : '';
   const canPostSomewhere = !!onNew && showCompose(kehila.role, channels);
-  const nameOf = (id: string) => channels.find(c => c.channelId === id)?.name ?? '';
+  const nameOf = (id: string) => { const c = channels.find(x => x.channelId === id); return c ? channelLabel(c, t) : ''; };
+  // A mouse cannot drag a horizontal scroller: on wide web windows the chips wrap.
+  const wrapChips = Platform.OS === 'web' && width >= 600;
 
+  const chips = (
+    <>
+      <Chip size="filter" label={t('messages.allChannels')} selected={channelId === null} onPress={() => setChannelId(null)} />
+      {channels.map(c => (
+        <Chip key={c.channelId} size="filter" icon={c.conversation ? 'msg' : undefined} label={channelLabel(c, t)} selected={!c.conversation && channelId === c.channelId}
+          onPress={() => (c.conversation ? onChat(c.channelId) : setChannelId(c.channelId))} />
+      ))}
+    </>
+  );
   const header = (
     <View style={{ gap: 12, paddingBottom: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -52,21 +66,14 @@ export function Messages({ onOpen, onChat, onNew, onSearch, initialFilter }: { o
         {onSearch ? (
           <Pressable accessibilityRole="button" accessibilityLabel={t('search.open')} onPress={onSearch}
             style={{ minWidth: TOUCH, minHeight: TOUCH, alignItems: 'center', justifyContent: 'center' }}>
-            <Txt size="heading" color={k.tekhelet}>🔍</Txt>
+            <Icon name="search" size={24} color={k.ink} />
           </Pressable>
         ) : null}
       </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Chip label={t('messages.filterMine')} selected={filter === 'mine'} onPress={() => choose('mine')} />
-        <Chip label={t('messages.filterAll')} selected={filter === 'all'} onPress={() => choose('all')} />
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        <Chip label={t('messages.allChannels')} selected={channelId === null} onPress={() => setChannelId(null)} />
-        {channels.map(c => (
-          <Chip key={c.channelId} label={c.conversation ? `💬 ${c.name}` : c.name} selected={!c.conversation && channelId === c.channelId}
-            onPress={() => (c.conversation ? onChat(c.channelId) : setChannelId(c.channelId))} />
-        ))}
-      </ScrollView>
+      <Segmented value={filter} onChange={choose} options={[{ key: 'mine', label: t('messages.filterMine') }, { key: 'all', label: t('messages.filterAll') }]} />
+      {wrapChips ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{chips}</View> : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>{chips}</ScrollView>
+      )}
     </View>
   );
 
@@ -88,10 +95,15 @@ export function Messages({ onOpen, onChat, onNew, onSearch, initialFilter }: { o
         ListEmptyComponent={!feed.loaded ? <ActivityIndicator color={k.tekhelet} /> : <Txt color={k.muted}>{t('messages.empty')}</Txt>}
       />
       {canPostSomewhere ? (
-        <Pressable accessibilityRole="button" onPress={onNew}
-          style={{ position: 'absolute', ...(dir === 'rtl' ? { left: 16 } : { right: 16 }), bottom: 16, minHeight: TOUCH, paddingHorizontal: 20, borderRadius: 28, backgroundColor: k.tekhelet, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}>
-          <Txt bold color={k.onAction}>＋ {t('messages.new')}</Txt>
-        </Pressable>
+        <View pointerEvents="box-none" style={{ position: 'absolute', bottom: 16, left: 0, right: 0, alignItems: 'center' }}>
+          <View pointerEvents="box-none" style={{ width: '100%', maxWidth: 680, paddingHorizontal: 16, alignItems: 'flex-end' }}>
+            <Pressable accessibilityRole="button" onPress={onNew}
+              style={{ height: 56, paddingHorizontal: 20, borderRadius: 18, flexDirection: 'row', gap: 8, backgroundColor: k.tekhelet, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}>
+              <Icon name="plus" size={20} color={k.onAction} />
+              <Txt bold color={k.onAction}>{t('messages.new')}</Txt>
+            </Pressable>
+          </View>
+        </View>
       ) : null}
     </View>
   );

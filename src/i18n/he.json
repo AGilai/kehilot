@@ -136,6 +136,11 @@
     "en": "English"
   },
   "channel": {
+    "default": {
+      "announcements": "הודעות הקהילה",
+      "simchas": "שמחות",
+      "condolences": "אבלות"
+    },
     "replierChip": "{n} חברים שלחו ברכה פרטית למשפחת {name}"
   },
   "auth": {

@@ -91,15 +91,15 @@ export function PhoneList({ onBack, onMine }: { onBack: () => void; /** Opens Me
               <Txt size="small" color={k.muted}>{t('phoneList.count', { n: shown.length })}</Txt>
               {shown.map(f => (
                 <Card key={f.familyId} style={{ gap: 4 }}>
-                  <Txt serif size="heading" accessibilityRole="header">{f.name}</Txt>
+                  <Txt serif content size="heading" accessibilityRole="header">{f.name}</Txt>
                   {f.people.map(p => (
                     <View key={p.userId} style={{ borderTopWidth: 1, borderTopColor: k.line, paddingTop: 8, marginTop: 4, gap: 8 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                        <Txt bold style={{ flexShrink: 1 }}>{p.name}</Txt>
+                        <Txt bold content style={{ flexShrink: 1 }}>{p.name}</Txt>
                         <Txt color={k.muted} style={{ writingDirection: 'ltr', textAlign: 'left', fontVariant: ['tabular-nums'] }}>{formatPhone(p.phone)}</Txt>
                       </View>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <View style={{ flex: 1 }}><Button kind="secondary" title={`☎ ${t('phoneList.call')}`} accessibilityLabel={t('phoneList.callA11y', { name: p.name })} onPress={() => open(telUrl(p.phone))} /></View>
+                        <View style={{ flex: 1 }}><Button kind="secondary" icon="phone" title={t('phoneList.call')} accessibilityLabel={t('phoneList.callA11y', { name: p.name })} onPress={() => open(telUrl(p.phone))} /></View>
                         <View style={{ flex: 1 }}><Button kind="secondary" title={t('phoneList.whatsapp')} accessibilityLabel={t('phoneList.whatsappA11y', { name: p.name })} onPress={() => open(whatsappUrl(p.phone))} /></View>
                       </View>
                     </View>

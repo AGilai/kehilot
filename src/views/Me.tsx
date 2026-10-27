@@ -20,13 +20,14 @@ import { KehilaInfo } from './me/KehilaInfo.tsx';
 import { PhoneCard } from './me/PhoneCard.tsx';
 import { PrivacyCard } from './me/PrivacyCard.tsx';
 import { useErrorText } from './auth/Frame.tsx';
+import { BackIcon } from '../kit/Icon.tsx';
 
 export function BackLink({ onPress }: { onPress: () => void }) {
   const { t, dir } = useI18n();
   const k = useTokens();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={t('me.back')} onPress={onPress} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
-      <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'} {t('me.back')}</Txt>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('me.back')}</Txt></View>
     </Pressable>
   );
 }

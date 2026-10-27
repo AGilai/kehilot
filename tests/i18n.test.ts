@@ -35,8 +35,8 @@ test('every {placeholder} in he exists in en for the same key', () => {
 });
 
 test('missing key falls back to Hebrew', () => {
-  assert.equal(translate({}, { a: 'שלום {name}' }, 'a', { name: 'דנה' }), 'שלום דנה');
-  assert.equal(translate({ a: 'Hi {name}' }, { a: 'שלום' }, 'a', { name: 'Dana' }), 'Hi Dana');
+  assert.equal(translate({}, { a: 'שלום {name}' }, 'a', { name: 'דנה' }), 'שלום \u2068דנה\u2069');
+  assert.equal(translate({ a: 'Hi {name}' }, { a: 'שלום' }, 'a', { name: 'Dana' }), 'Hi \u2068Dana\u2069');
   assert.equal(translate({}, {}, 'nope'), 'nope');
 });
 

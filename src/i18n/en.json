@@ -136,6 +136,11 @@
     "en": "English"
   },
   "channel": {
+    "default": {
+      "announcements": "Announcements",
+      "simchas": "Simchas",
+      "condolences": "Condolences"
+    },
     "replierChip": "{n} members sent a private blessing to the {name} family"
   },
   "auth": {

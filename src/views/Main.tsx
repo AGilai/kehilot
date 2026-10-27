@@ -12,6 +12,7 @@ import { firstWithPending } from '../client/channelsView.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Toast, Txt, useTokens } from '../kit/components.tsx';
+import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { AdminContext } from './admin/shared.tsx';
 import { Approvals } from './admin/Approvals.tsx';
@@ -175,14 +176,14 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
     : nav.tab === 'home' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
-    { key: 'overview' as const, label: t('admin.tabs.overview'), icon: '▦', badge: 0 },
-    { key: 'approvals' as const, label: t('admin.tabs.approvals'), icon: '✓', badge: pending },
-    { key: 'messages' as const, label: t('admin.tabs.messages'), icon: '✉', badge: unread },
-    { key: 'members' as const, label: t('admin.tabs.members'), icon: '☷', badge: 0 },
+    { key: 'overview' as const, label: t('admin.tabs.overview'), icon: 'grid' as const, badge: 0 },
+    { key: 'approvals' as const, label: t('admin.tabs.approvals'), icon: 'check' as const, badge: pending },
+    { key: 'messages' as const, label: t('admin.tabs.messages'), icon: 'msg' as const, badge: unread },
+    { key: 'members' as const, label: t('admin.tabs.members'), icon: 'users' as const, badge: 0 },
   ] : feats.tabs.map(key => ({
     key,
     label: key === 'home' ? t('tabs.home') : key === 'messages' ? t('tabs.messages') : t('me.tab'),
-    icon: key === 'home' ? '⌂' : key === 'messages' ? '✉' : '☺',
+    icon: (key === 'home' ? 'home' : key === 'messages' ? 'msg' : 'user') as 'home' | 'msg' | 'user',
     badge: key === 'messages' ? unread : 0,
   }));
 
@@ -269,18 +270,25 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
         </View>
       ) : null}
       <AdminContext.Provider value={{ onForbidden: leaveManage }}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>{body}</KeyboardAvoidingView></AdminContext.Provider>
-      <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
-        {tabs.map(tab => (
-          <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected: active === tab.key }}
-            accessibilityLabel={tab.badge ? `${tab.label} (${tab.badge})` : tab.label} onPress={() => setNav({ tab: tab.key })}
-            style={{ flex: 1, minHeight: TOUCH + 8, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Txt size="heading" color={active === tab.key ? k.tekhelet : k.muted}>{tab.icon}</Txt>
-              <Txt size="small" bold color={active === tab.key ? k.tekhelet : k.muted}>{tab.label}</Txt>
-              {tab.badge ? <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: k.pomegranate, alignItems: 'center', justifyContent: 'center' }}><Txt size="caption" bold color="#FFFFFF" style={{ textAlign: 'center', lineHeight: 18 }}>{tab.badge}</Txt></View> : null}
-            </View>
-          </Pressable>
-        ))}
+      <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
+        <View style={{ flexDirection: 'row', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+          {tabs.map(tab => {
+            const on = active === tab.key;
+            const c = on ? k.tekhelet : k.muted;
+            return (
+              <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected: on }}
+                accessibilityLabel={tab.badge ? `${tab.label} (${tab.badge})` : tab.label} onPress={() => setNav({ tab: tab.key })}
+                style={{ flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                {on ? <View style={{ position: 'absolute', top: 0, width: 36, height: 3, backgroundColor: k.tekhelet, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }} /> : null}
+                <View>
+                  <Icon name={tab.icon} size={24} color={c} />
+                  {tab.badge ? <View style={{ position: 'absolute', top: -6, start: 12, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: k.pomegranate, alignItems: 'center', justifyContent: 'center' }}><Txt bold color="#FFFFFF" style={{ fontSize: 11, lineHeight: 16, textAlign: 'center' }}>{tab.badge}</Txt></View> : null}
+                </View>
+                <Txt size="caption" bold color={c} style={{ textAlign: 'center' }}>{tab.label}</Txt>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
       <Toast text={toast ?? ''} visible={toast !== null} />
     </SafeAreaView>

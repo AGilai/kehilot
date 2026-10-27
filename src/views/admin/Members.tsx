@@ -15,6 +15,7 @@ import { TOUCH, fonts, type } from '../../kit/theme.ts';
 import { WIDE, useAdminErrText } from './shared.tsx';
 import { FamilyBlock } from './FamilyBlock.tsx';
 import { LinkSheet } from './LinkSheet.tsx';
+import { Icon } from '../../kit/Icon.tsx';
 
 const CLASS_KEY: Record<string, string> = { '': 'none', 'א': 'a', 'קבוע': 'kavua' };
 
@@ -30,7 +31,7 @@ function GroupsSheet({ row, groups, onClose, onSave }: { row: MemberRow | null; 
     <Sheet visible={!!row} title={t('admin.members.groupsTitle', { name: row?.displayName ?? '' })} onClose={onClose}>
       {groups.length === 0 ? <Txt>{t('admin.members.groupsNone')}</Txt> : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {groups.map(g => <Chip key={g.groupId} label={g.name} selected={ids.includes(g.groupId)} onPress={() => toggle(g.groupId)} />)}
+          {groups.map(g => <Chip size="filter" key={g.groupId} label={g.name} selected={ids.includes(g.groupId)} onPress={() => toggle(g.groupId)} />)}
         </View>
       )}
       {error ? <Banner tone="error" text={error} /> : null}
@@ -58,7 +59,7 @@ function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, 
           <Txt size="small" bold>{t('admin.members.class.label')}</Txt>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             {(['', 'א', 'קבוע'] as Classification[]).map(c => (
-              <Chip key={c} label={t(`admin.members.class.${CLASS_KEY[c]}`)} selected={row.classification === c} onPress={() => { if (row.classification !== c) onFields({ classification: c }); }} />
+              <Chip size="filter" key={c} label={t(`admin.members.class.${CLASS_KEY[c]}`)} selected={row.classification === c} onPress={() => { if (row.classification !== c) onFields({ classification: c }); }} />
             ))}
           </View>
           <Button kind="secondary" title={t('admin.members.groups')} onPress={onGroups} />
@@ -146,7 +147,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
 
   const sendSwitch = (r: MemberRow) => (r.role === 'member'
     ? <Toggle label={t('admin.members.broadcast')} value={r.canBroadcast} onChange={v => void update(r.userId, { canBroadcast: v })} />
-    : <Txt size="small" color={k.muted}>🔒 {t('admin.members.locked')}</Txt>);
+    : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="lock" size={16} color={k.muted} /><Txt size="small" color={k.muted}>{t('admin.members.locked')}</Txt></View>);
   const chips = (r: MemberRow) => (
     <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
       {r.groups.map(g => groupNames.get(g)).filter((n): n is string => !!n).map(n => <Tag key={n} label={n} />)}
@@ -169,19 +170,19 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
       <TextInput accessibilityLabel={t('admin.members.search')} placeholder={t('admin.members.search')} placeholderTextColor={k.muted} value={query} onChangeText={setQuery}
         style={{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        <Chip label={t('admin.members.filter.all')} selected={role === undefined} onPress={() => setRole(undefined)} />
-        <Chip label={t('admin.members.filter.member')} selected={role === 'member'} onPress={() => setRole('member')} />
-        <Chip label={t('admin.members.filter.gabbai')} selected={role === 'gabbai'} onPress={() => setRole('gabbai')} />
-        <Chip label={t('admin.members.filter.listener')} selected={role === 'listener'} onPress={() => setRole('listener')} />
+        <Chip size="filter" label={t('admin.members.filter.all')} selected={role === undefined} onPress={() => setRole(undefined)} />
+        <Chip size="filter" label={t('admin.members.filter.member')} selected={role === 'member'} onPress={() => setRole('member')} />
+        <Chip size="filter" label={t('admin.members.filter.gabbai')} selected={role === 'gabbai'} onPress={() => setRole('gabbai')} />
+        <Chip size="filter" label={t('admin.members.filter.listener')} selected={role === 'listener'} onPress={() => setRole('listener')} />
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        <Chip label={t('admin.members.filter.can')} selected={send === true} onPress={() => setSend(s => (s === true ? undefined : true))} />
-        <Chip label={t('admin.members.filter.cannot')} selected={send === false} onPress={() => setSend(s => (s === false ? undefined : false))} />
+        <Chip size="filter" label={t('admin.members.filter.can')} selected={send === true} onPress={() => setSend(s => (s === true ? undefined : true))} />
+        <Chip size="filter" label={t('admin.members.filter.cannot')} selected={send === false} onPress={() => setSend(s => (s === false ? undefined : false))} />
       </ScrollView>
       {groups.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          <Chip label={t('admin.members.filter.anyGroup')} selected={group === undefined} onPress={() => setGroup(undefined)} />
-          {groups.map(g => <Chip key={g.groupId} label={g.name} selected={group === g.groupId} onPress={() => setGroup(g.groupId)} />)}
+          <Chip size="filter" label={t('admin.members.filter.anyGroup')} selected={group === undefined} onPress={() => setGroup(undefined)} />
+          {groups.map(g => <Chip size="filter" key={g.groupId} label={g.name} selected={group === g.groupId} onPress={() => setGroup(g.groupId)} />)}
         </ScrollView>
       ) : null}
     </View>

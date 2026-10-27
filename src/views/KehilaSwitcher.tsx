@@ -36,7 +36,7 @@ export function KehilaSwitcher({ visible, onClose, onManage }: { visible: boolea
             accessibilityHint={current ? t('switcher.current') : undefined} onPress={() => void pick(x.kehilaId)}
             style={{ minHeight: TOUCH + 8, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: current ? 2 : 1, borderColor: current ? k.tekhelet : k.line, backgroundColor: k.surface }}>
             <KehilaLogo kehilaId={x.kehilaId} name={x.name} logoVersion={x.logoVersion} size={40} />
-            <Txt bold style={{ flex: 1 }}>{x.name}</Txt>
+            <Txt bold content style={{ flex: 1 }}>{x.name}</Txt>
             <View style={{ paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, backgroundColor: k.stone, borderWidth: 1, borderColor: k.line }}>
               <Txt size="caption" bold color={k.muted}>{t(`switcher.role.${x.role}`)}</Txt>
             </View>

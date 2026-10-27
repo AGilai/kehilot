@@ -8,6 +8,7 @@ import { EmojiButton } from './EmojiButton.tsx';
 import { codePoints, insertAt } from './emoji.ts';
 import type { Selection } from './emoji.ts';
 import { TOUCH, fonts, type } from './theme.ts';
+import { Icon } from './Icon.tsx';
 
 const LINE = Math.round(type.body * 1.5);
 const PAD = 20;
@@ -60,7 +61,7 @@ export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine
     <View style={{ gap: 8 }}>
       {lockLine ? (
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-          <Txt size="small" color={k.muted}>🔒</Txt>
+          <Icon name="lock" size={16} color={k.muted} />
           <Txt size="small" color={k.muted} style={{ flex: 1 }}>{lockLine}</Txt>
         </View>
       ) : null}

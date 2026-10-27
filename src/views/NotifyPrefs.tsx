@@ -8,6 +8,9 @@ import { Banner, Card, Toggle, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
+import { BackIcon } from '../kit/Icon.tsx';
+import { Icon } from '../kit/Icon.tsx';
+import { channelLabel } from '../client/channelsView.ts';
 
 const TYPES: Exclude<MessageType, 'chat'>[] = ['weekly', 'celebration', 'condolence', 'event'];
 
@@ -66,14 +69,14 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={t('prefs.back')} onPress={onBack} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
-        <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'} {t('prefs.back')}</Txt>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('prefs.back')}</Txt></View>
       </Pressable>
       <Txt serif size="title" accessibilityRole="header">{t('prefs.title')}</Txt>
       <Banner text={t('prefs.banner')} />
       {perm === 'denied' ? <Banner tone="error" text={t('prefs.permOff')} action={{ title: t('prefs.openSettings'), onPress: () => { void Linking.openSettings(); } }} /> : null}
 
       {group(t('prefs.channels'), listed.length === 0 ? <Txt color={k.muted}>{t('prefs.noChannels')}</Txt> : listed.map(c => (
-        <Toggle key={c.channelId} label={c.name} value={!n.mutedChannels.includes(c.channelId)} offNote={t('prefs.channelOff')}
+        <Toggle key={c.channelId} label={channelLabel(c, t)} value={!n.mutedChannels.includes(c.channelId)} offNote={t('prefs.channelOff')}
           onChange={on => change({ mutedChannels: toggleId(n.mutedChannels, c.channelId, !on) })} />
       )))}
 
@@ -104,7 +107,7 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
       {group(t('prefs.chat'), chat.length === 0 ? <Txt color={k.muted}>{t('prefs.chatNone')}</Txt> : (
         <>
           {chat.map(r => (
-            <Toggle key={r.channelId} label={r.name} value={r.on} offNote={t('prefs.chatOff')}
+            <Toggle key={r.channelId} label={channelLabel(r, t)} value={r.on} offNote={t('prefs.chatOff')}
               onChange={on => { if (on && n.chatChannels.length >= MAX_CHAT_CHANNELS) return; change({ chatChannels: toggleId(n.chatChannels, r.channelId, on) }); }} />
           ))}
           {n.chatChannels.length >= MAX_CHAT_CHANNELS ? <Txt size="small" color={k.muted}>{t('prefs.chatMax', { n: MAX_CHAT_CHANNELS })}</Txt> : null}
@@ -112,7 +115,7 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
       ))}
 
       <View style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <Txt>🔒</Txt>
+        <Icon name="lock" size={16} color={k.muted} />
         <Txt style={{ flex: 1 }} color={k.muted}>{t('prefs.locked')}</Txt>
       </View>
     </ScrollView>

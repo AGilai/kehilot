@@ -36,8 +36,8 @@ export function MessageRow({ message, channelName, muted, onPress }: { message: 
           <View style={{ flex: 1 }} />
           {unread ? <View accessibilityLabel={t('messages.unread')} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: k.tekhelet }} /> : null}
         </View>
-        {message.title ? <Txt serif size="heading" numberOfLines={2}>{message.title}</Txt> : null}
-        {message.body ? <Txt size="small" color={k.muted} numberOfLines={2}>{message.body}</Txt> : null}
+        {message.title ? <Txt content serif size="heading" numberOfLines={2}>{message.title}</Txt> : null}
+        {message.body ? <Txt content size="small" color={k.muted} numberOfLines={2}>{message.body}</Txt> : null}
         {message.image ? <ImageThumb messageId={message.messageId} contentType={message.image.contentType} /> : null}
         {chip ? <Txt size="caption" bold color={k.muted}>{chip}</Txt> : null}
       </View>

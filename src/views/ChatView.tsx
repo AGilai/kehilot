@@ -5,7 +5,7 @@ import { CHAT_MAX, canSendChat, timeOfDay, visibleList } from '../client/message
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Field, Sheet, Txt, useTokens } from '../kit/components.tsx';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import { CHAT_LIMIT_MAX, exitTarget } from '../client/channelsView.ts';
+import { CHAT_LIMIT_MAX, channelLabel, exitTarget } from '../client/channelsView.ts';
 import { Composer } from '../kit/Composer.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { AttachButton, AttachPreview } from '../kit/ImageAttach.tsx';
@@ -16,6 +16,7 @@ import type { Stage } from '../media/send.ts';
 import { singleFlight } from '../client/singleFlight.ts';
 import { canPostInChat } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
+import { BackIcon } from '../kit/Icon.tsx';
 
 /** Chat view of a conversation channel: bubbles with author and time, no titles, newest at the bottom. */
 export function ChatView({ channelId, onBack }: { channelId: string; onBack: () => void }) {
@@ -76,9 +77,9 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 }}>
         <Pressable accessibilityRole="button" accessibilityLabel={t('detail.back')} onPress={onBack} style={{ minWidth: TOUCH, minHeight: TOUCH, justifyContent: 'center' }}>
-          <Txt size="heading" color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'}</Txt>
+          <BackIcon color={k.tekhelet} />
         </Pressable>
-        <Txt serif size="title" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>{channel.name}</Txt>
+        <Txt serif size="title" accessibilityRole="header" numberOfLines={1} style={{ flex: 1 }}>{channelLabel(channel, t)}</Txt>
         {channel.isAdmin ? (
           <Pressable accessibilityRole="button" accessibilityLabel={t('messages.limit.button')} onPress={() => { setLimitText(String(channel.chatHourlyLimit)); setLimitError(null); setLimitOpen(true); }} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
             <Txt size="small" bold color={k.tekhelet}>{t('messages.limit.button')}</Txt>
@@ -97,9 +98,9 @@ export function ChatView({ channelId, onBack }: { channelId: string; onBack: () 
           const mine = m.authorId === me?.userId;
           return (
             <View key={m.messageId} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '85%', gap: 4, padding: 10, borderRadius: 14, backgroundColor: mine ? k.tekhelet : k.surface, borderWidth: mine ? 0 : 1, borderColor: k.line }}>
-              {!mine ? <Txt size="caption" bold color={k.muted}>{m.authorName}</Txt> : null}
+              {!mine ? <Txt size="caption" bold content color={k.muted}>{m.authorName}</Txt> : null}
               {m.image ? <ImageThumb messageId={m.messageId} contentType={m.image.contentType} /> : null}
-              {m.body ? <Txt color={mine ? k.onAction : k.ink}>{m.body}</Txt> : null}
+              {m.body ? <Txt content color={mine ? k.onAction : k.ink}>{m.body}</Txt> : null}
               <Txt size="caption" color={mine ? k.onAction : k.muted} style={{ alignSelf: 'flex-end' }}>{timeOfDay(m.messageId)}</Txt>
             </View>
           );

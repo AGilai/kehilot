@@ -10,6 +10,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Check, Field, Txt, useTokens } from '../kit/components.tsx';
 import { BackLink } from './Me.tsx';
 import { useErrorText } from './auth/Frame.tsx';
+import { ForwardIcon } from '../kit/Icon.tsx';
 
 const ITEMS = ['i1', 'i2', 'i3', 'i4', 'i5'] as const;
 
@@ -63,7 +64,7 @@ export function DeleteAccount({ onBack, onExport }: { onBack: () => void; /** Op
       </Card>
       {onExport ? (
         <Pressable accessibilityRole="link" accessibilityLabel={t('deleteAccount.exportFirst')} onPress={onExport} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
-          <Txt size="small" bold color={k.tekhelet}>{t('deleteAccount.exportFirst')} {dir === 'rtl' ? '‹' : '›'}</Txt>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Txt size="small" bold color={k.tekhelet}>{t('deleteAccount.exportFirst')}</Txt><ForwardIcon color={k.tekhelet} /></View>
         </Pressable>
       ) : null}
       <Card>

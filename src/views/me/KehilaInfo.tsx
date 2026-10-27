@@ -6,6 +6,7 @@ import { textStart } from '../../i18n/direction.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Sheet, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { TOUCH } from '../../kit/theme.ts';
+import { ForwardIcon } from '../../kit/Icon.tsx';
 
 /** A tappable row: the label at the start, an arrow at the end (‹ / › by direction, ↗ for the browser). */
 export function LinkRow({ label, onPress, external = false }: { label: string; onPress: () => void; external?: boolean }) {
@@ -15,7 +16,7 @@ export function LinkRow({ label, onPress, external = false }: { label: string; o
     <Pressable accessibilityRole="link" accessibilityLabel={label} onPress={onPress}
       style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Txt style={{ flex: 1 }}>{label}</Txt>
-      <Txt bold color={k.tekhelet}>{external ? '↗' : dir === 'rtl' ? '‹' : '›'}</Txt>
+      {external ? <Txt bold color={k.tekhelet}>↗</Txt> : <ForwardIcon color={k.tekhelet} />}
     </Pressable>
   );
 }

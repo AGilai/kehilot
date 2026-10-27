@@ -6,7 +6,9 @@ import { useFonts } from 'expo-font';
 import { Heebo_400Regular, Heebo_700Bold } from '@expo-google-fonts/heebo';
 import { NotoSerifHebrew_700Bold } from '@expo-google-fonts/noto-serif-hebrew';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { textStart } from '../i18n/direction.ts';
+import { contentDir, textStart } from '../i18n/direction.ts';
+import { Icon } from './Icon.tsx';
+import type { IconName } from './Icon.tsx';
 import { TOUCH, fonts, tokens, type } from './theme.ts';
 import type { Tokens } from './theme.ts';
 
@@ -20,12 +22,14 @@ export function useTokens(): Tokens {
   return tokens(useColorScheme() === 'dark' ? 'dark' : 'light');
 }
 
-export function Txt({ children, size = 'body', bold, serif, color, style, ...rest }: { children?: React.ReactNode; size?: keyof typeof type; bold?: boolean; serif?: boolean; color?: string; style?: StyleProp<TextStyle>; numberOfLines?: number; accessibilityRole?: 'header' | 'alert' | 'text' }) {
+/** `content`: user text (message, name); its direction and alignment follow its first strong letter, not the UI language. */
+export function Txt({ children, size = 'body', bold, serif, color, content, style, ...rest }: { children?: React.ReactNode; size?: keyof typeof type; bold?: boolean; serif?: boolean; color?: string; content?: boolean; style?: StyleProp<TextStyle>; numberOfLines?: number; accessibilityRole?: 'header' | 'alert' | 'text' }) {
   const { lang, dir } = useI18n();
   const k = useTokens();
   const family = serif ? fonts.title : bold ? fonts.uiBold : fonts.ui;
+  const d = content && typeof children === 'string' ? contentDir(children, dir) : dir;
   return (
-    <Text {...rest} style={[{ color: color ?? k.ink, fontSize: type[size], lineHeight: Math.round(type[size] * 1.5), fontFamily: family, writingDirection: dir, textAlign: textStart(lang) }, style]}>
+    <Text {...rest} style={[{ color: color ?? k.ink, fontSize: type[size], lineHeight: Math.round(type[size] * 1.5), fontFamily: family, writingDirection: d, textAlign: d === dir ? textStart(lang) : d === 'rtl' ? 'right' : 'left' }, style]}>
       {children}
     </Text>
   );
@@ -50,7 +54,7 @@ export function Card({ children, edgeColor, style }: { children: React.ReactNode
   );
 }
 
-export function Button({ title, onPress, kind = 'primary', busy, disabled, accessibilityLabel }: { title: string; onPress: () => void; kind?: 'primary' | 'secondary' | 'danger'; busy?: boolean; disabled?: boolean; accessibilityLabel?: string }) {
+export function Button({ title, onPress, kind = 'primary', busy, disabled, accessibilityLabel, icon }: { icon?: IconName; title: string; onPress: () => void; kind?: 'primary' | 'secondary' | 'danger'; busy?: boolean; disabled?: boolean; accessibilityLabel?: string }) {
   const k = useTokens();
   const bg = kind === 'primary' ? k.tekhelet : kind === 'danger' ? k.danger : 'transparent';
   const fg = kind === 'secondary' ? k.tekhelet : k.onAction;
@@ -58,7 +62,9 @@ export function Button({ title, onPress, kind = 'primary', busy, disabled, acces
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled: off, busy }} disabled={off} onPress={onPress}
       style={({ pressed }) => [{ minHeight: TOUCH, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: kind === 'secondary' ? 1.5 : 0, borderColor: k.tekhelet, opacity: off || pressed ? 0.6 : 1 }]}>
-      {busy ? <ActivityIndicator color={fg} /> : <Txt bold color={fg} style={{ textAlign: 'center' }}>{title}</Txt>}
+      {busy ? <ActivityIndicator color={fg} /> : icon ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Icon name={icon} size={18} color={fg} /><Txt bold color={fg} style={{ textAlign: 'center' }}>{title}</Txt></View>
+      ) : <Txt bold color={fg} style={{ textAlign: 'center' }}>{title}</Txt>}
     </Pressable>
   );
 }
@@ -80,13 +86,42 @@ export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, .
   );
 }
 
-export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
+/** `size="filter"`: the small pill for filter rows and pickers (selected = ink, tekhelet stays the action colour). */
+export function Chip({ label, selected, onPress, size = 'regular', icon }: { label: string; selected?: boolean; onPress?: () => void; size?: 'regular' | 'filter'; icon?: IconName }) {
   const k = useTokens();
+  if (size === 'filter') {
+    const fg = selected ? k.stone : k.ink;
+    return (
+      <Pressable accessibilityRole="button" accessibilityState={{ selected: !!selected }} onPress={onPress} hitSlop={{ top: 6, bottom: 6 }}
+        style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: selected ? k.ink : k.line, backgroundColor: selected ? k.ink : k.surface }}>
+        {icon ? <Icon name={icon} size={16} color={fg} /> : null}
+        <Txt size="small" bold color={fg}>{label}</Txt>
+      </Pressable>
+    );
+  }
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ selected: !!selected }} onPress={onPress}
       style={{ minHeight: TOUCH, paddingHorizontal: 16, borderRadius: 24, justifyContent: 'center', borderWidth: 1.5, borderColor: selected ? k.tekhelet : k.line, backgroundColor: selected ? k.tekhelet : k.surface }}>
       <Txt size="small" bold color={selected ? k.onAction : k.ink}>{label}</Txt>
     </Pressable>
+  );
+}
+
+/** Two or three exclusive choices in one track ("mine / everything"). */
+export function Segmented<K extends string>({ options, value, onChange }: { options: { key: K; label: string }[]; value: K; onChange: (key: K) => void }) {
+  const k = useTokens();
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', minHeight: TOUCH, padding: 4, gap: 4, borderRadius: 12, backgroundColor: k.stone, borderWidth: 1, borderColor: k.line }}>
+      {options.map(o => {
+        const selected = o.key === value;
+        return (
+          <Pressable key={o.key} accessibilityRole="tab" accessibilityState={{ selected }} onPress={() => onChange(o.key)}
+            style={{ flex: 1, minHeight: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? k.surface : 'transparent', borderWidth: 1, borderColor: selected ? k.tekhelet : 'transparent' }}>
+            <Txt size="small" bold color={selected ? k.tekhelet : k.muted} style={{ textAlign: 'center' }}>{o.label}</Txt>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 

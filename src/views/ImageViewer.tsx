@@ -8,6 +8,7 @@ import { Txt } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { canShareImage, printImage, saveToPhone, shareImage } from '../media/saveShare.ts';
 import { doubleTapScale, panUpdate, pinchUpdate, shouldDismiss, clampPan } from '../media/viewerMath.ts';
+import { Icon } from '../kit/Icon.tsx';
 
 type Action = 'save' | 'share' | 'print';
 
@@ -117,10 +118,10 @@ export function ImageViewer({ messageId, contentType, onClose }: { messageId: st
   }
 
   const circle = { width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.16)' } as const;
-  const btn = (a: Action | 'close', label: string, glyph: string, onPress: () => void, disabled = false) => (
+  const btn = (a: Action | 'close', label: string, glyph: React.ReactNode, onPress: () => void, disabled = false) => (
     <Pressable key={a} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled, busy: busy === a }} disabled={disabled} onPress={onPress}
       style={[circle, disabled ? { opacity: 0.5 } : null]}>
-      <Txt color="#FFFFFF" size="heading">{glyph}</Txt>
+      {typeof glyph === 'string' ? <Txt color="#FFFFFF" size="heading">{glyph}</Txt> : glyph}
     </Pressable>
   );
   const rootDir = Platform.OS === 'web' ? null : { direction: dir } as const;
@@ -143,7 +144,7 @@ export function ImageViewer({ messageId, contentType, onClose }: { messageId: st
             </GestureDetector>
           ) : null}
           <View style={styles.bar} pointerEvents="box-none">
-            {btn('close', t('viewer.close'), '✕', onClose)}
+            {btn('close', t('viewer.close'), <Icon name="x" size={24} color="#FFFFFF" />, onClose)}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {btn('save', t('viewer.save'), '⬇', () => void run('save'), !url || !!busy)}
               {showShare ? btn('share', t('viewer.share'), '⤴', () => void run('share'), !url || !!busy) : null}

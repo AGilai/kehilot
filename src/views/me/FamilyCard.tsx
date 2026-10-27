@@ -13,6 +13,7 @@ import { TOUCH } from '../../kit/theme.ts';
 import { useErrorText } from '../auth/Frame.tsx';
 import { ChildSheet } from './ChildSheet.tsx';
 import { PartnerPicker, useShortDate } from './PartnerPicker.tsx';
+import { ForwardIcon } from '../../kit/Icon.tsx';
 
 /** P2: "המשפחה שלי". Adults, the action for the state, then the children. Members and gabbaim only. */
 export function FamilyCard({ onToast }: { onToast: (text: string) => void }) {
@@ -144,7 +145,7 @@ export function FamilyCard({ onToast }: { onToast: (text: string) => void }) {
             <Txt size="small" color={k.muted}>{childLine(c)}</Txt>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel={`${t('children.edit')} ${c.firstName}`} onPress={() => setSheet({ child: c })} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
-            <Txt bold color={k.tekhelet}>{t('children.edit')} {dir === 'rtl' ? '‹' : '›'}</Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Txt bold color={k.tekhelet}>{t('children.edit')}</Txt><ForwardIcon color={k.tekhelet} /></View>
           </Pressable>
         </View>
       ))}

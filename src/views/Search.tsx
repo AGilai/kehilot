@@ -8,6 +8,8 @@ import { fonts, TOUCH, type } from '../kit/theme.ts';
 import { textStart } from '../i18n/direction.ts';
 import { queryWords, snippet } from '../search/normalize.ts';
 import type { CachedMessage } from '../search/cache.ts';
+import { BackIcon } from '../kit/Icon.tsx';
+import { channelLabel } from '../client/channelsView.ts';
 
 /** Search over the on-phone cache only (works offline). Hebrew-normalised: niqqud, final letters and quotes are ignored. */
 export function Search({ onBack, onOpen, initialQuery = '', onQuery }: { onBack: () => void; onOpen: (id: string) => void; initialQuery?: string; onQuery?: (q: string) => void }) {
@@ -19,7 +21,7 @@ export function Search({ onBack, onOpen, initialQuery = '', onQuery }: { onBack:
   const [hits, setHits] = React.useState<CachedMessage[]>([]);
   const [status, setStatus] = React.useState({ complete: true, count: 0 });
   const channels = state.channels;
-  const nameOf = (id: string) => channels.find(c => c.channelId === id)?.name ?? '';
+  const nameOf = (id: string) => { const c = channels.find(x => x.channelId === id); return c ? channelLabel(c, t) : ''; };
 
   // The archive fills in the background; follow its progress while it is incomplete.
   React.useEffect(() => {
@@ -53,16 +55,16 @@ export function Search({ onBack, onOpen, initialQuery = '', onQuery }: { onBack:
         ListHeaderComponent={(
           <View style={{ gap: 12, paddingBottom: 8 }}>
             <Pressable accessibilityRole="button" accessibilityLabel={t('search.back')} onPress={onBack} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
-              <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'} {t('search.back')}</Txt>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('search.back')}</Txt></View>
             </Pressable>
             <Txt serif size="title" accessibilityRole="header">{t('search.title')}</Txt>
             <TextInput accessibilityLabel={t('search.placeholder')} placeholder={t('search.placeholder')} placeholderTextColor={k.muted}
               value={q} onChangeText={v => { setQ(v); onQuery?.(v); }} autoFocus returnKeyType="search"
               style={{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              <Chip label={t('messages.allChannels')} selected={channelId === null} onPress={() => setChannelId(null)} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+              <Chip size="filter" label={t('messages.allChannels')} selected={channelId === null} onPress={() => setChannelId(null)} />
               {channels.map(c => (
-                <Chip key={c.channelId} label={c.conversation ? `💬 ${c.name}` : c.name} selected={channelId === c.channelId} onPress={() => setChannelId(c.channelId)} />
+                <Chip key={c.channelId} size="filter" icon={c.conversation ? 'msg' : undefined} label={channelLabel(c, t)} selected={channelId === c.channelId} onPress={() => setChannelId(c.channelId)} />
               ))}
             </ScrollView>
             {!status.complete ? <Txt size="small" color={k.muted} accessibilityRole="alert">{t('search.loading', { n: status.count })}</Txt> : null}

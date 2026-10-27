@@ -1,5 +1,6 @@
 import { HDate, gematriya } from '@hebcal/hdate';
 import { MONTHS, TRIBES } from './types.ts';
+import type { Lang } from './i18n/translate.ts';
 import type { HebrewBirthDate, Profile } from './types.ts';
 
 export const HEBREW_DAY_LABELS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ז׳', 'ח׳', 'ט׳', 'י׳', 'י״א', 'י״ב', 'י״ג', 'י״ד', 'ט״ו', 'ט״ז', 'י״ז', 'י״ח', 'י״ט', 'כ׳', 'כ״א', 'כ״ב', 'כ״ג', 'כ״ד', 'כ״ה', 'כ״ו', 'כ״ז', 'כ״ח', 'כ״ט', 'ל׳'];
@@ -57,11 +58,14 @@ export function upcomingFriday(date: string): string {
   d.setUTCDate(d.getUTCDate() + (5 - d.getUTCDay() + 7) % 7);
   return d.toISOString().slice(0, 10);
 }
-export function hebrewDate(date: string): string {
-  return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' }).format(civilDate(date));
+export function hebrewDate(date: string, lang: Lang = 'he'): string {
+  if (lang === 'en') return new Intl.DateTimeFormat('en-GB-u-ca-hebrew', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' }).format(civilDate(date));
+  // Day and year in letters (ט״ז, תשפ״ז) instead of digits.
+  const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' }).formatToParts(civilDate(date));
+  return parts.map(p => p.type === 'day' || p.type === 'year' ? gematriya(Number(p.value)) : p.value).join('');
 }
-export function displayDate(date: string): string {
-  return new Intl.DateTimeFormat('he-IL', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(civilDate(date));
+export function displayDate(date: string, lang: Lang = 'he'): string {
+  return new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'he-IL', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(civilDate(date));
 }
 export function clockTime(iso?: string | null): string {
   if (!iso || Number.isNaN(Date.parse(iso))) return '—';

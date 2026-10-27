@@ -1,5 +1,18 @@
 import type { Channel, ChannelFields, Role } from './types.ts';
 
+const DEFAULT_KEYS = ['announcements', 'simchas', 'condolences'];
+
+/** The name to show: the three seeded keys are localised, any other name is shown as stored. */
+export function channelLabel(c: Pick<Channel, 'name'>, t: (key: string) => string): string {
+  return DEFAULT_KEYS.includes(c.name) ? t(`channel.default.${c.name}`) : c.name;
+}
+
+/** The name to send when the admin sheet saves: a name still equal to the shown label keeps the stored key, so it keeps localising. */
+export function channelSaveName(c: Pick<Channel, 'name'>, typed: string, t: (key: string) => string): string {
+  const name = typed.trim();
+  return DEFAULT_KEYS.includes(c.name) && name === channelLabel(c, t) ? c.name : name;
+}
+
 export const CHAT_LIMIT_DEFAULT = 30;
 export const CHAT_LIMIT_MAX = 200;
 

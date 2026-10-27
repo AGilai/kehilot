@@ -16,6 +16,8 @@ import type { Stage } from '../media/send.ts';
 import { singleFlight } from '../client/singleFlight.ts';
 import { Stripe } from './MessageRow.tsx';
 import { useErrorText } from './auth/Frame.tsx';
+import { BackIcon } from '../kit/Icon.tsx';
+import { channelLabel } from '../client/channelsView.ts';
 
 const TYPES: Array<Exclude<MessageType, 'chat'>> = ['weekly', 'celebration', 'condolence', 'event'];
 
@@ -69,7 +71,8 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const draft: Draft = { type, channelId, title, body, targetMemberId: chosen?.targetMemberId ?? null, targetFamilyId: chosen?.familyId ?? null };
   const busy = stage !== null;
   const ok = canPublish(draft) && !busy;
-  const channelName = channels.find(c => c.channelId === channelId)?.name ?? '';
+  const found = channels.find(c => c.channelId === channelId);
+  const channelName = found ? channelLabel(found, t) : '';
   const gabbai = state.kehila?.role === 'gabbai';
   const shown = Array.isArray(people) ? familyRows(filterFamilies(people, q), t) : [];
 
@@ -88,7 +91,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   return (
     <Screen>
       <Pressable accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={onBack} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
-        <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'} {t('common.back')}</Txt>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('common.back')}</Txt></View>
       </Pressable>
       <Txt serif size="title" accessibilityRole="header">{t(gabbai ? 'compose.titleGabbai' : 'compose.titleMember')}</Txt>
 
@@ -110,7 +113,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
       <View style={{ gap: 8 }}>
         <Txt size="small" bold>{t('compose.channel')}</Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {channels.map(c => <Chip key={c.channelId} label={c.name} selected={channelId === c.channelId} onPress={() => { if (!busy) { setChannelId(c.channelId); setTargetId(null); } }} />)}
+          {channels.map(c => <Chip key={c.channelId} size="filter" label={channelLabel(c, t)} selected={channelId === c.channelId} onPress={() => { if (!busy) { setChannelId(c.channelId); setTargetId(null); } }} />)}
         </View>
       </View>
 

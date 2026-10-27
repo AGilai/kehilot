@@ -10,6 +10,8 @@ import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { TOUCH, edge } from '../kit/theme.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
+import { BackIcon } from '../kit/Icon.tsx';
+import { channelLabel } from '../client/channelsView.ts';
 
 /** Reply errors that end the chance to reply to this message. */
 const HIDES_BOX = ['cannot_reply_to_own', 'replies_not_allowed', 'target_left'];
@@ -54,24 +56,25 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   if (!kehila || !me) return null;
   const back = (
     <Pressable accessibilityRole="button" accessibilityLabel={t('detail.back')} onPress={onBack} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
-      <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '›' : '‹'} {t('detail.back')}</Txt>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('detail.back')}</Txt></View>
     </Pressable>
   );
   const copy = hit?.kind === 'copy' ? hit.copy : null;
   if (!message && copy) {
     const date = Number.isFinite(ulidTime(messageId))
       ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ulidTime(messageId))) : '';
-    const channel = channels.find(c => c.channelId === copy.channelId)?.name ?? '';
+    const copyChannel = channels.find(c => c.channelId === copy.channelId);
+    const channel = copyChannel ? channelLabel(copyChannel, t) : '';
     return (
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {back}
         <Banner text={t('detail.offlineCopy')} />
         <Card edgeColor={edge(copy.type, scheme)}>
           <Txt size="caption" color={k.muted}>{channel} · {date}</Txt>
-          {copy.title ? <Txt serif size="title" accessibilityRole="header">{copy.title}</Txt> : null}
-          {copy.body ? <Txt>{copy.body}</Txt> : null}
+          {copy.title ? <Txt content serif size="title" accessibilityRole="header">{copy.title}</Txt> : null}
+          {copy.body ? <Txt content>{copy.body}</Txt> : null}
           <Txt size="small" color={k.muted}>{t('detail.from', { name: copy.authorName })}</Txt>
-          {copy.targetName ? <Txt size="small" color={k.muted}>{copy.targetName}</Txt> : null}
+          {copy.targetName ? <Txt content size="small" color={k.muted}>{copy.targetName}</Txt> : null}
         </Card>
       </ScrollView>
     );
@@ -91,7 +94,8 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);
   const canDelete = message.authorId === me.userId || role === 'gabbai';
   const familyName = message.targetName?.trim() || t('chip.formerMember');
-  const channelName = channels.find(c => c.channelId === message.channelId)?.name ?? '';
+  const msgChannel = channels.find(c => c.channelId === message.channelId);
+  const channelName = msgChannel ? channelLabel(msgChannel, t) : '';
 
   async function doJoin() {
     if (joining || joined) return;
@@ -124,8 +128,8 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
       {back}
       <Card edgeColor={edge(message.type, scheme)}>
         <Txt size="caption" color={k.muted}>{channelName} · {timeOfDay(messageId)}</Txt>
-        {message.title ? <Txt serif size="title" accessibilityRole="header">{message.title}</Txt> : null}
-        {message.body ? <Txt>{message.body}</Txt> : null}
+        {message.title ? <Txt content serif size="title" accessibilityRole="header">{message.title}</Txt> : null}
+        {message.body ? <Txt content>{message.body}</Txt> : null}
         {message.image ? <ImageThumb messageId={messageId} contentType={message.image.contentType} /> : null}
         <Txt size="small" color={k.muted}>{t('detail.from', { name: message.authorName })}</Txt>
       </Card>
@@ -139,8 +143,8 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
           <Txt bold size="heading">{t('detail.received')}</Txt>
           {replies.map(r => (
             <Card key={r.replyId}>
-              <Txt size="small" bold color={k.muted}>{r.authorName}</Txt>
-              <Txt>{r.body}</Txt>
+              <Txt size="small" bold content color={k.muted}>{r.authorName}</Txt>
+              <Txt content>{r.body}</Txt>
             </Card>
           ))}
         </View>
@@ -151,7 +155,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
           {replies.map(r => (
             <Card key={r.replyId} edgeColor={k.olive}>
               <Txt size="caption" bold color={k.olive}>{t('detail.sent')}</Txt>
-              <Txt>{r.body}</Txt>
+              <Txt content>{r.body}</Txt>
             </Card>
           ))}
         </View>

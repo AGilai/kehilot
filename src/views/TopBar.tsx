@@ -3,6 +3,7 @@ import { Image, Pressable, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../kit/components.tsx';
+import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
 
 /** Logo, or the initial-letter tile when the Kehila has none (or it is still loading). */
@@ -39,13 +40,13 @@ export function TopBar({ onOpenSwitcher, onBell }: { onOpenSwitcher: () => void;
           disabled={!many} onPress={onOpenSwitcher}
           style={{ flex: 1, minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <KehilaLogo kehilaId={kehila.kehilaId} name={kehila.name} logoVersion={kehila.logoVersion} />
-          <Txt bold numberOfLines={1} style={{ flexShrink: 1 }}>{kehila.name}</Txt>
-          {many ? <Txt color={k.muted}>⌄</Txt> : null}
+          <Txt bold content numberOfLines={1} style={{ flexShrink: 1 }}>{kehila.name}</Txt>
+          {many ? <Icon name="chev" size={16} color={k.muted} /> : null}
         </Pressable>
       ) : <View style={{ flex: 1 }} />}
       <Pressable accessibilityRole="button" accessibilityLabel={t('topbar.bell')} onPress={onBell}
         style={{ minWidth: TOUCH, minHeight: TOUCH, alignItems: 'center', justifyContent: 'center' }}>
-        <Txt size="heading">🔔</Txt>
+        <Icon name="bell" size={24} color={k.ink} />
       </Pressable>
     </View>
   );
