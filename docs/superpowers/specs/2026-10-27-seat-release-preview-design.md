@@ -88,3 +88,10 @@ tests."
 - **Phasing**: (1) layout editor + Excel paste + seat holders; (2) release with real data (member, gabbai
   on behalf, print); (3) responses upload; (4) timed reminders and push. The fixture preview continues.
 - **Asked the owner** for the real Excel chart (kept on the machine only, never in git).
+
+## Member view is limited (owner, 2026-10-27, repeated)
+
+"A member of the Kehila should not have the whole view at all. He will be asked only to free his places …
+he will see the block that he sits in, two rows ahead and two rows behind." Binding: the member seat page
+shows **only** his block, his row(s) ±2 — **no whole-hall map, no mini-map, no other blocks**, and the API
+returns only that cut to a member (never the full layout). The full hall is for gabbaim (editor, print).

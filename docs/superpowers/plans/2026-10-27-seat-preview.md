@@ -47,4 +47,4 @@ tests `tests/seats.test.ts`.
 - [ ] Tests first: hall has 205 seats and 5 named blocks; frame for a mid-hall seat = rows r−2..r+2 of
       that block; edge clipping; split seats rule; window open/closed around Thu 12:00/Fri 12:00
       Asia/Jerusalem incl. a DST-change week; deep-link `screen:'seats'` routes to the seat page.
-- [ ] Views per P24/P25/P26, behind the flag; dev web build sets the flag. Visual check; commit.
+- [ ] Views per P24/P25/P26, behind the flag; dev web build sets the flag. The member page shows ONLY his block ±2 rows — no whole-hall map or mini-map (owner, binding; P25 is being corrected). Visual check; commit.
