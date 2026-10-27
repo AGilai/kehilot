@@ -1,4 +1,5 @@
 """Routes: create, preview and accept invites."""
+import logging
 import time
 
 from . import inputs
@@ -8,6 +9,7 @@ from .errors import ApiError
 from .repo_members import normalize_code
 
 
+log = logging.getLogger(__name__)
 MAX_MEMBER_LISTENER_LINKS = 3
 DEFAULT_MAX_LISTENERS = 500
 
@@ -69,6 +71,11 @@ def accept(ctx, params):
             raise ApiError(409, 'kehila_full')
     membership = ctx.repo.accept_invite(code, ctx.user_id, name, int(time.time()),
                                         bool(settings.get('memberBroadcastDefault', False)))
+    if membership['role'] in ('member', 'gabbai'):
+        try:
+            ctx.repo.ensure_family(k, ctx.user_id)
+        except Exception:  # the lazy path (GET .../family) creates it later
+            log.warning('ensure_family failed kehila=%s user=%s', k, ctx.user_id)
     return 200, {'kehilaId': membership['kehilaId'], 'role': membership['role']}
 
 

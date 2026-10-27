@@ -1,9 +1,11 @@
 """The gabbai's list import. Results carry only the row index, a status and an error code: no names or emails."""
+import logging
 import re
 
 from . import accounts
 from .ids import new_id
 
+log = logging.getLogger(__name__)
 EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 MAX_EMAIL = 254
 MAX_NAME = 60
@@ -76,6 +78,11 @@ def import_rows(repo, client, pool_id, k, rows, remaining_ms=None):
         repo.put_profile_if_absent(user_id, row['first'], row['last'], lang)
         status = repo.import_membership(k, user_id, f"{row['first']} {row['last']}".strip(), row['role'],
                                         row['classification'], broadcast_default)
+        if row['role'] != 'listener' or status == 'exists':  # ensure skips listeners; it is idempotent
+            try:
+                repo.ensure_family(k, user_id)
+            except Exception:  # the lazy path (GET .../family) creates it later
+                log.warning('ensure_family failed kehila=%s user=%s', k, user_id)
         repo.add_member_groups(k, user_id, group_ids)  # only ever adds; the row's status is unchanged
         results.append({'index': index, 'status': 'created' if created and status == 'added' else status})
     return results

@@ -5,6 +5,7 @@ from botocore.exceptions import ClientError
 
 from .errors import ApiError
 from .ids import new_id
+from .repo_families import FamiliesRepo
 from .repo_members import AdminRepo, MembersRepo
 from .repo_messages import MessagesRepo
 
@@ -21,7 +22,7 @@ TABLE_SCHEMA = dict(
     BillingMode='PAY_PER_REQUEST',
 )
 
-class Repo(MembersRepo, AdminRepo, MessagesRepo):
+class Repo(MembersRepo, AdminRepo, MessagesRepo, FamiliesRepo):
     def __init__(self, table):
         self.table = table
 

@@ -2,6 +2,7 @@
        .venv/bin/python tools/kehila_admin.py set-logo --env dev --kehila <id> --logo logo.png
 
        .venv/bin/python tools/kehila_admin.py gabbai-invite --env dev --kehila <id>
+       .venv/bin/python tools/kehila_admin.py backfill-families --env dev [--kehila <id>]
 
 Creates a Kehila (with default channels) and prints its ID and a one-use, 7-day gabbai invite code.
 The table name and (when AWS_DEFAULT_REGION is unset) the region come from `terraform output`. The functions are importable for tests and the smoke test.
@@ -40,6 +41,18 @@ def gabbai_invite(repo, k):
     return repo.create_invite(k, 'admin-cli', 'gabbai', 1, 7)
 
 
+def backfill_families(repo, k=None):
+    """Give every member and gabbai without a family one (all Kehilot, or just `k`). Idempotent.
+    Returns (kehilot, created)."""
+    kehilot = [k] if k else repo.list_kehila_ids()
+    created = 0
+    for kehila in kehilot:
+        for membership in repo.list_members(kehila):
+            if membership.get('role') in ('member', 'gabbai') and not membership.get('familyId'):
+                created += repo._ensure_family(kehila, membership['userId'])[1]
+    return len(kehilot), created
+
+
 def read_logo(path):
     """Read and validate a logo PNG; exits with a clear message when it is unusable."""
     try:
@@ -74,7 +87,14 @@ def main(argv=None):
     recover = sub.add_parser('gabbai-invite', help='one-use, 7-day gabbai invite for lock-out recovery')
     recover.add_argument('--env', required=True, choices=['dev'])
     recover.add_argument('--kehila', required=True)
+    backfill = sub.add_parser('backfill-families', help='create a family for every member and gabbai without one')
+    backfill.add_argument('--env', required=True, choices=['dev'])
+    backfill.add_argument('--kehila', help='only this Kehila (default: all)')
     args = parser.parse_args(argv)
+    if args.command == 'backfill-families':
+        kehilot, created = backfill_families(open_repo(args.env), args.kehila)
+        print(f'kehilot={kehilot} created={created}')
+        return
     if args.command == 'gabbai-invite':
         print(f'Gabbai invite code (one use, 7 days): {gabbai_invite(open_repo(args.env), args.kehila)}')
         return

@@ -53,6 +53,10 @@ def approve(ctx, params):
     _target(ctx, params, 'request_not_found')
     default = ctx.repo.get_kehila(k).get('settings', {}).get('memberBroadcastDefault', False)
     ctx.repo.approve_request(k, params['userId'], classification, bool(default))
+    try:
+        ctx.repo.ensure_family(k, params['userId'])
+    except Exception:  # the lazy path (GET .../family) creates it later
+        log.warning('ensure_family failed kehila=%s user=%s', k, params['userId'])
     return 200, {}
 
 
