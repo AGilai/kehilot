@@ -49,10 +49,11 @@ resource "aws_iam_role" "worker" {
 }
 
 data "aws_iam_policy_document" "worker" {
-  # push_worker.py reads members, messages, channels, profiles, devices (GetItem, Query) and
-  # writes tickets / removes dead devices (PutItem, DeleteItem). It never queries a GSI.
+  # push_worker.py reads members, messages, channels, profiles, devices (GetItem, Query), a family's
+  # adults' memberships (BatchGetItem, via live_adults) and writes tickets / removes dead devices
+  # (PutItem, DeleteItem). It never queries a GSI.
   statement {
-    actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+    actions   = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:DeleteItem"]
     resources = [var.table_arn]
   }
   statement {
