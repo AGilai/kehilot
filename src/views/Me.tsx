@@ -13,6 +13,7 @@ import { Banner, Button, Card, Chip, Field, Txt, useTokens } from '../kit/compon
 import { TOUCH } from '../kit/theme.ts';
 import { DeleteAccount } from './DeleteAccount.tsx';
 import { MyGroups } from './MyGroups.tsx';
+import { FamilyCard } from './me/FamilyCard.tsx';
 import { PhoneCard } from './me/PhoneCard.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
@@ -210,6 +211,8 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
       </Card>
 
       {roleFeatures(role).phoneList && onPhoneList ? <PhoneCard onOpenList={onPhoneList} onToast={onToast} /> : null}
+
+      {roleFeatures(role).family ? <FamilyCard onToast={onToast} /> : null}
 
       <Card>
         <Txt serif size="heading" accessibilityRole="header">{t('me.lang.title')}</Txt>

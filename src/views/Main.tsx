@@ -68,7 +68,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
-  if (s === 'me') return { nav: { tab: 'me' } };
+  if (s === 'me' || s === 'me-family' || s === 'me-request' || s === 'me-linked' || s === 'partner-picker' || s === 'child-sheet') return { nav: { tab: 'me' } };
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
   if (s === 'overview') return { nav: { tab: 'overview' }, manage: true };
   if (s === 'approvals') return { nav: { tab: 'approvals' }, manage: true };

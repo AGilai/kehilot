@@ -50,3 +50,10 @@ test('only members and gabbaim get the phone list (entry, Me card)', () => {
   assert.equal(roleFeatures('member').phoneList, true);
   assert.equal(roleFeatures('gabbai').phoneList, true);
 });
+
+test('only members and gabbaim get the family card', () => {
+  assert.equal(roleFeatures('listener').family, false);
+  assert.equal(roleFeatures(undefined).family, false);
+  assert.equal(roleFeatures('member').family, true);
+  assert.equal(roleFeatures('gabbai').family, true);
+});
