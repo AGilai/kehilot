@@ -8,6 +8,7 @@ import { singleFlight } from '../client/singleFlight.ts';
 import { TOUCH } from '../kit/theme.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Check, Field, Txt, useTokens } from '../kit/components.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
 import { BackLink } from './Me.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 import { ForwardIcon } from '../kit/Icon.tsx';
@@ -44,7 +45,7 @@ export function DeleteAccount({ onBack, onExport }: { onBack: () => void; /** Op
   const run = React.useRef(singleFlight(() => runRef.current())).current;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{t('deleteAccount.title')}</Txt>
       <Card>
@@ -75,6 +76,6 @@ export function DeleteAccount({ onBack, onExport }: { onBack: () => void; /** Op
         <Button kind="danger" title={t('deleteAccount.confirm')} onPress={() => void run()} busy={busy} disabled={!ok} />
         <Button kind="secondary" title={t('deleteAccount.cancel')} onPress={onBack} disabled={busy} />
       </Card>
-    </ScrollView>
+    </PadScroll>
   );
 }

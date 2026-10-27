@@ -6,6 +6,7 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { InviteRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { LinkShare } from '../Me.tsx';
 import { PrivacyContactCard, TermsCard } from './PrivacyContactCard.tsx';
 import { useShortDate, useAdminErrText } from './shared.tsx';
@@ -129,7 +130,7 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
   React.useEffect(() => { void load(); }, [load]);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <Txt serif size="title" accessibilityRole="header">{t('admin.overview.title')}</Txt>
       {error ? <Banner tone="error" text={error} /> : null}
       {!counts ? <ActivityIndicator color={k.tekhelet} /> : null}
@@ -157,6 +158,6 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
       <Button kind="secondary" title={t('admin.overview.pushTextsLink')} onPress={onPushTexts} />
       <Button title={t('admin.overview.invites.new')} onPress={onInvite} />
       {invites ? <InviteList rows={invites} onChanged={loadInvites} onToast={onToast} /> : null}
-    </ScrollView>
+    </PadScroll>
   );
 }

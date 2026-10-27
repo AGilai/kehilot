@@ -5,6 +5,7 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { Classification } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { BackLink, LinkShare } from '../Me.tsx';
 import { Choice, useAdminErrText } from './shared.tsx';
 
@@ -37,7 +38,7 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{t('admin.invite.title')}</Txt>
       <Card>
@@ -67,6 +68,6 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
           <LinkShare code={code} onToast={onToast} />
         </Card>
       ) : null}
-    </ScrollView>
+    </PadScroll>
   );
 }

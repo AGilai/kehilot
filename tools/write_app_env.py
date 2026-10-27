@@ -1,6 +1,6 @@
 """Write the app's .env.<env> from `terraform output -json`. Usage: python3 tools/write_app_env.py --env dev
 
-The file is gitignored. EXPO_PUBLIC_FEDERATION stays empty until Google/Apple sign-in is configured.
+The file is gitignored. EXPO_PUBLIC_REPORTS=1 (the bug-report button) is written for dev only. EXPO_PUBLIC_FEDERATION stays empty until Google/Apple sign-in is configured.
 """
 import argparse
 import json
@@ -18,7 +18,7 @@ KEYS = [  # (env var, terraform output)
 ]
 
 
-def render(outputs):
+def render(outputs, reports=True):
     lines = []
     for var, name in KEYS:
         value = (outputs.get(name) or {}).get('value')
@@ -26,6 +26,8 @@ def render(outputs):
             raise SystemExit(f'terraform output {name} is missing: apply the infra first')
         lines.append(f'{var}={str(value).rstrip("/")}')
     lines.append('EXPO_PUBLIC_FEDERATION=')
+    if reports:  # the floating bug-report button is on in dev builds only
+        lines.append('EXPO_PUBLIC_REPORTS=1')
     return '\n'.join(lines) + '\n'
 
 
@@ -33,7 +35,7 @@ def write(env, outputs, directory=ROOT):
     if env not in ('dev', 'prod'):
         raise SystemExit('--env must be dev or prod')
     path = Path(directory) / f'.env.{env}'
-    path.write_text(render(outputs))
+    path.write_text(render(outputs, reports=env == 'dev'))
     return path
 
 

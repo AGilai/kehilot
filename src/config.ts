@@ -17,6 +17,8 @@ export const config = {
   testBuild: process.env.EXPO_PUBLIC_TEST_BUILD === '1',
   buildNumber: Number(process.env.EXPO_PUBLIC_BUILD_NUMBER) || 0,
   releasesRepo: process.env.EXPO_PUBLIC_RELEASES_REPO ?? '',
+  /** The floating "Alpha · Report a bug" button (UX-DESIGN §13). On in dev builds and the fixtures build. */
+  bugReports: process.env.EXPO_PUBLIC_REPORTS === '1' || process.env.EXPO_PUBLIC_FIXTURES === '1',
 };
 
 export const CLOUD = !!config.clientId || config.fixtures;

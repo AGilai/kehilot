@@ -9,6 +9,7 @@ import { TOUCH } from '../kit/theme.ts';
 import { canShareImage, printImage, saveToPhone, shareImage } from '../media/saveShare.ts';
 import { doubleTapScale, panUpdate, pinchUpdate, shouldDismiss, clampPan } from '../media/viewerMath.ts';
 import { Icon } from '../kit/Icon.tsx';
+import { useModalOpen } from '../client/reportUi.ts';
 
 type Action = 'save' | 'share' | 'print';
 
@@ -20,6 +21,7 @@ type Action = 'save' | 'share' | 'print';
 export function ImageViewer({ messageId, contentType, onClose }: { messageId: string; contentType?: string; onClose: () => void }) {
   const { t, dir } = useI18n();
   const { imageUrl, state } = useSession();
+  useModalOpen(true); // mounted = open: the floating report button hides
   const kehilaId = state.kehilaId ?? '';
   const [url, setUrl] = React.useState<string | null | undefined>(undefined);
   const [attempt, setAttempt] = React.useState(0);

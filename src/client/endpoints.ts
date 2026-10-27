@@ -1,4 +1,5 @@
 import type { Http } from './http.ts';
+import type { ReportContext } from './reportContext.ts';
 import type {
   TypeRules,
   AdminFamily, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
@@ -31,6 +32,11 @@ export function endpoints(http: Http) {
     age13Consent: () => r<void>('POST', '/v1/me/consents/age13'),
     exportStatus: () => r<ExportLink>('GET', '/v1/me/export'),
     startExport: () => r<ExportLink>('POST', '/v1/me/export'),
+
+    // bug reports (write-only; the anonymous one is public and sends no token)
+    requestReportUpload: (o: { contentType: 'image/jpeg' | 'image/png'; bytes: number }) => r<UploadGrant>('POST', '/v1/reports/upload', o),
+    postReport: (o: { text: string; context: ReportContext; imageUploadId?: string }) => r<{ reportId: string }>('POST', '/v1/reports', o),
+    postAnonymousReport: (o: { text: string; context: ReportContext }) => r<{ reportId: string }>('POST', '/v1/reports/anonymous', o, { auth: false }),
 
     // kehila, invites, joining
     kehila: (k: string) => r<Kehila>('GET', K(k)),

@@ -8,6 +8,7 @@ import { NotoSerifHebrew_700Bold } from '@expo-google-fonts/noto-serif-hebrew';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { contentDir, textStart } from '../i18n/direction.ts';
 import { Icon } from './Icon.tsx';
+import { useModalOpen, useReportPad } from '../client/reportUi.ts';
 import type { IconName } from './Icon.tsx';
 import { TOUCH, fonts, tokens, type } from './theme.ts';
 import type { Tokens } from './theme.ts';
@@ -37,7 +38,8 @@ export function Txt({ children, size = 'body', bold, serif, color, content, styl
 
 export function Screen({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
   const k = useTokens();
-  const inner = { padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' } as const;
+  const pad = useReportPad();
+  const inner = { padding: 16, paddingBottom: pad || 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' } as const;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       {scroll ? <ScrollView contentContainerStyle={inner}>{children}</ScrollView> : <View style={[{ flex: 1 }, inner]}>{children}</View>}
@@ -230,9 +232,10 @@ export function PickList({ query, onQuery, placeholder, rows, selected, onSelect
 }
 
 /** `footer`: actions pinned below the scroll area, above Close. */
-export function Sheet({ visible, title, onClose, children, footer }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
+export function Sheet({ visible, title, onClose, children, footer, closeLabel }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode; /** The bottom button's text (default: Close). */ closeLabel?: string }) {
   const { t, dir } = useI18n();
   const k = useTokens();
+  useModalOpen(visible); // the floating report button hides while any sheet is open
   // A native Modal does not inherit the root View's direction, so set it again here.
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -241,7 +244,7 @@ export function Sheet({ visible, title, onClose, children, footer }: { visible: 
           <Txt serif size="title" accessibilityRole="header">{title}</Txt>
           <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 12 }}>{children}</ScrollView>
           {footer ? <View style={{ gap: 8 }}>{footer}</View> : null}
-          <Button kind="secondary" title={t('common.close')} onPress={onClose} />
+          <Button kind="secondary" title={closeLabel ?? t('common.close')} onPress={onClose} />
         </Pressable>
       </Pressable>
     </Modal>

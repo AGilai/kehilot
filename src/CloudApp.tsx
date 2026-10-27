@@ -27,6 +27,8 @@ import { TopBar } from './views/TopBar.tsx';
 import { Register } from './views/auth/Register.tsx';
 import { SignIn } from './views/auth/SignIn.tsx';
 import { ViewerHost } from './views/ViewerHost.tsx';
+import { ReportHost } from './views/ReportSheet.tsx';
+import { useReportScreen } from './client/reportUi.ts';
 import { Verify } from './views/auth/Verify.tsx';
 
 type AuthScreen =
@@ -48,6 +50,7 @@ function initialScreen(start?: 'register' | 'signin'): AuthScreen {
 function SignedOutFlow({ start }: { start?: 'register' | 'signin' }) {
   const { t } = useI18n();
   const [screen, setScreen] = React.useState<AuthScreen>(() => initialScreen(start));
+  useReportScreen({ screen: screen.name, hasTabs: false });
   switch (screen.name) {
     case 'register':
       return <Register onSignIn={() => setScreen({ name: 'signin' })} onForgot={email => setScreen({ name: 'forgot', email })} onRegistered={email => setScreen({ name: 'verify', email })} />;
@@ -78,6 +81,12 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
     if (link.code && route === 'setup') { void pendingInvite.set(link.code).then(() => link.clear()); }
   }, [link, route]);
   const ready = route === 'ready';
+  // Main reports its own screens; every other state of the session flow is named here.
+  useReportScreen({
+    screen: route === 'loading' || route === 'error' ? 'session' : route === 'setup' ? 'setup' : state.me?.age13Required ? 'age13' : code ? 'join' : route === 'none' ? 'nokehila'
+      : ready && state.kehila ? null : 'switcher',
+    hasTabs: false,
+  });
   const hasKehila = state.kehilaId !== null;
 
   // Push registration is offered once the first Kehila is open (never on the sign-in screens).
@@ -160,6 +169,7 @@ function Shell() {
   const k = useTokens();
   const link = useIncomingLink();
   const [after, setAfter] = React.useState<'register' | 'signin' | null>(null);
+  useReportScreen({ screen: status !== 'signedIn' && link.code && !after ? 'join' : null, hasTabs: false });
   if (status === 'loading') {
     return <Screen scroll={false}><View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={k.tekhelet} /></View></Screen>;
   }
@@ -181,6 +191,7 @@ export function CloudApp() {
         <AuthProvider>
           <StatusBar style="auto" />
           <Shell />
+          <ReportHost />
         </AuthProvider>
       </I18nProvider>
     </SafeAreaProvider>

@@ -6,6 +6,7 @@ import { config } from '../config.ts';
 import { textStart } from '../i18n/direction.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { useErrorText } from './auth/Frame.tsx';
 
@@ -35,7 +36,7 @@ export function TermsGate({ onToast }: { onToast: (text: string) => void }) {
     </View>
   );
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <Txt serif size="heading" accessibilityRole="header">{updated ? t('terms.updatedTitle') : t('terms.title')}</Txt>
       <Card edgeColor={k.gold}>
         <Txt>{t('terms.intro', { kehila: kehila.name })}</Txt>
@@ -47,6 +48,6 @@ export function TermsGate({ onToast }: { onToast: (text: string) => void }) {
         <Button title={t('terms.accept')} onPress={() => void accept()} busy={busy} />
         <Txt size="small" color={k.muted}>{t('terms.others')}</Txt>
       </Card>
-    </ScrollView>
+    </PadScroll>
   );
 }

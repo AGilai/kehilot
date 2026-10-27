@@ -12,6 +12,7 @@ import { useSession } from '../client/SessionProvider.tsx';
 import type { InviteRow, Lang } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Txt, useTokens } from '../kit/components.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { DeleteAccount } from './DeleteAccount.tsx';
 import { MyGroups } from './MyGroups.tsx';
@@ -206,7 +207,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
   }
 
   return (
-    <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll ref={scrollRef} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       {onBack ? <BackLink onPress={onBack} /> : null}
       <Txt serif size="title" accessibilityRole="header">{t('me.title')}</Txt>
       {role === 'gabbai' && onManage ? <Button title={t('admin.enter')} onPress={onManage} /> : null}
@@ -286,6 +287,6 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
 
       <Button kind="secondary" title={t('me.signOut')} onPress={() => void signOut()} />
       <Button kind="danger" title={t('me.deleteAction')} onPress={() => setView('delete')} />
-    </ScrollView>
+    </PadScroll>
   );
 }

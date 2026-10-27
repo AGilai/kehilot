@@ -25,6 +25,7 @@ EXPO_PUBLIC_COGNITO_CLIENT_ID=exampleclientid
 EXPO_PUBLIC_COGNITO_DOMAIN=kehilot-dev.auth.il-central-1.amazoncognito.com
 EXPO_PUBLIC_WEB_URL=https://d111example.cloudfront.net
 EXPO_PUBLIC_FEDERATION=
+EXPO_PUBLIC_REPORTS=1
 '''
 
 
@@ -43,6 +44,11 @@ class WriteAppEnvTest(unittest.TestCase):
             path = write_app_env.write('dev', OUTPUTS, Path(tmp))
             self.assertEqual(path.name, '.env.dev')
             self.assertEqual(path.read_text(), EXPECTED)
+
+    def test_prod_env_has_no_reports_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            text = write_app_env.write('prod', OUTPUTS, Path(tmp)).read_text()
+            self.assertNotIn('EXPO_PUBLIC_REPORTS', text)
 
     def test_only_dev_and_prod_envs_are_accepted(self):
         with self.assertRaises(SystemExit):

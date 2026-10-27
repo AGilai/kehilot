@@ -5,6 +5,7 @@ import type { Hit } from '../search/hit.ts';
 import { canReply, joinLabel, replierChip, timeOfDay, ulidTime, visibleReplies } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
 import { Composer } from '../kit/Composer.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { TOUCH, edge } from '../kit/theme.ts';
@@ -64,7 +65,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
     const date = Number.isFinite(ulidTime(messageId))
       ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ulidTime(messageId))) : '';
     return (
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {back}
         <Banner text={t('detail.offlineCopy')} />
         <Card edgeColor={edge(copy.type, scheme)}>
@@ -74,7 +75,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
           <Txt size="small" color={k.muted}>{t('detail.from', { name: copy.authorName })}</Txt>
           {copy.targetName ? <Txt content size="small" color={k.muted}>{copy.targetName}</Txt> : null}
         </Card>
-      </ScrollView>
+      </PadScroll>
     );
   }
   if (!message) {
@@ -120,7 +121,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
       {back}
       <Card edgeColor={edge(message.type, scheme)}>
         <Txt size="caption" color={k.muted}>{messageMeta(message, channels, timeOfDay(messageId), t)}</Txt>
@@ -172,6 +173,6 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
         <Txt>{t('detail.deleteBody')}</Txt>
         <Button kind="danger" title={t('detail.deleteYes')} onPress={() => void doDelete()} />
       </Sheet>
-    </ScrollView>
+    </PadScroll>
   );
 }

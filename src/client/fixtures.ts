@@ -319,6 +319,9 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   routes['POST /v1/me/consents/age13'] = undefined;
   // P5: `privacy` is idle (no file yet), `privacy-ready` has a link.
   if (screen === 'privacy-ready') routes['GET /v1/me/export'] = { url: FIXTURE_PICTURE, expiresAt: secs(now + 600_000) };
+  routes['POST /v1/reports'] = { reportId: '01FIXTUREREPORT0000000001' };
+  routes['POST /v1/reports/anonymous'] = { reportId: '01FIXTUREREPORT0000000002' };
+  routes['POST /v1/reports/upload'] = { uploadId: '01FIXTUREUPLOAD0000000001', url: 'https://upload.invalid/x', method: 'PUT', headers: {}, expiresAt: secs(now + 300_000) };
   routes['POST /v1/me/export'] = { url: FIXTURE_PICTURE, expiresAt: secs(now + 600_000) };
   routes[`POST ${K}/family/unlink`] = { ...familyView, adults: [meAdult] };
   routes[`POST ${K}/family/requests`] = { toUserId: partner.userId, expiresAt: secs(now + 7 * 24 * H) };

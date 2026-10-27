@@ -7,6 +7,7 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { Lang, PushTexts as PushTextsData } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { BackLink } from '../Me.tsx';
 import { useAdminErrText } from './shared.tsx';
 
@@ -56,7 +57,7 @@ export function PushTexts({ onBack, onToast }: { onBack: () => void; onToast: (t
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{t('admin.pushTexts.title')}</Txt>
       <Banner tone="info" text={t('admin.pushTexts.warning')} />
@@ -84,7 +85,7 @@ export function PushTexts({ onBack, onToast }: { onBack: () => void; onToast: (t
           })}
         </Card>
       )) : null}
-    </ScrollView>
+    </PadScroll>
   );
 }
 

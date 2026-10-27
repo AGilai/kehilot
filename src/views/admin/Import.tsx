@@ -8,6 +8,7 @@ import type { ImportRow } from '../../client/types.ts';
 import { config } from '../../config.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { checkGroups, decodeCsv, mapRows, parseCsv, readXlsx, runBatches, MAX_FILE_BYTES, type ImportSummary, type Table, type Problem } from '../../import/parse.ts';
 import { BackLink } from '../Me.tsx';
 import { useAdminErrText } from './shared.tsx';
@@ -99,15 +100,15 @@ export function Import({ onBack }: { onBack: () => void }) {
 
   if (Platform.OS !== 'web') {
     return (
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         <BackLink onPress={onBack} />
         <Txt serif size="title" accessibilityRole="header">{t('admin.import.title')}</Txt>
         <Banner text={t('admin.import.native')} />
-      </ScrollView>
+      </PadScroll>
     );
   }
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 1000, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 1000, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{t('admin.import.title')}</Txt>
       <Txt color={k.muted}>{t('admin.import.intro')}</Txt>
@@ -163,6 +164,6 @@ export function Import({ onBack }: { onBack: () => void }) {
           {summary.invalid.map(p => <Txt key={`${p.line}-${p.code}`} size="small" color={k.pomegranate}>{t('admin.import.problem', { line: p.line, why: why(p.code) })}</Txt>)}
         </Card>
       ) : null}
-    </ScrollView>
+    </PadScroll>
   );
 }

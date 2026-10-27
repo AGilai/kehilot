@@ -9,6 +9,7 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { Channel, ChannelFields, Group } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Sheet, Tag, Toggle, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { BackLink } from '../Me.tsx';
 import { Choice, useAdminErrText } from './shared.tsx';
 import { TypeRulesSection } from './TypeRules.tsx';
@@ -132,7 +133,7 @@ export function Channels({ onBack, onToast }: { onBack: () => void; onToast: (te
   const names = new Map(groups.map(g => [g.groupId, g.name]));
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{t('admin.channels.title')}</Txt>
       {error ? <Banner tone="error" text={error} /> : null}
@@ -153,6 +154,6 @@ export function Channels({ onBack, onToast }: { onBack: () => void; onToast: (te
       {rows ? <TypeRulesSection mainClosed={rows.some(c => c.name === 'announcements' && c.postPolicy === 'management')} onToast={onToast} /> : null}
       <ChannelSheet open={sheet !== null} channel={sheet?.channel} groups={groups} onClose={() => setSheet(null)}
         onSaved={() => { setSheet(null); onToast(t('admin.channels.saved')); void load(); }} />
-    </ScrollView>
+    </PadScroll>
   );
 }

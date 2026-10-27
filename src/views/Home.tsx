@@ -10,6 +10,7 @@ import { config } from '../config.ts';
 import { clockTime, dayOfWeek, displayDate, hebrewDate, israelDate, upcomingFriday } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Tag, Txt, useTokens } from '../kit/components.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
 import { isCurrentZmanim, ZMANIM_CACHE_PREFIX } from '../zmanim.ts';
@@ -79,7 +80,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
   const guest = roleFeatures(kehila.role).membershipCard;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <View style={{ gap: 4 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <Txt size="small" color={k.muted} style={{ flexShrink: 1 }}>{displayDate(date, lang)} · {hebrewDate(date, lang)}</Txt>
@@ -159,6 +160,6 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
       {guest ? <LockedRows /> : null}
 
       <Button kind="secondary" title={t('home.signOut')} onPress={() => void signOut()} />
-    </ScrollView>
+    </PadScroll>
   );
 }

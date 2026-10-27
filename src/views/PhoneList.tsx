@@ -8,6 +8,7 @@ import type { PhoneListFamily } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { textStart } from '../i18n/direction.ts';
 import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
 import { TOUCH, fonts, type } from '../kit/theme.ts';
 import { TagChips } from './TagChips.tsx';
 import { BackLink } from './Me.tsx';
@@ -59,7 +60,7 @@ export function PhoneList({ onBack, onMine }: { onBack: () => void; /** Opens Me
   );
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{t('phoneList.title')}</Txt>
       {rows && rows.length > 0 && !q.trim() ? <Txt size="small" color={k.muted}>{t('phoneList.intro', { kehila: name })}</Txt> : null}
@@ -118,6 +119,6 @@ export function PhoneList({ onBack, onMine }: { onBack: () => void; /** Opens Me
           )}
         </>
       )}
-    </ScrollView>
+    </PadScroll>
   );
 }

@@ -8,6 +8,7 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { GroupMemberRow, GroupRequestRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { BackLink } from '../Me.tsx';
 import { useErrorText } from '../auth/Frame.tsx';
 import { useShortDate } from './shared.tsx';
@@ -61,7 +62,7 @@ export function GroupAdmin({ group, onBack, onGone, onToast }: { group: { groupI
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
       <Txt serif size="title" accessibilityRole="header">{group.name}</Txt>
       {error ? <Banner tone="error" text={error} /> : null}
@@ -111,6 +112,6 @@ export function GroupAdmin({ group, onBack, onGone, onToast }: { group: { groupI
           </Card>
         );
       })}
-    </ScrollView>
+    </PadScroll>
   );
 }

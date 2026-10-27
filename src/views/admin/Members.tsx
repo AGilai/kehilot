@@ -11,6 +11,7 @@ import type { AdminFamily, Classification, Group, MemberFields, MemberRow, Role,
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { textStart } from '../../i18n/direction.ts';
 import { Banner, Button, Card, Chip, Sheet, Tag, Toggle, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { TOUCH, fonts, type } from '../../kit/theme.ts';
 import { WIDE, useAdminErrText } from './shared.tsx';
 import { FamilyBlock } from './FamilyBlock.tsx';
@@ -291,7 +292,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
   const linking = all.find(r => r.userId === linkFor) ?? null;
   const editing = all.find(r => r.userId === groupsFor) ?? null;
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1200 : 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1200 : 680, alignSelf: 'center' }}>
       <Txt serif size="title" accessibilityRole="header">{t('admin.members.title')}</Txt>
       <Button kind="secondary" icon="edit" title={t('admin.tags.button')} onPress={() => setManageTags(true)} />
       {error ? <Banner tone="error" text={error} /> : null}
@@ -306,6 +307,6 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
       <AssignTagsSheet row={all.find(r => r.userId === tagsFor) ?? null} tags={tagRows} onClose={() => setTagsFor(null)} onManage={() => { setTagsFor(null); setManageTags(true); }} onSave={ids => saveTags(tagsFor!, ids)} />
       <LinkSheet person={linking} members={all} families={families} kehilaId={kehilaId} onClose={() => setLinkFor(null)}
         onLinked={() => { setLinkFor(null); onToast(t('admin.link.done')); void load(); }} />
-    </ScrollView>
+    </PadScroll>
   );
 }

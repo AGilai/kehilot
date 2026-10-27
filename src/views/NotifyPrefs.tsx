@@ -5,6 +5,7 @@ import { MAX_CHAT_CHANNELS, chatPrefRows, mutedMemberRows, pushPermission, toggl
 import type { DirectoryEntry, MessageType, NotifyPrefs as Prefs } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Card, Toggle, Txt, useTokens } from '../kit/components.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
@@ -67,7 +68,7 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
   const chat = chatPrefRows(channels, n);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={t('prefs.back')} onPress={onBack} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('prefs.back')}</Txt></View>
       </Pressable>
@@ -118,6 +119,6 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
         <Icon name="lock" size={16} color={k.muted} />
         <Txt style={{ flex: 1 }} color={k.muted}>{t('prefs.locked')}</Txt>
       </View>
-    </ScrollView>
+    </PadScroll>
   );
 }

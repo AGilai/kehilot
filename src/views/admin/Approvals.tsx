@@ -7,6 +7,7 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { Classification, RequestRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { PadScroll } from '../../kit/PadScroll.tsx';
 import { Choice, WIDE, useShortDate, useAdminErrText } from './shared.tsx';
 
 type Pick = Classification | 'guest' | null;
@@ -79,7 +80,7 @@ export function Approvals({ onCount, onToast }: { onCount: (n: number) => void; 
   const card = (r: RequestRow) => <RequestCard key={r.userId} row={r} busy={busy === r.userId} onApprove={c => void approve(r.userId, c)} onKeep={() => void keep(r.userId)} />;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1100 : 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1100 : 680, alignSelf: 'center' }}>
       <Txt serif size="title" accessibilityRole="header">{t('admin.approvals.title')}</Txt>
       {error ? <Banner tone="error" text={error} /> : null}
       {rows === null ? <ActivityIndicator color={k.tekhelet} /> : null}
@@ -95,6 +96,6 @@ export function Approvals({ onCount, onToast }: { onCount: (n: number) => void; 
           <View style={{ flex: 1 }}>{card(current)}</View>
         </View>
       ) : list.map(card)}
-    </ScrollView>
+    </PadScroll>
   );
 }

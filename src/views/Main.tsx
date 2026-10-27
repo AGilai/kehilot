@@ -1,4 +1,5 @@
 import React from 'react';
+import { useReportScreen } from '../client/reportUi.ts';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { config } from '../config.ts';
@@ -94,6 +95,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const [manage, setManage] = React.useState(false);
   const [pending, setPending] = React.useState(0);
   const [nav, setNav] = React.useState<Nav>({ tab: 'home' });
+  useReportScreen({ screen: nav.tab, hasTabs: true, kehilaId: state.kehilaId, kehilaName: state.kehila?.name ?? null });
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
   const [composeInitial, setComposeInitial] = React.useState<ComposeInitial | undefined>(undefined);
   const [toast, setToast] = React.useState<string | null>(null);
