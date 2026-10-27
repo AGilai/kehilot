@@ -3,7 +3,8 @@
 Creates throwaway Cognito users and Kehilot, checks health, auth rejection, sign-in, tenant isolation, the
 invite and membership flow, message visibility, private replies, device routes and the push pipeline, then
 the media bucket's settings, group channels, conversation channels and image uploads, then deletes everything it
-created (also on failure). Prints one line per check.
+created (also on failure). Also checks the group admin and join-request flow, the chat limit, push texts, member
+invite roles, the import (twice) and the served web app. Prints one line per check.
 """
 import json
 import secrets
@@ -149,8 +150,13 @@ class Smoke:
         self.check_group_channel()
         self.check_chat_post()
         self.check_image_roundtrip()
-        self.check_cors()
-        self.check_import()
+        self.check_cors_preflight()
+        self.check_member_invite_role()
+        self.check_group_admin_and_requests()
+        self.check_chat_limit()
+        self.check_push_texts()
+        self.check_web_served()
+        self.check_import_idempotent()
         self.check_revoke_on_leave()
         self.check_listener_cap()
         self.check_push_pipeline()
@@ -361,7 +367,7 @@ class Smoke:
                == 'http://localhost:8081', f'{status} {dict(headers)}')
         print('PASS  check_image_roundtrip')
 
-    def check_cors(self):
+    def check_cors_preflight(self):
         request = urllib.request.Request(
             f'{self.api}/v1/me', method='OPTIONS',
             headers={'Origin': 'http://localhost:8081', 'Access-Control-Request-Method': 'GET',
@@ -375,15 +381,113 @@ class Smoke:
                and headers.get('access-control-allow-origin') == 'http://localhost:8081'
                and 'authorization' in (headers.get('access-control-allow-headers') or '').lower(),
                f'{status} {dict(headers)}')
-        print('PASS  check_cors')
+        print('PASS  check_cors_preflight')
+
+    def check_member_invite_role(self):
+        """A gabbai makes a member invite; a plain member may not; bad roles are refused; the preview shows the role."""
+        k = self.k
+        status, body = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/invites', {'role': 'member', 'uses': 1, 'days': 1})
+        expect('gabbai_member_invite', status == 201 and body['code'], f'{status} {body}')
+        status, preview = http(f'{self.api}/v1/invites/{body["code"]}')
+        expect('member_invite_preview_role', status == 200 and preview.get('role') == 'member', f'{status} {preview}')
+        status, _ = self.call(self.people['fam1'][0], 'POST', f'/v1/kehilot/{k}/invites', {'role': 'member'})
+        expect('member_cannot_make_member_invite', status == 403, str(status))
+        status, _ = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/invites', {'role': 'gabbai'})
+        expect('gabbai_role_invite_refused', status == 400, str(status))
+        print('PASS  check_member_invite_role')
+
+    def check_group_admin_and_requests(self):
+        """A listener asks to join a group; a member appointed group admin approves; the listener reads the group's
+        channel; removal from the group takes it away again."""
+        k, lis, adm = self.k, self.people['lis'], self.people['fam1']
+        status, group = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/groups', {'name': f'Smoke req {secrets.token_hex(2)}'})
+        expect('req_group_created', status == 201, f'{status} {group}')
+        g = group['groupId']
+        status, channel = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/channels', {
+            'name': 'smoke-req-channel', 'listenersCanRead': False, 'postPolicy': 'management', 'groups': [g]})
+        expect('req_channel_created', status == 201, f'{status} {channel}')
+        status, msg = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', {
+            'channelId': channel['channelId'], 'type': 'weekly', 'title': 'Smoke req notice', 'body': ''})
+        expect('req_message_posted', status == 201, f'{status} {msg}')
+        path = f'/v1/kehilot/{k}/messages/{msg["messageId"]}'
+        expect('listener_outside_group_404', self.call(lis[0], 'GET', path)[0] == 404)
+        status, _ = self.call(lis[0], 'POST', f'/v1/kehilot/{k}/groups/{g}/requests')
+        expect('listener_join_requested', status == 202, str(status))
+        status, _ = self.call(adm[0], 'GET', f'/v1/kehilot/{k}/groups/{g}/requests')
+        expect('plain_member_cannot_list_requests', status == 403, str(status))
+        status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/groups/{g}/admins/{adm[1]}')
+        expect('member_appointed_group_admin', status == 204, str(status))
+        status, pending = self.call(adm[0], 'GET', f'/v1/kehilot/{k}/groups/{g}/requests')
+        expect('group_admin_sees_request', status == 200 and [r['userId'] for r in pending] == [lis[1]], f'{status} {pending}')
+        status, _ = self.call(adm[0], 'POST', f'/v1/kehilot/{k}/groups/{g}/requests/{lis[1]}/approve')
+        expect('group_admin_approved', status == 200, str(status))
+        expect('listener_reads_group_channel', self.call(lis[0], 'GET', path)[0] == 200)
+        status, _ = self.call(adm[0], 'DELETE', f'/v1/kehilot/{k}/groups/{g}/members/{lis[1]}')
+        expect('group_admin_removed_listener', status == 204, str(status))
+        expect('listener_group_channel_404_after_removal', self.call(lis[0], 'GET', path)[0] == 404)
+        print('PASS  check_group_admin_and_requests')
+
+    def check_chat_limit(self):
+        """chatHourlyLimit 1: the second post of a non-admin is 429. Limit 0: a non-admin is forbidden."""
+        k, fam1 = self.k, self.people['fam1']
+        status, channel = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/channels', {
+            'name': 'smoke-limit-chat', 'listenersCanRead': False, 'postPolicy': 'management', 'conversation': True})
+        expect('limit_channel_created', status == 201, f'{status} {channel}')
+        c = channel['channelId']
+        status, _ = self.call(fam1[0], 'PUT', f'/v1/kehilot/{k}/channels/{c}/chat-settings', {'chatHourlyLimit': 1})
+        expect('non_admin_cannot_set_limit', status == 403, str(status))
+        status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/channels/{c}/chat-settings', {'chatHourlyLimit': 1})
+        expect('limit_set_to_1', status == 200, str(status))
+        post = {'channelId': c, 'body': 'Smoke limit'}
+        expect('first_chat_post_201', self.call(fam1[0], 'POST', f'/v1/kehilot/{k}/messages', post)[0] == 201)
+        status, body = self.call(fam1[0], 'POST', f'/v1/kehilot/{k}/messages', post)
+        expect('second_chat_post_429', (status, body) == (429, {'error': 'rate_limited'}), f'{status} {body}')
+        expect('admin_not_limited', self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', post)[0] == 201)
+        status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/channels/{c}/chat-settings', {'chatHourlyLimit': 0})
+        expect('limit_set_to_0', status == 200, str(status))
+        status, body = self.call(fam1[0], 'POST', f'/v1/kehilot/{k}/messages', post)
+        expect('limit_0_non_admin_forbidden', (status, body) == (403, {'error': 'forbidden'}), f'{status} {body}')
+        print('PASS  check_chat_limit')
+
+    def check_push_texts(self):
+        """The gabbai sets, reads and clears a custom push text; a member is refused; a newline is invalid."""
+        k, base = self.k, f'/v1/kehilot/{self.k}/admin/push-texts'
+        text = f'Smoke text {secrets.token_hex(2)}'
+        status, _ = self.call(self.gab, 'PUT', base, {'key': 'weekly', 'lang': 'en', 'text': text})
+        expect('push_text_put', status == 200, str(status))
+        status, body = self.call(self.gab, 'GET', base)
+        expect('push_text_get', status == 200 and body['custom'].get('weekly', {}).get('en') == text
+               and 'weekly' in body['defaults'], f'{status} {str(body)[:200]}')
+        member = self.people['fam1'][0]
+        expect('push_text_get_member_403', self.call(member, 'GET', base)[0] == 403)
+        expect('push_text_put_member_403',
+               self.call(member, 'PUT', base, {'key': 'weekly', 'lang': 'en', 'text': 'x'})[0] == 403)
+        status, body = self.call(self.gab, 'PUT', base, {'key': 'weekly', 'lang': 'en', 'text': 'line one\nline two'})
+        expect('push_text_newline_400', (status, body) == (400, {'error': 'invalid_text'}), f'{status} {body}')
+        status, _ = self.call(self.gab, 'PUT', base, {'key': 'weekly', 'lang': 'en', 'text': ''})
+        expect('push_text_cleared', status == 200 and not self.call(self.gab, 'GET', base)[1]['custom'], str(status))
+        print('PASS  check_push_texts')
+
+    def check_web_served(self):
+        """The dev CloudFront serves the app and the privacy page, with no-cache on the entry page and the headers."""
+        base = self.out['web_url'].rstrip('/')
+        status, headers, body = raw(base + '/')
+        expect('web_index_200_no_cache', status == 200 and 'no-cache' in (headers.get('cache-control') or '')
+               and b'<div id="root">' in body, f'{status} {headers.get("cache-control")}')
+        for name in ('strict-transport-security', 'x-content-type-options', 'x-frame-options', 'referrer-policy'):
+            expect(f'web_header_{name}', bool(headers.get(name)), name)
+        status, _, body = raw(base + '/privacy/')
+        expect('web_privacy_200', status == 200 and len(body) > 500, str(status))
+        print('PASS  check_web_served')
 
     def user_state(self, email):
         user = self.idp.admin_get_user(UserPoolId=self.out['user_pool_id'], Username=email)
         attrs = {a['Name']: a['Value'] for a in user['UserAttributes']}
         return user['UserStatus'], attrs.get('email_verified'), attrs['sub']
 
-    def check_import(self):
-        """Two invented rows: one new, one UNCONFIRMED self-sign-up. Both end CONFIRMED and verified."""
+    def check_import_idempotent(self):
+        """Two invented rows: one new, one UNCONFIRMED self-sign-up. Both end CONFIRMED and verified. Run twice
+        (the second run changes nothing); the Cognito users are deleted by cleanup."""
         pool, k = self.out['user_pool_id'], self.k
         new_email = f'smoke-imp-new+{secrets.token_hex(4)}@example.invalid'
         old_email = f'smoke-imp-old+{secrets.token_hex(4)}@example.invalid'
@@ -412,7 +516,11 @@ class Smoke:
         status, again = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/import', {'rows': rows})
         expect('reimport_exists', status == 200 and [r['status'] for r in again['results']] == ['exists', 'exists'],
                f'{status} {again}')
-        print('PASS  check_import')
+        members = self.call(self.gab, 'GET', f'/v1/kehilot/{k}/admin/members')[1]
+        by_id = {m['userId']: m['role'] for m in members}
+        imported = sorted(by_id.get(self.repo.get_user_id(self.user_state(e)[2])) or '-' for e in (new_email, old_email))
+        expect('reimport_keeps_roles_single', len(by_id) == len(members) and imported == ['listener', 'member'], str(imported))
+        print('PASS  check_import_idempotent')
 
     def check_revoke_on_leave(self):
         """A member's listener links stop working when they leave."""

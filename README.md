@@ -6,6 +6,43 @@
 
 **בחירת הפיתוח: כל בניית האפליקציה מתבצעת מקומית במחשב של המשתמש.** iOS נבנה עם Xcode ו־CocoaPods, ואנדרואיד עם Android SDK ו־Gradle. פקודות הפרויקט אינן משתמשות ב־EAS Build או בשרת בנייה מרוחק. Metro פועל ברשת המקומית, ללא tunnel. עדיין נדרשת גישה לרשת להורדת תלויות, זמני היום, הודעות והתראות מרוחקות; העדפת הבנייה המקומית אינה שינוי במקור הנתונים או בשירותי המשלוח.
 
+## Cloud app (plan 3)
+
+The app now talks to the AWS backend (API Gateway + Lambda + DynamoDB, Cognito sign-in, a private S3 media bucket) and also runs as a web app. The dev environment is Terraform in `infra/envs/dev`; the API contract is `server/API.md`.
+
+**App settings (`.env.dev`, gitignored).** Generate it from the Terraform outputs; it holds only public identifiers, no secrets:
+
+```
+python3 tools/write_app_env.py --env dev
+```
+
+`EXPO_PUBLIC_FEDERATION` stays empty until Google/Apple sign-in exists (Tasks 19-20, waiting for credentials in SSM).
+
+**Web.**
+
+| Script | What it does |
+| --- | --- |
+| `npm run web:dev` | Metro for the web build against the real dev backend (reads `.env.dev`, port 8081). |
+| `npm run web:fixtures` | Same web build with fixture data and no backend (`EXPO_PUBLIC_FIXTURES=1`; add `?lang=he` or `?lang=en`). Used for screenshots. |
+| `npm run deploy:web` | Exports the web build (only with the API URL inlined) and publishes it to the dev S3 bucket and CloudFront (`tools/deploy_web.sh --env dev`). |
+
+On a headless Linux box `web:fixtures` can fail with an inotify watcher limit error. Workaround: `EXPO_PUBLIC_FIXTURES=1 npx expo export --platform web --output-dir /tmp/web-fixtures --clear`, then `python3 -m http.server 8099` from that directory. Stop that server by its exact command line, never with a loose `pkill`.
+
+Reaching a web server on the dev box from a Mac: `ssh -L 8081:localhost:8081 <host>` and open `http://localhost:8081`. The API allows the origins `http://localhost:8081` and the dev CloudFront URL, so keep port 8081 for `web:dev`.
+
+**Native builds (on the Mac; builds stay local).**
+
+1. `git pull --ff-only`, then `npm install`.
+2. Copy the settings: `scp <host>:work/kehilot/.env.dev .env.dev`.
+3. `npx expo prebuild --clean`.
+4. `npm run ios` (or `npm run ios:device`) and `npm run android` (or `npm run android:device`).
+
+**A new dev client is required.** The cloud app added native modules that older dev-client builds do not contain: `expo-auth-session`, `expo-web-browser`, `expo-crypto`, `expo-font`, `expo-image`, `expo-file-system`, `expo-image-picker`, `expo-image-manipulator`, `expo-media-library`, `expo-sharing`, `expo-print`, `expo-notifications` (push, with `expo-device`), `expo-secure-store`, `expo-localization`, `expo-system-ui`, `expo-build-properties` and `react-native-gesture-handler`. Rebuild with step 3-4 above; JavaScript-only changes after that reload through Metro.
+
+**Checks.** `.venv/bin/python -m unittest discover -s server/tests`, `npm test`, `npm run typecheck`. `.venv/bin/python tools/smoke_dev.py` exercises the deployed dev API end to end with invented users and deletes everything it creates.
+
+**Not verified without a phone:** the native keyboard, push on a device, the native Apple and Google sheets, native pinch and swipe in the image viewer, saving to Photos, the native share sheet, VoiceOver and TalkBack.
+
 ## GitHub repository
 
 The shared project repository is [AGilai/kehilot](https://github.com/AGilai/kehilot), on branch `main`. It is public. The local `origin` remote points there; `personal` preserves the earlier `lebovitz/kehilot` repository. Use `git pull --ff-only` to update and `git push` to publish committed work to the shared repository.

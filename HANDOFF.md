@@ -2,6 +2,24 @@
 
 נקודת המשך מעודכנת במחשב הביתי: 25 באוקטובר 2026. המסמך עומד בפני עצמו; אין צורך בהיסטוריית הצ׳אט או בפרויקט Hoshanot כדי להמשיך.
 
+## Cloud app (plan 3) delivered — October 27, 2026
+
+**What was built.** A multi-community cloud backend and a new app on top of it (specs and plans in `docs/superpowers/`, ledger in `.superpowers/sdd/2026-10-27-app/progress.md`, API in `server/API.md`): Cognito sign-in with a pre-sign-up/post-confirmation trigger, tenants (Kehilot) with roles listener, member and gabbai, invite links with roles and caps, membership requests and approvals, member list import (CSV/XLSX, in batches), channels, messages and private blessing replies, push through SQS and Expo, groups with group admins and join requests, conversation channels with an hourly chat limit, image attachments through a private S3 bucket (presigned URLs, client-side resize, in-app viewer with save/share/print), offline search, account deletion, per-community custom push texts, and a web build with a privacy page. The app is Hebrew/English, RTL/LTR, with a dark mode.
+
+**Deployed on dev (il-central-1).** All Terraform plans were applied on dev (the user's night allow rule): CORS, Cognito domain, trigger Lambda, import grants, the private media bucket `kehilot-dev-media`, groups/chat/images code, the web security headers plus the privacy page function, and the push-texts code. The web build is on the dev CloudFront (`tools/deploy_web.sh --env dev`; the script now refuses a bundle without the API URL). The live smoke (`tools/smoke_dev.py`) passes twice in a row and leaves nothing behind; it now also covers CORS preflight, member invite roles, group admin and join requests, the chat limit, push texts, the served web app and an idempotent import. The icon is the Chazit concept (Task 22). Parked reviewer minors are in the per-task review files.
+
+**Blocked.** Tasks 19-20 (Google and Apple sign-in): they need the user's credentials in SSM first. Until then the sign-in screen offers email and password only (`EXPO_PUBLIC_FEDERATION` empty).
+
+**Still open for the user.**
+- U2: create the Google OAuth client and the Apple Services ID and key, store them in SSM (Task 19, Step 0; Apple needs a paid developer membership).
+- U4: review the privacy page text (draft, `public/privacy/index.html`) and give a contact address.
+- U5: on the Mac, copy `.env.dev`, rebuild the dev client (new native modules, see README "Cloud app"), then check on iPhone and Android: full keyboard with emoji and mixed Hebrew/English in the composer, Google/Apple sheets, push arrival and tap, gallery and camera photos (permission texts, size at most 0.5 MB, no location), viewer pinch/double-tap/swipe/save/share/print, opt-in chat push, offline search and sign-out isolation.
+- U6: the end-to-end browser checks on the Mac through the port forward (Tasks 8, 11, 17 and 20).
+
+Done already: U1 (all applies, by the controller), U3 (icon, Chazit).
+
+**Tests at this point.** Python suite, `npm test` and `npm run typecheck` pass (counts in `.superpowers/sdd/2026-10-27-app/task-23-report.md`).
+
 ## Shared GitHub repository — October 25, 2026
 
 The canonical shared repository is https://github.com/AGilai/kehilot (public), branch `main`. The authenticated GitHub account `lebovitz` has collaborator write access. This checkout uses `origin` for the shared repository and keeps the earlier private `https://github.com/lebovitz/kehilot.git` repository as remote `personal`. `main` tracks `origin/main`; ordinary `git push` publishes to the shared project.
