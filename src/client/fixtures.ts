@@ -12,6 +12,7 @@ import { dayOfWeek, israelDate, upcomingFriday } from '../dates.ts';
 import { addDays } from '../schedule/week.ts';
 import { israelInstant } from '../seats/window.ts';
 import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
+import { fixtureSeatFamilies } from '../seats/fixturePaste.ts';
 import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
@@ -27,7 +28,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -417,6 +418,34 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   // (somebody else saved: their copy has another Maariv time).
   let scheduleDoc = structuredClone(routes[`GET ${K}/schedule`]) as ScheduleDoc;
   let conflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
+  // Seating editor (fixture builds): holders and layouts are kept in memory, so a save shows up on the next read.
+  let seatHolders: Array<{ holderId: string; name: string; phone: string | null; createdAt: number; updatedAt: number }> = [{ holderId: '01FIXTUREHOLDER00000000001', name: 'משפחת מדומה', phone: null, createdAt: 1_780_000_000_000, updatedAt: 1_780_000_000_000 }];
+  const seatLayouts = new Map<string, { body: Record<string, unknown>; seats: Array<{ id: string; row: number; col: number }>; updatedAt: number }>();
+  const seatingFixture = (method: string, path: string, body: unknown): unknown => {
+    const p = path.split('?')[0]!;
+    if (p === `${A}/families`) return fixtureSeatFamilies();
+    if (p === `${A}/seating/holders`) {
+      if (method === 'GET') return structuredClone(seatHolders);
+      const b = body as { name: string; phone?: string };
+      const h = { holderId: fixtureUlid(Date.now() + seatHolders.length, 40), name: b.name, phone: b.phone ?? null, createdAt: Date.now(), updatedAt: Date.now() };
+      seatHolders = [...seatHolders, h]; return h;
+    }
+    if (p === `${A}/seating/layouts` && method === 'GET') return { layouts: [...seatLayouts.entries()].map(([effectiveFrom, l]) => ({ effectiveFrom, updatedAt: l.updatedAt, seats: l.seats.length, assigned: 0, current: false })) };
+    const m = /\/seating\/layouts\/([^/]+)(\/assignments)?$/.exec(p);
+    if (m && !m[2] && method === 'PUT') {
+      const b = body as { cells: string[][]; ifUpdatedAt: number | null };
+      const old = seatLayouts.get(m[1]!);
+      if ((old?.updatedAt ?? null) !== b.ifUpdatedAt) throw new ApiCodeError(409, 'layout_changed');
+      const seats: Array<{ id: string; row: number; col: number }> = [];
+      b.cells.forEach((r, row) => r.forEach((kind, col) => { if (kind === 'seat') seats.push({ id: `s${String(row).padStart(3, '0')}${String(col).padStart(3, '0')}`, row, col }); }));
+      const updatedAt = Date.now();
+      seatLayouts.set(m[1]!, { body: b as Record<string, unknown>, seats, updatedAt });
+      return { ...(b as object), effectiveFrom: m[1], seats, updatedAt };
+    }
+    if (m && m[2] && method === 'GET') return { assignments: {}, updatedAt: null };
+    if (m && m[2] && method === 'PUT') return { updatedAt: Date.now() };
+    throw new ApiCodeError(404, 'not_found');
+  };
   const http: Http = {
     async request(method, path, body) {
       if (path.split('?')[0] === `${K}/schedule`) {
@@ -439,6 +468,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
         if (method === 'PUT') { scheduleDoc.weekOverrides[friday] = body as ScheduleDoc['weekOverrides'][string]; return {} as any; }
         if (method === 'DELETE') { delete scheduleDoc.weekOverrides[friday]; return undefined as any; }
       }
+      if (path.includes('/admin/seating/') || (screen?.startsWith('seat-editor') && path === `${A}/families`)) return seatingFixture(method, path, body) as any;
       if (method === 'GET' && path === '/v1/me/export' && !('GET /v1/me/export' in routes)) throw new ApiCodeError(404, 'export_not_found');
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;

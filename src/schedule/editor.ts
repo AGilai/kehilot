@@ -731,7 +731,7 @@ export function sectionItems(section: Section, week: WeekOverrides | undefined, 
 export const weekChanges = (week: WeekOverrides | undefined): number => Object.keys(week?.rows ?? {}).length + (week?.extra?.length ?? 0);
 
 /** Leaving the editor screen with unsaved changes asks first (the channel sheet's discard pattern). */
-export const editorLeaveAsk = (tab: string, dirty: boolean): boolean => tab === 'scheduleEditor' && dirty;
+export const editorLeaveAsk = (tab: string, dirty: boolean): boolean => (tab === 'scheduleEditor' || tab === 'seatEditor') && dirty;
 
 /**
  * "Keep my changes" after a 409: the server copy (`theirs`) with what I changed since I loaded it (`mine` against `base`) applied on top.

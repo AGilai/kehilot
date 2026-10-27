@@ -7,3 +7,6 @@ export function seatScreenFor(screen: string | null, role: string | undefined, f
   if (screen === 'seat-print') return seatPrintAllowed(role, flag) ? 'seatPrint' : null;
   return ['seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai'].includes(screen) ? 'seats' : null;
 }
+
+/** The seating editor (paste, check, match, layout): gabbaim only. The server refuses everyone else too. */
+export const seatEditorAllowed = (role: string | undefined): boolean => role === SEAT_PRINT_ROLE;

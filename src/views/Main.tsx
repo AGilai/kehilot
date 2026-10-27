@@ -26,8 +26,9 @@ import { Import } from './admin/Import.tsx';
 import { PushTexts } from './admin/PushTexts.tsx';
 import { Overview } from './admin/Overview.tsx';
 import { SeatPrint } from './admin/SeatPrint.tsx';
+import { SeatEditor } from './admin/SeatEditor.tsx';
 import { SeatPage } from './SeatPage.tsx';
-import { seatPrintAllowed, seatScreenFor } from '../seats/access.ts';
+import { seatEditorAllowed, seatPrintAllowed, seatScreenFor } from '../seats/access.ts';
 import { previewMemberSeats } from '../seats/preview.ts';
 import { TermsGate } from './TermsGate.tsx';
 import { PhoneList } from './PhoneList.tsx';
@@ -65,6 +66,7 @@ type Nav =
   | { tab: 'schedule' }
   | { tab: 'scheduleEditor' }
   | { tab: 'seatPrint' }
+  | { tab: 'seatEditor' }
   | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'me' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
@@ -93,6 +95,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   const seat = seatScreenFor(s, state.kehila?.role, config.seatsPreview);
   if (seat === 'seats') return { nav: { tab: 'seats' } };
   if (seat === 'seatPrint') return { nav: { tab: 'seatPrint' }, manage: true };
+  if (s?.startsWith('seat-editor')) return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatEditor' }, manage: true } : null;
   if (s === 'schedule') return { nav: { tab: 'schedule' } };
   if (s === 'schedule-editor' || s === 'schedule-editor-none') return scheduleEditorAllowed(state.kehila?.role) ? { nav: { tab: 'scheduleEditor' }, manage: true } : null;
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
@@ -202,7 +205,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const kehila = state.kehila;
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'scheduleEditor' || (nav.tab === 'group' && nav.from === 'groups');
+  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'scheduleEditor' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
     : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
@@ -232,6 +235,9 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     case 'seats':
       body = config.seatsPreview ? <SeatPage data={seatData!} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
+    case 'seatEditor':
+      body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => setNav({ tab: 'overview' }))} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
+      break;
     case 'seatPrint':
       body = seatPrintAllowed(kehila?.role, config.seatsPreview) ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onToast={showToast} /> : null;
       break;
@@ -248,7 +254,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintAllowed(state.kehila?.role, config.seatsPreview) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onCount={setPending} onToast={showToast} />;
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintAllowed(state.kehila?.role, config.seatsPreview) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onSeatEditor={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatEditor' }) : undefined} onCount={setPending} onToast={showToast} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} />;

@@ -9,8 +9,14 @@ import type {
   MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
   RequestRow, TargetFamily, UploadGrant,
 } from './types.ts';
+import type { LayoutBody } from '../seats/savePlan.ts';
 
 const e = encodeURIComponent;
+
+export type SeatLayoutRow = { effectiveFrom: string; updatedAt: number; seats: number; assigned: number; current: boolean };
+export type SeatLayout = LayoutBody & { effectiveFrom: string; seats: { id: string; row: number; col: number }[]; updatedAt: number };
+/** A seat holder without an account: personal data, gabbai-only. */
+export type SeatHolder = { holderId: string; name: string; phone: string | null; createdAt: number; updatedAt: number };
 
 export function endpoints(http: Http) {
   const r = http.request;
@@ -104,6 +110,16 @@ export function endpoints(http: Http) {
     adminFamilies: (k: string) => r<AdminFamily[]>('GET', `${A(k)}/families`),
     adminLink: (k: string, a: string, b: string) =>
       r<{ familyId: string }>('POST', `${A(k)}/families/link`, { userIds: [a, b] }),
+    // seating editor (gabbai): layouts by effective Friday, holders without an account, assignments
+    seatLayouts: (k: string) => r<{ layouts: SeatLayoutRow[] }>('GET', `${A(k)}/seating/layouts`),
+    putSeatLayout: (k: string, from: string, body: LayoutBody & { ifUpdatedAt: number | null }) =>
+      r<SeatLayout>('PUT', `${A(k)}/seating/layouts/${e(from)}`, body),
+    seatAssignments: (k: string, from: string) =>
+      r<{ assignments: Record<string, string>; updatedAt: number | null }>('GET', `${A(k)}/seating/layouts/${e(from)}/assignments`),
+    putSeatAssignments: (k: string, from: string, body: { assignments: Record<string, string | null>; ifUpdatedAt: number | null }) =>
+      r<{ updatedAt: number }>('PUT', `${A(k)}/seating/layouts/${e(from)}/assignments`, body),
+    seatHolders: (k: string) => r<SeatHolder[]>('GET', `${A(k)}/seating/holders`),
+    createSeatHolder: (k: string, body: { name: string; phone?: string }) => r<SeatHolder>('POST', `${A(k)}/seating/holders`, body),
     acceptTerms: (k: string) => r<{ at: number }>('POST', `${A(k)}/terms`),
     pushTexts: (k: string) => r<PushTexts>('GET', `${A(k)}/push-texts`),
     putPushText: (k: string, key: string, lang: Lang, text: string) =>
