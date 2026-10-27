@@ -94,8 +94,30 @@ screen (GD3), Messages chip row, `src/i18n/he.json` / `en.json`, `src/client/fix
 - [ ] Fixtures: one main channel + a group, `postableTypes` per role.
 - [ ] Pure logic test-first (type list for compose, settings form → body). `npm test`, typecheck. Commit.
 
-### Task 4: smoke, deploy, migrate dev (controller)
+### Task 4: role tags (server)
 
-- [ ] `tools/smoke_dev.py`: stop using the `simchas` channel; add the spec's three smoke checks.
+**Files:** `server/cloud/repo_members.py` (or a new `repo_tags.py` mixin, following the repo's mixin
+pattern), `server/cloud/routes_admin.py`, `server/cloud/handler.py`, `server/cloud/export.py`,
+`server/API.md`, tests.
+
+**Produces:** gabbai routes `GET/POST /v1/kehilot/{k}/admin/tags`, `PUT/DELETE …/admin/tags/{tagId}`
+(`{name}`; 400 `invalid_tag_name`, 409 `tag_exists` / `too_many_tags`, 404 `tag_not_found`), and
+`PUT …/admin/members/{userId}/tags` (`{tagIds: [...]}`, unknown id → 400 `invalid_tag_ids`). Member
+JSON (admin list, and wherever §12 shows chips: e.g. phone list, `me`) gains `tags: [{tagId, name}]`.
+Deleting a tag removes it from every membership. Tags grant nothing: a test proves `can_post` /
+`message_visible` ignore them. Export includes the person's own tag names.
+
+- [ ] Tests first (limits, uniqueness case-insensitive after trim, non-gabbai 403, delete cascades,
+      listener can hold tags or not — follow §12). Implement; suite green; commit.
+
+### Task 5: role tags (client)
+
+Per §12 "Role tags": tag management, assignment from the member sheet, chips where §12 says, starter
+set, he/en copy, fixtures. Pure logic test-first; `npm test`, typecheck; commit.
+
+### Task 6: smoke, deploy, migrate dev (controller)
+
+- [ ] `tools/smoke_dev.py`: stop using the `simchas` channel; add the spec's three smoke checks, and a
+      tag create → assign → appears → delete cycle (cleaned up).
 - [ ] Build, plan (expect only Lambda code changes), apply, `merge-channels` dry run then `--apply` on dev,
       web deploy, smoke.

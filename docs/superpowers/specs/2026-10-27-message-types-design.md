@@ -47,9 +47,19 @@ already exist (`weekly`, `celebration`, `condolence`, `event`); the extra channe
    by the designer (one look and feel).
 8. **Compose**: the type picker lists only `postableTypes` for the chosen channel; if only one, no picker.
 
+9. **Role tags** (owner, 2026-10-27: "support from now a roles tag … I'm not actually a gabbai, I'm the
+   technical person of the Kehila … the chips and the ability to assign roles to people in the Kehila will be
+   a good foundation"). Kehila-defined names (e.g. גבאי, רב, טכני, ועד שמחות); several per person; created,
+   renamed, deleted and assigned by gabbaim only; at most 20 per Kehila, name ≤ 24 characters, unique per
+   Kehila. **Labels only for now: they grant nothing** — the access role (listener / member / gabbai) and
+   every visibility/post rule are unchanged by tags. Stored as Kehila-level tag items with an id and name;
+   a membership holds tag ids. Deleting a tag removes it from everyone. Shown as chips where the designer
+   decides (`docs/UX-DESIGN.md` §12 "Role tags"). Tag names are personal data only in combination with a
+   person: included in the person's own data export, never in pushes or logs.
+
 ## Later (not now)
 
-Custom roles (e.g. "simchas committee") with per-type see/post permissions. Today's "members with
+Per-type see/post permissions attached to role tags (e.g. "simchas committee"). Today's "members with
 broadcast permission" becomes one such role then; `typeRules` is the subset that maps onto it.
 
 ## Constraints
