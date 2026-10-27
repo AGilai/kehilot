@@ -642,3 +642,217 @@ horizontal scroller.
   channel-name items above. No horizontal page scroll at 390 px on any screen checked.
 - Not checked: management screens beyond the tab bar, native Android/iOS rendering of `Icon` (verify once on a dev
   build: `expo-image` SVG data URI), real (non-fixture) channel data.
+
+## 12. Message types
+
+Added 2026-10-27 for `docs/superpowers/specs/2026-10-27-message-types-design.md`. Mazal tov and condolence are no
+longer channels: they are message types in the one main channel ("הודעות הקהילה"), with a per-Kehila rule a gabbai
+sets. Frames: `design/mockups/frames/P17.html` (types) and `P18.html` (role tags, 12.6), index section "ה". Like the
+P frames, they draw the shipped kit; build 1:1. GD3 (desktop draft) is updated to match: the "שמחות" row is gone and a
+"סוגי הודעות" table sits under the channel table. P16 carries a note that its chip row is superseded here.
+
+### 12.1 One label per type
+
+The app had three names for some types (Compose "שמחה", push texts "מזל טוב"; Compose "השתתפות בצער", push texts
+"הודעת אבל", channel "אבלות"). From now on there is one user-facing label per type, used in Compose, the Messages
+meta line and the gabbai settings:
+
+| type | he | en | stripe |
+|---|---|---|---|
+| `general` | הודעה | Message | `tekhelet` |
+| `weekly` | עדכון שבועי | Weekly update | `gold` |
+| `event` | אירוע | Event | `tekhelet` |
+| `celebration` | מזל טוב | Mazal tov | `pomegranate` |
+| `condolence` | השתתפות בצער | Condolence | `ash` |
+
+**Condolence = "השתתפות בצער"**: it is what Compose already says, it matches the reply button ("משתתף בצער"), and it
+is gentle; "ניחומים" appears nowhere in the app, and "אבל"/"אבלות" alone reads as a heading for mourning itself
+rather than a notice. The push-text editor keeps "הודעת אבל" (it names a push template, not a type). `general` shares
+tekhelet with `event`: the stripe carries the register (joy, grief, Shabbat, neutral), the label carries the type.
+
+Order everywhere: general, weekly, event, celebration, condolence (`TYPES` in Compose).
+
+### 12.2 Gabbai: "סוגי הודעות" in the Channels screen (P17 phone 1 and the first two panels; GD3 on desktop)
+
+**Where:** `admin/Channels.tsx` (the screen built for mobile and web; GD3 is its desktop draft), after the channel
+cards. A section header (`Txt serif size="heading"`), one intro line, then:
+
+1. **Card "מזל טוב"** (`Card edgeColor={k.pomegranate}`), **Card "השתתפות בצער"** (`edgeColor={k.ash}`). Each:
+   `Txt bold` "מי מפרסם", two `Choice` rows (from `admin/shared.tsx`, radio semantics): "ההנהלה בלבד" (note: "חברים
+   עם הרשאת שליחה יפרסמו הודעה רגילה בלבד") and "הנהלה וחברים עם הרשאת שליחה" (note: "ברירת המחדל"); then
+   `Toggle` "מתפללים אורחים רואים הודעות מזל טוב / השתתפות בצער" (default off), then a constant `Txt small muted`
+   line: "חל גם על הודעות שכבר פורסמו. חברים וגבאים רואים אותן תמיד." (not `offNote`: it applies in both states).
+2. **Card "שאר הסוגים · קבוע"**, read-only: one row per fixed type, the label in bold and one muted line
+   "מפרסמים: … · רואים: …". No controls, no disabled switches: fixed rules are text, so they never look editable.
+3. Closing muted line: "חברים רואים את כל סוגי ההודעות."
+
+**Interplay with the channel:** if the main channel's `postPolicy` is `management`, an info `Banner` at the top of the
+section: members cannot post any type there; the choices below are kept and apply once the channel is opened.
+
+**Saving:** each tap saves at once (`PATCH` of `settings.typeRules`), Toast "ההגדרה נשמרה". On error the control
+returns to its previous value and an error `Banner` shows at the top of the section (`useAdminErrText`). No Save
+button: two small settings, each change is one decision, as with the broadcast-permission toggle in Members.
+
+### 12.3 Compose (P17 phones 2 and 3, panels "סוג אחד" and "403")
+
+- The type cards (today's stripe cards, two per row, `flexBasis: '47%'`) list only `postableTypes` of the chosen
+  channel, in the 12.1 order. Typical member with broadcast permission: הודעה, מזל טוב, השתתפות בצער. Gabbai: all five.
+  Default selection: the first postable type.
+- **One type:** the "סוג ההודעה" label and cards are not rendered at all.
+- **One channel:** the "ערוץ" chip row is not rendered either; the audience line ("יישלח לערוץ הודעות הקהילה") still
+  says where it goes. Both rows come back when there is more than one option.
+- Family picker (P14) unchanged; shown for mazal tov and condolence only.
+- Type cards: `accessibilityRole="radio"` inside a `radiogroup` labelled "סוג ההודעה", `accessibilityState={{ selected }}`
+  (today they are buttons with `selected`; radio is correct for one-of-many).
+- **Refused (403 `forbidden` on publish):** the rule changed while composing. Compose keeps title, body and image,
+  refreshes channels, and shows an error `Banner` above "פרסום" (Compose shows errors in a Banner, not a toast: the
+  text must stay while the person decides, and it carries an action). If `general` is still postable the Banner has
+  the action "שינוי להודעה רגילה": it selects `general` and clears the family; the person presses "פרסום" again
+  (never auto-publish). If nothing is postable any more, the Banner is `compose.refusedAll` with no action.
+  A 403 for another reason (role removed) keeps today's `errors.forbidden` text.
+
+### 12.4 Messages (P17 phone 4, panel "יש גם קבוצה או שיחה")
+
+**Decision: hide the channel chip row when the person sees only one channel** (`channels.length <= 1`). "כל
+הערוצים" plus one chip filters nothing. The row returns, unchanged from §11.2, as soon as there is a group channel
+or a conversation channel. Listeners almost always see one channel, so for them the row is gone.
+
+**Decision: no type filter.** The feed of one Kehila is short; the stripe colour and the type label already make a
+mazal tov or a condolence findable at a glance; muting by type already exists in notification preferences (M5); a
+third filter row would bring back the clutter §11.2 removed. Revisit only if a Kehila posts many types daily.
+
+**Meta line** of `MessageRow` and M3: the type label replaces the channel name, which used to carry the type
+("שמחות · 14:50"): `{type} · {time}`, and `{type} · {channel} · {time}` when the person sees more than one channel.
+Chat messages keep the channel name. No new strings: it reuses the 12.1 labels.
+
+### 12.5 Copy
+
+New or changed keys (`src/i18n/he.json` / `en.json`). Existing keys reused unchanged are not listed
+(`admin.channels.policyOpt.*` supplies the two choice labels).
+
+| Key | Hebrew | English |
+|---|---|---|
+| `compose.types.general` (new) | הודעה | Message |
+| `compose.types.celebration` (changed) | מזל טוב | Mazal tov |
+| `compose.types.condolence` (unchanged he; en kept) | השתתפות בצער | Condolence |
+| `compose.refused` | ההגדרות השתנו ואין לכם עוד הרשאה לפרסם הודעה מהסוג הזה. מה שכתבתם נשמר. | The settings changed and you can no longer post this type of message. What you wrote is kept. |
+| `compose.refusedAll` | אין לכם כרגע הרשאה לפרסם בקהילה. מה שכתבתם לא נשלח. | You can't post in this community right now. Your message was not sent. |
+| `compose.asGeneral` | שינוי להודעה רגילה | Change to a regular message |
+| `admin.types.title` | סוגי הודעות | Message types |
+| `admin.types.intro` | כל ההודעות מתפרסמות בערוץ הודעות הקהילה. כאן קובעים מי מפרסם מזל טוב והשתתפות בצער, והאם מתפללים אורחים רואים אותן. | All messages go to the Announcements channel. Here you choose who may post mazal tov and condolence messages, and whether guests see them. |
+| `admin.types.postLabel` | מי מפרסם | Who may post |
+| `admin.types.noteManagement` | חברים עם הרשאת שליחה יפרסמו הודעה רגילה בלבד | Members with broadcast permission can post regular messages only |
+| `admin.types.noteDefault` | ברירת המחדל | Default |
+| `admin.types.listeners.celebration` | מתפללים אורחים רואים הודעות מזל טוב | Guests see mazal tov messages |
+| `admin.types.listeners.condolence` | מתפללים אורחים רואים הודעות השתתפות בצער | Guests see condolence messages |
+| `admin.types.listenersNote` | חל גם על הודעות שכבר פורסמו. חברים וגבאים רואים אותן תמיד. | Applies to messages already posted too. Members and gabbaim always see them. |
+| `admin.types.fixedTitle` | שאר הסוגים · קבוע | Other types · fixed |
+| `admin.types.rowPost` | מפרסמים: {who} | Posted by: {who} |
+| `admin.types.rowSeen` | רואים: {who} | Seen by: {who} |
+| `admin.types.seenAll` | כולם, כולל מתפללים אורחים | Everyone, guests included |
+| `admin.types.membersSeeAll` | חברים רואים את כל סוגי ההודעות. | Members see every message type. |
+| `admin.types.channelClosed` | בערוץ הודעות הקהילה רק ההנהלה מפרסמת, ולכן חברים לא יכולים לפרסם אף סוג. אפשר לשנות בעריכת הערוץ. | Only gabbaim post in the Announcements channel, so members can't post any type. You can change this by editing the channel. |
+| `admin.types.saved` | ההגדרה נשמרה | Setting saved |
+
+Fixed rows are built as `{label}` + `rowPost` (`policyOpt.management` or `policyOpt.broadcasters`) + " · " + `rowSeen`
+(`seenAll`).
+
+**A11y:** each Choice is a radio with its label; the two in a card sit in a `radiogroup` whose label is the card
+title plus "מי מפרסם" (e.g. "מזל טוב, מי מפרסם"), so a screen reader knows which type it changes. The Toggle labels
+name the type for the same reason. Fixed rows are plain text. The Toast "ההגדרה נשמרה" is announced
+(`accessibilityLiveRegion="polite"` as for other toasts); the refused Banner uses `accessibilityRole="alert"`.
+
+### 12.6 Role tags (P18)
+
+Owner: "support from now a roles tag … the chips and the ability to assign roles to people in the Kehila are a good
+foundation." Tags are Kehila-defined names (גבאי, רב, טכני, ועד שמחות), several per person, created and assigned by
+gabbaim only. **Labels only:** they grant nothing; the access role (guest / member / gabbai) and broadcast permission
+are unchanged. Up to 20 per Kehila, name 1–24 code points, unique within the Kehila (trimmed, case-insensitive).
+Later they become the base for per-type permissions (spec "Later").
+
+**Look:** `Tag` gets `tone="role"`: same size as `Tag` (min height 24, radius 12, 12.5 bold), `k.surface` fill,
+`k.line` border, `k.ink` text. The access-role and class tags stay `plain` (stone fill, muted text). The difference
+is deliberate: a role tag is a name, the access tag is what the person can do. Shown in a wrapping row, gap 6.
+
+**Manage the list — Members screen** (`admin/Members.tsx`), secondary `Button` "תגיות תפקיד" (icon `edit`) under the
+title. It opens a `Sheet` "תגיות תפקיד": intro line; one row per tag (name, people count `Txt caption muted`,
+48×44 icon buttons `edit` and `trash`); counter "n מתוך 20"; `Field` "תגית חדשה (עד 24 תווים)" + `Button` "הוספה";
+"סגירה". Rename turns the row into a `Field` with "שמירה" / "ביטול". Delete is the inline confirm pattern (info
+`Banner` with the count, danger "כן, למחוק", secondary "ביטול"). Add, rename and delete save at once with a Toast.
+Chosen over GD3 because tags are about people: the gabbai creates a tag where they assign it.
+
+**Starter set (empty list):** the Sheet shows "עדיין אין תגיות. אפשר להתחיל מאלה:" and eight dashed suggestion chips
+(`Chip size="filter"` with `icon="plus"`, dashed tekhelet border, tekhelet text, so they read as "add", not as a
+selection): גבאי, רב, חזן, בעל קורא, גזבר, ועד הקהילה, ועד שמחות, טכני. One tap adds that tag (in the UI language,
+stored as text like any typed tag) and removes the chip. The suggestions disappear once the Kehila has any tag.
+
+**Assign — member card:** under the family line, the person's role tags (or "אין תגיות", muted) and a link-style
+pressable "עריכת תגיות" (48 touch). It opens a `Sheet` "התגיות של {name}" with one `Check` per Kehila tag, the link
+"ניהול רשימת התגיות" (opens the manage Sheet), the muted note that tags grant nothing, and footer "שמירה" / "סגירה"
+(the discard-confirm of the channel sheet applies). If the Kehila has no tags: "אין עדיין תגיות בקהילה." and the
+manage link only. On wide screens (`WIDE`) the members table gets a "תגיות" column with the same row of tags.
+
+**Where tags show:**
+
+| Place | Shown | Why |
+|---|---|---|
+| Members admin list (and its wide table) | yes | where they are assigned |
+| Me, Profile card, current Kehila | yes, if any: "התפקידים שלי בקהילה" + note "הגבאים מעדכנים את התגיות." | a person should see what the Kehila calls them |
+| Phone list (P1) row, under the adult's name | yes | finding the treasurer or the rabbi is the main reason to open the list; only people who chose to appear |
+| Message row / M3 author line | no | rows do not show an author today, and a tag beside a message would read as authority it does not have |
+| Join, switcher, Kehila info (P13) | no | not about one person |
+
+Listeners can be tagged like anyone in the Members screen; they see their own tags in Me (they have no phone list).
+
+| Key | Hebrew | English |
+|---|---|---|
+| `admin.tags.button` | תגיות תפקיד | Role tags |
+| `admin.tags.title` | תגיות תפקיד | Role tags |
+| `admin.tags.intro` | שמות לתפקידים בקהילה, כמו רב או טכני. התגיות מוצגות ליד השם ולא נותנות הרשאות. | Names for roles in the community, such as Rabbi or Tech. Tags show next to a name and grant no permissions. |
+| `admin.tags.listTitle` | התגיות בקהילה | Tags in this community |
+| `admin.tags.count` | {n} מתוך 20 | {n} of 20 |
+| `admin.tags.people` | {n} אנשים | {n} people |
+| `admin.tags.emptyStart` | עדיין אין תגיות. אפשר להתחיל מאלה: | No tags yet. You can start with these: |
+| `admin.tags.suggest` | גבאי, רב, חזן, בעל קורא, גזבר, ועד הקהילה, ועד שמחות, טכני | Gabbai, Rabbi, Chazan, Torah reader, Treasurer, Committee, Simchas committee, Tech |
+| `admin.tags.suggestA11y` | הוספת התגית {name} | Add the tag {name} |
+| `admin.tags.newField` | תגית חדשה (עד 24 תווים) | New tag (up to 24 characters) |
+| `admin.tags.add` | הוספה | Add |
+| `admin.tags.renameA11y` | שינוי השם של {name} | Rename {name} |
+| `admin.tags.renameField` | שינוי שם | Rename |
+| `admin.tags.deleteA11y` | מחיקת התגית {name} | Delete the tag {name} |
+| `admin.tags.deleteConfirm` | למחוק את התגית "{name}"? היא תוסר מ־{n} אנשים. | Delete the tag "{name}"? It will be removed from {n} people. |
+| `admin.tags.deleteConfirmNone` | למחוק את התגית "{name}"? אף אחד לא מסומן בה. | Delete the tag "{name}"? Nobody has it. |
+| `admin.tags.deleteYes` | כן, למחוק | Yes, delete |
+| `admin.tags.cancel` | ביטול | Cancel |
+| `admin.tags.save` | שמירה | Save |
+| `admin.tags.close` | סגירה | Close |
+| `admin.tags.required` | נא להזין שם | Enter a name |
+| `admin.tags.duplicate` | כבר יש תגית בשם הזה | A tag with this name already exists |
+| `admin.tags.limit` | אפשר עד 20 תגיות. מחקו תגית כדי להוסיף חדשה. | Up to 20 tags. Delete one to add another. |
+| `admin.tags.added` | התגית נוספה | Tag added |
+| `admin.tags.renamed` | השם עודכן | Name updated |
+| `admin.tags.deleted` | התגית נמחקה | Tag deleted |
+| `admin.tags.member.none` | אין תגיות | No tags |
+| `admin.tags.member.edit` | עריכת תגיות | Edit tags |
+| `admin.tags.member.editA11y` | עריכת התגיות של {name} | Edit {name}'s tags |
+| `admin.tags.member.list` | תגיות: {list} | Tags: {list} |
+| `admin.tags.assign.title` | התגיות של {name} | {name}'s tags |
+| `admin.tags.assign.manage` | ניהול רשימת התגיות | Manage the tag list |
+| `admin.tags.assign.empty` | אין עדיין תגיות בקהילה. | This community has no tags yet. |
+| `admin.tags.assign.saved` | התגיות נשמרו | Tags saved |
+| `admin.tags.note` | תגיות לא נותנות הרשאות. מה שאדם יכול לעשות נקבע בתפקיד שלו ובהרשאת השליחה. | Tags grant no permissions. What a person can do is set by their role and broadcast permission. |
+| `admin.tags.column` | תגיות | Tags |
+| `me.tags.label` | התפקידים שלי בקהילה | My roles in the community |
+| `me.tags.note` | הגבאים מעדכנים את התגיות. | The gabbaim set these tags. |
+
+`admin.tags.suggest` is one comma-separated string per language, split in code, so translators see the set whole.
+
+**A11y:** a row of tags is one text element labelled `admin.tags.member.list` ("תגיות: רב, טכני"), not one stop per
+tag. Suggestion chips are buttons labelled `suggestA11y`. The icon buttons carry `renameA11y` / `deleteA11y`. Tag
+names are user text: `Txt content` (§11.5), so an English tag in a Hebrew UI keeps its own direction.
+
+### 12.7 Verification
+
+Frames written by hand, not screenshot-checked (no browser run on this machine for this change): check P17, P18 and
+GD3 at 1440 and 390 before building. Not checked: dark mode of the new frame helpers (they use only `--k-*`
+variables), English rendering beyond the English panels, real device fonts. Names in frames are invented.
