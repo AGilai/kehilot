@@ -1,12 +1,13 @@
 import importlib.util
 import os
+from datetime import date, timedelta
 import unittest
 from unittest import mock
 
 import boto3
 from moto import mock_aws
 
-from server.cloud import accounts, importer
+from server.cloud import accounts, importer, repo_messages
 from server.cloud.families import family_name
 from server.tests.cloud import test_messages
 from server.tests.cloud.test_admin import PROFILE
@@ -124,6 +125,106 @@ class FamiliesTest(test_messages.MessagesTest):
         self.assertEqual(kehila_admin.backfill_families(self.repo, self.k), (1, 0))
         self.assertIsNone(self.family_id(self.listener))
         self.assertEqual(len(self.families()), 3)
+
+    # family view and children
+    def fam(self, path=''):
+        return f'{self.base()}/family{path}'
+
+    def add_child(self, sub='member-sub', **extra):
+        body = {'firstName': 'Noa', 'gender': 'f', 'birthDate': '2015-12-31', **extra}
+        return self.call('POST', self.fam('/children'), sub=sub, body=body)
+
+    def test_get_family_creates_lazily_and_names_it(self):
+        self.assertIsNone(self.family_id(self.member))
+        self.call('PUT', '/v1/me/profile', sub='member-sub', body=PROFILE)
+        status, view = self.call('GET', self.fam(), sub='member-sub')
+        self.assertEqual(status, 200)
+        self.assertEqual(view['adults'], [{'userId': self.member, 'displayName': 'Mia Member', 'me': True}])
+        self.assertEqual((view['children'], view['name'], view['familyId']),
+                         ([], 'Test', self.family_id(self.member)))
+        self.assertEqual((view['sent'], view['received'], view['notice']), (None, [], None))
+        self.assertEqual(len(self.families()), 1)
+
+    def test_listener_gets_403_on_family(self):
+        self.assertEqual(self.call('GET', self.fam(), sub='listener-sub'), (403, {'error': 'forbidden'}))
+        self.assertEqual(self.add_child(sub='listener-sub')[0], 403)
+
+    def test_add_edit_remove_child(self):
+        status, child = self.add_child()
+        self.assertEqual(status, 201)
+        self.assertEqual({k: child[k] for k in ('firstName', 'gender', 'birthDate')},
+                         {'firstName': 'Noa', 'gender': 'f', 'birthDate': '2015-12-31'})
+        status, edited = self.call('PUT', self.fam('/children/' + child['id']), sub='member-sub',
+                                   body={'firstName': 'Noa', 'gender': 'm'})
+        self.assertEqual((status, edited['gender'], edited['id'], 'birthDate' in edited), (200, 'm', child['id'], False))
+        self.assertEqual(self.call('GET', self.fam(), sub='member-sub')[1]['children'], [edited])
+        self.assertEqual(self.call('DELETE', self.fam('/children/' + child['id']), sub='member-sub'), (204, None))
+        self.assertEqual(self.call('GET', self.fam(), sub='member-sub')[1]['children'], [])
+        self.assertEqual(self.call('DELETE', self.fam('/children/' + child['id']), sub='member-sub'),
+                         (404, {'error': 'child_not_found'}))
+        self.assertEqual(self.call('PUT', self.fam('/children/' + child['id']), sub='member-sub',
+                                   body={'firstName': 'Noa', 'gender': 'f'}), (404, {'error': 'child_not_found'}))
+
+    def test_child_validation(self):
+        tomorrow = (date.fromisoformat(repo_messages.local_date()) + timedelta(days=1)).isoformat()
+        cases = [({'gender': None}, 'invalid_gender'), ({'firstName': ''}, 'invalid_first_name'),
+                 ({'firstName': 'א' * 61}, 'invalid_first_name'),
+                 ({'birthDate': '2015-02-30'}, 'invalid_birth_date'), ({'birthDate': '31.12.2015'}, 'invalid_birth_date'),
+                 ({'birthDate': tomorrow}, 'invalid_birth_date'), ({'birthDate': '1899-12-31'}, 'invalid_birth_date'),
+                 ({'birthDate': 5}, 'invalid_birth_date')]
+        for change, code in cases:
+            body = {'firstName': 'Noa', 'gender': 'f', **change}
+            if change == {'gender': None}:
+                del body['gender']
+            self.assertEqual(self.call('POST', self.fam('/children'), sub='member-sub', body=body),
+                             (400, {'error': code}), change)
+        self.assertEqual(self.add_child(firstName='א' * 60, birthDate='')[0], 201)
+        self.assertEqual(self.add_child(birthDate=repo_messages.local_date())[0], 201)
+        self.assertEqual(self.add_child(birthDate='1900-01-01')[0], 201)
+
+    def test_children_limit(self):
+        for _ in range(20):
+            self.assertEqual(self.add_child()[0], 201)
+        self.assertEqual(self.add_child(), (409, {'error': 'children_limit'}))
+        self.assertEqual(len(self.call('GET', self.fam(), sub='member-sub')[1]['children']), 20)
+
+    def test_concurrent_child_edits_both_kept(self):
+        family_id = self.repo.ensure_family(self.k, self.member)
+        real = self.repo.get_family
+        calls = []
+
+        def stale_then_real(k, fid):
+            item = real(k, fid)
+            calls.append(1)
+            if len(calls) == 1:  # another adult's add lands after this read
+                self.repo.update_children(k, fid, lambda c: c + [{'id': 'X' * 26, 'firstName': 'Eli', 'gender': 'm'}])
+            return item
+        with mock.patch.object(self.repo, 'get_family', side_effect=stale_then_real):
+            self.assertEqual(self.add_child()[0], 201)
+        names = [c['firstName'] for c in real(self.k, family_id)['children']]
+        self.assertEqual(names, ['Eli', 'Noa'])
+        self.assertEqual(int(real(self.k, family_id)['version']), 3)
+
+    def test_update_children_gives_up_with_try_again(self):
+        family_id = self.repo.ensure_family(self.k, self.member)
+        stale = self.repo.get_family(self.k, family_id)
+        self.repo.update_children(self.k, family_id, lambda c: c)
+        with mock.patch.object(self.repo, 'get_family', return_value=stale):
+            self.assertEqual(self.add_child(), (409, {'error': 'try_again'}))
+
+    def test_other_kehila_family_not_reachable(self):
+        child = self.add_child()[1]
+        other = self.repo.create_kehila('Beit Other', {})
+        user_id = self.call('GET', '/v1/me', sub='other-sub')[1]['userId']
+        self.repo.put_membership(other, user_id, 'member')
+        path = f'/v1/kehilot/{other}/family/children/{child["id"]}'
+        self.assertEqual(self.call('PUT', path, sub='other-sub', body={'firstName': 'X', 'gender': 'm'}),
+                         (404, {'error': 'child_not_found'}))
+        self.assertEqual(self.call('DELETE', path, sub='other-sub'), (404, {'error': 'child_not_found'}))
+        self.assertEqual(self.call('GET', f'/v1/kehilot/{other}/family', sub='other-sub')[1]['children'], [])
+        self.assertEqual(self.call('DELETE', self.fam('/children/not-a-ulid'), sub='member-sub'),
+                         (404, {'error': 'child_not_found'}))
+        self.assertEqual(self.call('GET', self.fam(), sub='other-sub')[0], 404)  # not a member here
 
 
 if __name__ == '__main__':

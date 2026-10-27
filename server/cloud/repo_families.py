@@ -4,12 +4,13 @@ import time
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
+from .errors import ApiError
 from .ids import new_id
 
 
 class FamiliesRepo:
     def get_family(self, k, family_id):
-        return self._get(f'K#{k}', f'F#{family_id}')
+        return self.table.get_item(Key=self._key(k, f'F#{family_id}'), ConsistentRead=True).get('Item')
 
     def list_kehila_ids(self):
         """Every Kehila ID (a scan for META items: operator tools only)."""
@@ -60,3 +61,23 @@ class FamiliesRepo:
         membership = self.get_membership(k, user_id)
         family_id = (membership or {}).get('familyId')
         return self.get_family(k, family_id) if family_id else None
+
+    def update_children(self, k, family_id, change):
+        """Read the family, apply change(children) -> children, write with a version check. A lost race re-reads
+        and re-applies (3 tries, then 409 try_again). `change` may raise ApiError. Returns the new item."""
+        for _ in range(3):
+            family = self.get_family(k, family_id)
+            if not family:
+                raise ApiError(404, 'family_not_found')
+            version = int(family['version'])
+            children = change(list(family.get('children') or []))
+            try:
+                return self.table.update_item(
+                    Key=self._key(k, f'F#{family_id}'), UpdateExpression='SET children = :c, version = :v1',
+                    ConditionExpression='version = :v',
+                    ExpressionAttributeValues={':c': children, ':v': version, ':v1': version + 1},
+                    ReturnValues='ALL_NEW')['Attributes']
+            except ClientError as error:
+                if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                    raise
+        raise ApiError(409, 'try_again')

@@ -394,6 +394,19 @@ A reply can be posted only to a message that has a `targetMemberId`. Replies are
 | POST | `/v1/kehilot/{k}/messages/{m}/replies` | member, gabbai | `{body}` (1-1000) | 201 `{replyId, authorId, authorName, body, createdAt}` | 400 `invalid_body`, 404 `message_not_found`, 409 `replies_not_allowed` (no target), `cannot_reply_to_own` (the target), `target_left` (the target is no longer a member: hide the reply box), `try_again` |
 | GET | `/v1/kehilot/{k}/messages/{m}/replies` | any | - | 200 `[reply]`, only the ones the caller may see (empty for everyone else) | 404 `message_not_found` |
 
+#### Family and children
+
+Member or gabbai only (listener 403 `forbidden`). A family is created on first use when the membership has none. A child ID that is not a ULID or not in the caller's family is 404 `child_not_found`.
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/v1/kehilot/{k}/family` | member, gabbai | - | 200 FamilyView `{familyId, name, adults:[{userId, displayName, me}], children:[child], sent, received, notice}`; `name` from the adults' profiles; `sent` is null, `received` is `[]` and `notice` is null until link requests exist | 403 `forbidden` |
+| POST | `/v1/kehilot/{k}/family/children` | member, gabbai | `{firstName (1-60), gender: "m"\|"f", birthDate?: "YYYY-MM-DD"}`; absent or `""` omits the birth date, otherwise a real date from 1900-01-01 to today (Israel) | 201 child `{id, firstName, gender, birthDate?}` | 400 `invalid_first_name`, `invalid_gender`, `invalid_birth_date`; 409 `children_limit` (20), `try_again` |
+| PUT | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | same body (replaces the child) | 200 child | as above; 404 `child_not_found` |
+| DELETE | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | - | 204 | 404 `child_not_found`; 409 `try_again` |
+
+Both adults may edit the children at once: writes are version-checked and retried, and `try_again` is returned only after 3 lost races.
+
 #### Change feed and notification preferences
 
 | Method | Path | Role | Request | Response | Errors |
