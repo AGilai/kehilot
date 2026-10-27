@@ -9,13 +9,10 @@ from boto3.dynamodb.conditions import Key
 from moto import mock_aws
 
 from server.cloud import handler as handler_module
-from server.cloud import routes_me
+from server.cloud import media, routes_me
 from server.cloud.repo import Repo
-from server.tests.cloud.helpers import make_table
-from server.cloud import media
-from server.tests.cloud.helpers import MEDIA_BUCKET
+from server.tests.cloud.helpers import MEDIA_BUCKET, make_bucket, make_table
 from server.tests.cloud.test_handler import Context, event
-from server.tests.cloud.helpers import make_bucket
 from server.tests.cloud.test_groups import own_tests_only
 
 TOKEN = 'ExponentPushToken[aaaaaaaaaaaaaaaaaaaaaa]'
@@ -200,7 +197,7 @@ JPEG = b'\xff\xd8\xff\xe0' + b'0' * 100
 @own_tests_only
 @mock_aws
 class DeletePostsTest(DeleteAccountTest):
-    """DELETE /v1/me?deletePosts=1 (inherits the fixtures; the parent's tests run again, which is harmless)."""
+    """DELETE /v1/me?deletePosts=1. Reuses the parent's fixtures but none of its tests (own_tests_only)."""
 
     def setUp(self):
         super().setUp()
@@ -317,3 +314,29 @@ class DeletePostsTest(DeleteAccountTest):
     def test_listener_can_leave(self):
         self.assertEqual(self.call('DELETE', f'/v1/kehilot/{self.k2}/membership', 'sub-dana')[0], 204)
         self.assertIsNone(self.repo.get_membership(self.k2, self.dana))
+
+    def test_image_only_chat_crash_before_change_then_retry_finishes(self):
+        chat = self.repo.put_message(self.k2, self.chan2, 'chat', '', '', self.dana, 'Dana T', 'member', None,
+                                     image={'contentType': 'image/jpeg', 'bytes': 104})
+        mid = chat['sk'][4:]
+        self.s3.put_object(Bucket=MEDIA_BUCKET, Key=media.image_key(self.k2, mid), Body=JPEG)
+        self.repo.put_reply(self.k2, mid, self.gab, 'Gab', 'hi')
+        with mock.patch.object(self.repo, 'put_change', side_effect=RuntimeError('boom')):
+            self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana')[0], 500)
+        self.assertTrue(self.repo.get_message(self.k2, mid)['removed'])
+        self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana'), (204, None))
+        self.assertEqual([i['refId'] for i in self.changes(self.k2)], [mid])
+        self.assertEqual(self.repo.list_replies(self.k2, mid), [])
+
+    def test_last_reply_check_is_consistent_read(self):
+        weekly, chat, blessing, about_other = self.seed_posts()
+        oid = about_other['sk'][4:]
+        seen = []
+        real = self.repo.table.query
+        self.repo.table.query = lambda **kw: (seen.append(kw), real(**kw))[1]
+        try:
+            reply = next(r for r in self.repo.list_replies(self.k1, oid) if r['authorId'] == self.dana)
+            self.repo.delete_reply(self.k1, oid, reply['sk'], self.dana)
+        finally:
+            del self.repo.table.query
+        self.assertTrue(seen and all(kw.get('ConsistentRead') for kw in seen[1:]))

@@ -23,8 +23,8 @@ def delete_posts(repo, user_id, remaining_ms=None):
     """Remove every message (chat included) and reply the user wrote, in every Kehila. Returns (messages, replies).
 
     A message: image first, then the removed flag, then the `message_removed` change (written whenever the text
-    is not yet blanked, so a crash between the flag and the change is repaired), then its replies, then the
-    text. The text goes last: a message with blank text has been fully handled and is skipped on a retry.
+    is not yet scrubbed, so a crash between the flag and the change is repaired), then its replies, then the
+    text. The text goes last, with the `postsScrubbed` marker: a scrubbed message has been fully handled and is skipped on a retry.
     A reply under someone else's message: delete_reply. Raises 503 try_again before the next item when less
     than MIN_REMAINING_MS is left; the caller's retry continues.
     """
@@ -40,7 +40,7 @@ def delete_posts(repo, user_id, remaining_ms=None):
             repo.delete_reply(k, message_id, item['sk'], user_id)
             replies += 1
             continue
-        if item.get('removed') and not item.get('title') and not item.get('body'):
+        if item.get('postsScrubbed'):
             continue  # done earlier
         if not item.get('removed'):
             if item.get('image'):

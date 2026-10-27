@@ -233,11 +233,26 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(self.repo.get_user_id('signed-sub'), signed)
         self.assertEqual(self.repo.get_user_id('multi-sub'), multi)
 
-    def test_cognito_failure_keeps_data_and_still_204(self):
+    def test_stale_gsi_still_listing_removed_kehila_still_deletes(self):
+        user = self.import_account()
+        stale = [{'kehilaId': self.k, 'role': 'member'}]
+        with mock.patch('server.cloud.routes_me._delete_cognito_user') as delete, \
+                mock.patch.object(Repo, 'list_memberships', return_value=stale):
+            self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{user}')[0], 204)
+        delete.assert_called_once_with('import-sub')
+
+    def test_purge_failure_means_cognito_not_called(self):
+        user = self.import_account()
+        with mock.patch('server.cloud.routes_me._delete_cognito_user') as delete, \
+                mock.patch.object(Repo, 'purge_user', side_effect=RuntimeError('x')):
+            self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{user}')[0], 500)
+        delete.assert_not_called()
+
+    def test_cognito_failure_after_purge_still_204(self):
         user = self.import_account()
         with mock.patch('server.cloud.routes_me._delete_cognito_user', side_effect=RuntimeError('x')):
             self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{user}')[0], 204)
-        self.assertEqual(self.repo.get_user_id('import-sub'), user)
+        self.assertIsNone(self.repo.get_user_id('import-sub'))  # purged first: only the Cognito user is left
 
     def test_gabbai_of_other_kehila_cannot_approve(self):
         other_k = self.repo.create_kehila('Beit Other', {})

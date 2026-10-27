@@ -229,11 +229,11 @@ class MessagesRepo:
             raise ApiError(404, 'message_not_found')
 
     def scrub_message(self, k, message_id):
-        """Blank title and body (account deletion with "delete everything I posted"). Idempotent."""
+        """Blank title and body and set the postsScrubbed marker (account deletion with "delete everything I posted"). Idempotent."""
         try:
             self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
-                                   UpdateExpression='SET title = :e, body = :e',
-                                   ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':e': ''})
+                                   UpdateExpression='SET title = :e, body = :e, postsScrubbed = :t',
+                                   ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':e': '', ':t': True})
         except ClientError as error:
             if not _failed(error, 'ConditionalCheckFailedException'):
                 raise  # a message that is gone needs no scrub
@@ -312,9 +312,9 @@ class MessagesRepo:
                 raise ApiError(404, 'message_not_found')
             raise ApiError(409, 'try_again')
 
-    def list_replies(self, k, message_id):
+    def list_replies(self, k, message_id, consistent=False):
         """Every reply of the message, oldest first. Callers filter with visibility.reply_visible."""
-        items, kwargs = [], {}
+        items, kwargs = [], {'ConsistentRead': True} if consistent else {}
         while True:
             page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}#MSG#{message_id}')
                                     & Key('sk').begins_with('R#'), **kwargs)
@@ -354,7 +354,8 @@ class MessagesRepo:
         message's replierCount drops by 1 (once: the marker's existence is the guard), then a reply_count change.
         The count is settled before the reply goes, so a retry after a crash in between finds the reply again."""
         pk = f'K#{k}#MSG#{message_id}'
-        mine = [r for r in self.list_replies(k, message_id) if r['authorId'] == author_id]
+        mine = [r for r in self.list_replies(k, message_id, consistent=True)
+                if r['authorId'] == author_id]
         if [r['sk'] for r in mine] in ([reply_sk], []):
             name = self.table.name
             try:
