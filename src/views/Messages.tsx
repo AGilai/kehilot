@@ -33,6 +33,7 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
   const { feed, channels, kehila, me, kehilaId } = state;
   const [filter, setFilter] = React.useState<Filter>(initialFilter ?? 'mine');
   const [channelId, setChannelId] = React.useState<string | null>(null);
+  const [focused, setFocused] = React.useState(false);
   const [text, setText] = React.useState(initialQuery);
   const [debounced, setDebounced] = React.useState(initialQuery);
   const [types, setTypes] = React.useState<MessageType[]>([]);
@@ -126,11 +127,11 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
     <View style={{ gap: 12, paddingBottom: 8 }}>
       <Txt serif size="title" accessibilityRole="header">{t('messages.title')}</Txt>
       <Segmented value={filter} onChange={choose} options={[{ key: 'mine', label: t('messages.filterMine') }, { key: 'all', label: t('messages.filterAll') }]} />
-      <View style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingStart: 12 }}>
-        <Icon name="search" size={20} color={k.muted} />
+      <View style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', borderWidth: focused ? 2 : 1, borderRadius: 10, borderColor: focused ? k.tekhelet : k.line, backgroundColor: k.surface, paddingStart: focused ? 11 : 12 }}>
+        <View style={{ marginEnd: 2 }}><Icon name="search" size={20} color={k.muted} /></View>
         <TextInput accessibilityRole="search" accessibilityLabel={t('messages.search')} placeholder={t('messages.search')} placeholderTextColor={k.muted}
-          value={text} onChangeText={setText} returnKeyType="search"
-          style={{ flex: 1, minHeight: TOUCH - 2, paddingHorizontal: 10, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang), ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : {}) }} />
+          value={text} onChangeText={setText} returnKeyType="search" onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          style={{ flex: 1, minHeight: TOUCH - 4, paddingHorizontal: 10, borderWidth: 0, backgroundColor: 'transparent', color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang), ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0 } as object) : {}) }} />
         {text ? (
           <Pressable accessibilityRole="button" accessibilityLabel={t('messages.searchClear')} onPress={() => { setText(''); setDebounced(''); }}
             style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>

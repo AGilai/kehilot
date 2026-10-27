@@ -24,28 +24,32 @@ export function TypeRulesSection({ mainClosed, onToast }: { mainClosed: boolean;
   const stored = state.kehila?.typeRules;
   const [rules, setRules] = React.useState<Required<TypeRules>>({ celebration: stored?.celebration ?? DEFAULT_RULE, condolence: stored?.condolence ?? DEFAULT_RULE });
   const [error, setError] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
   React.useEffect(() => { if (stored) setRules({ celebration: stored.celebration, condolence: stored.condolence }); }, [stored]);
 
   async function change(type: Configurable, patch: Partial<TypeRule>) {
+    if (saving) return;
     const before = rules;
-    setError(null);
-    setRules({ ...rules, [type]: { ...rules[type], ...patch } });
+    setError(null); setSaving(true);
+    setRules(cur => ({ ...cur, [type]: { ...cur[type], ...patch } }));
     try {
-      await api.putSettings(kehilaId, typeRuleBody(rules, type, patch));
+      await api.putSettings(kehilaId, typeRuleBody(before, type, patch));
       onToast(t('admin.types.saved'));
       void refreshKehila().catch(() => {});
-    } catch (e) { setRules(before); setError(errText(e)); }
+    } catch (e) { setRules(before); setError(errText(e)); } finally { setSaving(false); }
   }
 
   const card = (type: Configurable, edgeColor: string) => (
     <Card key={type} edgeColor={edgeColor}>
       <Txt bold size="heading">{t(`compose.types.${type}`)}</Txt>
-      <View role="radiogroup" accessibilityLabel={t('admin.types.groupLabel', { type: t(`compose.types.${type}`) })} style={{ gap: 8 }}>
+      <View role="radiogroup" accessibilityLabel={t('admin.types.groupLabel', { type: t(`compose.types.${type}`) })} pointerEvents={saving ? 'none' : 'auto'} style={{ gap: 8, opacity: saving ? 0.6 : 1 }}>
         <Txt bold>{t('admin.types.postLabel')}</Txt>
         <Choice label={t('admin.channels.policyOpt.management')} note={t('admin.types.noteManagement')} selected={rules[type].post === 'management'} onPress={() => void change(type, { post: 'management' })} />
         <Choice label={t('admin.channels.policyOpt.broadcasters')} note={t('admin.types.noteDefault')} selected={rules[type].post === 'broadcasters'} onPress={() => void change(type, { post: 'broadcasters' })} />
       </View>
-      <Toggle label={t(`admin.types.listeners.${type}`)} value={rules[type].listeners} onChange={v => void change(type, { listeners: v })} />
+      <View pointerEvents={saving ? 'none' : 'auto'} style={{ opacity: saving ? 0.6 : 1 }}>
+        <Toggle label={t(`admin.types.listeners.${type}`)} value={rules[type].listeners} onChange={v => void change(type, { listeners: v })} />
+      </View>
       <Txt size="small" color={k.muted}>{t('admin.types.listenersNote')}</Txt>
     </Card>
   );
