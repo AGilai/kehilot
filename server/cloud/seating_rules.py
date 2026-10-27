@@ -158,3 +158,16 @@ def validate_assignments(value, seat_ids):
             c.fail('assignments.<ref>')
         out[seat] = (found.group(1), found.group(2))
     return out
+
+
+def current_shabbat(today):
+    """The Friday of the Shabbat that is current today: Saturday still counts as its Friday."""
+    if today.weekday() == 5:
+        return today - timedelta(days=1)
+    return today + timedelta(days=(4 - today.weekday()) % 7)
+
+
+def not_in_past(friday, today):
+    """Past Shabbatot keep their state: no writes to a version that takes effect before the current Shabbat."""
+    if friday < current_shabbat(today).isoformat():
+        raise ApiError(400, 'layout_in_past')

@@ -158,9 +158,11 @@ class SeatingTest(test_messages.MessagesTest):
 
     def test_history_list(self):
         self.assertEqual(self.call('GET', self.lay()), (200, {'layouts': []}))
-        self.saved(friday())
+        base = self.saved(friday())
         self.saved(friday(2))
-        past = self.saved(friday(-3))
+        past_from = friday(-3)
+        self.repo.put_layout(self.k, past_from, {**LAYOUT}, base['seats'], None)
+        past = self.repo.get_layout(self.k, past_from)
         status, body = self.call('GET', self.lay())
         self.assertEqual(status, 200)
         self.assertEqual([x['effectiveFrom'] for x in body['layouts']], [friday(2), friday(), friday(-3)])
@@ -326,3 +328,107 @@ class SeatingTest(test_messages.MessagesTest):
         sks = {i['sk'] for i in self.repo._query_prefix(self.k, 'SEAT')}
         self.assertTrue(any(sk.startswith('SEATLAY#') for sk in sks))
         self.assertIn(f'SEATHOLDER#{hid}', sks)
+
+    # fix round 1
+    def fams(self):
+        """(layout seats, member family id, quiet family id) with one seat each assigned."""
+        out = self.saved()
+        seats = [x['id'] for x in out['seats']]
+        a = self.call('GET', f'{self.base()}/family', sub='member-sub')[1]['familyId']
+        b = self.call('GET', f'{self.base()}/family', sub='quiet-sub')[1]['familyId']
+        self.saved(friday(1))
+        for frm in (friday(), friday(1)):
+            status, _ = self.asg(frm, {'assignments': {seats[0]: f'family:{a}', seats[1]: f'family:{b}'}, 'ifUpdatedAt': None})
+            self.assertEqual(status, 200)
+        return seats, a, b
+
+    def held(self, frm=None):
+        return self.call('GET', self.lay(frm or friday(), '/assignments'))[1]['assignments']
+
+    def test_leave_of_last_adult_clears_family_seats_everywhere(self):
+        seats, a, b = self.fams()
+        self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='member-sub'), (204, None))
+        for frm in (friday(), friday(1)):
+            self.assertEqual(self.held(frm), {seats[1]: f'family:{b}'})
+            self.assertNotIn(f'family:{a}', self.repo.get_assignments(self.k, frm)['assignments'].values())
+
+    def test_member_removal_and_purge_clear_family_seats(self):
+        seats, a, b = self.fams()
+        self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{self.quiet}'), (204, None))
+        self.assertEqual(self.held(), {seats[0]: f'family:{a}'})
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.member}'}, UpdateExpression='REMOVE familyId')
+        self.repo.purge_user(self.member, 'member-sub')
+        self.assertEqual(self.repo.get_assignments(self.k, friday())['assignments'], {})
+
+    def test_sweep_clears_orphan_family_seats(self):
+        seats, a, b = self.fams()
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.member}'})
+        self.assertEqual(self.repo.sweep_orphan_families(self.k), 1)
+        self.assertEqual(self.repo.get_assignments(self.k, friday())['assignments'], {seats[1]: f'family:{b}'})
+
+    def test_link_moves_seats_to_the_kept_family(self):
+        seats, a, b = self.fams()
+        kept = self.repo.link(self.k, self.quiet, self.member)
+        self.assertEqual(kept, b)
+        for frm in (friday(), friday(1)):
+            self.assertEqual(self.held(frm), {seats[0]: f'family:{b}', seats[1]: f'family:{b}'})
+
+    def test_unlink_leaves_seats_with_the_original_family(self):
+        seats, a, b = self.fams()
+        self.repo.link(self.k, self.quiet, self.member)
+        new = self.repo.unlink(self.k, self.member)
+        self.assertNotEqual(new, b)
+        self.assertEqual(self.held(), {seats[0]: f'family:{b}', seats[1]: f'family:{b}'})
+
+    def test_reads_filter_and_writes_reject_dead_families(self):
+        seats, a, b = self.fams()
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'F#{a}'})  # gone without a cleanup
+        self.assertEqual(self.held(), {seats[1]: f'family:{b}'})
+        self.assertEqual(self.asg(friday(), {'assignments': {seats[2]: f'family:{a}'}, 'ifUpdatedAt': None})[0], 400)
+        # a family with no live adult
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.quiet}'})
+        status, body = self.asg(friday(), {'assignments': {seats[2]: f'family:{b}'},
+                                           'ifUpdatedAt': self.call('GET', self.lay(friday(), '/assignments'))[1]['updatedAt']})
+        self.assertEqual((status, body['error']), (400, 'invalid_assignments'))
+
+    def test_family_of_another_kehila_is_rejected(self):
+        out = self.saved()
+        other = self.repo.create_kehila('Other', {})
+        fam = 'H' * 26
+        self.repo.table.put_item(Item={'pk': f'K#{other}', 'sk': f'F#{fam}', 'familyId': fam, 'adults': [self.member],
+                                       'children': [], 'version': 1})
+        status, body = self.asg(friday(), {'assignments': {out['seats'][0]['id']: f'family:{fam}'}, 'ifUpdatedAt': None})
+        self.assertEqual((status, body['error']), (400, 'invalid_assignments'))
+
+    def test_readded_seat_inherits_id_from_the_earlier_version(self):
+        first = self.saved(friday())
+        cells = copy.deepcopy(CELLS)
+        cells[3][0] = E
+        second = self.saved(friday(1), cells=cells)
+        self.assertEqual(len(second['seats']), 11)
+        third = self.saved(friday(2))  # the seat is back
+        gone = next(s for s in first['seats'] if (s['row'], s['col']) == (3, 0))
+        self.assertIn(gone['id'], {s['id'] for s in third['seats']})
+        self.assertEqual({s['id'] for s in third['seats']} & {s['id'] for s in second['seats']},
+                         {s['id'] for s in second['seats']})
+
+    def test_prune_bumps_updated_at_so_stale_assignment_saves_conflict(self):
+        out = self.saved()
+        hid = self.holder()
+        gone = next(s for s in out['seats'] if (s['row'], s['col']) == (3, 0))
+        res = self.asg(friday(), {'assignments': {gone['id']: f'holder:{hid}'}, 'ifUpdatedAt': None})[1]
+        cells = copy.deepcopy(CELLS)
+        cells[3][0] = E
+        self.saved(guard=out['updatedAt'], cells=cells)
+        self.assertGreater(self.repo.get_assignments(self.k, friday())['updatedAt'], res['updatedAt'])
+        self.assertEqual(self.asg(friday(), {'assignments': {}, 'ifUpdatedAt': res['updatedAt']})[0], 409)
+
+    def test_past_shabbatot_are_read_only(self):
+        past = friday(-2)
+        self.assertEqual(self.put(past), (400, {'error': 'layout_in_past'}))
+        self.repo.put_layout(self.k, past, {**LAYOUT}, self.saved(friday())['seats'], None)
+        self.assertEqual(self.call('GET', self.lay(past))[0], 200)
+        self.assertEqual(self.put(past, guard=1)[1], {'error': 'layout_in_past'})
+        self.assertEqual(self.asg(past, {'assignments': {}, 'ifUpdatedAt': None}), (400, {'error': 'layout_in_past'}))
+        current = self.call('GET', self.lay(friday()))[1]['updatedAt']
+        self.assertEqual(self.put(friday(), guard=current)[0], 200)  # the open Shabbat stays editable

@@ -54,12 +54,14 @@ def put_layout(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)
     friday = _friday(params)
+    rules.not_in_past(friday, _today())
     d = inputs.body_object(ctx, rules.LAYOUT_BODY_MAX)
     layout = rules.validate_layout(d)
     guard = rules.guard_of(d, 'invalid_layout')
     old = ctx.repo.get_layout(k, friday)
-    earlier = ctx.repo.earlier_layout(k, friday)
-    seats = rules.assign_seats(layout['cells'], old['seats'] if old else [], earlier['seats'] if earlier else [])
+    earlier = [i['seats'] for i in sorted(ctx.repo.list_layouts(k), key=lambda i: i['effectiveFrom'], reverse=True)
+               if i['effectiveFrom'] < friday]  # nearest first: a seat removed and re-added gets its old id back
+    seats = rules.assign_seats(layout['cells'], old['seats'] if old else [], *earlier)
     updated = ctx.repo.put_layout(k, friday, layout, seats, guard)
     ctx.repo.prune_assignments(k, friday, {s['id'] for s in seats})
     return 200, {**_layout_out({**layout, 'effectiveFrom': friday, 'seats': seats, 'updatedAt': updated})}
@@ -74,8 +76,24 @@ def get_assignments(ctx, params):
         raise ApiError(404, 'layout_not_found')
     item = ctx.repo.get_assignments(k, friday)
     ids = {s['id'] for s in layout['seats']}
-    held = {s: r for s, r in (item['assignments'] if item else {}).items() if s in ids}
+    live = {}  # a family that no longer exists holds nothing
+    held = {}
+    for s, r in (item['assignments'] if item else {}).items():
+        if s not in ids:
+            continue
+        if r.startswith('family:'):
+            fid = r[len('family:'):]
+            if fid not in live:
+                live[fid] = bool(ctx.repo.get_family(k, fid))
+            if not live[fid]:
+                continue
+        held[s] = r
     return 200, {'assignments': held, 'updatedAt': item['updatedAt'] if item else None}
+
+
+def _live_family(ctx, k, family_id):
+    family = ctx.repo.get_family(k, family_id)
+    return bool(family and ctx.repo.live_adults(k, family))
 
 
 def put_assignments(ctx, params):
@@ -83,6 +101,7 @@ def put_assignments(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)
     friday = _friday(params)
+    rules.not_in_past(friday, _today())
     d = inputs.body_object(ctx, rules.ASSIGN_BODY_MAX)
     if set(d) - {'assignments', 'ifUpdatedAt'} or 'assignments' not in d:
         raise ApiError(400, 'invalid_assignments')
@@ -96,7 +115,7 @@ def put_assignments(ctx, params):
         if ref:
             (families if ref[0] == 'family' else holders).add(ref[1])
     known_holders = {h['holderId'] for h in ctx.repo.list_holders(k)} if holders else set()
-    if holders - known_holders or any(not ctx.repo.get_family(k, f) for f in families):
+    if holders - known_holders or any(not _live_family(ctx, k, f) for f in families):
         raise ApiError(400, 'invalid_assignments', 'assignments.<ref>')
     current = ctx.repo.get_assignments(k, friday)
     merged = {s: r for s, r in (current['assignments'] if current else {}).items()}

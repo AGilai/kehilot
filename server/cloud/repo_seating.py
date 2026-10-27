@@ -42,24 +42,26 @@ class SeatingRepo:
     def list_layouts(self, k):
         return [plain(i) for i in self._query_prefix(k, 'SEATLAY#', consistent=True)]
 
-    def earlier_layout(self, k, friday):
-        before = [i for i in self.list_layouts(k) if i['sk'][len('SEATLAY#'):] < friday]
-        return before[-1] if before else None
-
     def put_layout(self, k, friday, layout, seats, guard):
         new, _ = self._guarded_put(k, f'SEATLAY#{friday}', {**layout, 'seats': seats, 'effectiveFrom': friday},
                                    guard, 'layout_changed')
         return new
 
     def prune_assignments(self, k, friday, seat_ids):
-        """Drop assignments of seats the layout no longer has (idempotent; reads filter the same way)."""
-        item = self.get_assignments(k, friday)
-        if not item:
-            return
-        keep = {s: r for s, r in item['assignments'].items() if s in seat_ids}
-        if len(keep) != len(item['assignments']):
-            self.table.update_item(Key=self._key(k, f'SEATASG#{friday}'), UpdateExpression='SET assignments = :a',
-                                   ExpressionAttributeValues={':a': keep})
+        """Drop assignments of seats the layout no longer has, as a guarded write that bumps updatedAt (so a
+        stale assignment save conflicts). Idempotent; reads filter the same way."""
+        for _ in range(4):
+            item = self.get_assignments(k, friday)
+            if not item:
+                return
+            keep = {s: r for s, r in item['assignments'].items() if s in seat_ids}
+            if len(keep) == len(item['assignments']):
+                return
+            try:
+                self.put_assignments(k, friday, keep, item['updatedAt'])
+                return
+            except ApiError:
+                continue  # someone saved meanwhile: read again
 
     # assignments
     def get_assignments(self, k, friday):
@@ -91,8 +93,30 @@ class SeatingRepo:
         """Remove the holder and every assignment of it, in every layout version."""
         ref = f'holder:{holder_id}'
         self.table.delete_item(Key=self._key(k, f'SEATHOLDER#{holder_id}'))
-        for friday, item in self.list_assignments(k).items():
-            kept = {s: r for s, r in item['assignments'].items() if r != ref}
-            if len(kept) != len(item['assignments']):
-                self.table.update_item(Key=self._key(k, f'SEATASG#{friday}'), UpdateExpression='SET assignments = :a',
-                                       ExpressionAttributeValues={':a': kept})
+        self._rewrite_assignments(k, lambda a: {s: r for s, r in a.items() if r != ref})
+
+    def _rewrite_assignments(self, k, change):
+        """Apply change(assignments) -> assignments to every version's item that it alters; guarded, retried."""
+        for friday in self.list_assignments(k):
+            for _ in range(4):
+                item = self.get_assignments(k, friday)
+                if not item:
+                    break
+                new = change(item['assignments'])
+                if new == item['assignments']:
+                    break
+                try:
+                    self.put_assignments(k, friday, new, item['updatedAt'])
+                    break
+                except ApiError:
+                    continue
+
+    def clear_family_seats(self, k, family_id):
+        """A family is gone: free its seats in every layout version."""
+        ref = f'family:{family_id}'
+        self._rewrite_assignments(k, lambda a: {s: r for s, r in a.items() if r != ref})
+
+    def move_family_seats(self, k, from_id, to_id):
+        """Two families merged: the seats of `from_id` go to `to_id` in every layout version."""
+        old, new = f'family:{from_id}', f'family:{to_id}'
+        self._rewrite_assignments(k, lambda a: {s: (new if r == old else r) for s, r in a.items()})

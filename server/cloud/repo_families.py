@@ -255,10 +255,19 @@ class FamiliesRepo:
                 self.table.delete_item(Key=self._key(k, f'F#{family["familyId"]}'), ConditionExpression='version = :v',
                                        ExpressionAttributeValues={':v': int(family['version'])})
                 count += 1
+                self._seats_quietly(k, 'clear', family['familyId'])
             except ClientError as error:
                 if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                     raise
         return count
+
+    def _seats_quietly(self, k, what, *ids):
+        """Seat assignments follow a family delete (clear) or merge (move); best effort after the family write,
+        reads filter dead families anyway."""
+        try:
+            (self.clear_family_seats if what == 'clear' else self.move_family_seats)(k, *ids)
+        except Exception as e:
+            log.warning('family seats %s failed kehila=%s error=%s', what, k, type(e).__name__)
 
     def _clear_quietly(self, k, users):
         for user in users:
@@ -305,6 +314,7 @@ class FamiliesRepo:
                 else:
                     self.table.delete_item(Key=self._key(k, f'F#{family_id}'), ConditionExpression='version = :v',
                                            ExpressionAttributeValues={':v': int(family['version'])})
+                    self._seats_quietly(k, 'clear', family_id)
                 return
             except ClientError as error:
                 if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
@@ -370,6 +380,7 @@ class FamiliesRepo:
                     raise ApiError(404, 'request_not_found')
                 continue  # re-read once: a changed family maps to its own code, otherwise try_again
             self._clear_quietly(k, (keep_user, move_user))
+            self._seats_quietly(k, 'move', move_id, keep_id)
             return keep_id
         raise ApiError(409, 'try_again')
 
