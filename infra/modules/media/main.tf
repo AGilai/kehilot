@@ -48,6 +48,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "media" {
   }
 
   rule {
+    id     = "expire-exports"
+    status = "Enabled"
+
+    filter {
+      prefix = "x/"
+    }
+
+    expiration {
+      days = 1
+    }
+  }
+
+  rule {
     id     = "abort-incomplete-multipart"
     status = "Enabled"
 

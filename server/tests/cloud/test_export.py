@@ -1,0 +1,188 @@
+import io
+import json
+import time
+import zipfile
+from unittest import mock
+from urllib.parse import parse_qs, urlparse
+
+from moto import mock_aws
+
+from server.cloud import export, media
+from server.cloud.repo_messages import local_date
+from server.tests.cloud import test_conversation
+from server.tests.cloud.helpers import MEDIA_BUCKET
+from server.tests.cloud.test_groups import own_tests_only
+from server.tests.cloud.test_media import JPEG, start_media
+
+
+@own_tests_only
+@mock_aws
+class ExportTest(test_conversation.ConversationTest):
+    """Reuses the conversation fixtures but none of its tests."""
+
+    def setUp(self):
+        super().setUp()
+        self.s3 = start_media(self)
+        self.today = local_date()
+        self.key = media.export_key(self.quiet, self.today)
+
+    def post(self, sub='quiet-sub'):
+        return self.call('POST', '/v1/me/export', sub=sub)
+
+    def objects(self):
+        return [o['Key'] for o in self.s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix='x/').get('Contents', [])]
+
+    def markers(self):
+        return [i for i in self.repo.table.scan()['Items'] if i['sk'].startswith('EXPORT#')]
+
+    def seed(self):
+        self.repo.put_profile(self.quiet, 'Quinn', 'Quiet', 'en')
+        self.repo.set_phone(self.quiet, '+972501234567')
+        self.repo.put_profile(self.member, 'Mia', 'Member', 'he')
+        self.repo.add_consent(self.quiet, 'phoneList', 'on', '2026-10-27', self.k)
+        status, g = self.call('POST', f'{self.base()}/uploads', sub='quiet-sub',
+                              body={'channelId': self.channels['chat-all'], 'contentType': 'image/jpeg', 'bytes': 100})
+        self.s3.put_object(Bucket=MEDIA_BUCKET, Key=media.upload_key(self.k, self.quiet, g['uploadId']), Body=JPEG,
+                           ContentType='image/jpeg')
+        _, photo = self.chat_post('chat-all', 'quiet-sub', 'my picture', imageUploadId=g['uploadId'])
+        _, plain = self.chat_post('chat-all', 'quiet-sub', 'hello chat')
+        theirs = {'messageId': self.repo.put_message(
+            self.k, self.channels['chat-all'], 'celebration', 't', 'secret words of another', self.gabbai, 'Gabi Gabbai',
+            'management', self.member, 'Mia Member')['sk'][4:]}
+        self.repo.put_reply(self.k, theirs['messageId'], self.quiet, 'Quinn Quiet', 'my reply')
+        self.repo.put_reply(self.k, theirs['messageId'], self.member, 'Mia Member', 'their private reply')
+        reply = None
+        own = self.repo.put_message(self.k, self.channels['chat-all'], 'celebration', 'mazal', 'for you', self.quiet,
+                                    'Quinn Quiet', 'member', self.other, 'Olly Other')
+        self.own_blessing = own['sk'][4:]
+        # partner and children
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.quiet}'},
+                                    UpdateExpression='SET showPhone = :t', ExpressionAttributeValues={':t': True})
+        self.call('POST', f'{self.base()}/family/children', sub='quiet-sub',
+                  body={'firstName': 'Noa', 'gender': 'f', 'birthDate': '2018-05-01'})
+        self.call('POST', f'{self.base()}/family/children', sub='quiet-sub', body={'firstName': 'Ben', 'gender': 'm'})
+        return photo, plain, theirs, reply
+
+    def open_zip(self, key=None):
+        body = self.s3.get_object(Bucket=MEDIA_BUCKET, Key=key or self.key)['Body'].read()
+        return zipfile.ZipFile(io.BytesIO(body))
+
+    def test_export_contents(self):
+        photo, plain, theirs, reply = self.seed()
+        status, out = self.post()
+        self.assertEqual(status, 200, out)
+        self.assertAlmostEqual(out['expiresAt'], time.time() + 600, delta=10)
+        archive = self.open_zip()
+        data = json.loads(archive.read('data.json').decode('utf-8'))
+        self.assertEqual(data['userId'], self.quiet)
+        self.assertEqual(data['email'], 'a@example.test')
+        self.assertEqual(data['profile'], {'firstName': 'Quinn', 'lastName': 'Quiet', 'lang': 'en',
+                                           'phone': '+972501234567'})
+        kehila = data['kehilot'][0]
+        self.assertEqual((kehila['kehilaId'], kehila['name'], kehila['role'], kehila['showPhone']),
+                         (self.k, 'Beit Test', 'member', True))
+        self.assertEqual(sorted(c['firstName'] for c in kehila['family']['children']), ['Ben', 'Noa'])
+        self.assertIsNone(kehila['family']['partnerName'])
+        self.assertEqual([(c['kind'], c['kehilaId'], c['value']) for c in data['consents']], [('phoneList', self.k, 'on')])
+        by_id = {m['messageId']: m for m in data['messages']}
+        self.assertEqual(set(by_id), {photo['messageId'], plain['messageId'], self.own_blessing})
+        name = f'photos/{self.k}/{photo["messageId"]}.jpg'
+        self.assertEqual(by_id[photo['messageId']]['photo'], name)
+        self.assertIsNone(by_id[plain['messageId']]['photo'])
+        self.assertEqual(archive.read(name), JPEG)
+        self.assertEqual([r['body'] for r in data['replies']], ['my reply'])
+        self.assertEqual(data['photosOmitted'], 0)
+        text = archive.read('data.json').decode('utf-8')
+        self.assertNotIn('secret words of another', text)
+        self.assertNotIn(self.member, text)
+        self.assertNotIn('their private reply', text)
+        self.assertNotIn('Mia', text)
+        self.assertNotIn('Gabi', text)
+        self.assertEqual(by_id[self.own_blessing]['targetName'], 'Olly Other')
+        self.assertNotIn(self.other, text)
+
+    def test_partner_appears_only_as_name(self):
+        self.repo.put_profile(self.quiet, 'Quinn', 'Quiet', 'en')
+        self.call('POST', f'{self.base()}/family/children', sub='quiet-sub', body={'firstName': 'Noa', 'gender': 'f'})
+        family = self.repo.family_of(self.k, self.quiet)
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'F#{family["familyId"]}'},
+                                    UpdateExpression='SET adults = :a', ExpressionAttributeValues={
+                                        ':a': [self.quiet, self.member]})
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.member}'},
+                                    UpdateExpression='SET familyId = :f',
+                                    ExpressionAttributeValues={':f': family['familyId']})
+        self.post()
+        text = self.open_zip().read('data.json').decode('utf-8')
+        data = json.loads(text)
+        self.assertEqual(data['kehilot'][0]['family']['partnerName'], 'Mia Member')
+        self.assertEqual(text.count('Mia Member'), 1)
+        self.assertNotIn(self.member, text)
+
+    def test_second_post_same_day_reissues_link(self):
+        with mock.patch.object(export, 'build', wraps=export.build) as spy:
+            first = self.post()
+            second = self.post()
+        self.assertEqual((first[0], second[0]), (200, 200))
+        self.assertEqual(spy.call_count, 1)
+        self.assertEqual(self.objects(), [self.key])
+        self.assertEqual(len(self.markers()), 1)
+        self.assertEqual(self.markers()[0]['sk'], f'EXPORT#{self.today}')
+        self.assertTrue(second[1]['url'].startswith('https://'))
+
+    def test_limit_when_zip_gone(self):
+        self.assertEqual(self.post()[0], 200)
+        self.s3.delete_object(Bucket=MEDIA_BUCKET, Key=self.key)
+        self.assertEqual(self.post(), (429, {'error': 'export_limit'}))
+
+    def test_failed_build_allows_retry(self):
+        with mock.patch.object(export, 'build', side_effect=RuntimeError('boom')):
+            self.assertEqual(self.post()[0], 500)
+        self.assertEqual((self.markers(), self.objects()), ([], []))
+        self.assertEqual(self.post()[0], 200)
+
+    def test_temp_file_deleted(self):
+        paths = []
+        real = export.build
+
+        def spy(*a, **k):
+            paths.append(real(*a, **k))
+            return paths[-1]
+        import os
+        with mock.patch.object(export, 'build', side_effect=spy):
+            self.post()
+        self.assertTrue(paths and not os.path.exists(paths[0]))
+
+    def test_get_without_export_404(self):
+        self.assertEqual(self.call('GET', '/v1/me/export', sub='quiet-sub'), (404, {'error': 'export_not_found'}))
+
+    def test_get_after_export_200(self):
+        self.post()
+        status, out = self.call('GET', '/v1/me/export', sub='quiet-sub')
+        self.assertEqual(status, 200, out)
+        self.assertIn('url', out)
+
+    def test_link_expires_in_600s_and_downloads_as_attachment(self):
+        url = urlparse(self.post()[1]['url'])
+        query = parse_qs(url.query)
+        self.assertEqual(query['X-Amz-Expires'], ['600'])
+        self.assertEqual(query['response-content-disposition'], [f'attachment; filename="kehilot-{self.today}.zip"'])
+        self.assertEqual(query['response-content-type'], ['application/zip'])
+        self.assertTrue(url.path.startswith(f'/x/{self.quiet}/'))
+
+    def test_object_is_private_zip(self):
+        self.post()
+        head = self.s3.head_object(Bucket=MEDIA_BUCKET, Key=self.key)
+        self.assertEqual((head['ContentType'], head['CacheControl']), ('application/zip', 'private, no-store'))
+
+    def test_photos_omitted_near_deadline(self):
+        photo, plain, theirs, reply = self.seed()
+        path = export.build(self.repo, self.quiet, 'a@example.test', remaining_ms=lambda: 1000)
+        try:
+            with zipfile.ZipFile(path) as archive:
+                data = json.loads(archive.read('data.json').decode('utf-8'))
+                self.assertEqual(data['photosOmitted'], 1)
+                self.assertFalse([n for n in archive.namelist() if n.startswith('photos/')])
+                self.assertIsNone(next(m for m in data['messages'] if m['messageId'] == photo['messageId'])['photo'])
+        finally:
+            import os
+            os.remove(path)

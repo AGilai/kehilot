@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -21,6 +21,8 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/me$'), routes_core.me),
     ('DELETE', re.compile(r'^/v1/me$'), routes_me.delete_account),
     ('PUT', re.compile(r'^/v1/me/profile$'), routes_me.put_profile),
+    ('GET', re.compile(r'^/v1/me/export$'), routes_export.get_export),
+    ('POST', re.compile(r'^/v1/me/export$'), routes_export.post_export),
     ('PUT', re.compile(r'^/v1/me/phone$'), routes_privacy.put_phone),
     ('PUT', re.compile(r'^/v1/me/devices$'), routes_me.put_device),
     ('DELETE', re.compile(r'^/v1/me/devices/(?P<token>[^/]+)$'), routes_me.delete_device),

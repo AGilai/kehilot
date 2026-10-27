@@ -118,3 +118,37 @@ def delete_image(k, message_id):
         s3_client().delete_object(Bucket=bucket(), Key=image_key(k, message_id))
     except ClientError as error:
         raise _try_again(error)
+
+
+def export_key(user_id, day):
+    return f'x/{user_id}/{day}.zip'
+
+
+def presign_export(key, day):
+    return s3_client().generate_presigned_url(
+        'get_object', Params={'Bucket': bucket(), 'Key': key, 'ResponseContentType': 'application/zip',
+                              'ResponseContentDisposition': f'attachment; filename="kehilot-{day}.zip"'},
+        ExpiresIn=600)
+
+
+def object_exists(key):
+    """HeadObject; a MISSING code is False (no s3:ListBucket: a missing key answers 403). Other errors: 503."""
+    from botocore.exceptions import ClientError
+    try:
+        s3_client().head_object(Bucket=bucket(), Key=key)
+        return True
+    except ClientError as error:
+        if _codes(error) & set(MISSING):
+            return False
+        raise _try_again(error)
+
+
+def put_export(key, path):
+    """Upload the finished ZIP file (streamed from disk)."""
+    from botocore.exceptions import ClientError
+    try:
+        with open(path, 'rb') as body:
+            s3_client().put_object(Bucket=bucket(), Key=key, Body=body, ContentType='application/zip',
+                                   CacheControl='private, no-store')
+    except ClientError as error:
+        raise _try_again(error)

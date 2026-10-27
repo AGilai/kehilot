@@ -44,7 +44,7 @@ data "aws_iam_policy_document" "api" {
   }
   statement {
     actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-    resources = ["${var.media_bucket_arn}/up/*", "${var.media_bucket_arn}/m/*"]
+    resources = ["${var.media_bucket_arn}/up/*", "${var.media_bucket_arn}/m/*", "${var.media_bucket_arn}/x/*"]
   }
   statement {
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]

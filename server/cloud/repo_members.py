@@ -64,6 +64,13 @@ class MembersRepo:
         self.table.put_item(Item=item)
         return item
 
+    def get_export_marker(self, user_id, day):
+        return self.table.get_item(Key={'pk': f'U#{user_id}', 'sk': f'EXPORT#{day}'}, ConsistentRead=True).get('Item')
+
+    def put_export_marker(self, user_id, day, key):
+        self.table.put_item(Item={'pk': f'U#{user_id}', 'sk': f'EXPORT#{day}', 'key': key,
+                                  'expiresAt': int(time.time()) + 2 * 86400})
+
     def list_consents(self, user_id):
         items, kwargs = [], {}
         while True:
