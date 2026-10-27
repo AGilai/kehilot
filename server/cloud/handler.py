@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages
+from . import routes_admin, routes_changes, routes_core, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -21,6 +21,7 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/me$'), routes_core.me),
     ('DELETE', re.compile(r'^/v1/me$'), routes_me.delete_account),
     ('PUT', re.compile(r'^/v1/me/profile$'), routes_me.put_profile),
+    ('PUT', re.compile(r'^/v1/me/phone$'), routes_privacy.put_phone),
     ('PUT', re.compile(r'^/v1/me/devices$'), routes_me.put_device),
     ('DELETE', re.compile(r'^/v1/me/devices/(?P<token>[^/]+)$'), routes_me.delete_device),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)$'), routes_core.kehila),
@@ -81,6 +82,8 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/image$'), routes_media.image_url),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/changes$'), routes_changes.changes),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/notify$'), routes_changes.put_notify),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/phone-list$'), routes_privacy.put_switch),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/phone-list$'), routes_privacy.phone_list),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family$'), routes_families.get_family),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/children$'), routes_families.add_child),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/children/(?P<childId>[^/]+)$'), routes_families.edit_child),

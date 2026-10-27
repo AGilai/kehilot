@@ -66,7 +66,7 @@ class ImportTest(unittest.TestCase):
         member = self.repo.get_membership(self.k, self.user_id_of('dana@example.test'))
         self.assertEqual((member['role'], member['displayName']), ('member', 'Dana Example'))
         self.assertEqual(self.repo.get_profile(self.user_id_of('dana@example.test')),
-                         {'firstName': 'Dana', 'lastName': 'Example', 'lang': 'he'})
+                         {'firstName': 'Dana', 'lastName': 'Example', 'lang': 'he', 'phone': None})
 
     def test_create_suppresses_message_and_sets_random_permanent_password(self):
         with mock.patch.object(self.cognito, 'admin_create_user', wraps=self.cognito.admin_create_user) as create, \
@@ -139,7 +139,7 @@ class ImportTest(unittest.TestCase):
         uid = self.user_id_of('dana@example.test')
         self.repo.put_profile(uid, 'Dani', 'Mine', 'en')
         self.do_import([row(first='Other', last='Name')])
-        self.assertEqual(self.repo.get_profile(uid), {'firstName': 'Dani', 'lastName': 'Mine', 'lang': 'en'})
+        self.assertEqual(self.repo.get_profile(uid), {'firstName': 'Dani', 'lastName': 'Mine', 'lang': 'en', 'phone': None})
 
     def test_import_of_deleted_account_creates_a_new_user(self):
         self.do_import([row()])

@@ -33,7 +33,7 @@ class MeTest(unittest.TestCase):
         self.assertIsNone(self.call('GET', '/v1/me')[1]['profile'])
         profile = {'firstName': 'Dana', 'lastName': 'Test', 'lang': 'en'}
         self.assertEqual(self.call('PUT', '/v1/me/profile', body=profile), (200, profile))
-        self.assertEqual(self.call('GET', '/v1/me')[1]['profile'], profile)
+        self.assertEqual(self.call('GET', '/v1/me')[1]['profile'], {**profile, 'phone': None})
 
     def test_profile_rejects_unknown_lang(self):
         status, body = self.call('PUT', '/v1/me/profile', body={'firstName': 'Dana', 'lastName': 'T', 'lang': 'fr'})

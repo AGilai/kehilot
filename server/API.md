@@ -297,7 +297,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/health` | public | - | 200 `{ok:true}` | - |
-| GET | `/v1/me` | signed in | - | 200 `{userId, email, profile, kehilot:[{kehilaId, name, role, logoVersion}]}`; `profile` is `{firstName, lastName, lang}` or null | - |
+| GET | `/v1/me` | signed in | - | 200 `{userId, email, profile, kehilot:[{kehilaId, name, role, logoVersion}]}`; `profile` is `{firstName, lastName, lang, phone}` (`phone` is E.164 or null) or null | - |
 | PUT | `/v1/me/profile` | signed in | `{firstName (required), lastName?, lang: "he"\|"en"}` | 200 `{firstName, lastName, lang}` | 400 `invalid_body`, `invalid_json`, `invalid_first_name`, `invalid_last_name`, `invalid_lang` |
 | PUT | `/v1/me/devices` | signed in | `{token: "ExponentPushToken[...]", platform: "ios"\|"android"\|"web"}` | 204; a token already registered to another user moves to the caller | 400 `invalid_token`, `invalid_platform`, `invalid_body` |
 | DELETE | `/v1/me/devices/{token}` | signed in | the token in the path, percent-encoded (`ExponentPushToken%5Bxxxx%5D`) | 204, also when it was not registered | - |
@@ -422,6 +422,16 @@ Member or gabbai only. Linking needs the other person's confirmation. A request 
 | POST | `/v1/kehilot/{k}/family/unlink` | member, gabbai | - | 200 FamilyView of the caller's new family (a copy of the children). The old family, its ID and blessings stay with the other adult | 409 `not_linked` (also when the other adult has left: the family is pruned), `try_again` |
 
 Two link actions racing (crossed confirms, or a confirm while a gabbai links one of them) commit exactly once; the other gets 409 `already_linked` / `partner_taken` (or 404 `request_not_found` once the winner cleared the requests). Items: `PR#<to>#<from>` (request, TTL +7 days), `PS#<from>` (sender marker with `state` `pending`|`declined`), `PD#<from>#<to>` (cooldown, +30 days).
+
+#### Phone number and phone list
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| PUT | `/v1/me/phone` | signed in | `{phone: string\|null}`. Normalised to E.164: spaces, `-`, `(`, `)`, `.` removed; leading `00` becomes `+`; Israeli `0`+8-9 digits (or `+972` with an extra `0`) becomes `+972...` and must be `5`/`7`+8 digits or `2 3 4 8 9`+7 digits; other `+` numbers need 8-15 digits, first 1-9; over 32 characters is invalid. `null` or `''` removes the number (the per-Kehila switches stay as they are) | 200 `{phone}`. No consent record | 400 `invalid_phone`; 409 `profile_required` (no profile yet) |
+| PUT | `/v1/kehilot/{k}/me/phone-list` | member, gabbai | `{show: bool}` | 200 `{show}`. Sets the membership's `showPhone` and `phoneAsked` (current `phoneList` version) and writes a `CONSENT#<ulid>` item `{kind: 'phoneList', value: 'on'\|'off', version, kehilaId, at}` | 400 `invalid_show`; 403; 409 `phone_required` (`show: true` with no number) |
+| GET | `/v1/kehilot/{k}/phone-list` | member, gabbai | - | 200 `[{familyId, name, people:[{userId, name, phone}]}]`: per family the live adults whose switch for this Kehila is on and who have a number; families with none are left out; sorted by family `name`. Children never appear | 403 (listeners), 404 |
+
+A number is shown only to members and gabbaim of the same Kehila, only while its owner's switch for that Kehila is on, and only while the number exists. The list response, names and numbers are never logged. `PUT /v1/me/profile` keeps the number. `GET /v1/kehilot/{k}` adds `showPhone: bool`. Consent wording versions live in `server/cloud/consents.py` (`VERSIONS`).
 
 #### Gabbai link, cards, leaving and deletion
 

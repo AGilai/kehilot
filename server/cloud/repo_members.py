@@ -29,11 +29,50 @@ def normalize_code(code):
 class MembersRepo:
     def get_profile(self, user_id):
         item = self._get(f'U#{user_id}', 'PROFILE')
-        return {'firstName': item['firstName'], 'lastName': item['lastName'], 'lang': item['lang']} if item else None
+        return {'firstName': item['firstName'], 'lastName': item['lastName'], 'lang': item['lang'],
+                'phone': item.get('phone')} if item else None
 
     def put_profile(self, user_id, first, last, lang):
-        self.table.put_item(Item={'pk': f'U#{user_id}', 'sk': 'PROFILE',
-                                  'firstName': first, 'lastName': last, 'lang': lang})
+        """An update, not a replace: the phone number (and anything else on the item) survives."""
+        self.table.update_item(Key={'pk': f'U#{user_id}', 'sk': 'PROFILE'},
+                               UpdateExpression='SET firstName = :f, lastName = :l, lang = :g',
+                               ExpressionAttributeValues={':f': first, ':l': last, ':g': lang})
+
+    def set_phone(self, user_id, phone):
+        """Store the normalised number, or remove it (None). 409 profile_required without a profile."""
+        if phone is None:
+            expression, values = 'REMOVE phone', None
+        else:
+            expression, values = 'SET phone = :p', {':p': phone}
+        try:
+            self.table.update_item(Key={'pk': f'U#{user_id}', 'sk': 'PROFILE'}, UpdateExpression=expression,
+                                   ConditionExpression='attribute_exists(sk)',
+                                   **({'ExpressionAttributeValues': values} if values else {}))
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            raise ApiError(409, 'profile_required')
+
+    def set_phone_switch(self, k, user_id, show, version):
+        self._update_member_item(k, user_id, 'SET showPhone = :s, phoneAsked = :v', {':s': show, ':v': version})
+
+    def add_consent(self, user_id, kind, value, version, k=None):
+        item = {'pk': f'U#{user_id}', 'sk': f'CONSENT#{new_id()}', 'kind': kind, 'value': value, 'version': version,
+                'at': int(time.time())}
+        if k:
+            item['kehilaId'] = k
+        self.table.put_item(Item=item)
+        return item
+
+    def list_consents(self, user_id):
+        items, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'U#{user_id}')
+                                    & Key('sk').begins_with('CONSENT#'), **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
 
     def put_profile_if_absent(self, user_id, first, last, lang):
         """Never overwrites a profile the person already saved."""

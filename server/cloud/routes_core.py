@@ -44,7 +44,7 @@ def kehila(ctx, params):
                  'canBroadcast': bool(membership.get('canBroadcast')), 'pendingRequest': pending, 'notify': notify,
                  'settings': shown, 'groups': sorted(membership.get('groups') or ()),
                  'adminGroups': sorted(set(membership.get('adminGroups') or ()) & set(membership.get('groups') or ())) if membership['role'] == 'member' else [],
-                 'cards': cards, **extra}
+                 'showPhone': bool(membership.get('showPhone')), 'cards': cards, **extra}
 
 
 def logo(ctx, params):
