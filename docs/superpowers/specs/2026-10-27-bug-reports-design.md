@@ -50,6 +50,9 @@ that to me as the system owner decision."
   notification to his Claude app and a page; nothing about reporters beyond "a member" / "a gabbai of X".
 - The reporter's status is not shown in the app in this version (later: "your report was fixed").
 
+**Approved by the owner, 2026-10-27** ("Let's start with that, ok"): this autonomy level — fix and deploy
+to dev; no push, no prod, the listed areas go to him — as the starting point, to be widened later by him.
+
 ## Builder's choices left open
 
 Exact button placement and look (designer), the screenshot mechanism per platform, the digest schedule.
