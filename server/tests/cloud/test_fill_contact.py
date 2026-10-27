@@ -85,7 +85,10 @@ class FillContactTest(unittest.TestCase):
 
     def test_terms_version_matches_consents(self):
         sys.path.insert(0, str(ROOT / 'server'))
-        from cloud import consents
+        try:
+            from cloud import consents
+        finally:
+            sys.path.remove(str(ROOT / 'server'))
         text = (ROOT / 'public' / 'terms' / 'index.html').read_text()
         self.assertIn(consents.VERSIONS['kehilaTerms'], text)
 

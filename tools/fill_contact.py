@@ -35,6 +35,7 @@ def read_contact(env, environ, root):
         site = Path(root) / 'infra' / 'envs' / env / 'site.env'
         if site.is_file():
             for line in site.read_text().splitlines():
+                # Plain KEY=value only: quoted values and `export KEY=...` lines are not understood and are rejected.
                 if line.startswith('PLATFORM_CONTACT='):
                     value = line.split('=', 1)[1].strip()
         if not value:
@@ -42,13 +43,13 @@ def read_contact(env, environ, root):
     return _check(value)
 
 
-def fill(text, contact):
+def fill(text, contact, page='page'):
     _check(contact)
     if PLACEHOLDER not in text:
-        raise ContactError(f'page has no {PLACEHOLDER} placeholder')
+        raise ContactError(f'{page} has no {PLACEHOLDER} placeholder')
     out = text.replace(PLACEHOLDER, html.escape(contact))
     if PLACEHOLDER in out:
-        raise ContactError(f'{PLACEHOLDER} remains after replacing')
+        raise ContactError(f'{PLACEHOLDER} remains in {page} after replacing')
     return out
 
 
@@ -69,8 +70,8 @@ def main(argv=None, environ=None, root=None):
             path = dist / page
             if not path.is_file():
                 raise ContactError(f'missing {page} in {args.dist}')
-            files.append((path, fill(path.read_text(encoding='utf-8'), contact), page))
-        for path, text, _ in files:
+            files.append((path, fill(path.read_text(encoding='utf-8'), contact, page)))
+        for path, text in files:
             path.write_text(text, encoding='utf-8')
     except ContactError as e:
         print(f'fill_contact: {e}', file=sys.stderr)

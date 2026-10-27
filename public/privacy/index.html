@@ -21,18 +21,18 @@
 <p class="ver">עודכן 27.10.2026</p>
 
 <h2>מי אחראי למידע</h2>
-<p>כל קהילה אחראית למידע של חבריה. "קהילות" מפעילה את הפלטפורמה עבור הקהילות, ומשתמשת במידע רק כדי להפעיל אותה. בקשות על המידע שלך בקהילה מסוימת מופנות לאיש הקשר לפרטיות של אותה קהילה. הוא מופיע באפליקציה, ב"על הקהילה" ובמסך "אני".</p>
+<p>כל קהילה אחראית למידע של חבריה. "קהילות" מפעילה את הפלטפורמה עבור הקהילות שמשתמשות בה, ומשתמשת במידע רק כדי להפעיל אותה. בקשות בנוגע למידע שלכם בקהילה מסוימת מופנות לאיש הקשר לפרטיות של אותה קהילה. הוא מופיע באפליקציה, ב"על הקהילה" ובמסך "אני".</p>
 
 <h2>איזה מידע נשמר ולמה</h2>
 <ul>
-  <li>כתובת הדוא"ל שלך, לצורך ההתחברות. היא נשמרת בשירות ההתחברות (Amazon Cognito).</li>
-  <li>השם שלך, שפת הממשק והשתייכותך לקהילות, כולל התפקיד שלך בכל קהילה. אלה נשמרים במסד הנתונים של השירות (Amazon DynamoDB).</li>
-  <li>הסימון שאתה בן 13 או יותר, ותאריך ונוסח ההסכמה.</li>
-  <li>מספר טלפון, רק אם הזנת אותו בעצמך. הוא משמש רק לרשימת הטלפונים (ראו להלן).</li>
-  <li>פרטי המשפחה: מי הבוגרים במשפחה, ושם פרטי, מין ותאריך לידה (לא חובה) של הילדים שהוספת.</li>
-  <li>מזהי התראות (push token) של המכשירים שלך, כדי לשלוח לך התראות.</li>
-  <li>הודעות, הודעות צ'אט וברכות שכתבת בקהילה, ותמונה אחת לכל היותר לכל הודעה.</li>
-  <li>רישום של הסכמות שנתת, כדי שנדע מה הסכמת ומתי.</li>
+  <li>כתובת הדוא"ל שלכם, לצורך ההתחברות. היא נשמרת בשירות ההתחברות (Amazon Cognito).</li>
+  <li>השם שלכם, שפת הממשק והשתייכותכם לקהילות, כולל התפקיד שלכם בכל קהילה. אלה נשמרים במסד הנתונים של השירות (Amazon DynamoDB).</li>
+  <li>הסימון שאתם בני 13 או יותר, ותאריך ונוסח ההסכמה.</li>
+  <li>מספר טלפון, רק אם הזנתם אותו בעצמכם. הוא משמש רק לרשימת הטלפונים (ראו להלן).</li>
+  <li>פרטי המשפחה: מי הבוגרים במשפחה, ושם פרטי, מין ותאריך לידה (לא חובה) של הילדים שהוספתם.</li>
+  <li>מזהי התראות (push token) של המכשירים שלכם, כדי לשלוח לכם התראות.</li>
+  <li>הודעות, הודעות צ'אט וברכות שכתבתם בקהילה, ותמונה אחת לכל היותר לכל הודעה.</li>
+  <li>רישום של ההסכמות שנתתם, כדי שנדע למה הסכמתם ומתי.</li>
 </ul>
 
 <h2>משפחות</h2>
@@ -40,8 +40,8 @@
 
 <h2>רשימת הטלפונים</h2>
 <ul>
-  <li>הרשימה מציגה מספרי טלפון בלבד.</li>
-  <li>היא כבויה כברירת מחדל. כל בוגר מפעיל בעצמו מתג "להציג את הטלפון שלי ברשימה", לכל קהילה בנפרד, ויכול לכבות אותו בכל עת.</li>
+  <li>הרשימה מציגה שמות ומספרי טלפון בלבד, בלי פרטי ילדים.</li>
+  <li>המתג של כל בוגר כבוי עד שהוא מפעיל אותו בעצמו ("להציג את הטלפון שלי ברשימה"). המתג הוא לכל קהילה בנפרד, ואפשר לכבות אותו בכל עת.</li>
   <li>הרשימה גלויה רק לחברים מאושרים ולגבאים של אותה קהילה. מאזינים וקהילות אחרות לא רואים אותה.</li>
   <li>הרשימה נטענת כשפותחים את המסך ונשמרת בזיכרון בלבד. היא לא נשמרת בטלפון, ואין בה העתקה או שיתוף.</li>
 </ul>
@@ -59,29 +59,35 @@
 <p>תמונות מאוחסנות באחסון פרטי (Amazon S3), ללא כתובות ציבוריות. הצגת תמונה נעשית דרך קישור זמני התקף חמש דקות בלבד, ורק למי שמורשה לראות את ההודעה. כשהודעה נמחקת, גם התמונה שלה נמחקת.</p>
 
 <h2>מטמון חיפוש בטלפון</h2>
-<p>כדי לאפשר חיפוש גם בלי חיבור, האפליקציה שומרת בטלפון עותק של ההודעות שאתה רשאי לראות. ברכות פרטיות ורשימת הטלפונים אינן נשמרות בו. העותק של קהילה נמחק כשאתה עוזב אותה, וכל העותקים נמחקים בהתנתקות.</p>
+<p>כדי לאפשר חיפוש גם בלי חיבור, האפליקציה שומרת בטלפון עותק של ההודעות שאתם רשאים לראות. ברכות פרטיות ורשימת הטלפונים אינן נשמרות בו. העותק של קהילה נמחק כשאתם עוזבים אותה, וכל העותקים נמחקים בהתנתקות.</p>
 
 <h2>מחיקת חשבון</h2>
-<p>אפשר למחוק את החשבון בתוך האפליקציה. המחיקה מסירה את משתמש ההתחברות, את החברות שלך בקהילות, את הטלפון והמתגים שלך, את בקשות הקישור הממתינות, את מזהי ההתראות ואת רישום ההסכמות. אתה יוצא מהמשפחה, והבוגר האחר נשאר בה עם הילדים. ברירת המחדל: ההודעות שכתבת נשארות בקהילה בלי שמך. אפשר לסמן גם "למחוק את כל מה שפרסמתי", ואז כל ההודעות, הודעות הצ'אט והתגובות הפרטיות שכתבת נמחקות לכולם, יחד עם התמונות שלהן. ברכות שאחרים כתבו עליך נשארות בלי שמך, וגבאי יכול למחוק ברכה כזו לפי בקשה.</p>
+<p>אפשר למחוק את החשבון בתוך האפליקציה. המחיקה מסירה את משתמש ההתחברות, את החברות שלכם בקהילות, את הטלפון והמתגים, את בקשות הקישור הממתינות, את מזהי ההתראות ואת רישום ההסכמות. אתם יוצאים מהמשפחה, והבוגר האחר נשאר בה עם הילדים.</p>
+<ul>
+  <li>ברירת המחדל: ההודעות שכתבתם נשארות בקהילה בלי שמכם, והתמונות נשארות עם ההודעות.</li>
+  <li>אפשר לסמן גם "למחוק את כל מה שפרסמתי". אז כל ההודעות, הודעות הצ'אט והתגובות הפרטיות שכתבתם נמחקות לכולם, יחד עם התמונות שלהן, וכן תגובות שאחרים כתבו תחת ההודעות שלכם.</li>
+  <li>ברכות שאחרים כתבו עליכם נשארות, והן כבר אינן מקושרות אליכם. הטקסט שלהן לא משתנה. אפשר לבקש מגבאי הקהילה למחוק ברכה כזו.</li>
+</ul>
 
 <h2>גיבויים</h2>
-<p>המסד מגובה (DynamoDB point-in-time recovery). מידע שנמחק נשאר בגיבויים עד 35 ימים, ואז נעלם.</p>
+<p>אם נשמרים עותקי גיבוי של מסד הנתונים, מידע שנמחק נעלם מהם תוך 35 ימים לכל היותר.</p>
 
 <h2>להוריד את המידע שלי</h2>
-<p>במסך "אני" אפשר לבקש קובץ ZIP עם המידע שלך: הפרופיל, הטלפון, החברויות, המשפחה (שם בן הזוג בלבד והילדים), ההסכמות וכל מה שכתבת, עם התמונות שלך. הקישור תקף 10 דקות, ואפשר לבקש קובץ אחד ליום.</p>
+<p>במסך "אני" אפשר לבקש קובץ ZIP עם המידע שלכם: הפרופיל, הטלפון, החברויות, המשפחה (שם בן או בת הזוג בלבד והילדים), ההסכמות וכל מה שכתבתם, עם התמונות שלכם. הקישור תקף 10 דקות, והקובץ נמחק מהשרת אחרי יום. אפשר לבקש קובץ אחד ליום.</p>
 
 <h2>גיל מינימום</h2>
-<p>השירות מיועד לבני 13 ומעלה. בהגדרת הפרופיל צריך לסמן שאתה בן 13 או יותר.</p>
+<p>השירות מיועד לבני 13 ומעלה. בהגדרת הפרופיל צריך לסמן שאתם בני 13 או יותר.</p>
 
 <h2>ספקי משנה</h2>
 <ul>
   <li>AWS: שרתים ואחסון, באזור ישראל (il-central-1).</li>
-  <li>Expo: שליחת התראות. הם מקבלים טקסטים כלליים בלבד (למשל "הודעה חדשה"), בלי תוכן ההודעה ובלי שמות.</li>
-  <li>Google ו-Apple: רק אם בחרת להתחבר איתם.</li>
+  <li>Expo: מעביר את ההתראות. ההתראות עוברות גם דרך שירותי ההתראות של Apple ושל Google, לכל מי שהתראות פועלות אצלו.</li>
+  <li>טקסט ההתראה כללי (למשל "הודעה חדשה"), בלי פרטים אישיים ובלי תוכן ההודעה. הכותרת היא שם הקהילה.</li>
+  <li>Google ו-Apple: גם לכניסה, אבל רק אם בחרתם להתחבר איתן.</li>
 </ul>
 
 <h2>יצירת קשר</h2>
-<p>על המידע שלך בקהילה מסוימת: איש הקשר לפרטיות של הקהילה, באפליקציה ("על הקהילה"). על הפלטפורמה: {{PLATFORM_CONTACT}}</p>
+<p>על המידע שלכם בקהילה מסוימת: איש הקשר לפרטיות של הקהילה, באפליקציה ("על הקהילה"). על הפלטפורמה: {{PLATFORM_CONTACT}}</p>
 <p>ההסכם בין הקהילה לבין קהילות: <a href="/terms/">תנאי השימוש לקהילות</a>.</p>
 </section>
 
@@ -109,8 +115,8 @@
 
 <h2>The phone list</h2>
 <ul>
-  <li>The list shows phone numbers only.</li>
-  <li>It is off by default. Each adult turns on their own switch, "show my phone in the list", separately for each Kehila, and can turn it off at any time.</li>
+  <li>The list shows names and phone numbers only, with no children's details.</li>
+  <li>Each adult's own switch is off until they turn it on ("show my phone in the list"). The switch is separate for each Kehila and can be turned off at any time.</li>
   <li>It is visible only to approved members and gabbaim of that Kehila. Listeners and other Kehilot do not see it.</li>
   <li>The list is loaded when the screen opens and kept in memory only. It is not stored on your phone, and there is no copy or share.</li>
 </ul>
@@ -131,13 +137,18 @@
 <p>To allow searching without a connection, the app keeps a copy of the messages you are allowed to see on your phone. Private blessings and the phone list are not kept there. A Kehila's copy is deleted when you leave it, and all copies are deleted when you sign out.</p>
 
 <h2>Deleting your account</h2>
-<p>You can delete your account inside the app. Deletion removes your sign-in user, your Kehila memberships, your phone and switches, pending link requests, push tokens and consent records. You leave your family, and the other adult keeps it with the children. By default, messages you wrote stay in the Kehila without your name. You can also tick "delete everything I posted"; then all messages, chat messages and private replies you wrote are deleted for everyone, with their images. Blessings that others wrote about you stay without your name, and a gabbai can delete such a blessing on request.</p>
+<p>You can delete your account inside the app. Deletion removes your sign-in user, your Kehila memberships, your phone and switches, pending link requests, push tokens and consent records. You leave your family, and the other adult keeps it with the children. </p>
+<ul>
+  <li>By default, messages you wrote stay in the Kehila without your name, and their images stay with them.</li>
+  <li>You can also tick "delete everything I posted". Then all messages, chat messages and private replies you wrote are deleted for everyone, with their images, and so are replies others wrote under your messages.</li>
+  <li>Blessings that others wrote about you stay and are no longer linked to you. Their text is not changed. You can ask the Kehila's gabbai to delete one.</li>
+</ul>
 
 <h2>Backups</h2>
-<p>The database is backed up (DynamoDB point-in-time recovery). Deleted data stays in backups for up to 35 days, then disappears.</p>
+<p>Where database backups are kept, deleted data disappears from them within 35 days at most.</p>
 
 <h2>Download my data</h2>
-<p>In the Me screen you can ask for a ZIP file with your data: your profile, phone, memberships, family (the partner's name only, and the children), consents, and everything you wrote, with your images. The link is valid for 10 minutes, and you can ask for one file per day.</p>
+<p>In the Me screen you can ask for a ZIP file with your data: your profile, phone, memberships, family (the partner's name only, and the children), consents, and everything you wrote, with your images. The link is valid for 10 minutes, the file is deleted from the server after one day, and you can ask for one file per day.</p>
 
 <h2>Minimum age</h2>
 <p>The service is for people aged 13 or older. When you set up your profile you must tick that you are 13 or older.</p>
@@ -145,8 +156,9 @@
 <h2>Sub-processors</h2>
 <ul>
   <li>AWS: servers and storage, in Israel (il-central-1).</li>
-  <li>Expo: sends notifications. It gets generic texts only (for example "new message"), with no message content and no names.</li>
-  <li>Google and Apple: only if you choose to sign in with them.</li>
+  <li>Expo: relays notifications. They also pass through Apple's and Google's push services, for everyone who has notifications on.</li>
+  <li>The notification text is generic (for example "new message"), with no personal details and no message content. Its title is the Kehila's name.</li>
+  <li>Google and Apple: also for sign-in, but only if you choose to sign in with them.</li>
 </ul>
 
 <h2>Contact</h2>

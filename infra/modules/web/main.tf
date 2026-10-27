@@ -48,18 +48,20 @@ resource "aws_cloudfront_response_headers_policy" "web" {
   }
 }
 
-# The static /privacy/ page is its own file. S3 has no directory index, and the 403/404 -> index.html
-# fallback below would otherwise turn /privacy/ into the SPA, so map it to /privacy/index.html.
+# The static /privacy/ and /terms/ pages are their own files. S3 has no directory index, and the 403/404 -> index.html
+# fallback below would otherwise turn them into the SPA, so map each to its index.html.
 resource "aws_cloudfront_function" "privacy_index" {
   name    = "${var.name_prefix}-privacy-index"
   runtime = "cloudfront-js-2.0"
-  comment = "Serve /privacy and /privacy/ from privacy/index.html"
+  comment = "Serve /privacy, /terms and their slash forms from index.html"
   publish = true
   code    = <<-JS
     function handler(event) {
       var request = event.request;
       if (request.uri === '/privacy' || request.uri === '/privacy/') {
         request.uri = '/privacy/index.html';
+      } else if (request.uri === '/terms' || request.uri === '/terms/') {
+        request.uri = '/terms/index.html';
       }
       return request;
     }

@@ -12,11 +12,13 @@ religion, so treat any exposure of it as serious.
 - Stop the cause. Rotate or disable what was exposed: IAM keys, the deployer role session, API secrets.
 - Cognito: sign everyone out (`aws cognito-idp admin-user-global-sign-out` per user), or disable the app client
   (`aws cognito-idp update-user-pool-client` with sign-in flows removed) while the cause is fixed. Disable one user
-  with `admin-disable-user`.
+  with `admin-disable-user`. Global sign-out does not invalidate ID tokens already issued; they stay valid for up
+  to 15 minutes. For an immediate cut, stop the API (see the levers table).
 - Keep evidence: do not delete logs, items or buckets. Save CloudTrail events and Lambda logs for the period
   (`aws cloudtrail lookup-events`, CloudWatch Logs export). Note exact times (UTC and Israel time).
-- Do not restore or overwrite data yet. DynamoDB point-in-time recovery (35 days) can restore into a new table
-  to compare with the live one; never restore over the live table without a decision recorded in the log.
+- Do not restore or overwrite data yet. Where DynamoDB point-in-time recovery is enabled (35 days; off on dev),
+  it can restore into a new table to compare with the live one; never restore over the live table without a
+  decision recorded in the log.
 
 ## 2. Assess
 
@@ -39,7 +41,8 @@ Decide with the facts from step 2 and record each decision, also a decision not 
   done, and what they should tell their members.
 - The affected people: when there is a real risk to them, directly or through their Kehila.
 - The Israeli Privacy Protection Authority: for a severe incident (the Privacy Protection Regulations on data
-  security), as soon as the facts allow.
+  security), as soon as the facts allow. Under the Israeli rules the database owner, that is the Kehila, reports
+  to the Authority; Kehilot prepares the facts and helps.
 - The EU supervisory authority: within 72 hours of becoming aware, where GDPR applies (EU residents among the
   people affected). The controller notifies; Kehilot helps it prepare.
 
@@ -53,12 +56,12 @@ Decide with the facts from step 2 and record each decision, also a decision not 
 
 | Need | Lever |
 |---|---|
-| End all sessions | Cognito global sign-out per user; or disable the app client |
+| End all sessions | Cognito global sign-out per user (issued ID tokens live up to 15 minutes); or disable the app client |
 | Block one account | `admin-disable-user` |
 | Who did what | CloudTrail `lookup-events`; Lambda and API Gateway logs (IDs and counts only, no personal data) |
-| Compare or recover data | DynamoDB point-in-time recovery into a new table (35 days) |
+| Compare or recover data | PITR restore into a new table, where PITR is enabled (35 days) |
 | Stop image access | Images are served only through 5-minute links; remove the bucket policy statement or the Lambda's S3 permission to stop them |
-| Stop the API | Throttle the API stage to zero, or detach the route integration |
+| Stop the API (immediate cut) | Throttle the API stage to zero, or detach the route integration |
 
 ## Log template
 
