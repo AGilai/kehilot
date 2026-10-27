@@ -632,7 +632,7 @@ class FamiliesTest(test_messages.MessagesTest):
         with mock.patch.object(push, 'enqueue'), mock.patch('time.time', return_value=time.time() - 50):
             self.ask('gabbai-sub', self.member)
         self.assertEqual(self.cards('member-sub')['request'], {'fromUserId': self.quiet, 'fromName': 'Quinn Quiet'})
-        self.assertEqual(self.cards('listener-sub'), {'gabbaiLink': None, 'request': None, 'imported': False, 'phoneAsk': False, 'terms': False})
+        self.assertEqual(self.cards('listener-sub'), {'gabbaiLink': None, 'request': None, 'imported': False, 'seatLink': None, 'phoneAsk': False, 'terms': False})
 
     def test_consistent_prefix_reads(self):
         self.assertFalse(hasattr(self.repo, 'query_consistent'))

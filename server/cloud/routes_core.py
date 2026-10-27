@@ -43,9 +43,11 @@ def kehila(ctx, params):
         extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
     is_member = membership['role'] in MEMBERS
     cards = {'gabbaiLink': None, 'request': None, 'imported': bool(membership.get('importNotice')),
-             'phoneAsk': is_member and membership.get('phoneAsked') != consents.VERSIONS['phoneList'],
+             'seatLink': None, 'phoneAsk': is_member and membership.get('phoneAsked') != consents.VERSIONS['phoneList'],
              'terms': False}
     if is_member:
+        notice = membership.get('seatLinkNotice')
+        cards['seatLink'] = {'seats': int(notice['seats']), 'at': int(notice['at'])} if notice else None
         cards['gabbaiLink'] = notice_of(ctx.repo, params['k'], membership)
         cards['request'] = request_card(ctx.repo, params['k'], ctx.user_id, membership)
     if membership['role'] == 'gabbai':

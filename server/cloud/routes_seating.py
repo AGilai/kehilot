@@ -130,7 +130,7 @@ def put_assignments(ctx, params):
 
 def _holder_out(item):
     return {'holderId': item['holderId'], 'name': item['name'], 'phone': item.get('phone'),
-            'createdAt': item['createdAt']}
+            'createdAt': item['createdAt'], 'updatedAt': item['updatedAt']}
 
 
 def list_holders(ctx, params):

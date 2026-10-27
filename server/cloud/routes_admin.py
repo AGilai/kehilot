@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import seating_week, accounts, consents, importer, inputs, push, routes_me, schedule_rules, tags, type_rules
+from . import seating_week, accounts, consents, importer, inputs, push, routes_me, routes_seatlink, schedule_rules, tags, type_rules
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -44,6 +44,10 @@ def list_requests(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     rows = [{'userId': r['sk'][len('REQ#'):], 'displayName': r['displayName'], 'createdAt': int(r['createdAt']),
              'previouslyRejected': bool(r.get('previouslyRejected'))} for r in ctx.repo.list_requests(params['k'])]
+    suggested = routes_seatlink.request_suggestions(ctx, params['k'], rows)
+    for row in rows:
+        if row['userId'] in suggested:
+            row['seatSuggestions'] = suggested[row['userId']]
     return 200, sorted(rows, key=lambda r: r['createdAt'])
 
 

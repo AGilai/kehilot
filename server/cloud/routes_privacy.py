@@ -82,10 +82,10 @@ def age13_required(repo, user_id):
 
 
 def dismiss_card(ctx, params):
-    """One route for the one-time cards. `imported` is for any role; `gabbai_link` and `phone` for M/G."""
+    """One route for the one-time cards. `imported` is for any role; `gabbai_link`, `seat_link` and `phone` for M/G."""
     k, card = params['k'], params['card']
     require(ctx.repo, ctx.user_id, k, ROLES)
-    if card not in ('gabbai_link', 'imported', 'phone'):
+    if card not in ('gabbai_link', 'imported', 'phone', 'seat_link'):
         raise ApiError(400, 'invalid_card')
     if card == 'imported':
         ctx.repo.dismiss_import_notice(k, ctx.user_id)
@@ -93,6 +93,8 @@ def dismiss_card(ctx, params):
     require(ctx.repo, ctx.user_id, k, MEMBERS)
     if card == 'gabbai_link':
         ctx.repo.clear_family_notice(k, ctx.user_id)
+    elif card == 'seat_link':
+        ctx.repo.clear_seat_link_notice(k, ctx.user_id)
     else:  # "not now": no consent record
         ctx.repo.set_phone_asked(k, ctx.user_id, consents.VERSIONS['phoneList'])
     return 204, None

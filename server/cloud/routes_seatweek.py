@@ -264,6 +264,13 @@ def apply_responses(ctx, params):
         reqs = dict(item.get('requests') or {})
         undo_seats, undo_reqs, warnings, applied, released_n, kept_n = {}, {}, [], 0, 0, 0
         totals = {}
+
+        def store_requests(ref, requests):
+            if requests is not None:
+                undo_reqs[ref] = reqs.get(ref)
+                reqs[ref] = requests
+                for area, n in requests.items():
+                    totals[area] = totals.get(area, 0) + n
         for ref, (count, requests, override) in by_household.items():
             ordered = wk.family_order(layout, seats_of.get(ref, []))
             if not ordered:
@@ -271,6 +278,7 @@ def apply_responses(ctx, params):
                 continue
             if not override and any((eff.get(sid) or {}).get('by') == 'm' for sid in ordered):
                 warnings.append({'household': ref, 'code': 'app_answer_kept'})
+                store_requests(ref, requests)  # the seat answer stays the member's; the extra-seat requests still count
                 continue
             if count > len(ordered):
                 warnings.append({'household': ref, 'code': 'above_seats'})
@@ -283,11 +291,7 @@ def apply_responses(ctx, params):
                 if int(_is_released(eff, sid)) != want:
                     undo_seats[sid] = seats.get(sid)
                     seats[sid] = {'r': want, 'by': 'g', 'at': now, 'h': ref}
-            if requests is not None:
-                undo_reqs[ref] = reqs.get(ref)
-                reqs[ref] = requests
-                for area, n in requests.items():
-                    totals[area] = totals.get(area, 0) + n
+            store_requests(ref, requests)
         result.update(households=applied, released=released_n, kept=kept_n, warnings=warnings, requestTotals=totals)
         return {'seats': seats, 'requests': reqs, 'undo': {'at': now, 'seats': undo_seats, 'requests': undo_reqs}}
     ctx.repo.change_week(k, friday, prayer, change)
