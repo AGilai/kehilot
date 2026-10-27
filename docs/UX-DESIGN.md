@@ -1261,9 +1261,10 @@ Kit-drawn like the P frames; frame-only helper styles sit in each frame's `<styl
 
 The first Kehila's hall, shape only, from `~/work/gabay/design/mockups/phase2-seat-map.html`: 26 columns, rows 0–13,
 five blocks `R` ימין (x 21, 5 wide), `CR` מרכז ימין (x 16, 4), `C` מרכז (x 11, 4; seats in rows 4, 10–12; bimah rows
-6–8), `CL` מרכז שמאל (x 6, 4), `L` שמאל (x 0, 5); 205 seats. Shown to people as **row = index + 1** (1–14) and
-**seat numbered from the right inside its block** ("מרכז ימין · שורה 7 · כיסא 3"). The ark is drawn above row 1.
-*To confirm with the owner against the real hall:* which side the ark is on, and the seat-numbering direction.
+6–8), `CL` מרכז שמאל (x 6, 4), `L` שמאל (x 0, 5); 205 seats. Shown to people as **row = index + 1** (1–14). **Seats
+have no numbers anywhere people look** (owner: "they mean nothing, at least in our Kehila") — a seat id is internal only;
+see §15.9. The ark is drawn above row 1. *The frames still draw this 205-seat shape; the real hall (225 seats, 6 blocks,
+ark at the front) is in the spec.*
 Blocks are always listed right to left (ימין → שמאל), as they stand.
 
 ### 15.2 Home reminder card (P24)
@@ -1293,7 +1294,7 @@ Blocks are always listed right to left (ימין → שמאל), as they stand.
 - **The member never sees the whole hall** (owner, binding): no mini-map, no other blocks, nothing beyond the cut.
   The full hall exists only on gabbai screens (P26, P27).
 - **Seats in the frame:** blocks are 4–5 wide, so at 360 each seat tile is ~55×48 and is tapped directly (no separate
-  list). **His seat, needed:** tekhelet fill, "✓ מגיע", "כיסא n" under it. **His seat, released:** surface fill, 2 px
+  list). **His seat, needed:** tekhelet fill, "✓ מגיע" (no seat number, §15.9). **His seat, released:** surface fill, 2 px
   **dashed** tekhelet border, "לא מגיע". **Others' seats:** plain `line`-grey tile, no name, no state, hidden from
   screen readers. Bimah rows (block C): one hatched "בימה" bar. Status is shape + word, never colour alone.
 - **Per prayer:** the two prayers are independent; each starts as "everyone coming". No automatic copy between them.
@@ -1307,8 +1308,8 @@ Blocks are always listed right to left (ימין → שמאל), as they stand.
   sheet pattern); updated by a gabbai (info `Banner`, no gabbai name); after the deadline (Banner "הדיווח נסגר… לשינוי
   פנו לגבאי", tiles read-only at .75 opacity, no Save); **no allocation** (`Card` "עוד לא הוקצו לכם מקומות" / "את
   המקומות בבית הכנסת מקצה הגבאי. לשאלות פנו לגבאי."); Kehila without a hall map → a list, one row per seat with two
-  `Chip`s מגיע / לא מגיע (also the screen-reader-friendly fallback); loading (spinner); error (Banner + retry).
-- **A11y:** each own seat is a `switch`, label "מרכז ימין, שורה 7, כיסא 3, מגיע".
+  `Chip`s מגיע / לא מגיע, each row "<block> · שורה r · מקום k מתוך n" (also the screen-reader-friendly fallback); loading (spinner); error (Banner + retry).
+- **A11y:** each own seat is a `switch`, label "מרכז ימין, שורה 7, מקום 1 מתוך 3, מגיע" (k = the family's own order).
 - **English:** texts flip; the hall itself does not mirror (it is the same room).
 
 ### 15.4 Preview label
@@ -1327,8 +1328,9 @@ locally; "כן, כולם מגיעים" and "שמירה" show Toast "בקרוב. 
   (the print may be posted in the hall), primary print/PDF.
 - **Page:** title "מפת מקומות · שבת פרשת X", Hebrew date, Kehila; the prayer large; "מצב ביום … · הדיווח נסגר / פתוח
   עד …" and "הודפס ב…". Ark bar above row 1, block names over the blocks, row numbers on both sides, bimah hatched.
-- **Seat marks (black and white):** **תפוס** grey fill + 1 px line; **שוחרר** white, 2 px line, diagonal stroke
-  ("אפשר לשבת"); **פנוי** (not allocated) dashed outline. Legend at the bottom. Fixed paper colours, never dark mode.
+- **Seat marks (shapes, in every style):** **תפוס** 1 px line; **שוחרר** 2 px line + diagonal stroke ("אפשר לשבת");
+  **פנוי** (not allocated) 1.2 px dashed line. Fills by the chosen style (§15.9). Legend at the bottom, drawn in the same
+  style. Fixed paper colours, never dark mode. No seat numbers.
 - **Counts:** one strip under the map: total, then each block right → left: תפוס · שוחרר · פנוי.
 - **With names:** surname only, 9.5 pt inside the seat; released seats show the name struck through.
 - On screen (not on paper), tapping an allocated seat opens "עדכון בשם" (§15.6) for that household.
@@ -1388,7 +1390,7 @@ Shabbat first undoes the first.
 | `seats.block` | {block} · שורות {from}–{to} | {block} · rows {from}–{to} |
 | `seats.toArk` | ↑ לכיוון ארון הקודש | ↑ Toward the ark |
 | `seats.coming` / `seats.notComing` | מגיע / לא מגיע | Coming / Not coming |
-| `seats.seatNo` | כיסא {n} | Seat {n} |
+| `seats.seatOrder` | מקום {k} מתוך {n} | Seat {k} of {n} |
 | `seats.legendOthers` | מקומות של אחרים | Other people's seats |
 | `seats.zoom` | אפשר להגדיל ולהקטין בשתי אצבעות. | Pinch to zoom in and out. |
 | `seats.split` | המקומות שלכם בשני מקומות באולם. | Your seats are in two places in the hall. |
@@ -1398,8 +1400,10 @@ Shabbat first undoes the first.
 | `seats.byGabbai` | הגבאי עדכן את המקומות שלכם ב{day} {time}. אפשר לשנות עד המועד האחרון. | A gabbai updated your seats on {day} {time}. You can change them until the deadline. |
 | `seats.noneTitle` | עוד לא הוקצו לכם מקומות | You don't have seats yet |
 | `seats.noneBody` | את המקומות בבית הכנסת מקצה הגבאי. לשאלות פנו לגבאי. | Seats are allocated by the gabbai. For questions, ask a gabbai. |
-| `seats.a11ySeat` | {block}, שורה {row}, כיסא {n}, {state} | {block}, row {row}, seat {n}, {state} |
+| `seats.a11ySeat` | {block}, שורה {row}, מקום {k} מתוך {n}, {state} | {block}, row {row}, seat {k} of {n}, {state} |
 | `seats.print.*` | מפת מקומות · תפוס · שוחרר · אפשר לשבת · פנוי · לא מוקצה · להדפיס עם שמות · ההדפסה נתלית לפעמים בבית הכנסת. בלי שמות רואים רק תפוס, שוחרר ופנוי. | Seat map · Taken · Released · free to sit · Free · not allocated · Print with names · Prints are sometimes posted in the hall. Without names it shows only taken, released and free. |
+| `seats.print.style*` | סגנון · ירוק לפנוי · ירוק ואדום · שחור־לבן · נשמר במכשיר הזה. הצורות נשארות בכל סגנון, גם במדפסת שחור־לבן. | Style · Green for free · Green and red · Black and white · Remembered on this device. The shapes stay in every style, even on a black-and-white printer. |
+| `seats.print.legendTail*` | ירוק = אפשר לשבת · ירוק = אפשר לשבת · אדום = תפוס · צורות בלבד | Green = free to sit · Green = free to sit · Red = taken · Shapes only |
 | `seats.gabbai.*` | עדכון בשם {household} · שמירה בשם המשפחה · עודכן על ידי גבאי · מקובץ התשובות · באפליקציה · לא ענו · העלאת קובץ תשובות · הורדת תבנית · לדלג על השורה · החלת השינויים · ביטול ההעלאה | Update for {household} · Save for the household · Updated by a gabbai · From the responses file · In the app · No answer · Upload responses file · Download template · Skip this row · Apply changes · Undo upload |
 
 Block names: ימין / מרכז ימין / מרכז / מרכז שמאל / שמאל — Right / Center right / Center / Center left / Left.
@@ -1408,5 +1412,39 @@ Block names: ימין / מרכז ימין / מרכז / מרכז שמאל / שמ�
 
 Frames generated by a small script, not screenshot-checked (no browser run on this 2 GB machine); tag balance checked
 with a parser, and the hall layout counts 205 seats. Check P24/P25 at 390 in both directions and dark mode, P26
-printed to PDF (A4 landscape, black and white), and P27 at 1280 before building. Confirm the ark side and seat
+printed to PDF (A4 landscape) in all three styles, once through a greyscale photocopy, and P27 at 1280 before building. Confirm the ark side and seat
 numbering (§15.1) and the file template (§15.6) with the owner.
+
+### 15.9 Print styles and no seat numbers (P26, P25)
+
+Owner, 2026-10-27 (spec, end). **Seat numbers are internal ids.** Never on the print, never "כיסא n" to members. A
+member's seat is its position in the frame; where text is needed (list fallback, screen reader, P27 panel) it is "מקום
+k מתוך n" — k is the family's own order (the sheet's "<family>-1/-2…": block right → left, row front → back, then right
+→ left in the row). P25/P27 tiles carry only the state ("✓ מגיע" / "לא מגיע").
+
+**Style selector.** In the print options (web panel from GD5, phone `Sheet` from GM5), after the prayer chips: label
+"סגנון", kit `Segmented` with three options **ירוק לפנוי** (default) / **ירוק ואדום** / **שחור־לבן**, a three-swatch
+mini legend in the chosen style, and the hint "נשמר במכשיר הזה…". Stored per device (`localStorage`
+`kehilot.seatPrintStyle` = `green` | `greenRed` | `bw`); names stay off and unremembered. The page sets
+`print-color-adjust: exact` so browsers print the fills.
+
+**Colours (fills; lines, diagonal and names always `#000000`):**
+
+| State | ירוק לפנוי | ירוק ואדום | שחור־לבן | Shape (every style) |
+|---|---|---|---|---|
+| תפוס | `#EBEBEB` light grey | `#DB5B56` red | `#C8C8C8` grey | 1 px line |
+| שוחרר | `#9ED8AA` light green | `#9ED8AA` | `#FFFFFF` | 2 px line + diagonal |
+| פנוי | `#57B46C` green | `#57B46C` | `#FFFFFF` | 1.2 px dashed line |
+
+- **Contrast, black name text on the fill** (with-names print, 9.5 pt): `#EBEBEB` 17.6:1, `#9ED8AA` 12.9:1, `#57B46C`
+  8.2:1, `#DB5B56` 5.6:1, `#C8C8C8` 12.6:1 — all above 4.5:1. Fills are never the only boundary: every seat keeps its
+  black line, so pale fills on white paper still read.
+- **Greyscale photocopy (L\*):** ירוק לפנוי 93 / 81 / 66 (taken / released / free); ירוק ואדום 55 / 81 / 66; שחור־לבן
+  81 / 100 / 100. Colour fills are at least 11 L\* apart, so a copy keeps three tones. **Released vs free** share a hue
+  on purpose (both mean "you can sit here") and stay apart by tone (light vs mid green, 15 L\*) and by shape: released
+  has the heavy line and diagonal, free a dashed line and no diagonal — which is all B/W and colour-blind readers need
+  (red vs green is 11 L\* apart for deuteranopes, plus the shapes).
+- **Legend per style:** the same three swatches drawn with the style's fills and shapes — "תפוס", "שוחרר · אפשר לשבת",
+  "פנוי · לא מוקצה" — then at the end "ירוק = אפשר לשבת" (green), "ירוק = אפשר לשבת · אדום = תפוס" (green / red) or
+  "צורות בלבד" (B/W), and "בלי שמות" / "עם שמות". The page title area does not repeat the style.
+- P26 shows the default at 62% and the three styles side by side at 40%, plus a colour table panel. Not checked on paper.
