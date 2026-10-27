@@ -16,6 +16,7 @@ import { I18nProvider, useI18n } from './i18n/I18nProvider.tsx';
 import { Button, Screen, Txt, useAppFonts, useTokens } from './kit/components.tsx';
 import { ForgotPassword } from './views/auth/ForgotPassword.tsx';
 import { AuthFrame } from './views/auth/Frame.tsx';
+import { Age13Gate } from './views/Age13Gate.tsx';
 import { Join } from './views/Join.tsx';
 import { Main } from './views/Main.tsx';
 import { useIncomingLink } from './views/useIncomingLink.ts';
@@ -121,6 +122,8 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
     );
   }
   if (route === 'setup') return <ProfileSetup />;
+  // Existing accounts without the age 13 consent see only this gate; a pending invite waits behind it.
+  if (state.me?.age13Required) return <Age13Gate />;
   if (code) {
     return <Join code={code} onAccept={() => acceptInvite(code).then(() => { setTyped(null); link.clear(); })} onClose={() => { setTyped(null); link.clear(); }} />;
   }

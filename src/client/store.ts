@@ -174,12 +174,25 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return chooseKehila();
   }
 
-  async function saveProfile(p: { firstName: string; lastName: string; lang: Lang }): Promise<Route> {
+  /** With `age13`, the consent is recorded and me() reloaded before the route is computed, so the gate never flashes. */
+  async function saveProfile(p: { firstName: string; lastName: string; lang: Lang }, o: { age13?: boolean } = {}): Promise<Route> {
     const gen = state.generation;
     const profile = await api.putProfile(p);
     if (!guard(gen) || !state.me) return 'none';
     set({ me: { ...state.me, profile } });
+    if (o.age13) {
+      await api.age13Consent();
+      if (!guard(gen)) return 'none';
+      if (!(await loadMe()) || !state.me) return 'none';
+      set({ me: { ...state.me, profile } });
+    }
     return (await joinPending()) ?? chooseKehila();
+  }
+
+  /** The age gate: records the consent, then reloads me so `age13Required` clears. */
+  async function acceptAge13(): Promise<void> {
+    await api.age13Consent();
+    await loadMe();
   }
 
   /** Join screen: accepts a code the user is looking at, then opens the Kehila. */
@@ -413,7 +426,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   return {
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, cacheStatus, cachedMessage, loadHit, reset, guard,
+    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptAge13, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, cacheStatus, cachedMessage, loadHit, reset, guard,
     setNotify, editProfile, setPhone, setShowPhone, leaveKehila, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };

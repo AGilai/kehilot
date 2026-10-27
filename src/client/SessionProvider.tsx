@@ -27,7 +27,9 @@ export type SessionApi = {
   route: Route | 'loading' | 'error';
   logo(kehilaId: string, logoVersion: string | null): Promise<string | null>;
   select(kehilaId: string): Promise<void>;
-  saveProfile(p: { firstName: string; lastName: string; lang: Lang }): Promise<void>;
+  saveProfile(p: { firstName: string; lastName: string; lang: Lang }, opts?: { age13?: boolean }): Promise<void>;
+  /** Age gate: records the age 13 consent and reloads me. */
+  acceptAge13(): Promise<void>;
   /** Join screen: accepts the invite and opens the new Kehila. */
   acceptInvite(code: string): Promise<void>;
   /** Listener home: sends a membership request (already sent counts as sent). */
@@ -127,11 +129,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       await store.selectKehila(k);
       if (store.guard(gen)) setRoute('ready');
     },
-    async saveProfile(p) {
+    async saveProfile(p, o) {
       const gen = store.getState().generation;
-      const r = await store.saveProfile(p);
+      const r = await store.saveProfile(p, o);
       if (store.guard(gen)) setRoute(r);
     },
+    acceptAge13: () => store.acceptAge13(),
     async acceptInvite(code) {
       const gen = store.getState().generation;
       if (await store.acceptInvite(code) && store.guard(gen)) setRoute('ready');

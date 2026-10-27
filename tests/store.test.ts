@@ -242,3 +242,33 @@ test('setShowPhone leaves the switch as it was when the server refuses', async (
   await assert.rejects(store.setShowPhone(true));
   assert.equal(store.getState().kehila?.showPhone, false);
 });
+
+test('profile save records age13 before loading me', async () => {
+  const order: string[] = [];
+  let required = true;
+  const { api } = fakeApi(meOf(['k1'], null), {
+    me: async () => { order.push('me'); return { ...meOf(['k1'], null), age13Required: required }; },
+    putProfile: async (p: { firstName: string; lang: 'he' | 'en' }) => { order.push('putProfile'); return { firstName: p.firstName, lastName: '', lang: p.lang }; },
+    age13Consent: async () => { order.push('age13Consent'); required = false; },
+  });
+  const store = createStore(api, memory());
+  assert.equal(await store.start(), 'setup');
+  order.length = 0;
+  assert.equal(await store.saveProfile({ firstName: 'דנה', lastName: '', lang: 'he' }, { age13: true }), 'ready');
+  assert.deepEqual(order, ['putProfile', 'age13Consent', 'me']);
+  assert.equal(store.getState().me?.age13Required, false);
+  assert.ok(store.getState().me?.profile);
+});
+
+test('acceptAge13 reloads me', async () => {
+  let required = true;
+  const { api } = fakeApi(meOf(['k1']), {
+    me: async () => ({ ...meOf(['k1']), age13Required: required }),
+    age13Consent: async () => { required = false; },
+  });
+  const store = createStore(api, memory());
+  await store.start();
+  assert.equal(store.getState().me?.age13Required, true);
+  await store.acceptAge13();
+  assert.equal(store.getState().me?.age13Required, false);
+});
