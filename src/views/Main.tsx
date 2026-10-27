@@ -19,6 +19,7 @@ import { GroupAdmin } from './admin/GroupAdmin.tsx';
 import { Groups } from './admin/Groups.tsx';
 import { InviteWithRole } from './admin/InviteWithRole.tsx';
 import { Members } from './admin/Members.tsx';
+import { Import } from './admin/Import.tsx';
 import { Overview } from './admin/Overview.tsx';
 import { Compose } from './Compose.tsx';
 import type { ComposeInitial } from './Compose.tsx';
@@ -46,6 +47,7 @@ type Nav =
   | { tab: 'invite'; member?: boolean }
   | { tab: 'groups' }
   | { tab: 'channels' }
+  | { tab: 'import' }
   | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'me' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
@@ -68,6 +70,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'invite-member') return { nav: { tab: 'invite', member: true }, manage: true };
   if (s === 'groups') return { nav: { tab: 'groups' }, manage: true };
   if (s === 'channels' || s === 'channel-sheet') return { nav: { tab: 'channels' }, manage: true };
+  if (s === 'import') return { nav: { tab: 'import' }, manage: true };
   if (s === 'group-admin') return { nav: { tab: 'group', groupId: '01FIXTUREGROUP00000000001', name: 'נוער', from: 'groups' }, manage: true };
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetId: '01FIXTUREUSER00000000002' } };
@@ -159,7 +162,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
 
   const kehila = state.kehila;
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || (nav.tab === 'group' && nav.from === 'groups');
+  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
     : nav.tab === 'home' || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
@@ -191,7 +194,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onCount={setPending} onToast={showToast} />;
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onCount={setPending} onToast={showToast} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} />;
@@ -204,6 +207,9 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       break;
     case 'channels':
       body = <Channels onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
+      break;
+    case 'import':
+      body = <Import onBack={() => setNav({ tab: 'overview' })} />;
       break;
     case 'group':
       body = <GroupAdmin key={nav.groupId} group={nav} onBack={() => setNav({ tab: nav.from })} onGone={() => { setManage(false); setNav({ tab: 'me' }); }} onToast={showToast} />;

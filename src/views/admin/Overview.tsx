@@ -93,7 +93,7 @@ function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged
 }
 
 /** GM1 without the seating meters: pending count, member and listener counts, the cap, the invite links. */
-export function Overview({ onApprovals, onInvite, onGroups, onChannels, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
+export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -146,6 +146,7 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onCount,
         <View style={{ flex: 1, minWidth: 140 }}><Button kind="secondary" title={t('admin.overview.groupsLink')} onPress={onGroups} /></View>
         <View style={{ flex: 1, minWidth: 140 }}><Button kind="secondary" title={t('admin.overview.channelsLink')} onPress={onChannels} /></View>
       </View>
+      <Button kind="secondary" title={t('admin.overview.importLink')} onPress={onImport} />
       <Button title={t('admin.overview.invites.new')} onPress={onInvite} />
       {invites ? <InviteList rows={invites} onChanged={loadInvites} onToast={onToast} /> : null}
     </ScrollView>

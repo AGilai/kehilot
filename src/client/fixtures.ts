@@ -13,7 +13,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin'];
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */

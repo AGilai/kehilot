@@ -531,7 +531,8 @@
         "new": "Invite with a role"
       },
       "groupsLink": "Groups",
-      "channelsLink": "Channels"
+      "channelsLink": "Channels",
+      "importLink": "Import list"
     },
     "approvals": {
       "title": "Approve members",
@@ -706,6 +707,59 @@
       "tagAll": "All members",
       "discardConfirm": "You have unsaved changes. Close without saving?",
       "discardYes": "Close without saving"
+    },
+    "import": {
+      "title": "Import list",
+      "back": "Back",
+      "native": "The import is available in the web console.",
+      "intro": "A CSV or XLSX file with the columns: first name, last name, email, and optionally role, classification and groups. The data is shown only on this screen and is dropped when you leave it.",
+      "pick": "Choose a file",
+      "pickAgain": "Choose another file",
+      "readError": "We could not read the file. Check that it is a CSV or XLSX.",
+      "preview": "{n} rows ready to import",
+      "previewMore": "and {n} more rows not shown here",
+      "empty": "No rows found to import.",
+      "col": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "class": "Classification",
+        "groups": "Groups"
+      },
+      "role": {
+        "listener": "Guest",
+        "member": "Member",
+        "gabbai": "Gabbai"
+      },
+      "problems": "Rows that will not be imported ({n})",
+      "problem": "Line {line}: {why}",
+      "why": {
+        "missing_column": "a required column is missing (first name, last name or email)",
+        "invalid_first_name": "first name missing or too long",
+        "invalid_last_name": "last name missing or too long",
+        "invalid_email": "invalid email address",
+        "invalid_role": "unknown role",
+        "invalid_classification": "unknown classification",
+        "duplicate_email": "duplicate email",
+        "unknown_group": "group does not exist",
+        "invalid_groups": "invalid group list",
+        "invalid": "invalid row"
+      },
+      "start": "Import",
+      "running": "Importing… {done} of {total}",
+      "progress": "Import progress",
+      "summary": "Summary",
+      "count": {
+        "created": "New accounts",
+        "added": "Added to the community",
+        "upgraded": "Upgraded",
+        "exists": "Already in the community",
+        "invalid": "Invalid",
+        "skipped": "Skipped"
+      },
+      "stopped": "The import stopped: {why}. {n} rows were not sent; load the file and try again (rows already imported will show as existing).",
+      "stoppedSkipped": "the server could not get to the rows",
+      "note": "People sign in with \"forgot password\" or with Google/Apple. The import sends no email."
     }
   }
 }
