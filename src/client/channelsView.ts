@@ -64,3 +64,17 @@ export async function firstWithPending(ids: string[], count: (id: string) => Pro
   }
   return null;
 }
+
+/** The sheet has unsaved changes (groups compare as a set; the limit counts only for a conversation). */
+export function isDirty(initial: ChannelFields, form: ChannelFields): boolean {
+  const g = (f: ChannelFields) => [...new Set(f.groups)].sort().join('\u0000');
+  if (initial.name !== form.name || initial.listenersCanRead !== form.listenersCanRead || initial.postPolicy !== form.postPolicy) return true;
+  if (initial.conversation !== form.conversation || g(initial) !== g(form)) return true;
+  return form.conversation && initial.chatHourlyLimit !== form.chatHourlyLimit;
+}
+
+/** Where an admin screen goes when its call is refused with 403 (the admin rights ended); null for any other error. */
+export function exitTarget(code: unknown, from: 'group' | 'limit'): 'me' | 'chat' | null {
+  if (code !== 'forbidden') return null;
+  return from === 'group' ? 'me' : 'chat';
+}

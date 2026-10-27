@@ -37,6 +37,8 @@ export type SessionApi = {
   retry(): void;
   /** Reload the channel list now (after a channel or chat-limit change). */
   refreshChannels(): Promise<void>;
+  /** Reload the open Kehila's record (after admin rights ended). */
+  refreshKehila(): Promise<void>;
   /** Poll the change feed now (a push arrived). */
   pollNow(): Promise<void>;
   /** M5: optimistic notification-preference change; rejects (after reverting) when the server refuses. */
@@ -132,6 +134,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     dismissJoinError: () => store.clearJoinError(),
     retry: () => setAttempt(a => a + 1),
     refreshChannels: () => store.refreshChannels(),
+    refreshKehila: () => store.refreshKehila(),
     pollNow: () => store.pollNow(),
     setNotify: p => store.setNotify(p),
     editProfile: p => store.editProfile(p),

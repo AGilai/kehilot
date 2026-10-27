@@ -221,6 +221,14 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return true;
   }
 
+  /** Reload the open Kehila's own record (groups, adminGroups) after a refused admin call. */
+  async function refreshKehila(): Promise<void> {
+    const c = current();
+    if (!c) return;
+    const kehila = await api.kehila(c.k);
+    if (still(c)) set({ kehila });
+  }
+
   /** On focus: channels(k) again; a changed readable set wipes the cache and refills it. */
   async function refreshChannels(): Promise<void> {
     const c = current();
@@ -388,7 +396,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   return {
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, cachedMessage, loadHit, reset, guard,
+    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, cacheStatus, cachedMessage, loadHit, reset, guard,
     setNotify, editProfile, leaveKehila, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };

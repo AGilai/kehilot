@@ -206,7 +206,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <Channels onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'group':
-      body = <GroupAdmin key={nav.groupId} group={nav} onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
+      body = <GroupAdmin key={nav.groupId} group={nav} onBack={() => setNav({ tab: nav.from })} onGone={() => { setManage(false); setNav({ tab: 'me' }); }} onToast={showToast} />;
       break;
     case 'invite':
       body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;

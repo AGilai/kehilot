@@ -119,7 +119,8 @@ export function Banner({ text, tone = 'info', action }: { text: string; tone?: '
   );
 }
 
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode }) {
+/** `footer`: actions pinned below the scroll area, above Close. */
+export function Sheet({ visible, title, onClose, children, footer }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   const { t, dir } = useI18n();
   const k = useTokens();
   // A native Modal does not inherit the root View's direction, so set it again here.
@@ -128,7 +129,8 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
       <Pressable accessibilityLabel={t('common.close')} onPress={onClose} style={{ flex: 1, direction: dir, backgroundColor: 'rgba(21,26,51,0.5)', justifyContent: 'flex-end' }}>
         <Pressable onPress={() => {}} style={{ backgroundColor: k.stone, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 12, maxHeight: '85%' }}>
           <Txt serif size="title" accessibilityRole="header">{title}</Txt>
-          <ScrollView contentContainerStyle={{ gap: 12 }}>{children}</ScrollView>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 12 }}>{children}</ScrollView>
+          {footer ? <View style={{ gap: 8 }}>{footer}</View> : null}
           <Button kind="secondary" title={t('common.close')} onPress={onClose} />
         </Pressable>
       </Pressable>

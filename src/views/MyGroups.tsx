@@ -16,7 +16,7 @@ import { useErrorText } from './auth/Frame.tsx';
 export function MyGroups({ onManage, onToast }: { onManage?: (g: { groupId: string; name: string }) => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
-  const { state } = useSession();
+  const { state, refreshKehila } = useSession();
   const k = useTokens();
   const errText = useErrorText();
   const kehilaId = state.kehilaId;
@@ -37,7 +37,10 @@ export function MyGroups({ onManage, onToast }: { onManage?: (g: { groupId: stri
     await flight(g.groupId, async () => {
       setBusy(g.groupId); setRowError(null);
       try { await call(); setAsking(null); onToast(done); await load(); }
-      catch (e) { setRowError({ id: g.groupId, text: errText(e) }); await load(); } finally { setBusy(null); }
+      catch (e) {
+        if ((e as { code?: unknown } | null)?.code === 'forbidden') void refreshKehila().catch(() => {});
+        await load(); setRowError({ id: g.groupId, text: errText(e) });
+      } finally { setBusy(null); }
     });
   }
   if (!kehilaId) return null;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { ApiCodeError } from '../../client/errors.ts';
-import { canAppoint, canRemoveFromGroup } from '../../client/channelsView.ts';
+import { canAppoint, canRemoveFromGroup, exitTarget } from '../../client/channelsView.ts';
 import { keyedFlight } from '../../client/singleFlight.ts';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
@@ -13,12 +13,19 @@ import { useErrorText } from '../auth/Frame.tsx';
 import { Tag, useShortDate } from './shared.tsx';
 
 /** One group: its members (remove, appoint), and the pending join requests (approve, reject). For gabbaim and for the group's admins. */
-export function GroupAdmin({ group, onBack, onToast }: { group: { groupId: string; name: string }; onBack: () => void; onToast: (text: string) => void }) {
+export function GroupAdmin({ group, onBack, onGone, onToast }: { group: { groupId: string; name: string }; onBack: () => void; /** The admin rights ended (403): leave to Me. */ onGone: () => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
-  const { state } = useSession();
+  const { state, refreshKehila } = useSession();
   const k = useTokens();
   const errText = useErrorText();
+  /** A 403 ends the screen with its own text and reloads the Kehila record (adminGroups); true when it left. */
+  const gone = (e: unknown): boolean => {
+    if (exitTarget((e as { code?: unknown } | null)?.code, 'group') !== 'me') return false;
+    void refreshKehila().catch(() => {});
+    onToast(t('admin.groupAdmin.noRights')); onGone();
+    return true;
+  };
   const date = useShortDate();
   const kehilaId = state.kehilaId!;
   const role = state.kehila?.role;
@@ -34,6 +41,7 @@ export function GroupAdmin({ group, onBack, onToast }: { group: { groupId: strin
   const load = React.useCallback(async () => {
     const [m, r] = await Promise.allSettled([api.groupMembers(kehilaId, g), api.groupRequests(kehilaId, g)]);
     const failed = [m, r].find(x => x.status === 'rejected');
+    if (failed && failed.status === 'rejected' && gone(failed.reason)) return;
     setError(failed && failed.status === 'rejected' ? errText(failed.reason) : null);
     if (m.status === 'fulfilled') setMembers(m.value); else setMembers(prev => prev ?? []);
     if (r.status === 'fulfilled') setRequests(r.value); else setRequests(prev => prev ?? []);
@@ -47,7 +55,7 @@ export function GroupAdmin({ group, onBack, onToast }: { group: { groupId: strin
       try { await call(); then?.(); onToast(done); await load(); }
       catch (e) {
         if (e instanceof ApiCodeError && (e.code === 'request_not_found' || e.code === 'member_not_found')) { then?.(); await load(); }
-        else setRowError({ id, text: errText(e) });
+        else if (!gone(e)) setRowError({ id, text: errText(e) });
       } finally { setBusy(null); }
     });
   }
@@ -93,7 +101,7 @@ export function GroupAdmin({ group, onBack, onToast }: { group: { groupId: strin
             {role === 'gabbai' && m.role === 'member' && m.isAdmin ? (
               <Button kind="secondary" title={t('admin.groupAdmin.unappoint')} busy={busy === m.userId} onPress={() => void act(m.userId, () => api.unappointGroupAdmin(kehilaId, g, m.userId), t('admin.groupAdmin.unappointed'))} />
             ) : null}
-            {!mayRemove ? <Txt size="small" color={k.muted}>{t('admin.groupAdmin.onlyGabbai')}</Txt> : asking === m.userId ? (
+            {m.userId === state.me?.userId ? null : !mayRemove ? <Txt size="small" color={k.muted}>{t('admin.groupAdmin.onlyGabbai')}</Txt> : asking === m.userId ? (
               <>
                 <Txt>{t('admin.groupAdmin.removeConfirm', { name: m.displayName })}</Txt>
                 <Button kind="danger" title={t('admin.groupAdmin.removeYes')} busy={busy === m.userId} onPress={() => void act(m.userId, () => api.removeGroupMember(kehilaId, g, m.userId), t('admin.groupAdmin.removed'), () => setAsking(null))} />

@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { config } from '../../config.ts';
 import { fixtureParams } from '../../client/fixtures.ts';
-import { channelForm, lockListeners, lockNote, needsOpenConfirm, toRequest, CHAT_LIMIT_MAX } from '../../client/channelsView.ts';
+import { channelForm, isDirty, lockListeners, lockNote, needsOpenConfirm, toRequest, CHAT_LIMIT_MAX } from '../../client/channelsView.ts';
 import { singleFlight } from '../../client/singleFlight.ts';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
@@ -24,12 +24,13 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
   const [form, setForm] = React.useState<ChannelFields>(channelForm());
   const [limitText, setLimitText] = React.useState('30');
   const [confirm, setConfirm] = React.useState(false);
+  const [discard, setDiscard] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   React.useEffect(() => {
     if (!open) return;
     const f = channelForm(channel);
-    setForm(f); setLimitText(String(f.chatHourlyLimit ?? 30)); setConfirm(false); setError(null);
+    setForm(f); setLimitText(String(f.chatHourlyLimit ?? 30)); setConfirm(false); setDiscard(false); setError(null);
   }, [open, channel]);
 
   const locked = lockListeners(form);
@@ -38,7 +39,9 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
   const nameOk = form.name.trim().length > 0 && [...form.name.trim()].length <= NAME_MAX;
   const canSave = nameOk && (!form.conversation || limitOk);
   const current: ChannelFields = { ...form, chatHourlyLimit: limitOk ? +limitText : form.chatHourlyLimit };
-  const toggleGroup = (g: string) => setForm(f => ({ ...f, groups: f.groups.includes(g) ? f.groups.filter(x => x !== g) : [...f.groups, g] }));
+  const toggleGroup = (g: string) => { setConfirm(false); setForm(f => ({ ...f, groups: f.groups.includes(g) ? f.groups.filter(x => x !== g) : [...f.groups, g] })); };
+  const dirty = isDirty({ ...channelForm(channel), chatHourlyLimit: channelForm(channel).chatHourlyLimit }, current);
+  function requestClose() { if (dirty && !busy) setDiscard(true); else onClose(); }
   const save = React.useRef<() => Promise<void>>(async () => {});
   const once = React.useRef(singleFlight(() => save.current())).current;
   save.current = async () => {
@@ -57,7 +60,26 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
   }
 
   return (
-    <Sheet visible={open} title={t(channel ? 'admin.channels.sheetEdit' : 'admin.channels.sheetNew')} onClose={onClose}>
+    <Sheet visible={open} title={t(channel ? 'admin.channels.sheetEdit' : 'admin.channels.sheetNew')} onClose={requestClose} footer={
+      discard ? (
+        <>
+          <Banner tone="info" text={t('admin.channels.discardConfirm')} />
+          <Button kind="danger" title={t('admin.channels.discardYes')} onPress={onClose} />
+          <Button kind="secondary" title={t('admin.channels.back')} onPress={() => setDiscard(false)} />
+        </>
+      ) : confirm ? (
+        <>
+          <Banner tone="info" text={t('admin.channels.openConfirm')} />
+          <Button kind="danger" title={t('admin.channels.openYes')} busy={busy} onPress={() => void once()} />
+          <Button kind="secondary" title={t('admin.channels.back')} disabled={busy} onPress={() => setConfirm(false)} />
+        </>
+      ) : (
+        <>
+          {error ? <Banner tone="error" text={error} /> : null}
+          <Button title={t('admin.channels.save')} busy={busy} disabled={!canSave} onPress={press} />
+        </>
+      )
+    }>
       <Field label={t('admin.channels.name')} value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} maxCodePoints={NAME_MAX} editable={!busy} />
       <View pointerEvents={locked ? 'none' : 'auto'} style={{ opacity: locked ? 0.5 : 1 }}>
         <Toggle label={t('admin.channels.listeners')} value={locked ? false : form.listenersCanRead} onChange={v => setForm(f => ({ ...f, listenersCanRead: v }))}
@@ -80,14 +102,6 @@ function ChannelSheet({ open, channel, groups, onClose, onSaved }: { open: boole
         </View>
       )}
       <Txt size="small">{t('admin.channels.groupsHint')}</Txt>
-      {error ? <Banner tone="error" text={error} /> : null}
-      {confirm ? (
-        <>
-          <Banner tone="info" text={t('admin.channels.openConfirm')} />
-          <Button kind="danger" title={t('admin.channels.openYes')} busy={busy} onPress={() => void once()} />
-          <Button kind="secondary" title={t('admin.channels.back')} disabled={busy} onPress={() => setConfirm(false)} />
-        </>
-      ) : <Button title={t('admin.channels.save')} busy={busy} disabled={!canSave} onPress={press} />}
     </Sheet>
   );
 }

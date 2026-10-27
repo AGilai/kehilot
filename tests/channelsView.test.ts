@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  canAppoint, canRemoveFromGroup, channelForm, firstWithPending, lockListeners, lockNote, needsOpenConfirm, toRequest,
+  canAppoint, canRemoveFromGroup, channelForm, exitTarget, firstWithPending, isDirty, lockListeners, lockNote, needsOpenConfirm, toRequest,
 } from '../src/client/channelsView.ts';
 import type { Channel } from '../src/client/types.ts';
 
@@ -82,4 +82,22 @@ test('firstWithPending: first group with requests; a failing group is skipped', 
   assert.equal(await firstWithPending(['a'], async id => counts[id]!), null);
   assert.equal(await firstWithPending([], async () => 1), null);
   assert.equal(await firstWithPending(['x', 'c'], async id => { if (id === 'x') throw new Error('boom'); return 1; }), 'c');
+});
+
+test('isDirty: compares what the sheet edits, groups as a set, limit only for conversations', () => {
+  const a = { ...channelForm(), name: 'שם', groups: ['g1', 'g2'] };
+  assert.equal(isDirty(a, { ...a, groups: ['g2', 'g1'] }), false);
+  assert.equal(isDirty(a, { ...a, name: 'אחר' }), true);
+  assert.equal(isDirty(a, { ...a, groups: ['g1'] }), true);
+  assert.equal(isDirty(a, { ...a, postPolicy: 'broadcasters' }), true);
+  assert.equal(isDirty(a, { ...a, chatHourlyLimit: 5 }), false);
+  assert.equal(isDirty({ ...a, conversation: true }, { ...a, conversation: true, chatHourlyLimit: 5 }), true);
+  assert.equal(isDirty(a, { ...a, conversation: true }), true);
+});
+
+test('exitTarget: a 403 ends the admin screen; other errors stay', () => {
+  assert.equal(exitTarget('forbidden', 'group'), 'me');
+  assert.equal(exitTarget('forbidden', 'limit'), 'chat');
+  assert.equal(exitTarget('network', 'group'), null);
+  assert.equal(exitTarget(undefined, 'limit'), null);
 });
