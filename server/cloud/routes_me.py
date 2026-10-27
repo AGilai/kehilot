@@ -72,10 +72,11 @@ def delete_account(ctx, params):
             ctx.repo.drop_adult(m['kehilaId'], ctx.user_id)
     for k in gabbai_of:  # guarded removal: re-checks the other gabbai atomically (409 last_gabbai on a race)
         ctx.repo.remove_member(k, ctx.user_id, 'gabbai')
-    for report in ctx.repo.list_user_reports(ctx.user_id):  # images before items: a 503 retry still finds them
+    reports = ctx.repo.list_user_reports(ctx.user_id)
+    for report in reports:  # images before items: a 503 retry still finds them
         if report.get('image'):
             media.delete_key(report['image']['key'])
-    ctx.repo.delete_user_reports(ctx.user_id)
+    ctx.repo.delete_user_reports(reports)
     deleted, blanked = ctx.repo.purge_user(ctx.user_id, ctx.caller.sub)
     _delete_cognito_user(ctx.caller.sub)
     log.info('account deleted user=%s items=%d blanked=%d posts=%d replies=%d', ctx.user_id, deleted, blanked,

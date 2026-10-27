@@ -84,10 +84,8 @@ class ReportsRepo:
                 raise
             raise ApiError(404, 'not_found')
 
-    def delete_user_reports(self, user_id):
-        """Delete the user's report items; returns the S3 keys of their images (the caller deletes those first)."""
-        items = self.list_user_reports(user_id)
+    def delete_user_reports(self, reports):
+        """Delete these report items (from `list_user_reports`); the caller deletes their images first."""
         with self.table.batch_writer() as batch:
-            for item in items:
+            for item in reports:
                 batch.delete_item(Key={'pk': item['pk'], 'sk': item['sk']})
-        return [i['image']['key'] for i in items if i.get('image')]

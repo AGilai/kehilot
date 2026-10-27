@@ -102,6 +102,33 @@ class ReportsTest(unittest.TestCase):
         self.assertEqual(self.report(context={**CONTEXT, 'os': 'x' * 64})[0], 201)
         self.assertEqual(self.reports()[0]['context']['os'], 'x' * 64)
 
+    def test_context_empty_required_rejected_kehila_optional(self):
+        for key in routes_reports.CONTEXT_KEYS:
+            self.assertEqual(self.call('POST', '/v1/reports', body={'text': 'hi', 'context': {**CONTEXT, key: ''}})[1],
+                             {'error': 'invalid_context'}, key)
+        self.assertEqual(self.report(context={**CONTEXT, 'kehilaId': None})[1], {'error': 'invalid_context'})
+        self.assertEqual(self.report(context={**CONTEXT, 'kehilaId': ''})[1], {'error': 'invalid_context'})
+
+    def test_ip_key_ipv4_full_ipv6_prefix64(self):
+        h = lambda ip: routes_reports._ip_hash(mock.Mock(source_ip=ip))
+        self.assertNotEqual(h('203.0.113.7'), h('203.0.113.8'))
+        self.assertEqual(h('2001:db8:1:2::1'), h('2001:db8:1:2:ffff:eeee:dddd:cccc'))
+        self.assertNotEqual(h('2001:db8:1:2::1'), h('2001:db8:1:3::1'))
+        self.assertEqual(h(None), h('garbage'))
+        for n in range(3):
+            self.assertEqual(self.anon({'text': 'hi', 'context': CONTEXT}, ip=f'2001:db8:1:2::{n + 1}')[0], 201)
+        self.assertEqual(self.anon({'text': 'hi', 'context': CONTEXT}, ip='2001:db8:1:2:9::1')[0], 429)
+
+    def test_bad_upload_costs_no_quota_and_over_limit_leaves_no_picture(self):
+        for _ in range(15):
+            self.report(imageUploadId='Z' * 26)
+        for _ in range(10):
+            self.assertEqual(self.report()[0], 201)
+        grant = self.grant()
+        self.put_upload(self.user, grant['uploadId'])
+        self.assertEqual(self.report(imageUploadId=grant['uploadId']), (429, {'error': 'rate_limited'}))
+        self.assertEqual(self.s3.list_objects_v2(Bucket=MEDIA_BUCKET).get('KeyCount', 0), 0)
+
     def test_bad_bodies(self):
         self.assertEqual(self.call('POST', '/v1/reports')[1], {'error': 'invalid_body'})
         self.assertEqual(self.call('POST', '/v1/reports', body=[1])[1], {'error': 'invalid_body'})

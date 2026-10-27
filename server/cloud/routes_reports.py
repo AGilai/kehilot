@@ -1,6 +1,7 @@
 """Routes: in-app bug reports. Write-only: no route returns a report (the owner's tooling reads the table).
 Nothing here logs text, context or ids."""
 import hashlib
+import ipaddress
 import os
 import time
 from datetime import datetime, timezone
@@ -33,8 +34,8 @@ def _context(d):
     value = d.get('context')
     if not isinstance(value, dict) or not set(CONTEXT_KEYS) <= set(value) <= set(CONTEXT_KEYS + OPTIONAL_CONTEXT_KEYS):
         raise ApiError(400, 'invalid_context')
-    if any(not isinstance(v, str) or len(v) > MAX_FIELD for v in value.values()):
-        raise ApiError(400, 'invalid_context')
+    if any(not isinstance(v, str) or len(v) > MAX_FIELD or not v for v in value.values()):
+        raise ApiError(400, 'invalid_context')  # required keys non-empty; kehilaId may be absent, never null or empty
     return dict(value)
 
 
@@ -47,7 +48,18 @@ def _ip_hash(ctx):
     salt = os.environ.get('REPORT_IP_SALT')
     if not salt:
         raise RuntimeError('REPORT_IP_SALT is not set')
-    return hashlib.sha256(f'{salt}:{ctx.source_ip or "unknown"}'.encode('utf-8')).hexdigest()
+    return hashlib.sha256(f'{salt}:{_ip_key(ctx.source_ip)}'.encode('utf-8')).hexdigest()
+
+
+def _ip_key(source_ip):
+    """IPv4: the address; IPv6: its /64 prefix (one subscriber holds the whole /64); unparsable: one shared bucket."""
+    try:
+        address = ipaddress.ip_address(source_ip)
+    except ValueError:
+        return 'unknown'
+    if address.version == 6:
+        return str(ipaddress.ip_network(f'{address}/64', strict=False))
+    return str(address)
 
 
 def create_upload(ctx, params):
@@ -69,7 +81,6 @@ def create(ctx, params):
     upload_id = d.get('imageUploadId')
     if 'imageUploadId' in d and (not isinstance(upload_id, str) or not ID_RE.fullmatch(upload_id)):
         raise ApiError(400, 'invalid_upload')
-    ctx.repo.count_report(f'USR#{ctx.user_id}#{_now():%Y%m%d}', USER_DAILY_LIMIT)
     report_id, image = new_id(), None
     if 'imageUploadId' in d:
         try:
@@ -78,6 +89,15 @@ def create(ctx, params):
             if error.status == 400:  # missing, someone else's, wrong type or size: one answer
                 raise ApiError(400, 'invalid_upload')
             raise
+    try:  # after the upload checks: a bad upload costs no quota
+        ctx.repo.count_report(f'USR#{ctx.user_id}#{_now():%Y%m%d}', USER_DAILY_LIMIT)
+    except ApiError:
+        if image:
+            try:
+                media.delete_key(image['key'])  # over the limit: do not leave the claimed picture behind
+            except ApiError:
+                pass
+        raise
     ctx.repo.put_report(report_id, text, context, ctx.user_id, image)
     return 201, {'reportId': report_id}
 
