@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch
 from datetime import date
 
-from server.store import Store
+from server.store import APIError, Store
 from server.push import process_one
 import test_api as helpers
 
@@ -54,6 +54,14 @@ class MembershipTest(unittest.TestCase):
         for _ in range(5):
             self.assertEqual(self.http('POST', '/api/register', body)[0], 400)
         self.assertEqual(self.http('POST', '/api/register', body)[0], 429)
+
+    def test_password_minimum_is_eight_characters(self):
+        with self.assertRaises(APIError):
+            self.store.create_user('seven@example.test', '1234567', 'שם')
+        self.assertTrue(self.store.create_user('eight@example.test', '12345678', 'שם'))
+        with self.assertRaises(APIError):
+            self.store.reset_password('eight@example.test', '1234567')
+        self.store.reset_password('eight@example.test', '87654321')
 
     def test_new_profile_creates_one_durable_private_gabbai_alert(self):
         profile = self.save_details()

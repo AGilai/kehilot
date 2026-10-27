@@ -118,8 +118,8 @@ class Store(RosterStore, SeatingStore, MembershipStore):
     def create_user(self, address, password, name, role='member'):
         address = email(address)
         name = text(name, 'שם מלא', required=True)
-        if not isinstance(password, str) or not 12 <= len(password) <= 128:
-            raise APIError(400, 'הסיסמה צריכה להכיל 12–128 תווים.')
+        if not isinstance(password, str) or not 8 <= len(password) <= 128:
+            raise APIError(400, 'הסיסמה צריכה להכיל 8–128 תווים.')
         if role not in ('member', 'gabbai'):
             raise APIError(400, 'הרשאה לא תקינה.')
         identifier, salt = secrets.token_hex(16), secrets.token_hex(16)
@@ -134,8 +134,8 @@ class Store(RosterStore, SeatingStore, MembershipStore):
 
     def reset_password(self, address, password):
         address = email(address)
-        if not isinstance(password, str) or not 12 <= len(password) <= 128:
-            raise APIError(400, 'הסיסמה צריכה להכיל 12–128 תווים.')
+        if not isinstance(password, str) or not 8 <= len(password) <= 128:
+            raise APIError(400, 'הסיסמה צריכה להכיל 8–128 תווים.')
         salt = secrets.token_hex(16)
         digest = password_hash(password, salt)
         with self.db() as db:

@@ -11,7 +11,7 @@ resource "aws_cognito_user_pool" "main" {
   auto_verified_attributes = ["email"]
 
   password_policy {
-    minimum_length                   = 12
+    minimum_length                   = 8
     require_lowercase                = false
     require_uppercase                = false
     require_numbers                  = false
@@ -44,13 +44,16 @@ resource "aws_cognito_user_pool_client" "app" {
   explicit_auth_flows           = ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
   prevent_user_existence_errors = "ENABLED"
 
-  # Short-lived id/access tokens limit a stolen token after a global sign-out; refresh keeps its default
+  # Short-lived id/access tokens limit a stolen token after a global sign-out. The refresh token lasts
+  # 10 years (the Cognito maximum) so the phone app stays signed in; sign-out and deletion revoke it.
   id_token_validity       = 15
   access_token_validity   = 15
+  refresh_token_validity  = 3650
   enable_token_revocation = true
   token_validity_units {
-    id_token     = "minutes"
-    access_token = "minutes"
+    id_token      = "minutes"
+    access_token  = "minutes"
+    refresh_token = "days"
   }
 
   allowed_oauth_flows_user_pool_client = true

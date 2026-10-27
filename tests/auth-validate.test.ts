@@ -9,11 +9,11 @@ test('emails are trimmed and lower-cased', () => {
   assert.ok(!looksLikeEmail('a@b'));
 });
 
-test('passwords count code points, minimum 12', () => {
-  assert.ok(!passwordOk('12345678901'));
-  assert.ok(passwordOk('123456789012'));
-  assert.ok(!passwordOk('😀'.repeat(11)));
-  assert.ok(passwordOk('😀'.repeat(12)));
+test('passwords count code points, minimum 8', () => {
+  assert.ok(!passwordOk('1234567'));
+  assert.ok(passwordOk('12345678'));
+  assert.ok(!passwordOk('😀'.repeat(7)));
+  assert.ok(passwordOk('😀'.repeat(8)));
 });
 
 test('fixture params', () => {

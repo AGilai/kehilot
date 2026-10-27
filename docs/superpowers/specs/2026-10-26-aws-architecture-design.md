@@ -209,7 +209,7 @@ added) live in `us-east-1` by AWS rule.
 
 ### 4.2 Identity: Cognito
 - One **user pool per environment**. Sign-in with email + password; email verification; self-service
-  password reset (replaces Noam's CLI-only resets). Password policy ≥ 12 characters (Noam's current rule).
+  password reset (replaces Noam's CLI-only resets). Password policy ≥ 8 characters, no composition rules (owner decision 2026-10-27, was 12). Refresh token 10 years so the phone app stays signed in (owner decision 2026-10-27).
 - One public app client (no secret) used by both phone and web, `USER_SRP_AUTH` + refresh tokens.
   **[call]** In-app Hebrew login/register screens calling Cognito directly (e.g. `amazon-cognito-identity-js`
   or Amplify Auth), not the hosted login page, so the RTL design from the UX work is kept.
