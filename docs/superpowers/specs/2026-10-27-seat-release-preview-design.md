@@ -156,3 +156,9 @@ women's seats stay counted areas (later).
 Kehila." → seat numbers are internal ids only: never shown on the print or as "כיסא N" to members; a
 member's seats are shown by position in his block, labelled at most by the family's own order (the sheet's
 "<family>-1/-2…"). Drop the numbering-direction constant.
+
+**Owner, 2026-10-27:** "The print should be colored so it will be clear where the free seats are. Maybe
+a toggle: black-white, only green for free, and green-red?" → the gabbai print gets a style choice:
+**green for free** (default: released + free filled green, taken light grey), **green / red** (free
+green, taken red), **black & white** (shapes only). Shapes and labels stay in every style (B/W printers,
+colour-blindness). The choice is remembered per gabbai device. Colours by the designer (contrast-checked).
