@@ -151,3 +151,8 @@ gabbai printout tabs, and Positive/Summary tabs.
 **Owner, 2026-10-27:** "ark is in the front. For now only a men map is needed." → the ark is at the front
 (the top of the sheet: row 0, then rows 1–13 moving away from it). Only the men's hall gets a seat map;
 women's seats stay counted areas (later).
+
+**Owner, 2026-10-27:** "There are no numbers... you can assign them but they mean nothing, at least in our
+Kehila." → seat numbers are internal ids only: never shown on the print or as "כיסא N" to members; a
+member's seats are shown by position in his block, labelled at most by the family's own order (the sheet's
+"<family>-1/-2…"). Drop the numbering-direction constant.
