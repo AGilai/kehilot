@@ -67,7 +67,8 @@ class PushTextsTest(unittest.TestCase):
         self.assertEqual(sent['ExponentPushToken[fam]']['body'], PUSH_TEXT['celebration']['he'])
         status, body = self.call('GET', self.url())
         self.assertEqual((status, body['custom'], body['defaults']),
-                         (200, {'celebration': {'en': 'Mazal tov!'}}, PUSH_TEXT))
+                         (200, {'celebration': {'en': 'Mazal tov!'}},
+                          {key: v for key, v in PUSH_TEXT.items() if key not in push.SYSTEM_KEYS}))
         self.assertEqual(self.repo.get_kehila(self.k)['name'], 'Beit Test')  # other META fields are kept
         self.assertIn('settings', self.repo.get_kehila(self.k))
 

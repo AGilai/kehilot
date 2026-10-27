@@ -1,11 +1,25 @@
 """Family items (K#<k> / F#<familyId>): one per member or gabbai household."""
+import logging
 import time
 
-from boto3.dynamodb.conditions import Attr
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 from .errors import ApiError
 from .ids import new_id
+
+log = logging.getLogger(__name__)
+
+REQUEST_TTL = 7 * 86400
+DECLINE_TTL = 30 * 86400
+MEMBER_ROLES = ('member', 'gabbai')
+
+
+def _cancelled(error):
+    """Per-item cancellation codes of a failed transaction, or None when the error is something else."""
+    if error.response['Error']['Code'] != 'TransactionCanceledException':
+        return None
+    return [r.get('Code') for r in error.response.get('CancellationReasons', [])]
 
 
 class FamiliesRepo:
@@ -80,4 +94,202 @@ class FamiliesRepo:
             except ClientError as error:
                 if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                     raise
+        raise ApiError(409, 'try_again')
+
+    # link requests (PR# at the target, PS# at the sender, PD# decline cooldown)
+    def query_consistent(self, k, prefix):
+        items, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').begins_with(prefix),
+                                    ConsistentRead=True, **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def put_link_request(self, k, from_user, to_user, now):
+        """Record the request (PS# marker + PR# at the target) in one transaction; returns expiresAt.
+        409 request_pending when the sender has a live pending request."""
+        now = int(now)
+        expires = now + REQUEST_TTL
+        try:
+            self._txn([
+                {'Put': {'TableName': self.table.name,
+                         'Item': {**self._key(k, f'PS#{from_user}'), 'toUserId': to_user, 'state': 'pending',
+                                  'createdAt': now, 'expiresAt': expires},
+                         'ConditionExpression': 'attribute_not_exists(sk) OR expiresAt <= :now OR #s = :declined',
+                         'ExpressionAttributeNames': {'#s': 'state'},
+                         'ExpressionAttributeValues': {':now': now, ':declined': 'declined'}}},
+                {'Put': {'TableName': self.table.name,
+                         'Item': {**self._key(k, f'PR#{to_user}#{from_user}'), 'fromUserId': from_user,
+                                  'toUserId': to_user, 'createdAt': now, 'expiresAt': expires}}},
+            ])
+        except ClientError as error:
+            codes = _cancelled(error)
+            if codes is None:
+                raise
+            raise ApiError(409, 'request_pending' if 'ConditionalCheckFailed' in codes else 'try_again')
+        return expires
+
+    def live_request(self, k, to_user, from_user, now=None):
+        item = self.table.get_item(Key=self._key(k, f'PR#{to_user}#{from_user}'), ConsistentRead=True).get('Item')
+        return item if item and int(item['expiresAt']) > int(now if now is not None else time.time()) else None
+
+    def received_requests(self, k, user_id, now):
+        items = [i for i in self.query_consistent(k, f'PR#{user_id}#') if int(i['expiresAt']) > int(now)]
+        return sorted(items, key=lambda i: (int(i['createdAt']), i['fromUserId']))
+
+    def live_decline(self, k, from_user, to_user, now):
+        item = self.table.get_item(Key=self._key(k, f'PD#{from_user}#{to_user}'), ConsistentRead=True).get('Item')
+        return item if item and int(item['expiresAt']) > int(now) else None
+
+    def decline_markers(self, k, from_user, now):
+        return {i['sk'].split('#')[2]: i for i in self.query_consistent(k, f'PD#{from_user}#')
+                if int(i['expiresAt']) > int(now)}
+
+    def decline_request(self, k, to_user, from_user, now):
+        """The target declines: the request goes, the sender's marker turns 'declined' and a 30-day cooldown
+        starts. 404 request_not_found when the request is gone or expired."""
+        now = int(now)
+        try:
+            self.table.delete_item(Key=self._key(k, f'PR#{to_user}#{from_user}'),
+                                   ConditionExpression='attribute_exists(sk) AND expiresAt > :now',
+                                   ExpressionAttributeValues={':now': now})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            raise ApiError(404, 'request_not_found')
+        try:  # keeps its expiresAt; absent (already cleaned) or pointing elsewhere: nothing to mark
+            self.table.update_item(Key=self._key(k, f'PS#{from_user}'), UpdateExpression='SET #s = :declined',
+                                   ConditionExpression='attribute_exists(sk) AND toUserId = :to',
+                                   ExpressionAttributeNames={'#s': 'state'},
+                                   ExpressionAttributeValues={':declined': 'declined', ':to': to_user})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+        until = now + DECLINE_TTL
+        self.table.put_item(Item={**self._key(k, f'PD#{from_user}#{to_user}'), 'until': until, 'expiresAt': until})
+
+    def withdraw_request(self, k, from_user):
+        """Delete the sender's marker and its request; fine when there is none."""
+        marker = self.table.get_item(Key=self._key(k, f'PS#{from_user}'), ConsistentRead=True).get('Item')
+        if not marker:
+            return
+        self.table.delete_item(Key=self._key(k, f'PR#{marker["toUserId"]}#{from_user}'))
+        self.table.delete_item(Key=self._key(k, f'PS#{from_user}'))
+
+    def clear_requests(self, k, user_id):
+        """Drop every request to and from the user, their marker, and the markers of those who asked them."""
+        for item in self.query_consistent(k, f'PR#{user_id}#'):
+            self.table.delete_item(Key=self._key(k, item['sk']))
+            marker = self.table.get_item(Key=self._key(k, f'PS#{item["fromUserId"]}'), ConsistentRead=True).get('Item')
+            if marker and marker.get('toUserId') == user_id:
+                self.table.delete_item(Key=self._key(k, marker['sk']))
+        for item in self._query_prefix(k, 'PR#', Attr('fromUserId').eq(user_id)):
+            self.table.delete_item(Key=self._key(k, item['sk']))
+        self.table.delete_item(Key=self._key(k, f'PS#{user_id}'))
+
+    # link / unlink
+    def _clear_quietly(self, k, users):
+        for user in users:
+            try:
+                self.clear_requests(k, user)
+            except Exception:
+                log.exception('clear_requests failed kehila=%s', k)  # best effort: expiry cleans up
+
+    def link(self, k, keep_user, move_user, request_from=None):
+        """Merge move_user's one-adult family into keep_user's. Returns the kept familyId.
+        `request_from` (the sender whose request to keep_user is being confirmed) must still be live and is
+        consumed in the same transaction."""
+        for attempt in range(2):
+            now = int(time.time())
+            if request_from and not self.live_request(k, keep_user, request_from, now):
+                raise ApiError(404, 'request_not_found')
+            keep_id, move_id = self.ensure_family(k, keep_user), self.ensure_family(k, move_user)
+            if not keep_id or not move_id:
+                raise ApiError(404 if request_from else 400, 'request_not_found' if request_from else 'invalid_user_ids')
+            keep, moved = self.get_family(k, keep_id), self.get_family(k, move_id)
+            if not keep or not moved:
+                raise ApiError(404, 'family_not_found')
+            if keep_id == move_id or len(keep['adults']) != 1:
+                raise ApiError(409, 'already_linked')
+            if len(moved['adults']) != 1:
+                raise ApiError(409, 'partner_taken')
+            table = self.table.name
+            member_roles = {':member': 'member', ':gabbai': 'gabbai'}
+            items = [
+                {'Update': {'TableName': table, 'Key': self._key(k, f'F#{keep_id}'),
+                            'UpdateExpression': 'SET adults = :both, children = :merged, version = :v1',
+                            'ConditionExpression': 'version = :v',
+                            'ExpressionAttributeValues': {
+                                ':both': list(keep['adults']) + list(moved['adults']),
+                                ':merged': list(keep.get('children') or []) + list(moved.get('children') or []),
+                                ':v': int(keep['version']), ':v1': int(keep['version']) + 1}}},
+                {'Delete': {'TableName': table, 'Key': self._key(k, f'F#{move_id}'),
+                            'ConditionExpression': 'version = :v',
+                            'ExpressionAttributeValues': {':v': int(moved['version'])}}},
+                {'Update': {'TableName': table, 'Key': self._key(k, f'M#{move_user}'),
+                            'UpdateExpression': 'SET familyId = :keep',
+                            'ConditionExpression': 'familyId = :moved AND #r IN (:member, :gabbai)',
+                            'ExpressionAttributeNames': {'#r': 'role'},
+                            'ExpressionAttributeValues': {':keep': keep_id, ':moved': move_id, **member_roles}}},
+                {'ConditionCheck': {'TableName': table, 'Key': self._key(k, f'M#{keep_user}'),
+                                    'ConditionExpression': 'familyId = :keep AND #r IN (:member, :gabbai)',
+                                    'ExpressionAttributeNames': {'#r': 'role'},
+                                    'ExpressionAttributeValues': {':keep': keep_id, **member_roles}}},
+            ]
+            if request_from:
+                items += [
+                    {'Delete': {'TableName': table, 'Key': self._key(k, f'PR#{keep_user}#{request_from}'),
+                                'ConditionExpression': 'attribute_exists(sk) AND expiresAt > :now',
+                                'ExpressionAttributeValues': {':now': now}}},
+                    {'Delete': {'TableName': table, 'Key': self._key(k, f'PS#{request_from}')}},
+                ]
+            try:
+                self._txn(items)
+            except ClientError as error:
+                codes = _cancelled(error)
+                if codes is None:
+                    raise
+                if request_from and len(codes) > 4 and codes[4] == 'ConditionalCheckFailed':
+                    raise ApiError(404, 'request_not_found')
+                continue  # re-read once: a changed family maps to its own code, otherwise try_again
+            self._clear_quietly(k, (keep_user, move_user))
+            return keep_id
+        raise ApiError(409, 'try_again')
+
+    def unlink(self, k, user_id):
+        """Split the user off a two-adult family into a new family with a copy of the children; the old family
+        (and its blessings) stays with the other adult. Returns the new familyId."""
+        for _ in range(2):
+            family = self.family_of(k, user_id)
+            if not family or len(family['adults']) != 2 or user_id not in family['adults']:
+                raise ApiError(409, 'not_linked')
+            other = next(a for a in family['adults'] if a != user_id)
+            old_id, new_id_ = family['familyId'], new_id()
+            table = self.table.name
+            try:
+                self._txn([
+                    {'Put': {'TableName': table, 'ConditionExpression': 'attribute_not_exists(sk)',
+                             'Item': {'pk': f'K#{k}', 'sk': f'F#{new_id_}', 'familyId': new_id_,
+                                      'adults': [user_id], 'children': list(family.get('children') or []),
+                                      'version': 1, 'createdAt': int(time.time())}}},
+                    {'Update': {'TableName': table, 'Key': self._key(k, f'F#{old_id}'),
+                                'UpdateExpression': 'SET adults = :other, version = :v1',
+                                'ConditionExpression': 'version = :v',
+                                'ExpressionAttributeValues': {':other': [other], ':v': int(family['version']),
+                                                              ':v1': int(family['version']) + 1}}},
+                    {'Update': {'TableName': table, 'Key': self._key(k, f'M#{user_id}'),
+                                'UpdateExpression': 'SET familyId = :new REMOVE familyNotice',
+                                'ConditionExpression': 'familyId = :old',
+                                'ExpressionAttributeValues': {':new': new_id_, ':old': old_id}}},
+                    {'Update': {'TableName': table, 'Key': self._key(k, f'M#{other}'),
+                                'UpdateExpression': 'REMOVE familyNotice',
+                                'ConditionExpression': 'attribute_exists(sk)'}},
+                ])
+            except ClientError as error:
+                if _cancelled(error) is None:
+                    raise
+                continue
+            return new_id_
         raise ApiError(409, 'try_again')

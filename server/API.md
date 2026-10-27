@@ -400,12 +400,27 @@ Member or gabbai only (listener 403 `forbidden`). A family is created on first u
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/v1/kehilot/{k}/family` | member, gabbai | - | 200 FamilyView `{familyId, name, adults:[{userId, displayName, me}], children:[child], sent, received, notice}`; `name` from the adults' profiles; `sent` is null, `received` is `[]` and `notice` is null until link requests exist | 403 `forbidden` |
+| GET | `/v1/kehilot/{k}/family` | member, gabbai | - | 200 FamilyView `{familyId, name, adults:[{userId, displayName, me}], children:[child], sent, received, notice}`; `name` from the adults' profiles; `sent` is `{toUserId, toName, expiresAt, state: "pending"\|"declined"\|"expired"}` or null (the caller's own request; a marker is ignored 7 days after it expired), `received` is `[{fromUserId, fromName, expiresAt}]` (live requests, oldest first) and `notice` is null for now | 403 `forbidden` |
 | POST | `/v1/kehilot/{k}/family/children` | member, gabbai | `{firstName (1-60), gender: "m"\|"f", birthDate?: "YYYY-MM-DD"}`; absent or `""` omits the birth date, otherwise a real date from 1900-01-01 to today (Israel) | 201 child `{id, firstName, gender, birthDate?}` | 400 `invalid_first_name`, `invalid_gender`, `invalid_birth_date`; 409 `children_limit` (20), `try_again` |
 | PUT | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | same body (replaces the child) | 200 child | as above; 404 `child_not_found` |
 | DELETE | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | - | 204 | 404 `child_not_found`; 409 `try_again` |
 
 Both adults may edit the children at once: writes are version-checked and retried, and `try_again` is returned only after 3 lost races.
+
+#### Family links (requests, unlink)
+
+Member or gabbai only. Linking needs the other person's confirmation. A request lives 7 days; a decline starts a 30-day cooldown for that pair (the sender is not told, only sees `declined`). A sender has one request at a time.
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/v1/kehilot/{k}/family/candidates` | member, gabbai | - | 200 `[{userId, displayName, cooldownUntil?}]`: members and gabbaim other than the caller whose family has one adult, by `displayName`; `cooldownUntil` (seconds) while the caller's earlier request to them was declined | 403 `forbidden` |
+| POST | `/v1/kehilot/{k}/family/requests` | member, gabbai | `{toUserId}` | 201 `{toUserId, expiresAt}`; queues push `family_request` for the target | 400 `invalid_to_user_id` (not a ULID, the caller, or not a member/gabbai here); 409 `already_linked` (the caller has a partner), `partner_taken` (the target has one), `request_pending`, `request_cooldown`, `try_again` |
+| DELETE | `/v1/kehilot/{k}/family/requests/mine` | member, gabbai | - | 204 (withdraws a pending request; also dismisses a declined or expired banner; 204 when there is none) | - |
+| POST | `/v1/kehilot/{k}/family/requests/{fromUserId}/confirm` | member, gabbai | - | 200 FamilyView. The confirmer's family is kept: adults `[confirmer, sender]`, children = the confirmer's then the sender's (may exceed 20; adding is refused until under 20). One transaction; all requests of both people are then cleared | 404 `request_not_found` (none, expired or already consumed); 409 `already_linked`, `partner_taken`, `try_again` |
+| POST | `/v1/kehilot/{k}/family/requests/{fromUserId}/decline` | member, gabbai | - | 204; no push | 404 `request_not_found` |
+| POST | `/v1/kehilot/{k}/family/unlink` | member, gabbai | - | 200 FamilyView of the caller's new family (a copy of the children). The old family, its ID and blessings stay with the other adult | 409 `not_linked`, `try_again` |
+
+Two link actions racing (crossed confirms, or a confirm while a gabbai links one of them) commit exactly once; the other gets 409 `already_linked` / `partner_taken` (or 404 `request_not_found` once the winner cleared the requests). Items: `PR#<to>#<from>` (request, TTL +7 days), `PS#<from>` (sender marker with `state` `pending`|`declined`), `PD#<from>#<to>` (cooldown, +30 days).
 
 #### Change feed and notification preferences
 
@@ -429,7 +444,7 @@ A change is skipped if the object is no longer visible to the caller. The feed i
 
 ### Push notifications
 
-Posting a message, a reply, a membership request or a group join request queues a job (SQS); a worker sends it through Expo. Payload data carries `{kehila, messageId}` or `{kehila, screen}` only; the title is the Kehila's name and the text is generic and in the recipient's language. A device Expo reports as `DeviceNotRegistered` is removed. A message pushes only people in the channel's audience (a gabbai outside its groups is not); a reply pushes its target only while the target can read the channel.
+Posting a message, a reply, a membership request, a group join request or a family link request queues a job (SQS); a worker sends it through Expo. Payload data carries `{kehila, messageId}` or `{kehila, screen}` only; the title is the Kehila's name and the text is generic and in the recipient's language. A device Expo reports as `DeviceNotRegistered` is removed. A message pushes only people in the channel's audience (a gabbai outside its groups is not); a reply pushes its target only while the target can read the channel. Two kinds are fixed system texts, left out of `admin/push-texts` (GET omits them, PUT answers 400 `invalid_key`): `family_request` (he "בקשת קישור משפחה חדשה", en "New family link request") and `family_gabbai` (he "הגבאי עדכן את פרטי המשפחה שלכם", en "The gabbai updated your family details"). Their job `ref` is the recipient's userId (pushed only while they are a member or gabbai of that Kehila) and the payload data is `{kehila, screen: "family"}`.
 
 ### Error codes
 
@@ -445,6 +460,7 @@ Posting a message, a reply, a membership request or a group join request queues 
 | 409 | `try_again` | transaction conflict: retry the same request (also returned as 503 by a batch read that stayed incomplete) |
 | 409 | `already_in_group` | asked to join a group the caller is already in |
 | 409 | `already_member`, `already_requested`, `not_a_listener` | state conflicts when joining or approving |
+| 409 | `already_linked`, `partner_taken`, `request_pending`, `request_cooldown`, `not_linked` | family links (see Family links) |
 | 409 | `kehila_full` | the Kehila is at its listener cap (soft cap, see accept) |
 | 409 | `too_many_invites` | a member already has 3 unexpired listener links |
 | 409 | `profile_required` | save a profile before accepting an invite |

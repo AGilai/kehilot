@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import time
 from datetime import date, timedelta
 import unittest
 from unittest import mock
@@ -7,7 +8,8 @@ from unittest import mock
 import boto3
 from moto import mock_aws
 
-from server.cloud import accounts, importer, repo_messages
+from server.cloud import accounts, importer, push, repo_messages
+from server.cloud.errors import ApiError
 from server.cloud.families import family_name
 from server.tests.cloud import test_messages
 from server.tests.cloud.test_admin import PROFILE
@@ -225,6 +227,219 @@ class FamiliesTest(test_messages.MessagesTest):
         self.assertEqual(self.call('DELETE', self.fam('/children/not-a-ulid'), sub='member-sub'),
                          (404, {'error': 'child_not_found'}))
         self.assertEqual(self.call('GET', self.fam(), sub='other-sub')[0], 404)  # not a member here
+
+
+    # link requests, confirm, decline, unlink
+    def ask(self, sub, to):
+        return self.call('POST', self.fam('/requests'), sub=sub, body={'toUserId': to})
+
+    def view(self, sub):
+        return self.call('GET', self.fam(), sub=sub)[1]
+
+    def pending_items(self):
+        return self.repo._query_prefix(self.k, 'PR#') + self.repo._query_prefix(self.k, 'PS#')
+
+    def test_request_confirm_links_and_merges_children(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        self.add_child(sub='quiet-sub', firstName='Ari')
+        with mock.patch.object(push, 'enqueue'):
+            status, body = self.ask('member-sub', self.quiet)
+        self.assertEqual(status, 201)
+        self.assertEqual(body['toUserId'], self.quiet)
+        self.assertAlmostEqual(body['expiresAt'], time.time() + 7 * 86400, delta=60)
+        a_family = self.family_id(self.member)
+        b_family = self.family_id(self.quiet)
+        view = self.view('quiet-sub')
+        self.assertEqual([r['fromUserId'] for r in view['received']], [self.member])
+        self.assertEqual(self.view('member-sub')['sent']['state'], 'pending')
+        status, linked = self.call('POST', self.fam(f'/requests/{self.member}/confirm'), sub='quiet-sub')
+        self.assertEqual(status, 200)
+        self.assertEqual(linked['familyId'], b_family)
+        self.assertEqual([a['userId'] for a in linked['adults']], [self.quiet, self.member])
+        self.assertEqual([c['firstName'] for c in linked['children']], ['Ari', 'Noa'])
+        mine = self.view('member-sub')
+        self.assertEqual((mine['familyId'], mine['children']), (b_family, linked['children']))
+        self.assertEqual((mine['sent'], mine['received']), (None, []))
+        self.assertIsNone(self.repo.get_family(self.k, a_family))
+        self.assertEqual(len(self.families()), 1)
+        self.assertEqual(self.pending_items(), [])
+
+    def test_request_pushes_generic_family_screen(self):
+        with mock.patch.object(push, 'enqueue') as enqueue:
+            self.ask('member-sub', self.quiet)
+        enqueue.assert_called_once_with('family_request', self.k, self.quiet)
+
+    def test_request_errors(self):
+        for target in (self.member, self.listener, 'not-a-ulid', 'x' * 26):
+            self.assertEqual(self.ask('member-sub', target), (400, {'error': 'invalid_to_user_id'}), target)
+        with mock.patch.object(push, 'enqueue'):
+            self.assertEqual(self.ask('member-sub', self.quiet)[0], 201)
+            self.assertEqual(self.ask('member-sub', self.gabbai), (409, {'error': 'request_pending'}))
+            self.assertEqual(self.ask('member-sub', self.quiet), (409, {'error': 'request_pending'}))
+        self.repo.link(self.k, self.gabbai, self.quiet)  # quiet is now taken
+        self.assertEqual(self.ask('listener-sub', self.quiet)[0], 403)
+        self.repo.ensure_family(self.k, self.member)
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'PS#{self.member}'})
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'PR#{self.quiet}#{self.member}'})
+        self.assertEqual(self.ask('member-sub', self.quiet), (409, {'error': 'partner_taken'}))
+        self.assertEqual(self.ask('quiet-sub', self.member), (409, {'error': 'already_linked'}))
+
+    def test_decline_is_silent_and_starts_cooldown(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+        with mock.patch.object(push, 'enqueue') as enqueue:
+            status, _ = self.call('POST', self.fam(f'/requests/{self.member}/decline'), sub='quiet-sub')
+        self.assertEqual(status, 204)
+        enqueue.assert_not_called()
+        self.assertEqual(self.view('quiet-sub')['received'], [])
+        self.assertEqual(self.view('member-sub')['sent']['state'], 'declined')
+        self.assertEqual(self.ask('member-sub', self.quiet), (409, {'error': 'request_cooldown'}))
+        candidates = self.call('GET', self.fam('/candidates'), sub='member-sub')[1]
+        by_id = {c['userId']: c for c in candidates}
+        self.assertAlmostEqual(by_id[self.quiet]['cooldownUntil'], time.time() + 30 * 86400, delta=60)
+        self.assertNotIn('cooldownUntil', by_id[self.gabbai])
+        self.assertEqual([c['displayName'] for c in candidates], sorted(c['displayName'] for c in candidates))
+        self.assertNotIn(self.member, by_id)
+        self.assertNotIn(self.listener, by_id)
+        with mock.patch.object(push, 'enqueue'):
+            self.assertEqual(self.ask('member-sub', self.gabbai)[0], 201)  # a declined request frees the sender
+        self.assertEqual(self.call('POST', self.fam(f'/requests/{self.member}/decline'), sub='quiet-sub'),
+                         (404, {'error': 'request_not_found'}))
+
+    def test_request_expires_after_7_days(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+            later = time.time() + 7 * 86400 + 1
+            with mock.patch('time.time', return_value=later):
+                sent = self.view('member-sub')['sent']
+                self.assertEqual(sent['state'], 'expired')
+                self.assertEqual(self.view('quiet-sub')['received'], [])
+                self.assertEqual(self.call('POST', self.fam(f'/requests/{self.member}/confirm'), sub='quiet-sub'),
+                                 (404, {'error': 'request_not_found'}))
+                self.assertEqual(self.ask('member-sub', self.quiet)[0], 201)
+                self.assertEqual(self.view('member-sub')['sent']['state'], 'pending')
+                self.assertEqual(len(self.view('quiet-sub')['received']), 1)
+
+    def test_withdraw(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+        self.assertEqual(self.call('DELETE', self.fam('/requests/mine'), sub='member-sub'), (204, None))
+        self.assertEqual(self.view('quiet-sub')['received'], [])
+        self.assertIsNone(self.view('member-sub')['sent'])
+        self.assertEqual(self.pending_items(), [])
+        self.assertEqual(self.call('DELETE', self.fam('/requests/mine'), sub='member-sub'), (204, None))
+
+    def test_withdraw_dismisses_declined_banner(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+        self.call('POST', self.fam(f'/requests/{self.member}/decline'), sub='quiet-sub')
+        self.assertEqual(self.call('DELETE', self.fam('/requests/mine'), sub='member-sub'), (204, None))
+        self.assertIsNone(self.view('member-sub')['sent'])
+        self.assertEqual(self.ask('member-sub', self.quiet), (409, {'error': 'request_cooldown'}))
+
+    def test_unlink_copies_children_and_keeps_family_with_other(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        self.add_child(sub='member-sub', firstName='Ari')
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('quiet-sub', self.member)
+        self.call('POST', self.fam(f'/requests/{self.quiet}/confirm'), sub='member-sub')
+        old_id = self.family_id(self.member)
+        self.assertEqual(self.family_id(self.quiet), old_id)
+        status, mine = self.call('POST', self.fam('/unlink'), sub='quiet-sub')
+        self.assertEqual(status, 200)
+        self.assertNotEqual(mine['familyId'], old_id)
+        self.assertEqual([a['userId'] for a in mine['adults']], [self.quiet])
+        self.assertEqual([c['firstName'] for c in mine['children']], ['Noa', 'Ari'])
+        self.assertEqual(self.family_id(self.quiet), mine['familyId'])
+        other = self.view('member-sub')
+        self.assertEqual((other['familyId'], [a['userId'] for a in other['adults']]), (old_id, [self.member]))
+        self.assertEqual(len(other['children']), 2)
+        child = mine['children'][0]
+        self.call('DELETE', self.fam(f'/children/{child["id"]}'), sub='quiet-sub')
+        self.assertEqual(len(self.view('quiet-sub')['children']), 1)
+        self.assertEqual(len(self.view('member-sub')['children']), 2)
+        self.assertEqual(self.call('POST', self.fam('/unlink'), sub='quiet-sub'), (409, {'error': 'not_linked'}))
+
+    def test_confirm_after_target_linked_elsewhere_409(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+        with mock.patch.object(self.repo, 'clear_requests'):  # the commit-to-clean-up window
+            self.repo.link(self.k, self.quiet, self.gabbai)
+        self.assertEqual(self.call('POST', self.fam(f'/requests/{self.member}/confirm'), sub='quiet-sub'),
+                         (409, {'error': 'already_linked'}))
+        self.assertEqual(len(self.repo.family_of(self.k, self.quiet)['adults']), 2)
+        self.repo.clear_requests(self.k, self.quiet)
+        self.assertEqual(self.pending_items(), [])
+        ids = [c['userId'] for c in self.call('GET', self.fam('/candidates'), sub='member-sub')[1]]
+        self.assertNotIn(self.quiet, ids)
+
+    def test_link_clears_requests_of_both_people(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+        self.repo.link(self.k, self.quiet, self.gabbai)
+        self.assertEqual(self.pending_items(), [])
+        self.assertEqual(self.call('POST', self.fam(f'/requests/{self.member}/confirm'), sub='quiet-sub'),
+                         (404, {'error': 'request_not_found'}))
+        self.assertIsNone(self.view('member-sub')['sent'])
+
+    def test_link_refuses_third_adult_and_same_family(self):
+        self.repo.link(self.k, self.quiet, self.gabbai)
+        for keep, move, code in ((self.quiet, self.member, 'already_linked'),
+                                 (self.member, self.quiet, 'partner_taken'),
+                                 (self.quiet, self.gabbai, 'already_linked')):
+            with self.assertRaises(ApiError) as caught:
+                self.repo.link(self.k, keep, move)
+            self.assertEqual((caught.exception.status, caught.exception.code), (409, code))
+        self.assertEqual(len(self.repo.family_of(self.k, self.quiet)['adults']), 2)
+
+    def test_link_lost_race_is_try_again(self):
+        real = self.repo.get_family
+        stale = {}
+
+        def spy(k, fid):
+            item = real(k, fid)
+            stale.setdefault(fid, item)
+            return stale[fid]  # always the first read: every attempt sees an old version
+        self.repo.ensure_family(self.k, self.member)
+        self.repo.ensure_family(self.k, self.quiet)
+        spy(self.k, self.family_id(self.quiet))
+        self.repo.update_children(self.k, self.family_id(self.quiet), lambda c: c)
+        with mock.patch.object(self.repo, 'get_family', side_effect=spy):
+            with self.assertRaises(ApiError) as caught:
+                self.repo.link(self.k, self.quiet, self.member)
+        self.assertEqual((caught.exception.status, caught.exception.code), (409, 'try_again'))
+        self.assertEqual(len(self.repo.family_of(self.k, self.member)['adults']), 1)
+
+    def test_crossed_requests_link_once(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+            self.ask('quiet-sub', self.member)
+        self.assertEqual(self.call('POST', self.fam(f'/requests/{self.quiet}/confirm'), sub='member-sub')[0], 200)
+        self.assertEqual(self.call('POST', self.fam(f'/requests/{self.member}/confirm'), sub='quiet-sub'),
+                         (404, {'error': 'request_not_found'}))
+        family = self.repo.family_of(self.k, self.member)
+        self.assertEqual(sorted(family['adults']), sorted([self.member, self.quiet]))
+        self.assertEqual(self.pending_items(), [])
+
+    def test_crossed_confirms_in_the_race_window_link_once(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+            self.ask('quiet-sub', self.member)
+        with mock.patch.object(self.repo, 'clear_requests'):
+            self.assertEqual(self.call('POST', self.fam(f'/requests/{self.quiet}/confirm'), sub='member-sub')[0],
+                             200)
+        status, body = self.call('POST', self.fam(f'/requests/{self.member}/confirm'), sub='quiet-sub')
+        self.assertEqual((status, body['error'] in ('already_linked', 'partner_taken')), (409, True))
+        self.assertEqual(len(self.repo.family_of(self.k, self.member)['adults']), 2)
+
+    def test_push_texts_hide_system_keys(self):
+        status, body = self.call('GET', f'{self.base()}/admin/push-texts')
+        self.assertEqual(status, 200)
+        self.assertFalse([key for key in body['defaults'] if key.startswith('family_')])
+        for key in ('family_request', 'family_gabbai'):
+            self.assertEqual(self.call('PUT', f'{self.base()}/admin/push-texts',
+                                       body={'key': key, 'lang': 'he', 'text': 'x'}),
+                             (400, {'error': 'invalid_key'}))
 
 
 if __name__ == '__main__':

@@ -85,6 +85,14 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/children/(?P<childId>[^/]+)$'), routes_families.edit_child),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/children/(?P<childId>[^/]+)$'),
      routes_families.delete_child),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/candidates$'), routes_families.candidates),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests$'), routes_families.create_request),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests/mine$'), routes_families.withdraw_request),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests/(?P<fromUserId>[^/]+)/confirm$'),
+     routes_families.confirm_request),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests/(?P<fromUserId>[^/]+)/decline$'),
+     routes_families.decline_request),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/unlink$'), routes_families.unlink),
 ]
 PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 

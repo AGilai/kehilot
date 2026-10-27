@@ -140,6 +140,23 @@ class PushTest(unittest.TestCase):
         self.assertEqual([s['to'] for s in self.sent], ['ExponentPushToken[fam]'])
         self.assertEqual(self.sent[0]['data'], {'kehila': self.k, 'messageId': self.mid(m)})
 
+    def test_family_request_push_payload(self):
+        for kind, ref in (('family_request', self.eng), ('family_gabbai', self.eng)):
+            self.sent.clear()
+            push_worker.handler({'Records': [record(kind, self.k, ref)]}, None)
+            self.assertEqual([m['data'] for m in self.sent], [{'kehila': self.k, 'screen': 'family'}])
+            self.assertEqual(self.sent[0]['to'], f'ExponentPushToken[{self.eng}]')
+            self.assertEqual(self.sent[0]['body'], PUSH_TEXT[kind]['en'])
+        self.assertEqual(PUSH_TEXT['family_request']['he'], 'בקשת קישור משפחה חדשה')
+        self.assertEqual(PUSH_TEXT['family_gabbai']['en'], 'The gabbai updated your family details')
+
+    def test_family_push_only_to_member_or_gabbai_of_that_kehila(self):
+        for ref in (self.lis, 'nobody'):
+            self.sent.clear()
+            push_worker.handler({'Records': [record('family_request', self.k, ref)]}, None)
+            self.assertEqual(self.sent, [])
+        self.assertEqual(push_worker.recipients(self.repo, 'family_gabbai', self.k, self.gab), [self.gab])
+
     def test_request_goes_to_gabbaim(self):
         self.user('gab2', 'gabbai', None)
         self.assertCountEqual(push_worker.recipients(self.repo, 'request', self.k, 'requests'), ['gab', 'gab2'])
@@ -192,7 +209,7 @@ class PushTest(unittest.TestCase):
         self.run_message(m)
         self.assertTrue(self.sent)
         texts = {t for langs in PUSH_TEXT.values() for t in langs.values()}
-        self.assertEqual(len(PUSH_TEXT), 9)
+        self.assertEqual(len(PUSH_TEXT), 11)
         for s in self.sent:
             self.assertLessEqual(set(s['data']), {'kehila', 'messageId', 'screen'})
             self.assertIn(s['body'], texts)

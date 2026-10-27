@@ -1,7 +1,8 @@
 """Push notifications: the request path only enqueues a small job; push_worker does the sending.
 
 The job is {"kind", "kehila", "ref"} on the SQS queue in env PUSH_QUEUE_URL. ref is a messageId for
-'message' and 'reply', the screen name for 'request' and the group ID for 'group_request'. No message content ever enters the queue.
+'message' and 'reply', the screen name for 'request' and the group ID for 'group_request'
+and the recipient's userId for 'family_request' and 'family_gabbai'. No message content ever enters the queue.
 """
 import json
 import logging
@@ -21,20 +22,27 @@ PUSH_TEXT = {
     'reply': {'he': 'ברכה חדשה', 'en': 'New blessing'},
     'request': {'he': 'בקשת הצטרפות חדשה', 'en': 'New membership request'},
     'group_request': {'he': 'בקשת הצטרפות לקבוצה', 'en': 'New group join request'},
+    'family_request': {'he': 'בקשת קישור משפחה חדשה', 'en': 'New family link request'},
+    'family_gabbai': {'he': 'הגבאי עדכן את פרטי המשפחה שלכם', 'en': 'The gabbai updated your family details'},
 }
+# Fixed texts: not offered by, or editable through, the gabbai's push-text screens. ref = the recipient's userId.
+SYSTEM_KEYS = ('family_request', 'family_gabbai')
 PUSH_TEXT_MAX = 80  # code points: the text is shown on the lock screen
 MESSAGE_TYPES = ('weekly', 'celebration', 'condolence', 'event', 'chat')
 
 
 def resolve_text(meta, key, lang) -> str:
     """The Kehila's custom text for `key` in `lang` when set and not empty, else the default."""
+    if key in SYSTEM_KEYS:
+        return PUSH_TEXT[key][lang]
     custom = ((meta or {}).get('pushTexts') or {}).get(key, {})
     text = custom.get(lang) if isinstance(custom, dict) else None
     return text if isinstance(text, str) and text else PUSH_TEXT[key][lang]
 
 
 def enqueue(kind, kehila, ref) -> None:
-    """Queue a push of `kind` ('message' | 'reply' | 'request' | 'group_request') for `kehila`.
+    """Queue a push of `kind` ('message' | 'reply' | 'request' | 'group_request' | 'family_request' |
+    'family_gabbai') for `kehila`.
 
     No-op when PUSH_QUEUE_URL is unset. A queue failure is logged and swallowed: the message or request
     is already saved, and a missed push must not turn it into an error for the caller."""

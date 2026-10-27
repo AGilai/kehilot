@@ -9,7 +9,7 @@ import os
 import time
 
 from . import expo, visibility
-from .push import MESSAGE_TYPES, PUSH_TEXT, resolve_text
+from .push import MESSAGE_TYPES, PUSH_TEXT, SYSTEM_KEYS, resolve_text
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 log = logging.getLogger(__name__)
@@ -38,6 +38,9 @@ def recipients(repo, kind, kehila, ref):
         members = repo.list_members(kehila)
         admins = [m['userId'] for m in members if visibility.is_group_admin(m, ref) and m['role'] == 'member']
         return admins or [m['userId'] for m in members if visibility.is_gabbai(m)]
+    if kind in SYSTEM_KEYS:  # ref = the recipient, who must still be a member or gabbai here
+        membership = repo.get_membership(kehila, ref)
+        return [ref] if membership and membership.get('role') in ('member', 'gabbai') else []
     message = repo.get_message(kehila, ref)
     if not message or message.get('removed'):
         return []
@@ -74,6 +77,8 @@ def _data(kind, kehila, ref):
         return {'kehila': kehila, 'screen': 'requests'}
     if kind == 'group_request':
         return {'kehila': kehila, 'screen': 'group_requests'}  # the group ID stays out of the payload
+    if kind in SYSTEM_KEYS:
+        return {'kehila': kehila, 'screen': 'family'}
     return {'kehila': kehila, 'messageId': ref}
 
 

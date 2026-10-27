@@ -198,12 +198,16 @@ def set_settings(ctx, params):
     return 200, {}
 
 
+def _editable(key):
+    return key in push.PUSH_TEXT and key not in push.SYSTEM_KEYS
+
+
 def get_push_texts(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     stored = (ctx.repo.get_kehila(params['k']) or {}).get('pushTexts') or {}
     custom = {key: {lang: t for lang, t in langs.items() if lang in LANGS and t}
-              for key, langs in stored.items() if key in push.PUSH_TEXT and isinstance(langs, dict)}
-    return 200, {'defaults': push.PUSH_TEXT, 'custom': {key: v for key, v in custom.items() if v}}
+              for key, langs in stored.items() if _editable(key) and isinstance(langs, dict)}
+    return 200, {'defaults': {key: v for key, v in push.PUSH_TEXT.items() if _editable(key)}, 'custom': {key: v for key, v in custom.items() if v}}
 
 
 def put_push_text(ctx, params):
@@ -212,7 +216,7 @@ def put_push_text(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     d = inputs.body_object(ctx)
     key, lang = d.get('key'), d.get('lang')
-    if not isinstance(key, str) or key not in push.PUSH_TEXT:
+    if not isinstance(key, str) or not _editable(key):
         raise ApiError(400, 'invalid_key')
     if not isinstance(lang, str) or lang not in LANGS:
         raise ApiError(400, 'invalid_lang')
