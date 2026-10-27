@@ -42,15 +42,27 @@ def _states(ctx, k, friday):
     return {p: ctx.repo.get_week(k, friday, p) for p in wk.PRAYERS}
 
 
-def _held(ctx, k, layout):
-    """seatId -> ref for the layout version's live assignments (a vanished family holds nothing)."""
+def _effective(item, held):
+    """The week item's seat records that still stand: one made for a holder that no longer holds the seat is no
+    answer (the seat reads as kept, unflagged)."""
+    item = item or {}
+    return {**item, 'seats': {s: v for s, v in (item.get('seats') or {}).items() if v.get('h') == held.get(s)}}
+
+
+def _is_released(seats, sid):
+    return bool((seats.get(sid) or {}).get('r'))
+
+
+def _held(ctx, k, layout, only_family=None):
+    """seatId -> ref for the layout version's live assignments (a vanished family holds nothing). With
+    `only_family`, liveness is checked for that family alone (a member's call never reads the whole hall)."""
     item = ctx.repo.get_assignments(k, layout['effectiveFrom'])
     ids = {s['id'] for s in layout['seats']}
     live, out = {}, {}
     for seat, ref in (item['assignments'] if item else {}).items():
         if seat not in ids:
             continue
-        if ref.startswith('family:'):
+        if ref.startswith('family:') and (only_family is None or ref == f'family:{only_family}'):
             fid = ref[len('family:'):]
             if fid not in live:
                 family = ctx.repo.get_family(k, fid)
@@ -69,13 +81,17 @@ def _out_member(ctx, k, friday, family_id):
     if not layout or not family_id:
         return {**base, 'seats': 0}
     ref = f'family:{family_id}'
-    mine = [s for s, r in _held(ctx, k, layout).items() if r == ref]
+    held = _held(ctx, k, layout, family_id)
+    mine = [s for s, r in held.items() if r == ref]
     if not mine:
         return {**base, 'seats': 0}
     ordered = wk.family_order(layout, mine)
-    states = _states(ctx, k, friday)
-    flagged = any(((states[p] or {}).get('seats', {}).get(s) or {}).get('by') == 'g' for p in wk.PRAYERS for s in ordered)
-    return {**base, 'seats': len(ordered), 'updatedByGabbai': flagged, 'frames': wk.frames(layout, ordered, states)}
+    raw = _states(ctx, k, friday)
+    states = {p: _effective(raw[p], held) for p in wk.PRAYERS}
+    flagged = any(((states[p]['seats']).get(s) or {}).get('by') == 'g' for p in wk.PRAYERS for s in ordered)
+    return {**base, 'seats': len(ordered), 'updatedByGabbai': flagged,
+            'updatedAt': {p: (raw[p] or {}).get('updatedAt') for p in wk.PRAYERS},
+            'frames': wk.frames(layout, ordered, states)}
 
 
 def _family_id(ctx, k):
@@ -95,14 +111,16 @@ def put_mine(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, MEMBERS)
     d = inputs.body_object(ctx, 8 * 1024)
-    if set(d) != {'week', 'prayer', 'released'}:
+    if set(d) != {'week', 'prayer', 'released', 'ifUpdatedAt'}:
         raise ApiError(400, 'invalid_body')
+    guard = rules.guard_of(d, 'invalid_body')
     friday = _week(d['week'], _now().date())
     prayer = _prayer(d['prayer'])
     family_id = _family_id(ctx, k)
     layout = ctx.repo.layout_for(k, friday)
     ref = f'family:{family_id}'
-    mine = [s for s, r in _held(ctx, k, layout).items() if r == ref] if layout and family_id else []
+    held = _held(ctx, k, layout, family_id) if layout and family_id else {}
+    mine = [s for s, r in held.items() if r == ref]
     if not mine:
         raise ApiError(404, 'no_seats')
     ordered = wk.family_order(layout, mine)
@@ -110,15 +128,15 @@ def put_mine(ctx, params):
     if _now() > _deadline(ctx, k, friday):
         raise ApiError(403, 'deadline_passed')
     now = _ms()
-
-    def change(item):
-        seats = dict((item or {}).get('seats') or {})
-        for sid in ordered:
-            want = int(sid in wanted)
-            if int((seats.get(sid) or {}).get('r', 0)) != want:
-                seats[sid] = {'r': want, 'by': 'm', 'at': now}
-        return {**{key: v for key, v in (item or {}).items() if key not in ('pk', 'sk', 'updatedAt')}, 'seats': seats}
-    ctx.repo.change_week(k, friday, prayer, change)
+    item = ctx.repo.get_week(k, friday, prayer)
+    seats = dict((item or {}).get('seats') or {})
+    current = _effective(item, held)['seats']
+    for sid in ordered:
+        want = int(sid in wanted)
+        if int(_is_released(current, sid)) != want:
+            seats[sid] = {'r': want, 'by': 'm', 'at': now, 'h': ref}
+    fields = {**{key: v for key, v in (item or {}).items() if key not in ('pk', 'sk', 'updatedAt')}, 'seats': seats}
+    ctx.repo.put_week(k, friday, prayer, fields, guard)
     return 200, _out_member(ctx, k, friday, family_id)
 
 
@@ -138,8 +156,8 @@ def _names(ctx, k, refs):
     return names
 
 
-def _prayer_out(item):
-    item = item or {}
+def _prayer_out(item, held):
+    item = _effective(item, held)
     return {'seats': {s: {'released': bool(v.get('r')), 'by': 'gabbai' if v.get('by') == 'g' else 'member',
                           'at': v.get('at')} for s, v in (item.get('seats') or {}).items()},
             'requests': item.get('requests') or {}, 'canUndo': bool(item.get('undo')),
@@ -160,7 +178,7 @@ def get_week(ctx, params):
                  'layout': {key: layout[key] for key in ('effectiveFrom', 'rows', 'cols', 'cells', 'blocks',
                                                          'rowLabels', 'seats')},
                  'assignments': held, 'households': _names(ctx, k, set(held.values())),
-                 'prayers': {p: _prayer_out(states[p]) for p in wk.PRAYERS}}
+                 'prayers': {p: _prayer_out(states[p], held) for p in wk.PRAYERS}}
 
 
 def put_week(ctx, params):
@@ -183,10 +201,11 @@ def put_week(ctx, params):
         raise ApiError(400, 'invalid_released')
     item = ctx.repo.get_week(k, friday, prayer)
     seats = dict((item or {}).get('seats') or {})
+    current = _effective(item, held)['seats']
     now = _ms()
     for sid, want in changes.items():
-        if bool((seats.get(sid) or {}).get('r')) != want:
-            seats[sid] = {'r': int(want), 'by': 'g', 'at': now}
+        if _is_released(current, sid) != want:
+            seats[sid] = {'r': int(want), 'by': 'g', 'at': now, 'h': held[sid]}
     fields = {**{key: v for key, v in (item or {}).items() if key not in ('pk', 'sk', 'updatedAt')}, 'seats': seats}
     updated = ctx.repo.put_week(k, friday, prayer, fields, guard)
     return 200, {'updatedAt': updated}
@@ -210,7 +229,8 @@ def apply_responses(ctx, params):
     holders = None
     for i, row in enumerate(d['rows']):
         path = f'rows.{i}'
-        if not isinstance(row, dict) or not {'household', 'released'} <= set(row) <= {'household', 'released', 'requests'}:
+        if not isinstance(row, dict) or not {'household', 'released'} <= set(row) <= {'household', 'released', 'requests', 'override'} \
+                or not isinstance(row.get('override', False), bool):
             raise ApiError(400, 'invalid_responses', path)
         ref, count = row['household'], row['released']
         if not isinstance(ref, str) or not _REF.fullmatch(ref):
@@ -230,51 +250,48 @@ def apply_responses(ctx, params):
             if not known:
                 raise ApiError(400, 'unknown_household', path + '.household')
         duplicates += ref in by_household
-        by_household[ref] = (count, requests)
+        by_household[ref] = (count, requests, bool(row.get('override')))
     seats_of = {}
     for sid, ref in held.items():
         seats_of.setdefault(ref, []).append(sid)
-    warnings, released_n, kept_n, touched = [], 0, 0, {}
     now = _ms()
-    plan = {}  # seatId -> 0|1
-    plan_requests = {}
-    for ref, (count, requests) in by_household.items():
-        ordered = wk.family_order(layout, seats_of.get(ref, []))
-        if not ordered:
-            warnings.append({'household': ref, 'code': 'no_seats'})
-            continue
-        if count > len(ordered):
-            warnings.append({'household': ref, 'code': 'above_seats'})
-        free = wk.to_release(ordered, count)
-        for sid in ordered:
-            plan[sid] = int(sid in free)
-        released_n += len(free)
-        kept_n += len(ordered) - len(free)
-        if requests is not None:
-            plan_requests[ref] = requests
+    result = {}
 
     def change(item):
+        eff = _effective(item, held)['seats']
         item = item or {}
         seats = dict(item.get('seats') or {})
         reqs = dict(item.get('requests') or {})
-        undo_seats = {}
-        for sid, r in plan.items():
-            new = {'r': r, 'by': 'g', 'at': now}
-            undo_seats[sid] = {'prev': seats.get(sid), 'applied': new}
-            seats[sid] = new
-        undo_reqs = {}
-        for ref, requests in plan_requests.items():
-            undo_reqs[ref] = reqs.get(ref)
-            reqs[ref] = requests
+        undo_seats, undo_reqs, warnings, applied, released_n, kept_n = {}, {}, [], 0, 0, 0
+        totals = {}
+        for ref, (count, requests, override) in by_household.items():
+            ordered = wk.family_order(layout, seats_of.get(ref, []))
+            if not ordered:
+                warnings.append({'household': ref, 'code': 'no_seats'})
+                continue
+            if not override and any((eff.get(sid) or {}).get('by') == 'm' for sid in ordered):
+                warnings.append({'household': ref, 'code': 'app_answer_kept'})
+                continue
+            if count > len(ordered):
+                warnings.append({'household': ref, 'code': 'above_seats'})
+            free = wk.to_release(ordered, count)
+            applied += 1
+            released_n += len(free)
+            kept_n += len(ordered) - len(free)
+            for sid in ordered:
+                want = int(sid in free)
+                if int(_is_released(eff, sid)) != want:
+                    undo_seats[sid] = seats.get(sid)
+                    seats[sid] = {'r': want, 'by': 'g', 'at': now, 'h': ref}
+            if requests is not None:
+                undo_reqs[ref] = reqs.get(ref)
+                reqs[ref] = requests
+                for area, n in requests.items():
+                    totals[area] = totals.get(area, 0) + n
+        result.update(households=applied, released=released_n, kept=kept_n, warnings=warnings, requestTotals=totals)
         return {'seats': seats, 'requests': reqs, 'undo': {'at': now, 'seats': undo_seats, 'requests': undo_reqs}}
     ctx.repo.change_week(k, friday, prayer, change)
-    totals = {}
-    for requests in plan_requests.values():
-        for area, n in requests.items():
-            totals[area] = totals.get(area, 0) + n
-    return 200, {'event': prayer, 'households': len([r for r in by_household if r in seats_of]),
-                 'released': released_n, 'kept': kept_n, 'duplicates': duplicates, 'warnings': warnings,
-                 'requestTotals': totals}
+    return 200, {'event': prayer, 'duplicates': duplicates, **result}
 
 
 def undo_responses(ctx, params):
@@ -297,12 +314,13 @@ def undo_responses(ctx, params):
             raise ApiError(404, 'nothing_to_undo')
         seats = dict(item.get('seats') or {})
         skipped.clear()
-        for sid, rec in undo['seats'].items():
-            if seats.get(sid) == rec['applied']:
-                if rec['prev'] is None:
+        for sid, prev in undo['seats'].items():
+            cur = seats.get(sid) or {}
+            if cur.get('by') == 'g' and cur.get('at') == undo['at']:  # still as the apply left it
+                if prev is None:
                     seats.pop(sid, None)
                 else:
-                    seats[sid] = rec['prev']
+                    seats[sid] = prev
             else:
                 skipped.append(sid)
         reqs = dict(item.get('requests') or {})

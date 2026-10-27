@@ -59,8 +59,11 @@ class SeatWeekTest(test_messages.MessagesTest):
     def me(self, sub='member-sub', week=WEEK):
         return self.call('GET', f'{self.base()}/seats/me', sub=sub, query={'week': week})
 
-    def put_me(self, released, prayer='erev', week=WEEK, sub='member-sub'):
-        return self.call('PUT', f'{self.base()}/seats/me', sub=sub, body={'week': week, 'prayer': prayer, 'released': released})
+    def put_me(self, released, prayer='erev', week=WEEK, sub='member-sub', guard='auto'):
+        if guard == 'auto':
+            guard = (self.me(sub, week)[1].get('updatedAt') or {}).get(prayer)
+        return self.call('PUT', f'{self.base()}/seats/me', sub=sub,
+                         body={'week': week, 'prayer': prayer, 'released': released, 'ifUpdatedAt': guard})
 
     def admin_week(self):
         return self.call('GET', f'{self.base()}/admin/seats/week/{WEEK}')[1]
@@ -93,7 +96,7 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual([r['label'] for r in frame['rows']], ['3', '4', '5', '6', '7'])
         self.assertEqual(frame['blockName'], 'שמאל בדיוני')
         self.assertEqual(frame['cols'], 2)
-        self.assertEqual(set(body), {'week', 'deadline', 'open', 'seats', 'updatedByGabbai', 'frames'})
+        self.assertEqual(set(body), {'week', 'deadline', 'open', 'seats', 'updatedByGabbai', 'updatedAt', 'frames'})
         raw = json.dumps(body, ensure_ascii=False)
         for secret in list(self.at.values()) + [self.other, self.holder, HOLDER, 'Quinn', 'ימין בדיוני', self.fam, 'holder:', 'family:',
                                                 'assignments']:
@@ -378,3 +381,89 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual(week['assignments'], {})
         status, body = self.respond([{'household': f'holder:{self.holder}', 'released': 1}])
         self.assertEqual((status, body['error']), (400, 'unknown_household'))
+
+    # fix round 1
+    def test_app_answer_wins_unless_override(self):
+        a, b, c = self.three()
+        ref = f'family:{self.fam}'
+        with self.now(at(9)):
+            self.put_me([1])  # b released by the member
+        status, out = self.respond([{'household': ref, 'released': 3}])
+        self.assertEqual((status, out['warnings'], out['households']), (200, [{'household': ref, 'code': 'app_answer_kept'}], 0))
+        self.assertEqual(self.released(), {b})
+        self.assertEqual(self.released('day'), set())  # the other prayer has no member answer
+        status, out = self.respond([{'household': ref, 'released': 3}], 'day')
+        self.assertEqual(out['warnings'], [])
+        status, out = self.respond([{'household': ref, 'released': 3, 'override': True}])
+        self.assertEqual((out['warnings'], len(self.released())), ([], 3))
+        self.assertEqual(self.respond([{'household': ref, 'released': 1, 'override': 'yes'}])[0], 400)
+
+    def test_apply_touches_only_seats_that_change(self):
+        a, b, c = self.three()
+        self.assertEqual(self.gput({c: True})[0], 200)
+        before = self.admin_week()['prayers']['erev']['seats'][c]
+        self.respond([{'household': f'family:{self.fam}', 'released': 1}])  # c is already the one released
+        self.assertEqual(self.admin_week()['prayers']['erev']['seats'][c], before)
+        self.assertEqual(self.repo.get_week(self.k, WEEK, 'erev')['undo']['seats'], {})
+        with self.now(at(9)):
+            self.put_me([1, 2, 3])
+        member = self.admin_week()['prayers']['erev']['seats']
+        self.respond([{'household': f'family:{self.fam}', 'released': 3, 'override': True}])
+        after = self.admin_week()['prayers']['erev']['seats']
+        self.assertEqual({s: v['at'] for s, v in after.items()}, {s: v['at'] for s, v in member.items()})  # nothing changed
+
+    def test_record_for_a_previous_holder_is_no_answer(self):
+        a, b, c = self.three()
+        self.assertEqual(self.gput({a: True})[0], 200)
+        self.assertTrue(self.me()[1]['updatedByGabbai'])
+        self.give(f'family:{self.fam}', (5, 1), (6, 0))  # a leaves the family
+        self.give(f'family:{self.other}', (5, 0))
+        self.assertFalse(self.me()[1]['updatedByGabbai'])
+        self.assertFalse(self.admin_week()['prayers']['erev']['seats'].get(a, {}).get('released', False))
+        self.assertEqual(self.me('quiet-sub')[1]['frames'][0]['rows'][2]['cells'][0]['state']['erev'], 'kept')
+        self.assertEqual(self.gput({a: False}, guard=self.admin_week()['prayers']['erev']['updatedAt'])[0], 200)
+        self.assertEqual(self.released(), set())
+        # a member answer for the old holder is not an answer for the new one: the file may apply
+        with self.now(at(9)):
+            self.put_me([1])
+        self.give(f'family:{self.fam}', (6, 0))
+        self.give(f'family:{self.other}', (5, 0), (5, 1))
+        status, out = self.respond([{'household': f'family:{self.other}', 'released': 1}])
+        self.assertEqual(out['warnings'], [])
+
+    def test_member_put_requires_if_updated_at_and_conflicts(self):
+        self.mine((5, 0))
+        with self.now(at(9)):
+            self.assertEqual(self.call('PUT', f'{self.base()}/seats/me', sub='member-sub',
+                                       body={'week': WEEK, 'prayer': 'erev', 'released': []})[0], 400)
+            seen = self.me()[1]['updatedAt']['erev']
+            self.assertIsNone(seen)
+            self.assertEqual(self.gput({self.at[(5, 0)]: True})[0], 200)  # a gabbai changes it after the member's read
+            self.assertEqual(self.put_me([], guard=seen), (409, {'error': 'week_changed'}))
+            self.assertTrue(self.me()[1]['updatedByGabbai'])
+            self.assertEqual(self.put_me([])[0], 200)  # after a fresh read
+
+    def test_member_call_reads_only_his_own_family(self):
+        self.mine((5, 0))
+        self.give(f'family:{self.other}', (6, 0))
+        seen = []
+        real = self.repo.get_family
+        self.repo.get_family = lambda k, fid: (seen.append(fid), real(k, fid))[1]
+        self.me()
+        self.assertEqual(set(seen), {self.fam})
+
+    def test_week_item_stays_small_for_the_biggest_hall(self):
+        cells = [[S] * 60 for _ in range(40)]
+        layout = {'rows': 40, 'cols': 60, 'cells': cells, 'blocks': [{'name': 'כל האולם', 'colStart': 0, 'colEnd': 59}],
+                  'rowLabels': [str(i) for i in range(40)]}
+        status, out = self.call('PUT', f'{self.base()}/admin/seating/layouts/{WEEK}', body={**layout, 'ifUpdatedAt': None})
+        self.assertEqual(status, 200, out)
+        seats = {x['id']: f'family:{self.fam}' for x in out['seats']}
+        status, body = self.call('PUT', f'{self.base()}/admin/seating/layouts/{WEEK}/assignments',
+                                 body={'assignments': seats, 'ifUpdatedAt': None})
+        self.assertEqual(status, 200, body)
+        status, res = self.respond([{'household': f'family:{self.fam}', 'released': 2400, 'requests': {'x': 1}}])
+        self.assertEqual((status, res['released']), (200, 2400))
+        item = self.repo.table.get_item(Key={'pk': f'K#{self.k}', 'sk': f'SEATWK#{WEEK}#erev'}, ConsistentRead=True)['Item']
+        self.assertLess(len(json.dumps(item, default=str)), 300 * 1024)
+        self.assertEqual(self.undo()[0], 200)
