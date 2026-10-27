@@ -4,6 +4,7 @@ export default {
     slug: 'shul-regular',
     version: '0.1.0',
     orientation: 'portrait',
+    icon: './assets/icon/icon-1024.png',
     userInterfaceStyle: 'automatic',
     scheme: 'shul',
     locales: { he: './locales/he.json', en: './locales/en.json' },
@@ -15,9 +16,10 @@ export default {
     },
     android: {
       package: 'com.shulregular.member',
+      adaptiveIcon: { foregroundImage: './assets/icon/adaptive-foreground.png', backgroundColor: '#2A3F94' },
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },
-    web: { bundler: 'metro', output: 'single', name: 'הקהילה שלי', lang: 'he' },
+    web: { favicon: './assets/icon/favicon-48.png', bundler: 'metro', output: 'single', name: 'הקהילה שלי', lang: 'he' },
     plugins: [
       ['expo-build-properties', { ios: { enableSceneSupport: true } }],
       ['expo-localization', { supportsRTL: true }],
