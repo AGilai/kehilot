@@ -367,7 +367,8 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
    */
   async function leaveKehila(k: string): Promise<Route> {
     const gen = state.generation;
-    await api.leave(k);
+    // 404 kehila_not_found: an earlier try already left (a retry after a failed me()).
+    try { await api.leave(k); } catch (e) { if (!(e instanceof ApiCodeError) || e.code !== 'kehila_not_found') throw e; }
     if (!guard(gen)) return 'none';
     if (state.kehilaId === k && cache) { try { await cache.wipe(); } catch { /* pruneKehilot below drops it too */ } }
     const me = await loadMe(); // a Kehila missing from me() is wiped from the cache (12b)

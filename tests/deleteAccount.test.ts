@@ -20,6 +20,26 @@ test('retries internal until 204 then signs out', async () => {
   assert.deepEqual(h.waits, [1000, 2000]);
 });
 
+test('lost response, then account_deleted on the retry, counts as deleted with one sign-out', async () => {
+  const h = harness([new ApiCodeError(0, 'network'), new ApiCodeError(401, 'account_deleted')]);
+  assert.equal(await h.run(), 'deleted');
+  assert.deepEqual(h.log, ['deleteMe', 'deleteMe', 'signOut']);
+});
+
+test('account_deleted on the first call counts as deleted', async () => {
+  const h = harness([new ApiCodeError(401, 'account_deleted')]);
+  assert.equal(await h.run(), 'deleted');
+  assert.deepEqual(h.log, ['deleteMe', 'signOut']);
+});
+
+test('a signOut that throws after 204 is still deleted', async () => {
+  const log: string[] = [];
+  const api = { deleteMe: async () => { log.push('deleteMe'); } };
+  const r = await deleteAccount(api, async () => { log.push('signOut'); throw new Error('storage'); }, async () => {});
+  assert.equal(r, 'deleted');
+  assert.deepEqual(log, ['deleteMe', 'signOut']);
+});
+
 test('last_gabbai stops without signing out', async () => {
   const h = harness([new ApiCodeError(409, 'last_gabbai')]);
   assert.equal(await h.run(), 'last_gabbai');
@@ -66,6 +86,19 @@ test('leaving the open Kehila moves to the other one', async () => {
   assert.deepEqual(calls, ['leave:k1']);
   assert.equal(store.getState().kehilaId, 'k2');
   assert.deepEqual(store.getState().me?.kehilot.map(x => x.kehilaId), ['k2']);
+  store.reset();
+});
+
+test('a failed me() after a successful leave throws and keeps the selection for a retry', async () => {
+  let left = false;
+  const m: Me = { userId: 'u1', email: 'dana@example.invalid', profile: { firstName: 'דנה', lastName: 'בדויה', lang: 'he' }, kehilot: [sum('k1'), sum('k2')] };
+  const { store } = storeWith(['k1', 'k2'], {
+    me: async () => { if (left) throw new ApiCodeError(0, 'network'); return m; },
+    leave: async () => { left = true; },
+  });
+  await store.start(); await store.selectKehila('k1');
+  await assert.rejects(store.leaveKehila('k1'), (e: unknown) => e instanceof ApiCodeError && e.code === 'network');
+  assert.equal(store.getState().kehilaId, 'k1');
   store.reset();
 });
 

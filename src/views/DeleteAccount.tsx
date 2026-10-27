@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { deleteAccount } from '../client/account.ts';
+import { singleFlight } from '../client/singleFlight.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Txt } from '../kit/components.tsx';
 import { BackLink } from './Me.tsx';
@@ -20,8 +21,9 @@ export function DeleteAccount({ onBack }: { onBack: () => void }) {
   const word = t('deleteAccount.word');
   const ok = typed.trim().toLowerCase() === word.toLowerCase();
 
-  async function run() {
-    if (!ok || busy) return;
+  const runRef = React.useRef<() => Promise<void>>(async () => {});
+  runRef.current = async () => {
+    if (!ok) return;
     setBusy(true); setMessage(null);
     try {
       // 'deleted' ends in the full sign-out (tokens, pending invite, caches, store); this screen unmounts with it.
@@ -31,7 +33,9 @@ export function DeleteAccount({ onBack }: { onBack: () => void }) {
       setMessage({ tone: 'error', text: `${t('deleteAccount.failed')} (${errText(e)})` });
       setBusy(false);
     }
-  }
+  };
+  // The guard is a synchronous flag: a second tap in the same tick is ignored.
+  const run = React.useRef(singleFlight(() => runRef.current())).current;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
