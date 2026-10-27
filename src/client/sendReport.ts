@@ -1,6 +1,8 @@
 import type { UploadGrant } from './types.ts';
 import type { ReportContext } from './reportContext.ts';
 import { attachAndPost } from '../media/upload.ts';
+import { ApiCodeError } from './errors.ts';
+import { UPLOAD_LIMIT_CODE } from './reportContext.ts';
 
 export type ReportApi = {
   requestReportUpload(o: { contentType: 'image/jpeg' | 'image/png'; bytes: number }): Promise<UploadGrant>;
@@ -23,7 +25,10 @@ export async function sendReport(o: {
   const blob = await o.image.prepare();
   const img = o.image;
   await attachAndPost({
-    requestUpload: () => o.api.requestReportUpload({ contentType: 'image/jpeg', bytes: blob.size }),
+    requestUpload: () => o.api.requestReportUpload({ contentType: 'image/jpeg', bytes: blob.size }).catch((e: unknown) => {
+      // The grant has its own hourly limit; tell it apart from the daily report limit.
+      throw e instanceof ApiCodeError && e.code === 'rate_limited' ? new ApiCodeError(429, UPLOAD_LIMIT_CODE) : e;
+    }),
     put: g => img.put(g, blob),
     post: id => o.api.postReport({ text, context: o.context, imageUploadId: id }),
   });

@@ -39,7 +39,7 @@ export function Txt({ children, size = 'body', bold, serif, color, content, styl
 export function Screen({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
   const k = useTokens();
   const pad = useReportPad();
-  const inner = { padding: 16, paddingBottom: pad || 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' } as const;
+  const inner = { padding: 16, paddingBottom: scroll && pad ? pad : 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' } as const;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       {scroll ? <ScrollView contentContainerStyle={inner}>{children}</ScrollView> : <View style={[{ flex: 1 }, inner]}>{children}</View>}

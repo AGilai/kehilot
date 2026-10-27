@@ -1188,6 +1188,7 @@
       "pushTexts": "Notification texts",
       "group": "Group",
       "prefs": "Notifications"
-    }
+    },
+    "limitUpload": "Many pictures were sent this hour. Try again in an hour or send without a picture."
   }
 }

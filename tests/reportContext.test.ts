@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildContext, osLabel, validateReportText, placeButton, REPORT_PAD, TEXT_MAX, errorKindOf } from '../src/client/reportContext.ts';
+import { isTextTarget, buildContext, osLabel, validateReportText, placeButton, REPORT_PAD, TEXT_MAX, errorKindOf } from '../src/client/reportContext.ts';
 import { reportUi } from '../src/client/reportUi.ts';
 
 const base = { appVersion: '0.1.0', build: 7, platform: 'android', os: '34', screen: 'home', lang: 'he' };
@@ -137,4 +137,21 @@ test('a picture that cannot be prepared fails before anything is sent', async ()
   const { api, calls } = fakeApi();
   await assert.rejects(sendReport({ signedIn: true, text: 'a', context: ctx, api, image: { prepare: async () => { throw new ApiCodeError(0, 'image_too_large'); }, put: async () => {} } }), { code: 'image_too_large' });
   assert.deepEqual(calls, []);
+});
+
+test('web keyboard: only text inputs, textareas and contenteditable count', () => {
+  assert.equal(isTextTarget({ tagName: 'INPUT' }), true);
+  assert.equal(isTextTarget({ tagName: 'textarea' }), true);
+  assert.equal(isTextTarget({ tagName: 'DIV', isContentEditable: true }), true);
+  assert.equal(isTextTarget({ tagName: 'BUTTON' }), false);
+  assert.equal(isTextTarget({ tagName: 'BODY' }), false);
+  assert.equal(isTextTarget(null), false);
+});
+
+test('upload errors: invalid_bytes is too big; the grant 429 gets the hourly copy, the report 429 the daily one', async () => {
+  assert.equal(errorKindOf({ status: 400, code: 'invalid_bytes' }, true), 'tooBig');
+  const api = { ...fakeApi().api, requestReportUpload: async () => { throw new ApiCodeError(429, 'rate_limited'); } };
+  const err = await sendReport({ signedIn: true, text: 'a', context: ctx, api, image: { prepare: async () => new Blob(['x']), put: async () => {} } }).catch(e => e);
+  assert.equal(errorKindOf(err, true), 'limitUpload');
+  assert.equal(errorKindOf(new ApiCodeError(429, 'rate_limited'), true), 'limitUser');
 });

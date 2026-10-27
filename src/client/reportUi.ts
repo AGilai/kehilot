@@ -9,11 +9,10 @@ export type ReportUiState = {
   kehilaId: string | null;
   kehilaName: string | null;
   modals: number;
-  viewer: boolean;
   collapsed: boolean;
 };
 
-const initial: ReportUiState = { screen: 'signin', hasTabs: false, kehilaId: null, kehilaName: null, modals: 0, viewer: false, collapsed: false };
+const initial: ReportUiState = { screen: 'signin', hasTabs: false, kehilaId: null, kehilaName: null, modals: 0, collapsed: false };
 let state = initial;
 const listeners = new Set<() => void>();
 
@@ -31,13 +30,14 @@ export const reportUi = {
     patch({ screen: p.screen, hasTabs: p.hasTabs, kehilaId: p.kehilaId ?? null, kehilaName: p.kehilaName ?? null });
   },
   setCollapsed: (collapsed: boolean) => patch({ collapsed }),
-  setViewer: (viewer: boolean) => patch({ viewer }),
   /** Register one open sheet or modal; call the result to release it (idempotent). */
   modal() {
     patch({ modals: state.modals + 1 });
     let done = false;
     return () => { if (done) return; done = true; patch({ modals: Math.max(0, state.modals - 1) }); };
   },
+  /** A screen that unmounts clears what it published. */
+  clearScreen() { patch({ screen: initial.screen, hasTabs: false, kehilaId: null, kehilaName: null }); },
   reset() { state = initial; listeners.forEach(l => l()); },
 };
 
@@ -45,7 +45,7 @@ export const useReportUi = (): ReportUiState => React.useSyncExternalStore(repor
 
 /** A screen reports where it is; cleared when it unmounts. */
 export function useReportScreen(p: { screen: string | null; hasTabs: boolean; kehilaId?: string | null; kehilaName?: string | null }) {
-  React.useEffect(() => { if (p.screen) reportUi.setScreen({ ...p, screen: p.screen }); }, [p.screen, p.hasTabs, p.kehilaId, p.kehilaName]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { if (!p.screen) return undefined; reportUi.setScreen({ ...p, screen: p.screen }); return () => reportUi.clearScreen(); }, [p.screen, p.hasTabs, p.kehilaId, p.kehilaName]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** Counts a Sheet/Modal as open while `open`, so the button hides. */

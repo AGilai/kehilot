@@ -48,11 +48,22 @@ export function placeButton(o: { width: number; hasTabs: boolean; keyboard: bool
   return { show: true, corner: 'start', bottom: GAP + o.insetBottom + (o.hasTabs ? TAB_BAR : 0) };
 }
 
-export type ReportErrorKind = 'limitUser' | 'limitAnon' | 'tooBig' | 'generic';
+/** Web: a focused text field means the on-screen keyboard is (or will be) up. */
+export function isTextTarget(el: { tagName?: string; isContentEditable?: boolean } | null | undefined): boolean {
+  if (!el) return false;
+  const tag = (el.tagName ?? '').toUpperCase();
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable === true;
+}
+
+/** The grant call's own 429 (10 per user per hour): `sendReport` renames it so it gets the hourly copy. */
+export const UPLOAD_LIMIT_CODE = 'rate_limited_upload';
+
+export type ReportErrorKind = 'limitUser' | 'limitAnon' | 'limitUpload' | 'tooBig' | 'generic';
 
 export function errorKindOf(e: unknown, signedIn: boolean): ReportErrorKind {
   const x = e as { status?: number; code?: string } | null;
+  if (x?.code === UPLOAD_LIMIT_CODE) return 'limitUpload';
   if (x?.code === 'rate_limited' || x?.status === 429) return signedIn ? 'limitUser' : 'limitAnon';
-  if (x?.code === 'invalid_upload' || x?.code === 'image_too_large') return 'tooBig';
+  if (x?.code === 'invalid_upload' || x?.code === 'invalid_bytes' || x?.code === 'image_too_large') return 'tooBig';
   return 'generic';
 }

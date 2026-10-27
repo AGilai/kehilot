@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { config } from '../config.ts';
-import { buildContext, errorKindOf, osLabel, placeButton, validateReportText, TEXT_MAX } from '../client/reportContext.ts';
+import { buildContext, errorKindOf, isTextTarget, osLabel, placeButton, validateReportText, TEXT_MAX } from '../client/reportContext.ts';
 import type { ReportErrorKind } from '../client/reportContext.ts';
 import { reportUi, useReportUi } from '../client/reportUi.ts';
 import { sendReport } from '../client/sendReport.ts';
@@ -20,6 +20,12 @@ import { putToS3 } from '../media/upload.ts';
 function useKeyboardOpen(): boolean {
   const [open, setOpen] = React.useState(false);
   React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      if (typeof document === 'undefined') return undefined;
+      const sync = () => setOpen(isTextTarget(document.activeElement as HTMLElement | null));
+      document.addEventListener('focusin', sync); document.addEventListener('focusout', sync);
+      return () => { document.removeEventListener('focusin', sync); document.removeEventListener('focusout', sync); };
+    }
     const a = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setOpen(true));
     const b = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setOpen(false));
     return () => { a.remove(); b.remove(); };
@@ -87,13 +93,13 @@ export function ReportSheet({ visible, onClose, onSent }: { visible: boolean; on
     }
   }
 
-  const errText = error === 'limitUser' ? t('bug.limitUser') : error === 'limitAnon' ? t('bug.limitAnon') : error === 'tooBig' ? t('bug.tooBig') : error ? t('bug.error') : null;
+  const errText = error === 'limitUser' ? t('bug.limitUser') : error === 'limitAnon' ? t('bug.limitAnon') : error === 'limitUpload' ? t('bug.limitUpload') : error === 'tooBig' ? t('bug.tooBig') : error ? t('bug.error') : null;
   const platformText = `${context.platform} ${context.os}`;
   const screenName = t(`bug.screens.${context.screen}`);
   const details = t('bug.auto', { version: `${context.appVersion} (${context.build})`, platform: platformText, screen: screenName === `bug.screens.${context.screen}` ? context.screen : screenName, lang: context.lang });
   const footer = (
     <>
-      {errText ? <Banner tone={error === 'limitUser' || error === 'limitAnon' ? 'info' : 'error'} text={errText} /> : null}
+      {errText ? <Banner tone={error === 'limitUser' || error === 'limitAnon' || error === 'limitUpload' ? 'info' : 'error'} text={errText} /> : null}
       {discard ? (
         <>
           <Banner tone="info" text={t('bug.discard')} />
@@ -140,7 +146,7 @@ export function ReportHost() {
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   if (!config.bugReports) return null;
-  const p = placeButton({ width, hasTabs: ui.hasTabs, keyboard, modalOpen: ui.modals > 0, viewerOpen: ui.viewer, screen: ui.screen, enabled: true, insetBottom: insets.bottom });
+  const p = placeButton({ width, hasTabs: ui.hasTabs, keyboard, modalOpen: ui.modals > 0, viewerOpen: false, screen: ui.screen, enabled: true, insetBottom: insets.bottom });
   return (
     <>
       {p.show ? <ReportButton corner={p.corner} bottom={p.bottom} collapsed={ui.collapsed} onOpen={() => setOpen(true)} onHide={() => reportUi.setCollapsed(true)} onShow={() => reportUi.setCollapsed(false)} /> : null}
