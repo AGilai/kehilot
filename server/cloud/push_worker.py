@@ -8,7 +8,7 @@ import logging
 import os
 import time
 
-from . import expo, families, visibility
+from . import expo, families, type_rules, visibility
 from .push import MESSAGE_TYPES, PUSH_TEXT, SYSTEM_KEYS, resolve_text
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
@@ -56,11 +56,13 @@ def recipients(repo, kind, kehila, ref):
     if kind != 'message':
         return []
     channel = repo.get_channel(kehila, message['channelId'])
+    rules = type_rules.rules((repo.get_kehila(kehila) or {}).get('settings', {}))  # once per message
     out = []
     for member in repo.list_members(kehila):
         uid = member['userId']
         notify = member.get('notify') or {}
-        if uid == message['authorId'] or not visibility.in_audience(member, channel):
+        if (uid == message['authorId'] or not visibility.in_audience(member, channel)
+                or not visibility.message_visible(member, channel, message, rules)):
             continue
         if channel.get('conversation') and message['channelId'] not in notify.get('chatChannels', ()):
             continue  # a chat is pushed only to those who opted in to it

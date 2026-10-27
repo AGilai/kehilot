@@ -10,7 +10,7 @@ from moto import mock_aws
 from server.cloud import expo, push, push_worker
 from server.cloud.push import PUSH_TEXT
 from server.cloud.repo import Repo
-from server.tests.cloud.helpers import make_table
+from server.tests.cloud.helpers import ensure_member_channels, make_table
 
 
 def record(kind, k, ref, receive_count=1, message_id='r1'):
@@ -24,6 +24,7 @@ class PushTest(unittest.TestCase):
     def setUp(self):
         self.repo = Repo(make_table())
         self.k = self.repo.create_kehila('Beit Test', {})
+        ensure_member_channels(self.repo, self.k)
         self.chan = {c['name']: c['sk'][2:] for c in self.repo.list_channels(self.k)}
         self.gab = self.user('gab', 'gabbai', 'en')
         self.fam = self.user('fam', 'member', 'he')
@@ -65,7 +66,7 @@ class PushTest(unittest.TestCase):
         return push_worker.handler({'Records': [record(kind, self.k, self.mid(item))]}, None)
 
     def test_recipients_respect_channel_and_mutes(self):
-        m = self.message('announcements')
+        m = self.message('announcements', type_='weekly')  # a guest-visible type
         self.assertCountEqual(push_worker.recipients(self.repo, 'message', self.k, self.mid(m)),
                               ['fam', 'eng', 'lis'])  # not the author
         m = self.message('simchas')  # listener cannot read

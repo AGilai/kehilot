@@ -1,7 +1,7 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
 from datetime import datetime, timezone
 
-from . import families, inputs, media, push, visibility
+from . import families, inputs, media, push, type_rules, visibility
 from .authz import require
 from .errors import ApiError
 from .families import family_name
@@ -9,7 +9,7 @@ from .ids import ID_RE, new_id
 from .repo_messages import local_date
 from .routes_admin import _channel_json
 
-TYPES = ('weekly', 'celebration', 'condolence', 'event')
+TYPES = type_rules.TYPES  # ('weekly', 'event', 'general', 'celebration', 'condolence')
 TARGET_TYPES = ('celebration', 'condolence')
 DEFAULT_LIMIT, MAX_LIMIT = 20, 50
 REPLY_MAX = 1000
@@ -36,11 +36,16 @@ def _message_json(item, read=None):
     return out
 
 
+def kehila_rules(ctx, k):
+    """The Kehila's type rules; load once per request."""
+    return type_rules.rules((ctx.repo.get_kehila(k) or {}).get('settings', {}))
+
+
 def _visible_message(ctx, k, membership, message_id):
     """The message and its channel, or 404 message_not_found: hidden and missing look the same."""
     message = ctx.repo.get_message(k, message_id) if ID_RE.fullmatch(message_id) else None
     channel = ctx.repo.get_channel(k, message['channelId']) if message else None
-    if not message or not visibility.message_visible(membership, channel, message):
+    if not message or not visibility.message_visible(membership, channel, message, kehila_rules(ctx, k)):
         raise ApiError(404, 'message_not_found')
     return message, channel
 
@@ -48,7 +53,10 @@ def _visible_message(ctx, k, membership, message_id):
 def list_channels(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
     is_gabbai = visibility.is_gabbai(membership)
-    channels = [{**_channel_json(c, is_gabbai, visibility.is_channel_admin(membership, c)), 'canPost': visibility.can_post(membership, c),
+    rules = kehila_rules(ctx, params['k'])
+    channels = [{**_channel_json(c, is_gabbai, visibility.is_channel_admin(membership, c)),
+                 'canPost': visibility.can_post(membership, c),
+                 'postableTypes': type_rules.postable_types(membership, c, rules),
                  'inAudience': visibility.in_audience(membership, c)}
                 for c in ctx.repo.list_channels(params['k']) if visibility.can_read_channel(membership, c)]
     return 200, channels
@@ -97,10 +105,12 @@ def post_message(ctx, params):
     if target and not visibility.reply_target_ok(target_membership, channel):
         raise ApiError(400, 'invalid_target_member_id')
     target_family_id = _target_family_id(ctx, k, d, target)
-    if not visibility.can_post(membership, channel):
+    kehila = ctx.repo.get_kehila(k)
+    settings = kehila.get('settings', {})
+    if not visibility.can_post(membership, channel, type_, type_rules.rules(settings)):
         raise ApiError(403, 'forbidden')
     if membership['role'] != 'gabbai':
-        limit = ctx.repo.get_kehila(k).get('settings', {}).get('broadcastDailyLimit', 3)
+        limit = settings.get('broadcastDailyLimit', 3)
         ctx.repo.count_broadcast(k, ctx.user_id, local_date(), int(limit))
     message_id, image = _attach(k, ctx.user_id, upload_id)
     item = ctx.repo.put_message(k, channel_id, type_, title, body, ctx.user_id, membership.get('displayName', ''),
@@ -185,12 +195,13 @@ def list_messages(ctx, params):
     before = ctx.query.get('before')
     if before is not None and not ID_RE.fullmatch(before):
         raise ApiError(400, 'invalid_before')
+    rules = kehila_rules(ctx, k)
     channels, page = {}, []
     for item in ctx.repo.iter_messages(k, before):
         cid = item['channelId']
         if cid not in channels:
             channels[cid] = ctx.repo.get_channel(k, cid)
-        if visibility.message_visible(membership, channels[cid], item):
+        if visibility.message_visible(membership, channels[cid], item, rules):
             page.append(item)
             if len(page) == limit:
                 break

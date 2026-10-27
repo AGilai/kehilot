@@ -10,7 +10,7 @@ from moto import mock_aws
 from server.cloud import handler as handler_module
 from server.cloud import push, repo_messages
 from server.cloud.repo import Repo
-from server.tests.cloud.helpers import make_table
+from server.tests.cloud.helpers import ensure_member_channels, make_table
 from server.tests.cloud.test_handler import Context, event
 
 PROFILE = {'firstName': 'Dana', 'lastName': 'Test', 'lang': 'en'}
@@ -25,6 +25,7 @@ class MessagesTest(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.k = self.repo.create_kehila('Beit Test', {})
+        ensure_member_channels(self.repo, self.k)
         self.channels = {c['name']: c['sk'][2:] for c in self.repo._query_prefix(self.k, 'C#')}
         self.gabbai = self.add('gabbai-sub', 'gabbai', 'Gabi Gabbai')
         self.member = self.add('member-sub', 'member', 'Mia Member', True)
@@ -75,8 +76,8 @@ class MessagesTest(unittest.TestCase):
 
     def test_member_without_broadcast_right_gets_403(self):
         self.assertEqual(self.post('simchas', sub='quiet-sub'), (403, {'error': 'forbidden'}))
-        self.assertEqual(self.post('announcements', sub='member-sub'), (403, {'error': 'forbidden'}))
-        status, body = self.post('simchas', sub='member-sub')
+        self.assertEqual(self.post('announcements', sub='member-sub', type='general'), (403, {'error': 'forbidden'}))
+        status, body = self.post('simchas', sub='member-sub', type='general')
         self.assertEqual((status, body['authorKind']), (201, 'member'))
         self.assertEqual(self.post('simchas', sub='listener-sub')[0], 404)  # cannot even see the channel
 
@@ -111,8 +112,8 @@ class MessagesTest(unittest.TestCase):
 
     def test_broadcast_daily_limit_429(self):
         for _ in range(3):
-            self.assertEqual(self.post('simchas', sub='member-sub')[0], 201)
-        self.assertEqual(self.post('simchas', sub='member-sub'), (429, {'error': 'broadcast_limit'}))
+            self.assertEqual(self.post('simchas', sub='member-sub', type='general')[0], 201)
+        self.assertEqual(self.post('simchas', sub='member-sub', type='general'), (429, {'error': 'broadcast_limit'}))
         for _ in range(4):  # management is not limited
             self.assertEqual(self.post('simchas')[0], 201)
         counters = self.repo._query_prefix(self.k, 'BC#')
@@ -142,8 +143,8 @@ class MessagesTest(unittest.TestCase):
         self.assertEqual(status, 201)
 
     def test_author_and_gabbai_can_remove_others_cannot(self):
-        _, mine = self.post('simchas', sub='member-sub')
-        _, other = self.post('simchas', sub='member-sub')
+        _, mine = self.post('simchas', sub='member-sub', type='general')
+        _, other = self.post('simchas', sub='member-sub', type='general')
         url = lambda m: f'{self.base()}/messages/{m["messageId"]}'
         self.assertEqual(self.call('DELETE', url(mine), sub='quiet-sub'), (403, {'error': 'forbidden'}))
         self.assertEqual(self.call('DELETE', url(mine), sub='member-sub'), (204, None))

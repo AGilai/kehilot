@@ -111,7 +111,7 @@ class MediaTest(test_conversation.ConversationTest):
     def test_attach_to_announcement_and_invalid_upload_id(self):
         status, g = self.grant('simchas', 'member-sub', 'image/png')
         self.put_upload(self.member, g['uploadId'], PNG, 'image/png')
-        status, body = self.post('simchas', 'member-sub', imageUploadId=g['uploadId'])
+        status, body = self.post('simchas', 'member-sub', type='general', imageUploadId=g['uploadId'])
         self.assertEqual((status, body['image']), (201, {'contentType': 'image/png', 'bytes': len(PNG)}))
         for bad in ('x', 5, ''):
             self.assertEqual(self.post('announcements', imageUploadId=bad), (400, {'error': 'invalid_image_upload_id'}))

@@ -5,6 +5,7 @@ from moto import mock_aws
 
 from server.cloud import push, push_worker, visibility
 from server.tests.cloud import test_messages
+from server.tests.cloud.helpers import set_type_rules
 
 
 @mock_aws
@@ -47,7 +48,11 @@ class RepliesTest(test_messages.MessagesTest):
         mid = self.post('announcements')[1]['messageId']
         self.assertEqual(self.reply('member-sub', mid=mid), (409, {'error': 'replies_not_allowed'}))
 
+    def guests_see_celebrations(self):
+        set_type_rules(self.repo, self.k, {'celebration': {'post': 'broadcasters', 'listeners': True}})
+
     def test_listener_cannot_reply(self):
+        self.guests_see_celebrations()
         mid = self.post('announcements', type='celebration', targetMemberId=self.quiet)[1]['messageId']
         self.assertEqual(self.reply('listener-sub', mid=mid)[0], 403)
         self.assertEqual(self.replies('listener-sub', mid=mid), [])
@@ -93,6 +98,7 @@ class RepliesTest(test_messages.MessagesTest):
         self.assertEqual(results, [True, False])
 
     def test_count_visible_to_everyone_who_sees_message(self):
+        self.guests_see_celebrations()
         lid = self.post('announcements', type='celebration', targetMemberId=self.quiet)[1]['messageId']
         self.reply('member-sub', 'private', mid=lid)
         for sub in ('gabbai-sub', 'other-sub', 'listener-sub'):

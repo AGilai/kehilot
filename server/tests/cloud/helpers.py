@@ -25,3 +25,18 @@ def make_bucket(name=MEDIA_BUCKET):
     client = boto3.client('s3', region_name='il-central-1')
     client.create_bucket(Bucket=name, CreateBucketConfiguration={'LocationConstraint': 'il-central-1'})
     return client
+
+
+def ensure_member_channels(repo, k):
+    """Tests that reply to or post in the members-only `simchas` / `condolences` channels create them here, so
+    they do not depend on what a new Kehila is seeded with."""
+    have = {c['name'] for c in repo.list_channels(k)}
+    for name in ('simchas', 'condolences'):
+        if name not in have:
+            repo.put_channel(k, name, False, 'broadcasters')
+
+
+def set_type_rules(repo, k, rules):
+    """Store `settings.typeRules` as given (also garbage, to test reading it)."""
+    repo.table.update_item(Key={'pk': f'K#{k}', 'sk': 'META'}, UpdateExpression='SET settings.typeRules = :r',
+                           ExpressionAttributeValues={':r': rules})
