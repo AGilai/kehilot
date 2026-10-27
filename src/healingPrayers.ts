@@ -1,4 +1,4 @@
-import { israelDate } from './dates.ts';
+import { formatCivilDate, israelDate } from './dates.ts';
 import type { HealingPrayer } from './types.ts';
 
 export function healingPrayerName(value: string): string {
@@ -15,6 +15,5 @@ export function demoHealingPrayer(name: string, memberName: string, now = new Da
 }
 
 export function prayerAddedDate(date: string): string {
-  const [year, month, day] = date.split('-');
-  return `${day}/${month}/${year}`;
+  return formatCivilDate(date);
 }

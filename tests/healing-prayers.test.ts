@@ -17,7 +17,7 @@ test('healing names preserve the supplied name and mother name while rejecting e
 test('demo prayer dates are Gregorian and follow Israel across UTC midnight', () => {
   const entry = demoHealingPrayer('משה בן שרה', 'חבר לדוגמה', new Date('2026-07-01T21:30:00Z'));
   assert.equal(entry.addedOn, '2026-07-02');
-  assert.equal(prayerAddedDate(entry.addedOn), '02/07/2026');
+  assert.equal(prayerAddedDate(entry.addedOn), '02-07-2026');
   assert.equal(entry.memberName, 'חבר לדוגמה');
   assert.equal(entry.name, 'משה בן שרה');
 });

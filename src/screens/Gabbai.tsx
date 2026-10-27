@@ -1,3 +1,4 @@
+import { DateField } from '../DateField';
 import { GabbaiRecommendations } from './GabbaiRecommendations';
 import { AssociationMembers } from './AssociationMembers';
 import React, { useEffect, useState } from 'react';
@@ -67,7 +68,7 @@ function People({ onClose }: { onClose: () => void }) {
       <ClassificationFields value={classification} disabled={disabled} onChange={value => { setClassification(value); if (value !== 'א') setQuota(''); }} />
       {details.kind === 'son' && <Text style={s.muted}>בחירה בדור ב-נשוי מעדכנת גם את מצב הנישואין. מעבר לדור ב מסיר פרטי בת זוג מהפרופיל המשפחתי. מעמד הבן כהן/לוי/ישראל נקבע דרך האב.</Text>}
       {classification === 'א' && <Field label="מכסת מקומות בעזרת הגברים" keyboardType="number-pad" value={quota} onChangeText={setQuota} editable={!disabled} placeholder="טרם הוגדרה" />}
-      <Field label="תאריך שבת בר המצווה (YYYY-MM-DD)" value={ceremony} onChangeText={setCeremony} editable={!disabled} />
+      <DateField label="תאריך שבת בר המצווה" value={ceremony} onChange={setCeremony} disabled={disabled} optional weekday={6} />
       <Text style={s.text}>עליות ב־{details.person.windowMonths ?? '—'} החודשים האחרונים: {details.person.aliyahCount ?? '—'}</Text>
       <Text style={s.text}>עלייה אחרונה: {details.person.lastAliyah}</Text>
     </View>} />;

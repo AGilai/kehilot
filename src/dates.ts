@@ -51,6 +51,29 @@ export function israelDate(now = new Date()): string {
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 export function civilDate(date: string): Date { return new Date(`${date}T12:00:00+02:00`); }
+export function formatCivilDate(value: string): string {
+  if (!value) return '';
+  if (!validCivilDate(value, true)) return '—';
+  const [year, month, day] = value.split('-');
+  return `${day}-${month}-${year}`;
+}
+export function pickerDate(value: string): Date {
+  if (!validCivilDate(value, true)) throw new Error('יש לבחור תאריך תקין.');
+  const [year, month, day] = value.split('-').map(Number);
+  const result = new Date(0);
+  result.setFullYear(year!, month! - 1, day!);
+  result.setHours(12, 0, 0, 0);
+  return result;
+}
+export function pickerDateISO(value: Date): string {
+  if (Number.isNaN(value.getTime())) throw new Error('יש לבחור תאריך תקין.');
+  return `${String(value.getFullYear()).padStart(4, '0')}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+}
+export function isYomKippur(value: string): boolean {
+  if (!validCivilDate(value, true)) return false;
+  const hebrew = new HDate(pickerDate(value));
+  return hebrew.getMonth() === 7 && hebrew.getDate() === 10;
+}
 export function dayOfWeek(date: string): number { return civilDate(date).getUTCDay(); }
 export function upcomingFriday(date: string): string {
   const d = civilDate(date);
@@ -86,7 +109,7 @@ export function validateProfile(p: Profile): string | null {
   if (!TRIBES.some(option => option.value === p.tribe)) return 'יש לבחור כהן, לוי או ישראל.';
   if ([p.torahName, p.wifePrayerName, p.barMitzvahParasha].some(s => s.length > 200)) return 'כל שדה יכול להכיל עד 200 תווים.';
   if ([p.phone, p.wifePhone].some(value => value.length > 40 || !validPhone(value.trim()))) return 'מספר הטלפון אינו תקין. אפשר להזין מספר מקומי או מספר בינלאומי עם +.';
-  if (p.birthDate && !validCivilDate(p.birthDate)) return 'יש להזין תאריך לידה תקין בפורמט שנה-חודש-יום, שאינו בעתיד.';
+  if (p.birthDate && !validCivilDate(p.birthDate)) return 'יש לבחור תאריך לידה תקין שאינו בעתיד.';
   if (p.hebrewBirthDate != null && !validHebrewBirthDate(p.hebrewBirthDate)) return 'יש לבחור יום, חודש ושנה תקינים לתאריך הלידה העברי.';
   if (p.children.length > 30) return 'ניתן לשמור עד 30 ילדים בפרופיל.';
   const childIds = new Set<string>();

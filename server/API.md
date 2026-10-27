@@ -116,6 +116,12 @@ A successful upload atomically inserts a `weekly_documents` BLOB with member-ind
 
 PDF blobs live in the same private SQLite backup as the messages. There is no public attachment URL, attachment deletion/expiry UI or automatic offline-library synchronization in this version. Files and source are separate; the database and caches stay excluded from Git. Native picker/file-system/sharing modules require a new local development-client build after pulling these dependencies. Real APNs/FCM delivery still depends on the existing push configuration.
 
+#### Gregorian dates in the client
+
+All date-only API values remain ISO `YYYY-MM-DD`; no data migration or reversed day/month payloads are introduced. The client displays numeric Gregorian dates as `DD-MM-YYYY` and uses a shared calendar field for aliyah dates and gabbai/family bar-mitzvah dates. Native iOS/Android calendars support month/year navigation; web uses the browser picker. Optional bar-mitzvah dates can be cleared, permit planned future Saturdays and retain existing validation/identities. Aliyah input allows only today or earlier; service-day validation still occurs on the server.
+
+The complete-entry UI shows the prayer selector only on Yom Kippur and resets Mincha to Shacharit when the selected date changes to another day. Its `מניין` dropdown has `מניין ראשון` (1) and `מניין שני` (2). The API's existing 1–1000 range remains for compatibility; historical records above 2 keep their original minyan read-only when using the editor. The existing server-only Yom Kippur Mincha validation is unchanged.
+
 #### Complete aliyot and multiple minyanim
 
 GET `/api/admin/aliyah-template?date=YYYY-MM-DD&service=shacharit` defaults to morning and uses the Israeli calendar: ordinary Shabbat has seven regular aliyot plus Maftir; weekday Yom Tov has five plus Maftir; weekday Yom Kippur has six plus Maftir. On Shabbat (including Yom Kippur) there are seven plus Maftir. Only ordinary Shabbat permits extras before Maftir; **eighth and later extras allow any tribe**, including Kohen/Levi. Festivals including Shabbat Chol Hamoed prohibit extras in this workflow. Ordinary weekdays and weekday Chol Hamoed are outside complete-record morning entry. `service=mincha` is accepted only on Yom Kippur: exactly Kohen, Levi and third, no separate Maftir/extras. The returned template includes `service`. Yom Kippur readings are `יום כיפור - שחרית` and `יום כיפור - מנחה`.
@@ -152,7 +158,7 @@ Before switching an existing account to phone sign-in, a trusted server operator
 
 ### Mi Sheberach for the sick
 
-The member app has a dedicated `מי שברך` tab. It shows only the signed-in member's own remaining entries, lets them add a name in the `השם ושם האם` format, and asks for confirmation before deleting an entry. Each entry displays its Gregorian addition date as `DD/MM/YYYY`. No Hebrew date, illness details or date input is collected. Existing records remain visible until the owner deletes them; cancellation leaves them intact.
+The member app has a dedicated `מי שברך` tab. It shows only the signed-in member's own remaining entries, lets them add a name in the `השם ושם האם` format, and asks for confirmation before deleting an entry. Each entry displays its Gregorian addition date as `DD-MM-YYYY`. No Hebrew date, illness details or date input is collected. Existing records remain visible until the owner deletes them; cancellation leaves them intact.
 
 The `healing_prayers` table stores a technical primary key `id` plus the three business values: `member_id` (a stable foreign key to the adding account), requested `name`, and Gregorian `added_on` (`YYYY-MM-DD`). The server derives identity from the authenticated session and dates from the current Israeli civil date. Requests cannot supply the adding member or date. Reads resolve the member's current display name, so a profile rename does not break ownership or change the addition date. The schema upgrade is additive and preserves all existing person IDs and community data.
 

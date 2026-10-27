@@ -24,7 +24,7 @@ Android SDK נמצא ב־`~/Library/Android/sdk`, עם platform 36, ‏build-too
 
 `npm install` הושלם ונוצר `package-lock.json`; יש לשמור אותו ולהשתמש ב־`npm ci` להתקנה חוזרת. נוספה `expo-system-ui` בגרסה התואמת ל־SDK 57 לצורך הגדרת התצוגה הבהירה ב־Android. תוקנה קריאת `messageId` כש־`data` חסר בהתראה. נוצרו פרויקטי `ios/` ו־`android/` מקומיים והותקנו תלויות CocoaPods; הם עדיין מוחרגים מבקרת גרסאות.
 
-עברו כאן: 63 בדיקות JavaScript, ‏150 בדיקות שרת עם Python החדש, ‏TypeScript ו־`npm run export` עבור iOS/Android/Web. גם `expo install --check`, כל 21 בדיקות Expo Doctor ו־`npm run check:local` עברו בשלב התקנת הסביבה. יצוא Metro אינו הוכחה לבניית native או לבדיקת ממשק.
+עברו כאן: 66 בדיקות JavaScript, ‏150 בדיקות שרת עם Python החדש, ‏TypeScript ו־`npm run export` עבור iOS/Android/Web. גם `expo install --check`, כל 21 בדיקות Expo Doctor ו־`npm run check:local` עברו בשלב התקנת הסביבה. יצוא Metro אינו הוכחה לבניית native או לבדיקת ממשק.
 
 בניית iOS מקומית באמצעות `npm run ios` הצליחה, והאפליקציה הותקנה ופעלה במצב הדגמה ב־iPhone Duo/iOS 27.1; הממשק וזמני היום נצפו בצילום מסך. הבדיקה הראשונית חשפה ש־iOS 27 דורש UIScene: נוספה `expo-build-properties` עם `ios.enableSceneSupport: true` ב־`app.config.ts`, לפי [מסלול התאימות הרשמי של Expo ל־SDK 57](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md#staying-on-sdk-57-with-xcode-27). ההגדרה תישמר גם ביצירה מחדש של פרויקט iOS. אין צורך לשדרג SDK או לערוך ידנית את AppDelegate. בדגם Duo יש לצלם את המסך הפעיל באמצעות `simctl io … screenshot --display=1`; ברירת המחדל עלולה לצלם את המסך השני, השחור.
 
@@ -54,6 +54,14 @@ Events include a matching saved bar-mitzvah parasha (annually) or an explicitly 
 
 **הדפסת טופס המומלצים** opens the device's print dialog, or a dedicated browser print window. The print layout uses A4 portrait pages with all seven RTL columns fitted to the page width: 7.5-point table text, tighter row spacing, percentage column widths and wrapping for long values. Safe 15 mm margins are set in CSS for browser/Android printing and explicitly in the iOS native renderer. Row colors, repeated column headers and page breaks are retained; user-entered text is escaped. Android's print dialog also supports saving as PDF. The new native module is `expo-print`; rebuild development clients locally after pulling it. Both local iOS/Xcode and Android/Gradle builds passed. See [the Expo Print documentation](https://docs.expo.dev/versions/latest/sdk/print/) for platform printing behavior. Physical printer delivery has not been tested.
 
+## Gregorian date entry and calendar selection
+
+Gregorian date fields show **DD-MM-YYYY** and open a calendar with month/year navigation. The shared picker covers aliyah recording and both gabbai/family bar-mitzvah date fields; optional dates can be cleared and cancelled selection leaves the saved value intact. Bar-mitzvah dates require a Saturday. Aliyah recording restricts dates to today or earlier. Hebrew birthday and yahrzeit dropdowns remain separate.
+
+The aliyah form shows **תפילה** only on the actual civil date of Yom Kippur. Moving from Yom Kippur Mincha to another date resets the form to Shacharit. The **מניין** selector contains only **מניין ראשון** and **מניין שני**. Existing service identities and history remain unchanged. Numeric dates in history, recommendation screens/prints and healing-prayer addition dates use the same DD-MM-YYYY display; APIs and storage continue to use ISO dates.
+
+The native calendars use Expo-compatible [`@react-native-community/datetimepicker`](https://docs.expo.dev/versions/latest/sdk/date-time-picker/) 9.1.0, registered in `app.config.ts`. After pulling this dependency, run `npm ci` and rebuild development clients **locally** with `npm run ios` / `npm run android`; reloading an older native client is insufficient. Both local builds passed. The web date field uses the browser's date picker.
+
 ## Updated classification and aliyah choices
 
 Gabbaim can assign **any registered classification to any person**, including account holders, and add reusable custom classifications from the same dropdown area. The shared server list appears in the full person editor. Custom labels and classifications do not grant administrator roles; seating still requires `א`.
@@ -68,7 +76,7 @@ The publishing screen sends text announcements in the existing categories or a w
 
 Aliyah entry chooses the date, prayer, minyan and reading, then a roster person or unnamed `אורח` for every slot. Ordinary Shabbat requires seven regular aliyot plus Maftir and permits extras. Weekday festivals require five plus Maftir; weekday Yom Kippur requires six plus Maftir. Festivals on Shabbat use seven plus Maftir and do not permit extras. The regular slots enforce their specified tribe; extra eighth and later aliyot allow Kohanim and Leviim too, as does Maftir. Yom Kippur Mincha has Kohen, Levi and third, without a separate Maftir or extras. Corrections replace a service/minyan atomically; complete-record entry requires every slot, while historical source imports may retain partial records. Guests do not affect member statistics. See [server/API.md](server/API.md) for the legacy-import distinction and exact contracts.
 
-The native modules added for gabbai documents and printing are `expo-document-picker`, `expo-file-system`, `expo-sharing` and `expo-print`; after `npm ci`, rebuild locally using `npm run ios` / `npm run android`. Both local native builds have passed, along with 63 app tests, 150 server tests, TypeScript, all-platform Metro export and all 21 Expo Doctor checks. Android UI checks verified editing, publishing, the complete aliyah form, PDF selection/upload and the native share sheet; recipient download matched the original PDF bytes. Event/seat-summary administration and broader household/account linking remain future work.
+The native modules added for gabbai documents and printing are `expo-document-picker`, `expo-file-system`, `expo-sharing` and `expo-print`; after `npm ci`, rebuild locally using `npm run ios` / `npm run android`. Both local native builds have passed, along with 66 app tests, 150 server tests, TypeScript, all-platform Metro export and all 21 Expo Doctor checks. Android UI checks verified editing, publishing, the complete aliyah form, PDF selection/upload and the native share sheet; recipient download matched the original PDF bytes. Event/seat-summary administration and broader household/account linking remain future work.
 
 ## Phone sign-in and association membership
 

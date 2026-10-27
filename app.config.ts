@@ -21,6 +21,7 @@ export default {
       ['expo-localization', { supportsRTL: true }],
       'expo-secure-store',
       'expo-sharing',
+      '@react-native-community/datetimepicker',
       ['expo-notifications', { defaultChannel: 'community', color: '#245E4F' }],
     ],
     extra: {

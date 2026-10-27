@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { api } from '../api';
-import { aliyahCalls, aliyahChoices, aliyahLabel, aliyahSlots, FESTIVAL_READINGS } from '../aliyot';
-import { civilDate, israelDate } from '../dates';
+import { DateField } from '../DateField';
+import { aliyahCalls, aliyahChoices, aliyahLabel, aliyahSlots, FESTIVAL_READINGS, MINYAN_OPTIONS, minyanLabel, serviceForDate } from '../aliyot';
+import { civilDate, formatCivilDate, israelDate, isYomKippur } from '../dates';
 import { useCommunity } from '../state';
 import { AliyahRecord, AliyahService, AliyahTemplate, PARASHA_OPTIONS, RosterPerson } from '../types';
-import { Button, Choice, ErrorText, Field, s } from '../ui';
+import { Button, Choice, ErrorText, s } from '../ui';
 
 function recentSaturday() {
   const day = civilDate(israelDate(new Date()));
@@ -44,6 +45,10 @@ export function Aliyot({ onClose }: { onClose: () => void }) {
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'טעינת נתוני העליות נכשלה.'); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [session?.token, day, service, editing?.id, revision]);
+  function changeDay(value: string) {
+    setDay(value); setService(current => serviceForDate(value, current)); setEditing(null); setNotice(null);
+  }
+  const yomKippur = isYomKippur(day);
   let slots = template?.slots || [];
   try { if (template) slots = aliyahSlots(template, extras); } catch { /* A legacy incomplete record is completed through the current template. */ }
   async function save() {
@@ -55,16 +60,16 @@ export function Aliyot({ onClose }: { onClose: () => void }) {
     } catch (e) { setError(e instanceof Error ? e.message : 'שמירת העליות נכשלה.'); }
     finally { setBusy(false); }
   }
-  const readings = [...new Set([reading, template?.reading || '', ...PARASHA_OPTIONS.map(option => option.value), ...FESTIVAL_READINGS])].filter(Boolean).map(value => ({ value, label: value }));
+  const readings = [...new Set([reading, template?.reading || '', ...PARASHA_OPTIONS.map(option => option.value), ...FESTIVAL_READINGS])].filter(value => value && (yomKippur || !value.startsWith('יום כיפור - '))).map(value => ({ value, label: value }));
   return <ScrollView ref={scroll} style={s.page} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
     <Button title="חזרה לכלי הגבאי" secondary onPress={onClose} /><Text style={s.title}>רישום עליות לתורה</Text>
     <View style={s.card}>
-      <Field label="תאריך השבת או החג (YYYY-MM-DD)" value={day} onChangeText={value => { setDay(value); setEditing(null); setNotice(null); }} editable={!busy} autoCapitalize="none" />
-      <Choice label="תפילה" value={service} options={[{ value: 'shacharit', label: 'שחרית' }, { value: 'mincha', label: 'מנחה של יום כיפור' }]} disabled={busy} onChange={value => { setService(value); setEditing(null); }} />
-      <Choice label="מספר המניין" value={String(minyan)} options={Array.from({ length: Math.max(10, minyan) }, (_, index) => ({ value: String(index + 1), label: `מניין ${index + 1}` }))} disabled={busy} onChange={value => setMinyan(Number(value))} />
+      <DateField label="תאריך השבת או החג" value={day} onChange={changeDay} disabled={busy} maximumDate={israelDate()} />
+      {yomKippur && <Choice label="תפילה" value={service} options={[{ value: 'shacharit', label: 'שחרית' }, { value: 'mincha', label: 'מנחה של יום כיפור' }]} disabled={busy} onChange={value => { setService(value); setEditing(null); }} />}
+      {editing && minyan > 2 ? <View><Text style={s.label}>מניין</Text><Text style={s.text}>{minyanLabel(minyan)}</Text></View> : <Choice label="מניין" value={String(minyan)} options={MINYAN_OPTIONS} disabled={busy} onChange={value => setMinyan(Number(value))} />}
       <Button title="טעינת העליות לתאריך" secondary busy={loading} disabled={busy} onPress={() => setRevision(value => value + 1)} />
       {template && <>
-        <Choice label="פרשת השבוע או החג" value={reading} options={readings} disabled={busy || loading} onChange={value => { setReading(value); if (value === 'יום כיפור - מנחה' && service !== 'mincha') { setService('mincha'); setEditing(null); } else if (value === 'יום כיפור - שחרית' && service !== 'shacharit') { setService('shacharit'); setEditing(null); } }} />
+        <Choice label="פרשת השבוע או החג" value={reading} options={readings} disabled={busy || loading} onChange={value => { setReading(value); if (yomKippur && value === 'יום כיפור - מנחה' && service !== 'mincha') { setService('mincha'); setEditing(null); } else if (yomKippur && value === 'יום כיפור - שחרית' && service !== 'shacharit') { setService('shacharit'); setEditing(null); } }} />
         <Text style={s.muted}>{template.regularCount} עליות{service === 'shacharit' ? ' ומפטיר' : ''}{template.allowExtra ? ' · אפשר להוסיף עליות' : ' · בחג אין להוסיף עליות'}</Text>
         {slots.map(slot => {
           const options = aliyahChoices(slot, people);
@@ -80,9 +85,9 @@ export function Aliyot({ onClose }: { onClose: () => void }) {
     </View>
     <Text style={s.heading}>רישומים שנשמרו</Text>
     {records.map(record => <View key={record.id} style={s.card}>
-      <Text style={s.heading}>{record.reading}</Text><Text style={s.muted}>{record.date} · {record.hebrewDate} · מניין {record.minyan || 1}{record.cancelled ? ' · מבוטל' : ''}</Text>
+      <Text style={s.heading}>{record.reading}</Text><Text style={s.muted}>{formatCivilDate(record.date)} · {record.hebrewDate} · {minyanLabel(record.minyan || 1)}{record.cancelled ? ' · מבוטל' : ''}</Text>
       {record.calls.map(call => <Text key={call.position} style={s.text}>{aliyahLabel(call.position)}: {call.guest ? 'אורח' : call.nameAtRecording}</Text>)}
-      <Button title={`תיקון ${record.service === 'mincha' ? 'מנחה' : 'שחרית'} · ${record.date} · מניין ${record.minyan || 1}`} secondary disabled={busy} onPress={() => { setDay(record.date); setService(record.service); setMinyan(record.minyan || 1); setEditing(record); setNotice(null); scroll.current?.scrollTo({ y: 0, animated: true }); }} />
+      <Button title={`תיקון ${record.service === 'mincha' ? 'מנחה' : 'שחרית'} · ${formatCivilDate(record.date)} · ${minyanLabel(record.minyan || 1)}`} secondary disabled={busy} onPress={() => { setDay(record.date); setService(record.service); setMinyan(record.minyan || 1); setEditing(record); setNotice(null); scroll.current?.scrollTo({ y: 0, animated: true }); }} />
     </View>)}
   </ScrollView>;
 }

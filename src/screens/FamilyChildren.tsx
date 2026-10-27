@@ -3,6 +3,7 @@ import { Pressable, Switch, Text, View } from 'react-native';
 import { newChild, PARASHA_OPTIONS, TRIBES } from '../types';
 import type { Child, Tribe } from '../types';
 import { Button, C, Choice, Field, s } from '../ui';
+import { DateField } from '../DateField';
 import { HebrewBirthDateFields } from './HebrewBirthDateFields';
 
 export function FamilyChildren({ value, fatherTribe, onChange, disabled }: { value: Child[]; fatherTribe: Tribe; onChange: (children: Child[]) => void; disabled: boolean }) {
@@ -50,7 +51,7 @@ export function FamilyChildren({ value, fatherTribe, onChange, disabled }: { val
         <Text style={s.heading}>עלייה לתורה ובר מצווה</Text>
         <Field label="שם הבן לעלייה לתורה" value={child.torahName} maxLength={200} editable={!disabled} placeholder="למשל: יעקב בן ישראל" onChangeText={torahName => update(child.id, { torahName })} />
         <Choice label="פרשת שבת בר המצווה" value={child.barMitzvahParasha} disabled={disabled} options={PARASHA_OPTIONS} onChange={barMitzvahParasha => update(child.id, { barMitzvahParasha })} />
-        <Field label="תאריך שבת בר המצווה (רשות)" value={child.barMitzvahDate} maxLength={10} editable={!disabled} autoCorrect={false} placeholder="YYYY-MM-DD" style={{ writingDirection: 'ltr' }} onChangeText={barMitzvahDate => update(child.id, { barMitzvahDate })} hint="ממלאים כשהפרשה או תאריך השבת ידועים. תאריך השבת מוזן בנפרד מתאריך הלידה." />
+        <DateField label="תאריך שבת בר המצווה (רשות)" value={child.barMitzvahDate} disabled={disabled} optional weekday={6} minimumDate={child.birthDate || undefined} onChange={barMitzvahDate => update(child.id, { barMitzvahDate })} hint="ממלאים כשהפרשה או תאריך השבת ידועים. תאריך השבת מוזן בנפרד מתאריך הלידה." />
       </>}
       <View style={s.separator} />
       <View style={s.between}><Text style={[s.text, { fontWeight: '600' }]}>{child.gender === 'son' ? 'נשוי' : 'נשואה'}</Text><Switch accessibilityLabel={`${child.name || 'הילד/ה'} נשוי/אה`} value={child.married} disabled={disabled} onValueChange={next => married(child.id, next)} trackColor={{ false: '#D9DED6', true: C.green }} thumbColor="#FFFFFF" /></View>

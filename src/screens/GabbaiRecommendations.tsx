@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, ScrollView, Text, View } from 'react-native';
 import { api } from '../api';
+import { formatCivilDate } from '../dates';
 import { printRecommendations } from '../printRecommendations';
 import { recommendationCells, recommendationColumns, TRIBE_BACKGROUNDS } from '../recommendations';
 import { useCommunity } from '../state';
@@ -69,7 +70,7 @@ export function GabbaiRecommendations({ onClose }: { onClose: () => void }) {
       </View>
       {report && <>
         <Text style={s.heading}>{report.service.title}</Text>
-        <Text style={s.muted}>{report.service.hebrewDate} · {report.service.date}</Text>
+        <Text style={s.muted}>{report.service.hebrewDate} · {formatCivilDate(report.service.date)}</Text>
         <Text style={s.muted}>אפשר לגלול את הטבלאות לצדדים. כהנים בכחול, לוויים בזהב בהיר, ישראל בלבן.</Text>
       </>}
     </View>}

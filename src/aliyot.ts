@@ -1,4 +1,14 @@
 import type { AliyahCall, AliyahSlot, AliyahTemplate, RosterPerson } from './types.ts';
+import { isYomKippur } from './dates.ts';
+import type { AliyahService } from './types.ts';
+
+export const MINYAN_OPTIONS = [{ value: '1', label: 'מניין ראשון' }, { value: '2', label: 'מניין שני' }];
+export function minyanLabel(value: number): string {
+  return MINYAN_OPTIONS.find(option => option.value === String(value))?.label || `מניין ${value}`;
+}
+export function serviceForDate(day: string, service: AliyahService): AliyahService {
+  return isYomKippur(day) ? service : 'shacharit';
+}
 
 export const FESTIVAL_READINGS = ['א׳ ראש השנה', 'ב׳ ראש השנה', 'יום כיפור - שחרית', 'יום כיפור - מנחה', 'סוכות', 'שמיני עצרת ושמחת תורה', 'פסח', 'שביעי של פסח', 'שבועות'];
 
