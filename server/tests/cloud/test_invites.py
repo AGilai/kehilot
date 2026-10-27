@@ -215,11 +215,11 @@ class InvitesTest(unittest.TestCase):
                          (400, {'error': 'invalid_role'}))
 
     def test_member_invite_upgrades_listener_and_clears_request(self):
-        self.make_gabbai()
+        gabbai = self.make_gabbai()
         listener = self.user('lis-sub')
         self.repo.put_membership(self.k, listener, 'listener')
         self.repo.put_request(self.k, listener, 'Lis T', False, time.time())
-        code = self.repo.create_invite(self.k, self.member, 'member', 2, 7, 'קבוע')
+        code = self.repo.create_invite(self.k, gabbai, 'member', 2, 7, 'קבוע')
         self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='lis-sub'),
                          (200, {'kehilaId': self.k, 'role': 'member'}))
         membership = self.repo.get_membership(self.k, listener)
@@ -228,8 +228,25 @@ class InvitesTest(unittest.TestCase):
         self.assertEqual(self.repo.list_requests(self.k), [])
         self.assertEqual(self.repo.get_invite(code)['usesLeft'], 1)
 
+    def test_member_invite_needs_its_inviter_to_still_be_a_gabbai(self):
+        gabbai = self.make_gabbai()
+        code = self.repo.create_invite(self.k, gabbai, 'member', 3, 7)
+        listener_code = self.repo.create_invite(self.k, gabbai, 'listener', 3, 7)
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{gabbai}'},
+                                    UpdateExpression='SET #r = :r', ExpressionAttributeNames={'#r': 'role'},
+                                    ExpressionAttributeValues={':r': 'member'})  # demoted
+        self.user('fam2-sub')
+        self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='fam2-sub'),
+                         (410, {'error': 'invite_expired'}))
+        self.assertEqual(self.repo.get_invite(code)['usesLeft'], 3)
+        # a listener invite of the same (now plain) member keeps working; so does a member invite made by the admin CLI
+        self.assertEqual(self.call('POST', f'/v1/invites/{listener_code}/accept', sub='fam2-sub')[0], 200)
+        self.user('fam3-sub')
+        cli = self.repo.create_invite(self.k, 'admin-cli', 'member', 1, 7)
+        self.assertEqual(self.call('POST', f'/v1/invites/{cli}/accept', sub='fam3-sub')[0], 200)
+
     def test_member_invite_to_existing_member_is_409(self):
-        code = self.repo.create_invite(self.k, self.member, 'member', 2, 7)
+        code = self.repo.create_invite(self.k, self.make_gabbai(), 'member', 2, 7)
         self.assertEqual(self.call('POST', f'/v1/invites/{code}/accept', sub='member-sub'),
                          (409, {'error': 'already_member'}))
         self.assertEqual(self.repo.get_invite(code)['usesLeft'], 2)
@@ -245,7 +262,7 @@ class InvitesTest(unittest.TestCase):
         from botocore.exceptions import ClientError
         listener = self.user('lis-sub')
         self.repo.put_membership(self.k, listener, 'listener')
-        code = self.repo.create_invite(self.k, self.member, 'member', 2, 7)
+        code = self.repo.create_invite(self.k, self.make_gabbai(), 'member', 2, 7)
         conflict = ClientError({'Error': {'Code': 'TransactionCanceledException'},
                                 'CancellationReasons': [{'Code': 'TransactionConflict'}] * 3}, 'TransactWriteItems')
         real = self.repo.table.meta.client.transact_write_items
