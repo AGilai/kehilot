@@ -13,7 +13,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5'];
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -141,6 +141,11 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   routes['GET /v1/invites/7K3M9Q2XPA'] = { kehilaName: kehila.name, role: 'member', expiresAt: '2026-11-20T12:00:00.000Z' };
   routes[`POST /v1/kehilot/${kehila.kehilaId}/membership-request`] = {};
   routes[`PUT /v1/kehilot/${kehila.kehilaId}/me/notify`] = {};
+  routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] = [
+    { code: '7K3M9Q2XPA', role: 'listener', usesLeft: 8, expiresAt: new Date(now + 5 * 24 * H).toISOString(), mine: true },
+    { code: '4D8F2H6NRT', role: 'listener', usesLeft: 10, expiresAt: new Date(now + 2 * 24 * H).toISOString(), mine: true },
+  ];
+  routes[`POST /v1/kehilot/${kehila.kehilaId}/invites`] = { code: '9P2R5T8WXZ', expiresAt: new Date(now + 7 * 24 * H).toISOString() };
   const http: Http = {
     async request(method, path, body) {
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');

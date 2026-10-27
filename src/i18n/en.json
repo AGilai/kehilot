@@ -391,5 +391,74 @@
     "failed": "That did not work, try again",
     "loadError": "The image could not be loaded",
     "image": "Full-screen image"
+  },
+  "me": {
+    "title": "Me",
+    "tab": "Me",
+    "back": "Back",
+    "profile": {
+      "title": "Profile",
+      "edit": "Edit name",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "Details saved",
+      "emailLabel": "Email"
+    },
+    "lang": {
+      "title": "Language",
+      "failed": "Could not save the language on the server. It will be saved next time"
+    },
+    "invite": {
+      "title": "Invite a listener",
+      "body": "An invite link for 7 days, up to 10 uses. Whoever joins can listen to the open channels.",
+      "create": "Create link and invite",
+      "shareMessage": "You are invited to join {kehila}: {url}",
+      "copy": "Copy",
+      "copied": "Link copied",
+      "field": "Invite link",
+      "ready": "The link is ready. Copy it and send it."
+    },
+    "links": {
+      "title": "My links",
+      "empty": "No active links.",
+      "usesLeft": "{n} uses left",
+      "expires": "Valid until {date}",
+      "share": "Share",
+      "revoke": "Revoke",
+      "revokeConfirm": "Revoke this link? Anyone who has not joined yet will not be able to use it.",
+      "revokeYes": "Revoke the link",
+      "keep": "Keep",
+      "revoked": "Link revoked",
+      "tooMany": "You already have three active invite links. Revoke one in the \"My links\" list below, or wait for one to expire."
+    },
+    "prefs": "Notification preferences",
+    "leave": {
+      "action": "Leave the Kehila",
+      "confirm": "Leave {kehila}? You will stop getting its messages, and the links you made there will be revoked.",
+      "yes": "Yes, leave",
+      "lastGabbai": "You are the only gabbai of this Kehila. To leave, appoint another gabbai first (management screen), then try again.",
+      "done": "You left the Kehila"
+    },
+    "signOut": "Sign out",
+    "deleteAction": "Delete account"
+  },
+  "deleteAccount": {
+    "title": "Delete account",
+    "intro": "Deletion is final and cannot be undone. What is deleted and what stays:",
+    "kept": "Messages you wrote stay, without your name, and images you attached stay with them.",
+    "typePrompt": "To confirm, type the word \"{word}\":",
+    "word": "delete",
+    "field": "Deletion confirmation",
+    "confirm": "Delete the account for good",
+    "cancel": "Cancel",
+    "working": "Deleting the account…",
+    "lastGabbai": "You are the only gabbai of a Kehila. Appoint another gabbai first (management screen) or leave that Kehila, then try again.",
+    "failed": "The deletion did not finish. You can press again, it is safe to repeat.",
+    "deleted": {
+      "i1": "Your account and sign-in",
+      "i2": "Your membership in every Kehila, and the devices registered for notifications",
+      "i3": "Your read marks and any healing-prayer entries you added",
+      "i4": "The personal details in your family record: the name and link stay for the aliyah history, the personal details are cleared"
+    }
   }
 }

@@ -12,6 +12,7 @@ import { Compose } from './Compose.tsx';
 import type { ComposeInitial } from './Compose.tsx';
 import { ChatView } from './ChatView.tsx';
 import { Home } from './Home.tsx';
+import { Me } from './Me.tsx';
 import { NotifyPrefs } from './NotifyPrefs.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
 import { Messages } from './Messages.tsx';
@@ -26,7 +27,8 @@ type Nav =
   | { tab: 'detail'; id: string; from: 'home' | 'messages' | 'search' }
   | { tab: 'chat'; channelId: string }
   | { tab: 'compose' }
-  | { tab: 'prefs'; from: 'home' | 'messages' };
+  | { tab: 'me' }
+  | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
 /** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat opens that screen. */
 function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter; compose?: ComposeInitial } | null {
@@ -40,6 +42,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
+  if (s === 'me') return { nav: { tab: 'me' } };
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetId: '01FIXTUREUSER00000000002' } };
   if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };
@@ -81,10 +84,12 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenS
 
   const kehila = state.kehila;
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const active: 'home' | 'messages' = nav.tab === 'home' || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
+  const active: 'home' | 'messages' | 'me' = nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') ? 'me'
+    : nav.tab === 'home' || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = [
     { key: 'home' as const, label: t('tabs.home'), icon: '⌂', badge: 0 },
     { key: 'messages' as const, label: t('tabs.messages'), icon: '✉', badge: unread },
+    { key: 'me' as const, label: t('me.tab'), icon: '☺', badge: 0 },
   ];
 
   let body: React.ReactNode;
@@ -103,6 +108,9 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenS
       break;
     case 'prefs':
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
+      break;
+    case 'me':
+      body = <Me onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
       break;
     case 'compose':
       body = <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}

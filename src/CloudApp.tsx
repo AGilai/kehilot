@@ -17,6 +17,7 @@ import { ForgotPassword } from './views/auth/ForgotPassword.tsx';
 import { AuthFrame } from './views/auth/Frame.tsx';
 import { GuestHome } from './views/GuestHome.tsx';
 import { Join } from './views/Join.tsx';
+import { Me } from './views/Me.tsx';
 import { Main } from './views/Main.tsx';
 import { useIncomingLink } from './views/useIncomingLink.ts';
 import { KehilaSwitcher } from './views/KehilaSwitcher.tsx';
@@ -68,6 +69,8 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const errText = useErrorText();
   const [switcher, setSwitcher] = React.useState(false);
   const [typed, setTyped] = React.useState<string | null>(null);
+  const [meOpen, setMeOpen] = React.useState(() => config.fixtures && fixtureParams().screen === 'me');
+  const [toast, setToast] = React.useState<string | null>(null);
   const code = link.code ?? typed;
   // A link that opens before the profile exists waits as a pending invite (accepted right after ProfileSetup).
   React.useEffect(() => {
@@ -127,11 +130,16 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   if (route === 'ready' && state.kehila && state.kehila.role !== 'listener') {
     return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} />{sheet}</>;
   }
+  // A listener's Me: only the name, the language, sign out and delete.
+  if (meOpen && route === 'ready' && state.kehila?.role === 'listener') {
+    return <Screen scroll={false}><Me onBack={() => setMeOpen(false)} onToast={text => { setToast(text); setTimeout(() => setToast(null), 2500); }} />{toast ? <Banner tone="success" text={toast} /> : null}</Screen>;
+  }
   return (
     <Screen>
       <TopBar onOpenSwitcher={() => setSwitcher(true)} />
       {banner}
       {route === 'ready' && state.kehila?.role === 'listener' ? <GuestHome /> : null}
+      {route === 'ready' && state.kehila?.role === 'listener' ? <Button kind="secondary" title={t('me.title')} onPress={() => setMeOpen(true)} /> : null}
       <Button kind="secondary" title={t('auth.profile.signOut')} onPress={() => void signOut()} />
       {sheet}
     </Screen>

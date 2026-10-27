@@ -354,6 +354,28 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     }
   }
 
+  /** Me: names and language. The server's answer becomes me.profile (the UI language follows it). */
+  async function editProfile(p: { firstName: string; lastName: string; lang: Lang }): Promise<void> {
+    const gen = state.generation;
+    const profile = await api.putProfile(p);
+    if (guard(gen) && state.me) set({ me: { ...state.me, profile } });
+  }
+
+  /**
+   * Leaves a Kehila. The store drops it when it was open, its search cache is wiped, and the route moves to
+   * another Kehila (or the picker) or to 'none'. A refusal (409 last_gabbai) is thrown with everything kept.
+   */
+  async function leaveKehila(k: string): Promise<Route> {
+    const gen = state.generation;
+    await api.leave(k);
+    if (!guard(gen)) return 'none';
+    if (state.kehilaId === k && cache) { try { await cache.wipe(); } catch { /* pruneKehilot below drops it too */ } }
+    const me = await loadMe(); // a Kehila missing from me() is wiped from the cache (12b)
+    if (!me || !guard(gen)) return 'none';
+    dropMissingSelection();
+    return chooseKehila();
+  }
+
   function reset(): void {
     poller.stop();
     stopBackfill.abort(); stopBackfill = new AbortController();
@@ -366,7 +388,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
     loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, search, cacheStatus, cachedMessage, loadHit, reset, guard,
-    setNotify, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
+    setNotify, editProfile, leaveKehila, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };
 }

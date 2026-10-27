@@ -39,6 +39,10 @@ export type SessionApi = {
   pollNow(): Promise<void>;
   /** M5: optimistic notification-preference change; rejects (after reverting) when the server refuses. */
   setNotify(partial: Partial<NotifyPrefs>): Promise<void>;
+  /** Me: names and language (the server's answer becomes me.profile). */
+  editProfile(p: { firstName: string; lastName: string; lang: Lang }): Promise<void>;
+  /** Me: leaves a Kehila; the app then moves to another Kehila or the join screen. Throws on a refusal (last_gabbai). */
+  leaveKehila(kehilaId: string): Promise<void>;
   /** Message actions in the open Kehila (see the store). */
   markRead(messageId: string): Promise<void>;
   loadReplies(messageId: string): Promise<void>;
@@ -127,6 +131,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     retry: () => setAttempt(a => a + 1),
     pollNow: () => store.pollNow(),
     setNotify: p => store.setNotify(p),
+    editProfile: p => store.editProfile(p),
+    async leaveKehila(k) {
+      const gen = store.getState().generation;
+      const r = await store.leaveKehila(k);
+      if (store.guard(gen)) setRoute(r);
+    },
     markRead: m => store.markRead(m),
     loadReplies: m => store.loadReplies(m),
     sendReply: (m, body) => store.sendReply(m, body),
