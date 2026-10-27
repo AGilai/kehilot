@@ -2,7 +2,7 @@
 export type Role = 'listener' | 'member' | 'gabbai';
 export type Classification = '' | 'א' | 'קבוע';
 export type Lang = 'he' | 'en';
-export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'chat';
+export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'general' | 'chat';
 export type PostPolicy = 'management' | 'broadcasters';
 export type ImageType = 'image/jpeg' | 'image/png';
 
@@ -20,6 +20,10 @@ export type NotifyPrefs = {
   chatChannels: string[];
 };
 
+/** Gabbaim only: who may post a type and whether guests (listeners) see it. */
+export type TypeRule = { post: 'management' | 'broadcasters'; listeners: boolean };
+export type TypeRules = { celebration?: TypeRule; condolence?: TypeRule };
+
 export type Kehila = {
   kehilaId: string;
   name: string;
@@ -34,6 +38,8 @@ export type Kehila = {
   /** Groups the caller administers. */
   adminGroups: string[];
   settings: { pollSeconds: number; maxListeners?: number };
+  /** Gabbaim only. */
+  typeRules?: { celebration: TypeRule; condolence: TypeRule };
   listenerCount?: number;
   /** The Kehila's privacy contact text, or ''. */
   privacyContact: string;
@@ -99,6 +105,8 @@ export type Channel = {
   isAdmin: boolean;
   /** Group IDs; gabbaim only. */
   groups?: string[];
+  /** The types the caller may post here (server-computed; empty for a conversation channel). */
+  postableTypes?: MessageType[];
 };
 
 /** Response of create channel (`updateChannel` returns the same shape). */

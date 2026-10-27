@@ -11,6 +11,7 @@ import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Sheet, Tag, Toggle, Txt, useTokens } from '../../kit/components.tsx';
 import { BackLink } from '../Me.tsx';
 import { Choice, useAdminErrText } from './shared.tsx';
+import { TypeRulesSection } from './TypeRules.tsx';
 
 const NAME_MAX = 60;
 
@@ -149,6 +150,7 @@ export function Channels({ onBack, onToast }: { onBack: () => void; onToast: (te
           <Button kind="secondary" title={t('admin.channels.edit')} onPress={() => setSheet({ channel: c })} />
         </Card>
       ))}
+      {rows ? <TypeRulesSection mainClosed={rows.some(c => c.name === 'announcements' && c.postPolicy === 'management')} onToast={onToast} /> : null}
       <ChannelSheet open={sheet !== null} channel={sheet?.channel} groups={groups} onClose={() => setSheet(null)}
         onSaved={() => { setSheet(null); onToast(t('admin.channels.saved')); void load(); }} />
     </ScrollView>

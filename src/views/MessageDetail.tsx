@@ -11,7 +11,7 @@ import { TOUCH, edge } from '../kit/theme.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
 import { BackIcon } from '../kit/Icon.tsx';
-import { channelLabel } from '../client/channelsView.ts';
+import { messageMeta } from '../client/typesView.ts';
 
 /** Reply errors that end the chance to reply to this message. */
 const HIDES_BOX = ['cannot_reply_to_own', 'replies_not_allowed', 'target_left'];
@@ -63,14 +63,12 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   if (!message && copy) {
     const date = Number.isFinite(ulidTime(messageId))
       ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ulidTime(messageId))) : '';
-    const copyChannel = channels.find(c => c.channelId === copy.channelId);
-    const channel = copyChannel ? channelLabel(copyChannel, t) : '';
     return (
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {back}
         <Banner text={t('detail.offlineCopy')} />
         <Card edgeColor={edge(copy.type, scheme)}>
-          <Txt size="caption" color={k.muted}>{channel} · {date}</Txt>
+          <Txt size="caption" color={k.muted}>{messageMeta(copy, channels, date, t)}</Txt>
           {copy.title ? <Txt content serif size="title" accessibilityRole="header">{copy.title}</Txt> : null}
           {copy.body ? <Txt content>{copy.body}</Txt> : null}
           <Txt size="small" color={k.muted}>{t('detail.from', { name: copy.authorName })}</Txt>
@@ -94,8 +92,6 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);
   const canDelete = message.authorId === me.userId || role === 'gabbai';
   const familyName = message.targetName?.trim() || t('chip.formerMember');
-  const msgChannel = channels.find(c => c.channelId === message.channelId);
-  const channelName = msgChannel ? channelLabel(msgChannel, t) : '';
 
   async function doJoin() {
     if (joining || joined) return;
@@ -127,7 +123,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
       {back}
       <Card edgeColor={edge(message.type, scheme)}>
-        <Txt size="caption" color={k.muted}>{channelName} · {timeOfDay(messageId)}</Txt>
+        <Txt size="caption" color={k.muted}>{messageMeta(message, channels, timeOfDay(messageId), t)}</Txt>
         {message.title ? <Txt content serif size="title" accessibilityRole="header">{message.title}</Txt> : null}
         {message.body ? <Txt content>{message.body}</Txt> : null}
         {message.image ? <ImageThumb messageId={messageId} contentType={message.image.contentType} /> : null}

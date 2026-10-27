@@ -3,7 +3,7 @@ import { ApiCodeError } from './errors.ts';
 import { endpoints } from './endpoints.ts';
 import type { Http } from './http.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
-import type { Channel, Child, FamilyView, Kehila, Lang, Message, Reply, Role } from './types.ts';
+import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role } from './types.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
 
@@ -17,7 +17,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
  *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
   'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -89,6 +89,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       phoneAsk: card === 'phone' || card === 'phone-nonumber',
       terms: role === 'gabbai' && (screen === 'terms' || card === 'terms'),
     },
+    ...(role === 'gabbai' ? { typeRules: { celebration: { post: 'broadcasters' as const, listeners: false }, condolence: { post: 'management' as const, listeners: true } } } : {}),
     ...(role === 'gabbai' ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'עמית דוגמה', at: TERMS_AT } } : {}),
   };
   const me = {
@@ -108,18 +109,26 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       ] : []),
     ],
   };
+  // The Compose screens show a member who may broadcast (a plain member has no Compose at all).
+  const broadcaster = role === 'gabbai' || (role === 'member' && !!screen && screen.startsWith('compose'));
+  // What the server computes per channel: all five for a gabbai, general + the two configurable types for a broadcaster.
+  const postable = (): MessageType[] => (role === 'gabbai' ? ['general', 'weekly', 'event', 'celebration', 'condolence'] : broadcaster ? ['general', 'celebration', 'condolence'] : []);
   const ch = (channelId: string, name: string, over: Partial<Channel> = {}) => ({
     channelId, name, listenersCanRead: true, postPolicy: 'management' as const, canPost: role === 'gabbai', inAudience: true,
-    conversation: false, chatHourlyLimit: 0, isAdmin: role === 'gabbai', ...over,
+    conversation: false, chatHourlyLimit: 0, isAdmin: role === 'gabbai', postableTypes: [] as MessageType[], ...over,
   });
-  const channels = [
-    ch('01FIXTURECHANNEL00000001', 'הודעות הקהילה'),
-    ch('01FIXTURECHANNEL00000002', 'simchas'), // a raw seeded key, shown through channelLabel(),
+  const allChannels = [
+    // The one main channel (stored name `announcements`, shown through channelLabel()); members with broadcast permission post here.
+    ch('01FIXTURECHANNEL00000001', 'announcements', { postPolicy: 'broadcasters', canPost: broadcaster, postableTypes: postable() }),
+    // A group's channel: listeners do not read it.
+    ch('01FIXTURECHANNEL00000002', 'שיעור הדף', { listenersCanRead: false, inAudience: role !== 'listener', ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000002'], postableTypes: postable() } : {}) }),
     // The server never returns the whole-Kehila chat to a listener; the one it returns is the admitted group's chat.
     ch('01FIXTURECHANNEL00000003', role === 'listener' ? 'שיחת קבוצת הנוער' : 'שיחת הקהילה', { conversation: true, listenersCanRead: role === 'listener' ? false : true, canPost: true, chatHourlyLimit: 30, ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000001'] } : {}) }),
-    ...(role === 'gabbai' ? [ch('01FIXTURECHANNEL00000004', 'קבוצת הנוער', { inAudience: false })] : []),
+    ...(role === 'gabbai' ? [ch('01FIXTURECHANNEL00000004', 'קבוצת הנוער', { inAudience: false, postableTypes: postable() })] : []),
   ];
-  const [cAnn, cJoy, cChat, cYouth] = [channels[0]!.channelId, channels[1]!.channelId, channels[2]!.channelId, channels[3]?.channelId ?? channels[0]!.channelId];
+  const [cAnn, cGroup, cChat, cYouth] = [allChannels[0]!.channelId, allChannels[1]!.channelId, allChannels[2]!.channelId, allChannels[3]?.channelId ?? allChannels[0]!.channelId];
+  // The server never returns a group's channel to a listener who is not in the group.
+  const channels = role === 'listener' ? allChannels.filter(c => c.channelId !== cGroup) : allChannels;
   // ?screen=m3target makes the signed-in user the family a blessing is aimed at.
   const targetId = screen === 'm3target' ? me.userId : '01FIXTUREUSER00000000002';
   const now = Date.now();
@@ -132,12 +141,15 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   });
   const messages: Message[] = [
     mk(1 * H, 1, { type: 'weekly', title: 'שבת שלום מהקהילה הבדיונית', body: 'הודעת דוגמה בלבד. קבלת שבת תתקיים בשעה הרגילה.' }),
-    mk(2 * H, 2, { channelId: cJoy, type: 'celebration', title: 'מזל טוב לבר המצווה בבית בדיוני', body: 'משפחת בדיוני מזמינה את כולם לשמחה בשבת הקרובה.', joinCount: 12, targetMemberId: targetId, targetName: 'בדיוני', replierCount: 3 }),
-    mk(5 * H, 3, { channelId: cJoy, type: 'condolence', title: 'השתתפות בצער משפחת לדוגמה', body: 'בצער רב אנו מודיעים על פטירתו של אבי המשפחה. יהי זכרו ברוך.', targetMemberId: targetId, targetName: 'לדוגמה', replierCount: 2 }),
+    mk(2 * H, 2, { type: 'celebration', title: 'מזל טוב לבר המצווה בבית בדיוני', body: 'משפחת בדיוני מזמינה את כולם לשמחה בשבת הקרובה.', joinCount: 12, targetMemberId: targetId, targetName: 'בדיוני', replierCount: 3 }),
+    mk(5 * H, 3, { type: 'condolence', title: 'השתתפות בצער משפחת לדוגמה', body: 'בצער רב אנו מודיעים על פטירתו של אבי המשפחה. יהי זכרו ברוך.', targetMemberId: targetId, targetName: 'לדוגמה', replierCount: 2 }),
     mk(26 * H, 4, { type: 'event', title: 'שיעור ערב שבת', body: 'שיעור קצר לפני מנחה, בהשתתפות כולם.' }),
     mk(3 * H, 5, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: 'u7', authorName: 'רון לדוגמה', body: 'מי מביא כיסאות לשבת?' }),
     mk(2.5 * H, 6, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: 'u8', authorName: 'מיכל בדויה', body: 'צילמתי את הסוכה, הנה:', image: { contentType: 'image/jpeg', bytes: 40000 } }),
     mk(1.5 * H, 7, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: me.userId, authorName: 'דנה בדויה', body: 'אני אביא, תודה!' }),
+    mk(6 * H, 9, { type: 'general', authorKind: 'member', authorId: 'u7', authorName: 'רון לדוגמה', title: 'מי יכול להביא כיסאות?', body: 'חסרים כמה כיסאות באולם לשבת.' }),
+    mk(27 * H, 10, { type: 'celebration', title: 'מזל טוב להולדת הבת', body: 'משפחת דוגמה מודיעה בשמחה על הולדת בת.', targetMemberId: '01FIXTUREUSER00000000003', targetName: 'דוגמה', joinCount: 4 }),
+    ...(role === 'listener' ? [] : [mk(30 * H, 11, { channelId: cGroup, type: 'weekly', title: 'שיעור הדף השבועי', body: 'הדף היומי ימשיך כרגיל, ללא שינוי.' })]),
     ...(role === 'gabbai' ? [mk(4 * H, 8, { channelId: cYouth, type: 'weekly', title: 'מפגש נוער בשבת', body: 'הודעה בקבוצה שאינה בקהל שלי.' })] : []),
   ];
   // ?screen=search-loading: a full first page and then a failing second page, so the archive stays "still loading".

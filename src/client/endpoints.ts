@@ -1,5 +1,6 @@
 import type { Http } from './http.ts';
 import type {
+  TypeRules,
   AdminFamily, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
   DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
@@ -78,7 +79,7 @@ export function endpoints(http: Http) {
     updateMember: (k: string, u: string, fields: MemberFields) =>
       r<Record<string, never>>('PUT', `${A(k)}/members/${e(u)}`, fields),
     removeMember: (k: string, u: string) => r<void>('DELETE', `${A(k)}/members/${e(u)}`),
-    putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string }) =>
+    putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string; typeRules?: TypeRules }) =>
       r<Record<string, never>>('PUT', `${A(k)}/settings`, s),
     adminFamilies: (k: string) => r<AdminFamily[]>('GET', `${A(k)}/families`),
     adminLink: (k: string, a: string, b: string) =>

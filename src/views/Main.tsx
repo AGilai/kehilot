@@ -34,15 +34,13 @@ import { Me } from './Me.tsx';
 import { NotifyPrefs } from './NotifyPrefs.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
 import { Messages } from './Messages.tsx';
-import { Search } from './Search.tsx';
 import type { Filter } from './Messages.tsx';
 import { TopBar } from './TopBar.tsx';
 
 type Nav =
   | { tab: 'home' }
   | { tab: 'messages' }
-  | { tab: 'search' }
-  | { tab: 'detail'; id: string; from: 'home' | 'messages' | 'search' }
+  | { tab: 'detail'; id: string; from: 'home' | 'messages' }
   | { tab: 'chat'; channelId: string }
   | { tab: 'compose' }
   | { tab: 'me' }
@@ -64,7 +62,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   const s = fixtureParams().screen;
   const byType = (type: string) => state.feed.order.map(id => state.feed.messages[id]!).find(m => m.type === type && m.targetMemberId);
   if (s === 'messages') return { nav: { tab: 'messages' } };
-  if (s === 'search' || s === 'search-loading') return { nav: { tab: 'search' } };
+  if (s === 'search-loading') return { nav: { tab: 'messages' } };
   if (s === 'messages-all') return { nav: { tab: 'messages' }, filter: 'all' };
   if (s === 'm3' || s === 'm3target') { const m = byType('celebration'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
@@ -158,7 +156,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     return () => { live = false; };
   }, [manage, isGabbai, state.kehilaId, api]); // eslint-disable-line react-hooks/exhaustive-deps
   const jumped = React.useRef(false);
-  const [searchQ, setSearchQ] = React.useState(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''));
+  const fixtureQuery = React.useMemo(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''), []);
 
   // Fixtures: jump to the requested screen once the messages have loaded.
   React.useEffect(() => {
@@ -197,10 +195,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'me' })} /> : null;
       break;
     case 'messages':
-      body = <Messages initialFilter={filter} onSearch={() => setNav({ tab: 'search' })} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
-      break;
-    case 'search':
-      body = <Search initialQuery={searchQ} onQuery={setSearchQ} onBack={() => setNav({ tab: 'messages' })} onOpen={id => setNav({ tab: 'detail', id, from: 'search' })} />;
+      body = <Messages initialFilter={filter} initialQuery={fixtureQuery} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
       break;
     case 'detail':
       body = <MessageDetail key={nav.id} messageId={nav.id} onBack={() => setNav({ tab: nav.from })} />;

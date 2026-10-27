@@ -109,7 +109,13 @@
     "invalid_card": "The card is not valid",
     "family_not_found": "Family not found",
     "export_not_found": "File not found",
-    "child_not_found": "The child was not found in the list"
+    "child_not_found": "The child was not found in the list",
+    "invalid_type_rules": "The message type setting is not valid, try again",
+    "invalid_tag_name": "The tag name is not valid (up to 24 characters)",
+    "invalid_tag_ids": "The selected tags are not valid",
+    "tag_exists": "A tag with this name already exists",
+    "tag_not_found": "Tag not found",
+    "too_many_tags": "You can add at most 20 tags"
   },
   "app": {
     "name": "Kehilot"
@@ -341,7 +347,17 @@
       "save": "Save",
       "invalid": "Enter a whole number from 0 to 200",
       "noRights": "You no longer have admin rights for this channel"
-    }
+    },
+    "search": "Search messages",
+    "searchClear": "Clear search",
+    "typesLabel": "Filter by type",
+    "count": "{n} messages",
+    "countOne": "1 message",
+    "clearFilters": "Clear filters",
+    "emptyFiltered": "No messages match your filters.",
+    "inAll": "{n} matching messages in Everything.",
+    "showAll": "Show in Everything",
+    "archiveLoading": "The archive is still loading ({n} messages so far)"
   },
   "detail": {
     "back": "Back to messages",
@@ -388,24 +404,16 @@
     "remove": "Remove the photo",
     "preview": "The chosen photo"
   },
-  "search": {
-    "title": "Search",
-    "open": "Search messages",
-    "placeholder": "Search messages",
-    "hint": "Search titles, text and names. It works offline too.",
-    "empty": "No messages found.",
-    "loading": "The archive is still loading ({n} messages so far)",
-    "back": "Back to messages"
-  },
   "compose": {
     "titleMember": "New broadcast",
     "titleGabbai": "Publish a message",
     "type": "Message type",
     "types": {
       "weekly": "Weekly update",
-      "celebration": "Celebration",
+      "celebration": "Mazal tov",
       "condolence": "Condolence",
-      "event": "Event"
+      "event": "Event",
+      "general": "Message"
     },
     "channel": "Channel",
     "channelFirst": "Choose a channel",
@@ -426,7 +434,10 @@
     },
     "permissionDenied": "No access to photos. You can allow it in the device settings.",
     "familyNote": "Private blessings reach every adult in the chosen family.",
-    "familyAnd": "{a} and {b}"
+    "familyAnd": "{a} and {b}",
+    "refused": "The settings changed and you can no longer post this type of message. What you wrote is kept.",
+    "refusedAll": "You can't post in this community right now. Your message was not sent.",
+    "asGeneral": "Change to a regular message"
   },
   "viewer": {
     "close": "Close",
@@ -880,6 +891,26 @@
       "done": "Linked. Both have been told",
       "taken": "{name} already has a partner.",
       "none": "No matching member."
+    },
+    "types": {
+      "title": "Message types",
+      "intro": "All messages go to the Announcements channel. Here you choose who may post mazal tov and condolence messages, and whether guests see them.",
+      "postLabel": "Who may post",
+      "noteManagement": "Members with broadcast permission can post regular messages only",
+      "noteDefault": "Default",
+      "listeners": {
+        "celebration": "Guests see mazal tov messages",
+        "condolence": "Guests see condolence messages"
+      },
+      "listenersNote": "Applies to messages already posted too. Members and gabbaim always see them.",
+      "fixedTitle": "Other types · fixed",
+      "rowPost": "Posted by: {who}",
+      "rowSeen": "Seen by: {who}",
+      "seenAll": "Everyone, guests included",
+      "membersSeeAll": "Members see every message type.",
+      "channelClosed": "Only gabbaim post in the Announcements channel, so members can't post any type. You can change this by editing the channel.",
+      "saved": "Setting saved",
+      "groupLabel": "{type}, who may post"
     }
   },
   "phoneList": {

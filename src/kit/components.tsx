@@ -23,7 +23,7 @@ export function useTokens(): Tokens {
 }
 
 /** `content`: user text (message, name); its direction and alignment follow its first strong letter, not the UI language. */
-export function Txt({ children, size = 'body', bold, serif, color, content, style, ...rest }: { children?: React.ReactNode; size?: keyof typeof type; bold?: boolean; serif?: boolean; color?: string; content?: boolean; style?: StyleProp<TextStyle>; numberOfLines?: number; accessibilityRole?: 'header' | 'alert' | 'text' }) {
+export function Txt({ children, size = 'body', bold, serif, color, content, style, ...rest }: { children?: React.ReactNode; size?: keyof typeof type; bold?: boolean; serif?: boolean; color?: string; content?: boolean; style?: StyleProp<TextStyle>; numberOfLines?: number; accessibilityRole?: 'header' | 'alert' | 'text'; accessibilityLiveRegion?: 'polite' | 'assertive' }) {
   const { lang, dir } = useI18n();
   const k = useTokens();
   const family = serif ? fonts.title : bold ? fonts.uiBold : fonts.ui;
@@ -86,15 +86,18 @@ export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, .
   );
 }
 
-/** `size="filter"`: the small pill for filter rows and pickers (selected = ink, tekhelet stays the action colour). */
-export function Chip({ label, selected, onPress, size = 'regular', icon }: { label: string; selected?: boolean; onPress?: () => void; size?: 'regular' | 'filter'; icon?: IconName }) {
+/**
+ * `size="filter"`: the small pill for filter rows and pickers (selected = ink, tekhelet stays the action colour).
+ * `multi` makes it one of several that can be on: a checkbox, with a dot in `dot` colour when off and a check when on.
+ */
+export function Chip({ label, selected, onPress, size = 'regular', icon, multi, dot }: { label: string; selected?: boolean; onPress?: () => void; size?: 'regular' | 'filter'; icon?: IconName; multi?: boolean; dot?: string }) {
   const k = useTokens();
   if (size === 'filter') {
     const fg = selected ? k.stone : k.ink;
     return (
-      <Pressable accessibilityRole="button" accessibilityState={{ selected: !!selected }} onPress={onPress} hitSlop={{ top: 6, bottom: 6 }}
+      <Pressable accessibilityRole={multi ? 'checkbox' : 'button'} accessibilityState={multi ? { checked: !!selected } : { selected: !!selected }} onPress={onPress} hitSlop={{ top: 6, bottom: 6 }}
         style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: selected ? k.ink : k.line, backgroundColor: selected ? k.ink : k.surface }}>
-        {icon ? <Icon name={icon} size={16} color={fg} /> : null}
+        {multi ? (selected ? <Icon name="check" size={16} color={fg} /> : dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} /> : null) : icon ? <Icon name={icon} size={16} color={fg} /> : null}
         <Txt size="small" bold color={fg}>{label}</Txt>
       </Pressable>
     );

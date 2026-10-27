@@ -63,3 +63,10 @@ export function snippet(original: string, words: string[], width = 80): string {
   return `${start > 0 ? '…' : ''}${cut}${end < original.length ? '…' : ''}`;
 }
 const isLow = (c: number) => c >= 0xDC00 && c <= 0xDFFF;
+
+/** What a message is searched by: title, body, author and target names, normalised. */
+export const searchNorm = (m: { title: string; body: string; authorName: string; targetName?: string }): string =>
+  normalize([m.title, m.body, m.authorName, m.targetName].filter(Boolean).join(' '));
+
+/** Every query word occurs in the normalised text. */
+export const matchesWords = (norm: string, words: string[]): boolean => words.every(w => norm.includes(w));

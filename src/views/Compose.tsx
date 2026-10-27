@@ -16,10 +16,10 @@ import type { Stage } from '../media/send.ts';
 import { singleFlight } from '../client/singleFlight.ts';
 import { Stripe } from './MessageRow.tsx';
 import { useErrorText } from './auth/Frame.tsx';
+import { ApiCodeError } from '../client/errors.ts';
 import { BackIcon } from '../kit/Icon.tsx';
 import { channelLabel } from '../client/channelsView.ts';
-
-const TYPES: Array<Exclude<MessageType, 'chat'>> = ['weekly', 'celebration', 'condolence', 'event'];
+import { composeTypes, refusalBanner } from '../client/typesView.ts';
 
 export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked };
 
@@ -32,10 +32,14 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const { t, dir } = useI18n();
   const k = useTokens();
   const errText = useErrorText();
-  const { state, postMessage, requestUpload, targetFamilies } = useSession();
+  const { state, postMessage, requestUpload, targetFamilies, refreshChannels } = useSession();
   const channels = React.useMemo(() => postableChannels(state.channels), [state.channels]);
-  const [type, setType] = React.useState<MessageType>(initial?.type ?? 'weekly');
   const [channelId, setChannelId] = React.useState<string | null>(channels[0]?.channelId ?? null);
+  const types = composeTypes(channels.find(c => c.channelId === channelId));
+  const [chosenType, setType] = React.useState<MessageType | null>(initial?.type ?? null);
+  // The first postable type unless the person (or the opener) chose one that is still postable.
+  const type: MessageType = chosenType && (types as MessageType[]).includes(chosenType) ? chosenType : (types[0] ?? 'general');
+  const [refused, setRefused] = React.useState(false);
   const [title, setTitle] = React.useState('');
   const [body, setBody] = React.useState('');
   const [targetId, setTargetId] = React.useState<string | null>(initial?.targetFamilyId ?? null);
@@ -70,7 +74,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const chosen = Array.isArray(people) ? people.find(p => p.familyId === targetId) : undefined;
   const draft: Draft = { type, channelId, title, body, targetMemberId: chosen?.targetMemberId ?? null, targetFamilyId: chosen?.familyId ?? null };
   const busy = stage !== null;
-  const ok = canPublish(draft) && !busy;
+  const ok = canPublish(draft) && types.length > 0 && !busy;
   const found = channels.find(c => c.channelId === channelId);
   const channelName = found ? channelLabel(found, t) : '';
   const gabbai = state.kehila?.role === 'gabbai';
@@ -79,12 +83,14 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   latest.current = publish;
   async function publish() {
     if (!ok || !channelId) return;
-    setError(null);
+    setError(null); setRefused(false);
     try {
       const m = await sendMessage({ image, channelId, requestUpload, post: id => postMessage(postBody(draft, id)), onStage: s => { if (alive.current) setStage(s); } });
       if (alive.current) onPublished(m.messageId);
     } catch (e) {
-      if (alive.current) { setError(errText(e)); setStage(null); }
+      if (!alive.current) return;
+      setStage(null);
+      if (e instanceof ApiCodeError && e.status === 403 && e.code === 'forbidden') { setRefused(true); void refreshChannels().catch(() => {}); } else setError(errText(e));
     }
   }
 
@@ -95,27 +101,31 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
       </Pressable>
       <Txt serif size="title" accessibilityRole="header">{t(gabbai ? 'compose.titleGabbai' : 'compose.titleMember')}</Txt>
 
-      <View style={{ gap: 8 }}>
-        <Txt size="small" bold>{t('compose.type')}</Txt>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {TYPES.map(x => (
-            <Pressable key={x} accessibilityRole="button" accessibilityState={{ selected: type === x }} disabled={busy} onPress={() => { setType(x); setTargetId(null); setQ(''); }}
-              style={{ flexBasis: '47%', flexGrow: 1 }}>
-              <View style={{ flexDirection: 'row', minHeight: TOUCH + 8, borderRadius: 12, overflow: 'hidden', backgroundColor: k.surface, borderWidth: type === x ? 2 : 1, borderColor: type === x ? k.tekhelet : k.line }}>
-                <Stripe type={x} />
-                <View style={{ flex: 1, padding: 12, justifyContent: 'center' }}><Txt bold>{t(`compose.types.${x}`)}</Txt></View>
-              </View>
-            </Pressable>
-          ))}
+      {types.length > 1 ? (
+        <View style={{ gap: 8 }}>
+          <Txt size="small" bold>{t('compose.type')}</Txt>
+          <View role="radiogroup" accessibilityLabel={t('compose.type')} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {types.map(x => (
+              <Pressable key={x} accessibilityRole="radio" accessibilityState={{ selected: type === x }} disabled={busy} onPress={() => { setType(x); setRefused(false); setTargetId(null); setQ(''); }}
+                style={{ flexBasis: '47%', flexGrow: 1 }}>
+                <View style={{ flexDirection: 'row', minHeight: TOUCH + 8, borderRadius: 12, overflow: 'hidden', backgroundColor: k.surface, borderWidth: type === x ? 2 : 1, borderColor: type === x ? k.tekhelet : k.line }}>
+                  <Stripe type={x} />
+                  <View style={{ flex: 1, padding: 12, justifyContent: 'center' }}><Txt bold>{t(`compose.types.${x}`)}</Txt></View>
+                </View>
+              </Pressable>
+            ))}
+          </View>
         </View>
-      </View>
+      ) : null}
 
-      <View style={{ gap: 8 }}>
-        <Txt size="small" bold>{t('compose.channel')}</Txt>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {channels.map(c => <Chip key={c.channelId} size="filter" label={channelLabel(c, t)} selected={channelId === c.channelId} onPress={() => { if (!busy) { setChannelId(c.channelId); setTargetId(null); } }} />)}
+      {channels.length > 1 ? (
+        <View style={{ gap: 8 }}>
+          <Txt size="small" bold>{t('compose.channel')}</Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {channels.map(c => <Chip key={c.channelId} size="filter" label={channelLabel(c, t)} selected={channelId === c.channelId} onPress={() => { if (!busy) { setChannelId(c.channelId); setTargetId(null); } }} />)}
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {needsTarget(type) ? (
         <View style={{ gap: 8 }}>
@@ -137,6 +147,10 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
       {channelName ? <Txt size="small" color={k.muted}>{t('compose.audience', { channel: channelName })}</Txt> : null}
       {stage ? <Txt size="small" color={k.muted} accessibilityRole="alert">{t(`compose.progress.${stage}`)}</Txt> : null}
       {error ? <Banner tone="error" text={error} /> : null}
+      {refused ? (() => {
+        const r = refusalBanner(types, type);
+        return <Banner tone="error" text={t(`compose.${r.text}`)} action={r.asGeneral ? { title: t('compose.asGeneral'), onPress: () => { setType('general'); setTargetId(null); setQ(''); setRefused(false); } } : undefined} />;
+      })() : null}
       <Button title={t('compose.publish')} onPress={() => void publishOnce()} busy={busy} disabled={!ok} />
     </Screen>
   );

@@ -4,7 +4,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../kit/components.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { edge } from '../kit/theme.ts';
-import { replierChip, timeOfDay } from '../client/messageView.ts';
+import { replierChip } from '../client/messageView.ts';
 import type { Message } from '../client/types.ts';
 
 /** The start-edge stripe: a double line in the type colour, dotted when the message is muted. */
@@ -19,8 +19,8 @@ export function Stripe({ type, muted }: { type: Message['type']; muted?: boolean
   );
 }
 
-/** One message in a list: stripe, channel and time, title, two lines of body, optional image, replier chip. Never reply text. */
-export function MessageRow({ message, channelName, muted, onPress }: { message: Message; channelName: string; muted: boolean; onPress: () => void }) {
+/** One message in a list: stripe, type, channel (with several) and time, title, two lines of body, optional image, replier chip. Never reply text. */
+export function MessageRow({ message, meta, muted, onPress }: { message: Message; meta: string; muted: boolean; onPress: () => void }) {
   const { t } = useI18n();
   const k = useTokens();
   const chip = replierChip(message, t);
@@ -31,7 +31,7 @@ export function MessageRow({ message, channelName, muted, onPress }: { message: 
       <Stripe type={message.type} muted={muted} />
       <View style={{ flex: 1, padding: 14, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Txt size="caption" color={k.muted} numberOfLines={1} style={{ flexShrink: 1 }}>{channelName} · {timeOfDay(message.messageId)}</Txt>
+          <Txt size="caption" color={k.muted} numberOfLines={1} style={{ flexShrink: 1 }}>{meta}</Txt>
           {muted ? <Txt size="caption" bold color={k.muted}>{t('messages.muted')}</Txt> : null}
           <View style={{ flex: 1 }} />
           {unread ? <View accessibilityLabel={t('messages.unread')} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: k.tekhelet }} /> : null}

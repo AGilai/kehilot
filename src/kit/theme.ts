@@ -1,6 +1,6 @@
 export type Scheme = 'light' | 'dark';
 // Server message types (routes_messages.TYPES plus chat).
-export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'chat';
+export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'general' | 'chat';
 
 const light = {
   stone: '#F6F7F2', ink: '#151A33', tekhelet: '#2A3F94', pomegranate: '#A32A47', ash: '#555B75',
@@ -23,5 +23,5 @@ export const fonts = { ui: 'Heebo_400Regular', uiBold: 'Heebo_700Bold', title: '
 /** Stripe (message edge) colour per message type. */
 export function edge(t: MessageType, scheme: Scheme = 'light'): string {
   const k = tokens(scheme);
-  return { weekly: k.gold, celebration: k.pomegranate, condolence: k.ash, event: k.tekhelet, chat: k.tekhelet }[t];
+  return { weekly: k.gold, celebration: k.pomegranate, condolence: k.ash, event: k.tekhelet, general: k.tekhelet, chat: k.tekhelet }[t];
 }

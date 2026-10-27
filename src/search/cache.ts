@@ -1,6 +1,6 @@
 import { ulidTime } from '../client/messageView.ts';
 import type { Message, MessageType } from '../client/types.ts';
-import { normalize, queryWords } from './normalize.ts';
+import { matchesWords, queryWords, searchNorm } from './normalize.ts';
 
 /** Where the cache keeps its data: memory in tests, files on a phone, IndexedDB on the web. */
 export interface CacheStore {
@@ -86,7 +86,7 @@ function toCached(m: Message): CachedMessage {
   const c: CachedMessage = {
     messageId: m.messageId, channelId: m.channelId, type: m.type, title: m.title, body: m.body, authorName: m.authorName,
     hasImage: !!m.image,
-    norm: normalize([m.title, m.body, m.authorName, m.targetName].filter(Boolean).join(' ')),
+    norm: searchNorm(m),
   };
   if (m.targetName) c.targetName = m.targetName;
   return c;
@@ -224,7 +224,7 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
         for (const mo of await loadMonthList()) {
           for (const msg of Object.values(await loadMonth(mo))) {
             if (o.channelId && msg.channelId !== o.channelId) continue;
-            if (words.every(w => msg.norm.includes(w))) hits.push(msg);
+            if (matchesWords(msg.norm, words)) hits.push(msg);
           }
         }
         hits.sort((a, b) => (a.messageId < b.messageId ? 1 : a.messageId > b.messageId ? -1 : 0));
