@@ -147,3 +147,7 @@ gabbai printout tabs, and Positive/Summary tabs.
 - **Women's seats**: no map — only reservation counts in the form (נשים · בית הכנסת, גברים · אולם, נשים ·
   אולם). Model them as counted areas (capacity + requests), not seat maps — CTO default, owner to confirm.
 - Ark side and numbering direction are still not in the file (keep provisional).
+
+**Owner, 2026-10-27:** "ark is in the front. For now only a men map is needed." → the ark is at the front
+(the top of the sheet: row 0, then rows 1–13 moving away from it). Only the men's hall gets a seat map;
+women's seats stay counted areas (later).
