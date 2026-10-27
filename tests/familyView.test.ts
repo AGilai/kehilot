@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canAddChild, familyState, formatBirthDate, parseBirthDate } from '../src/client/familyView.ts';
+import { canAddChild, familyRows, familyState, filterFamilies, formatBirthDate, parseBirthDate } from '../src/client/familyView.ts';
 import type { FamilyView } from '../src/client/types.ts';
 
 const TODAY = '2026-10-27';
@@ -50,4 +50,24 @@ test('limit at 20', () => {
   const kids = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `c${i}`, firstName: 'נ', gender: 'f' as const }));
   assert.equal(canAddChild(view({ children: kids(19) })), true);
   assert.equal(canAddChild(view({ children: kids(20) })), false);
+});
+
+const tr = (key: string, p?: Record<string, string | number>) => (key === 'compose.familyAnd' ? `${p!.a} ו${p!.b}` : key);
+const fam = (familyId: string, name: string, firstNames: string[]) => ({ familyId, name, firstNames, targetMemberId: `m-${familyId}` });
+
+test('family rows subtitle joins two first names', () => {
+  const rows = familyRows([fam('f1', 'בדיוני', ['דנה', 'יוסי']), fam('f2', 'בן דמיון', ['רון'])], tr);
+  assert.deepEqual(rows, [{ id: 'f1', title: 'בדיוני', subtitle: 'דנה ויוסי' }, { id: 'f2', title: 'בן דמיון', subtitle: 'רון' }]);
+});
+
+test('family rows sorted by name', () => {
+  const rows = familyRows([fam('f3', 'ניסיון', ['א']), fam('f1', 'אלמוני', ['ב']), fam('f2', 'בדיוני', ['ג'])], tr);
+  assert.deepEqual(rows.map(r => r.id), ['f1', 'f2', 'f3']);
+});
+
+test('family search matches the name and any adult first name', () => {
+  const l = [fam('f1', 'בדיוני', ['דנה', 'יוסי']), fam('f2', 'בן דמיון', ['רון'])];
+  assert.deepEqual(filterFamilies(l, ' יוס ').map(f => f.familyId), ['f1']);
+  assert.deepEqual(filterFamilies(l, 'דמיון').map(f => f.familyId), ['f2']);
+  assert.equal(filterFamilies(l, '').length, 2);
 });

@@ -13,7 +13,7 @@ import { cacheStore } from '../search/platform.ts';
 import type { CachedMessage } from '../search/cache.ts';
 import type { Hit } from '../search/hit.ts';
 import type { Route, StoreState } from './store.ts';
-import type { DirectoryEntry, Lang, Message, NotifyPrefs, PostMessageBody, Reply, UploadGrant } from './types.ts';
+import type { DirectoryEntry, Lang, Message, NotifyPrefs, PostMessageBody, Reply, TargetFamily, UploadGrant } from './types.ts';
 
 const storage: KeyValue = {
   get: (k) => AsyncStorage.getItem(k),
@@ -68,6 +68,8 @@ export type SessionApi = {
   requestUpload(o: { channelId: string; contentType: 'image/jpeg' | 'image/png'; bytes: number }): Promise<UploadGrant>;
   /** The families (members) a message to this channel may be about. */
   directory(channelId?: string): Promise<DirectoryEntry[]>;
+  /** The families a blessing in this channel may be about (adults who can read it; no children). */
+  targetFamilies(channelId: string): Promise<TargetFamily[]>;
   /** Offline search over the on-phone cache of the open Kehila. */
   search(q: string, o?: { channelId?: string }): Promise<CachedMessage[]>;
   cacheStatus(): Promise<{ complete: boolean; count: number }>;
@@ -165,6 +167,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     removeMessage: m => store.removeMessage(m),
     postMessage: b => store.postMessage(b),
     requestUpload: o => store.requestUpload(o),
+    targetFamilies: async c => { const k = store.getState().kehilaId; return k ? api.targetFamilies(k, c) : []; },
     directory: async c => { const k = store.getState().kehilaId; return k ? api.directory(k, c) : []; },
     search: (q, o) => store.search(q, o),
     cacheStatus: () => store.cacheStatus(),

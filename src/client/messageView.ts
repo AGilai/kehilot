@@ -119,7 +119,7 @@ export function canSendChat(body: string, hasImage: boolean): boolean {
   return cp(body) <= CHAT_MAX && (body.trim().length > 0 || hasImage);
 }
 
-export type Draft = { type: MessageType; channelId: string | null; title: string; body: string; targetMemberId: string | null };
+export type Draft = { type: MessageType; channelId: string | null; title: string; body: string; targetMemberId: string | null; /** The family the blessing is about; goes with one of its adults as `targetMemberId`. */ targetFamilyId?: string | null };
 
 export function canPublish(d: Draft): boolean {
   return !!d.channelId && d.title.trim().length > 0 && cp(d.title) <= TITLE_MAX && cp(d.body) <= BODY_MAX
@@ -130,7 +130,10 @@ export function canPublish(d: Draft): boolean {
 export function postBody(d: Draft, imageUploadId: string | undefined): PostMessageBody {
   const out: PostMessageBody = { channelId: d.channelId!, type: d.type, title: d.title.trim() };
   if (d.body.trim()) out.body = d.body;
-  if (needsTarget(d.type) && d.targetMemberId) out.targetMemberId = d.targetMemberId;
+  if (needsTarget(d.type) && d.targetMemberId) {
+    out.targetMemberId = d.targetMemberId;
+    if (d.targetFamilyId) out.targetFamilyId = d.targetFamilyId;
+  }
   if (imageUploadId) out.imageUploadId = imageUploadId;
   return out;
 }

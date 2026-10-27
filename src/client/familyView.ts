@@ -1,4 +1,4 @@
-import type { FamilyView } from './types.ts';
+import type { FamilyView, TargetFamily } from './types.ts';
 
 export const MAX_CHILDREN = 20;
 const MIN_BIRTH = '1900-01-01'; // same range as the server (families.clean_child)
@@ -37,3 +37,21 @@ export function familyState(v: FamilyView): FamilyState {
 }
 
 export const canAddChild = (v: FamilyView): boolean => v.children.length < MAX_CHILDREN;
+
+const collator = new Intl.Collator('he');
+
+/** Blessing-picker rows: one per family, the name over the adults' first names (never children), sorted by name. */
+export function familyRows(rows: TargetFamily[], t: (key: string, p?: Record<string, string | number>) => string): { id: string; title: string; subtitle: string }[] {
+  return [...rows].sort((a, b) => collator.compare(a.name, b.name)).map(f => ({
+    id: f.familyId,
+    title: f.name,
+    subtitle: f.firstNames.length >= 2 ? t('compose.familyAnd', { a: f.firstNames[0]!, b: f.firstNames[1]! }) : (f.firstNames[0] ?? ''),
+  }));
+}
+
+/** The picker search: the family name or any adult's first name contains the typed text. */
+export function filterFamilies(rows: TargetFamily[], q: string): TargetFamily[] {
+  const s = q.trim().toLowerCase();
+  if (!s) return rows;
+  return rows.filter(f => f.name.toLowerCase().includes(s) || f.firstNames.some(n => n.toLowerCase().includes(s)));
+}

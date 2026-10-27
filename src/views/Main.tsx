@@ -80,7 +80,8 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'import') return { nav: { tab: 'import' }, manage: true };
   if (s === 'group-admin') return { nav: { tab: 'group', groupId: '01FIXTUREGROUP00000000001', name: 'נוער', from: 'groups' }, manage: true };
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
-  if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetId: '01FIXTUREUSER00000000002' } };
+  if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003' } };
+  if (s === 'compose-family') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003', query: 'ב' } };
   if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };
   return null;
 }

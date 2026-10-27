@@ -1,9 +1,10 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
+import { familyRows, filterFamilies } from '../client/familyView.ts';
 import { BODY_MAX, TITLE_MAX, canPublish, needsTarget, postBody, postableChannels } from '../client/messageView.ts';
 import type { Draft } from '../client/messageView.ts';
-import type { DirectoryEntry, MessageType } from '../client/types.ts';
+import type { MessageType, TargetFamily } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Chip, Field, PickList, Screen, Txt, useTokens } from '../kit/components.tsx';
 import { Composer } from '../kit/Composer.tsx';
@@ -18,7 +19,7 @@ import { useErrorText } from './auth/Frame.tsx';
 
 const TYPES: Array<Exclude<MessageType, 'chat'>> = ['weekly', 'celebration', 'condolence', 'event'];
 
-export type ComposeInitial = { type?: MessageType; targetId?: string; image?: Picked };
+export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked };
 
 /**
  * M4 (members) and GM3 (gabbaim): one screen. Type cards, channel, title, text, an optional image, and for a
@@ -29,16 +30,16 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const { t, dir } = useI18n();
   const k = useTokens();
   const errText = useErrorText();
-  const { state, postMessage, requestUpload, directory } = useSession();
+  const { state, postMessage, requestUpload, targetFamilies } = useSession();
   const channels = React.useMemo(() => postableChannels(state.channels), [state.channels]);
   const [type, setType] = React.useState<MessageType>(initial?.type ?? 'weekly');
   const [channelId, setChannelId] = React.useState<string | null>(channels[0]?.channelId ?? null);
   const [title, setTitle] = React.useState('');
   const [body, setBody] = React.useState('');
-  const [targetId, setTargetId] = React.useState<string | null>(initial?.targetId ?? null);
+  const [targetId, setTargetId] = React.useState<string | null>(initial?.targetFamilyId ?? null);
   const [image, setImage] = React.useState<Picked | null>(initial?.image ?? null);
-  const [q, setQ] = React.useState('');
-  const [people, setPeople] = React.useState<DirectoryEntry[] | null | 'error'>(null);
+  const [q, setQ] = React.useState(initial?.query ?? '');
+  const [people, setPeople] = React.useState<TargetFamily[] | null | 'error'>(null);
   const [stage, setStage] = React.useState<Stage | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const alive = React.useRef(true);
@@ -52,24 +53,25 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
     if (!wantTargets) return;
     let live = true;
     setPeople(null);
-    directory(channelId!).then(l => { if (live) setPeople(l); }, () => { if (live) setPeople('error'); });
+    targetFamilies(channelId!).then(l => { if (live) setPeople(l); }, () => { if (live) setPeople('error'); });
     return () => { live = false; };
   }, [wantTargets, channelId]); // eslint-disable-line react-hooks/exhaustive-deps
   // A channel that is no longer postable after a refresh is dropped for the first one that is.
   React.useEffect(() => {
     if (!channels.some(c => c.channelId === channelId)) setChannelId(channels[0]?.channelId ?? null);
   }, [channels]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A target that is no longer a valid choice for this channel is dropped.
+  // A family that is not in this channel's list is dropped.
   React.useEffect(() => {
-    if (Array.isArray(people) && targetId && !people.some(p => p.userId === targetId)) setTargetId(null);
+    if (Array.isArray(people) && targetId && !people.some(p => p.familyId === targetId)) setTargetId(null);
   }, [people]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const draft: Draft = { type, channelId, title, body, targetMemberId: targetId };
+  const chosen = Array.isArray(people) ? people.find(p => p.familyId === targetId) : undefined;
+  const draft: Draft = { type, channelId, title, body, targetMemberId: chosen?.targetMemberId ?? null, targetFamilyId: chosen?.familyId ?? null };
   const busy = stage !== null;
   const ok = canPublish(draft) && !busy;
   const channelName = channels.find(c => c.channelId === channelId)?.name ?? '';
   const gabbai = state.kehila?.role === 'gabbai';
-  const shown = Array.isArray(people) ? people.filter(p => p.displayName.toLowerCase().includes(q.trim().toLowerCase())) : [];
+  const shown = Array.isArray(people) ? familyRows(filterFamilies(people, q), t) : [];
 
   latest.current = publish;
   async function publish() {
@@ -115,8 +117,9 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
       {needsTarget(type) ? (
         <View style={{ gap: 8 }}>
           <Txt size="small" bold>{t('compose.family')}</Txt>
-          <PickList query={q} onQuery={setQ} placeholder={t('compose.familySearch')} rows={shown.map(p => ({ id: p.userId, title: p.displayName }))} selected={targetId} onSelect={setTargetId}
+          <PickList query={q} onQuery={setQ} placeholder={t('compose.familySearch')} rows={shown} selected={targetId} onSelect={setTargetId}
             empty={t('compose.familyNone')} state={people === null ? 'loading' : people === 'error' ? 'error' : 'ready'} errorText={t('compose.familyLoadError')} disabled={busy} />
+          <Txt size="small" color={k.muted}>{t('compose.familyNote')}</Txt>
         </View>
       ) : null}
 

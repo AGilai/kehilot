@@ -163,3 +163,9 @@ test('a message of an unknown channel is muted and hidden (fail closed)', () => 
   assert.deepEqual(visibleList(feed, { mode: 'all', notify: notify(), channels }).map(m => m.messageId), ['01B']);
   assert.equal(unreadCount(feed, notify(), channels), 1);
 });
+
+test('postBody sends the family with its adult for a blessing, and neither for other types', () => {
+  const d = { channelId: 'a', title: 't', body: '', targetMemberId: 'u2', targetFamilyId: 'F1' };
+  assert.deepEqual(postBody({ ...d, type: 'celebration' }, undefined), { channelId: 'a', type: 'celebration', title: 't', targetMemberId: 'u2', targetFamilyId: 'F1' });
+  assert.deepEqual(postBody({ ...d, type: 'weekly' }, undefined), { channelId: 'a', type: 'weekly', title: 't' });
+});
