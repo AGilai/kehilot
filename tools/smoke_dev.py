@@ -148,6 +148,8 @@ class Smoke:
 
         self.check_invite_flow()
         self.check_message_visibility()
+        self.check_message_types()
+        self.check_role_tags()
         self.check_private_reply()
         self.check_devices()
         self.check_media_bucket_private()
@@ -243,14 +245,14 @@ class Smoke:
         k = self.k
         channels = {c['name']: c for c in self.call(self.gab, 'GET', f'/v1/kehilot/{k}/channels')[1]}
         lis_channels = [c['name'] for c in self.call(self.people['lis'][0], 'GET', f'/v1/kehilot/{k}/channels')[1]]
-        expect('listener_sees_only_announcements', lis_channels == ['announcements'] and set(channels) == {
-            'announcements', 'simchas', 'condolences'}, f'{lis_channels} {sorted(channels)}')
+        expect('one_default_channel', lis_channels == ['announcements'] and set(channels) == {'announcements'},
+               f'{lis_channels} {sorted(channels)}')
         self.channels = channels
         time.sleep(HOLD_BACK_SECONDS)  # the baseline cursor must not precede earlier setup changes
         self.cursors = {label: self.cursor(self.people[label][0]) for label in ('fam1', 'fam2', 'lis')}
         self.cursors['gab'] = self.cursor(self.gab)
         status, msg = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', {
-            'channelId': channels['simchas']['channelId'], 'type': 'celebration', 'title': 'Smoke mazal tov',
+            'channelId': channels['announcements']['channelId'], 'type': 'celebration', 'title': 'Smoke mazal tov',
             'body': 'Test blessing', 'targetMemberId': self.people['fam1'][1]})
         expect('gabbai_posts_targeted_message', status == 201 and msg['targetName'] == 'Test Family'
                and msg['replierCount'] == 0, f'{status} {msg}')
@@ -263,6 +265,56 @@ class Smoke:
         status, _ = self.call(self.people['lis'][0], 'GET', f'/v1/kehilot/{k}/messages/{self.msg}')
         expect('listener_get_message_404', status == 404, str(status))
         print('PASS  check_message_visibility')
+
+    def check_message_types(self):
+        """Mazal tov is a type in the main channel: guests see it only when the gabbai allows it; a member with
+        broadcast permission posts it unless the rule is gabbaim-only, and can always post a general message."""
+        k, lis, fam2 = self.k, self.people['lis'][0], self.people['fam2']
+        settings = f'/v1/kehilot/{k}/admin/settings'
+        channel = self.channels['announcements']['channelId']
+        rule = lambda post, listeners: {'post': post, 'listeners': listeners}
+        try:
+            status, _ = self.call(self.gab, 'PUT', settings, {'typeRules': {'celebration': rule('broadcasters', True)}})
+            expect('type_rules_saved', status == 200, str(status))
+            status, _ = self.call(lis, 'GET', f'/v1/kehilot/{k}/messages/{self.msg}')
+            expect('listener_sees_mazal_tov_when_allowed', status == 200, str(status))
+            self.call(self.gab, 'PUT', settings, {'typeRules': {'celebration': rule('broadcasters', False)}})
+            status, _ = self.call(lis, 'GET', f'/v1/kehilot/{k}/messages/{self.msg}')
+            expect('listener_hidden_again', status == 404, str(status))
+
+            status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam2[1]}', {'canBroadcast': True})
+            expect('member_broadcast_allowed', status == 200, str(status))
+            types = {c['name']: c.get('postableTypes') for c in self.call(fam2[0], 'GET', f'/v1/kehilot/{k}/channels')[1]}
+            expect('member_postable_types', set(types.get('announcements') or ()) == {'general', 'celebration', 'condolence'},
+                   str(types))
+            self.call(self.gab, 'PUT', settings, {'typeRules': {'celebration': rule('management', False)}})
+            post = lambda type_: self.call(fam2[0], 'POST', f'/v1/kehilot/{k}/messages', {
+                'channelId': channel, 'type': type_, 'title': f'Smoke {type_}', 'body': ''})[0]
+            expect('member_mazal_tov_refused_when_gabbaim_only', post('celebration') == 403)
+            expect('member_general_posted', post('general') == 201)
+        finally:
+            self.call(self.gab, 'PUT', settings, {'typeRules': {'celebration': rule('broadcasters', False)}})
+            self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam2[1]}', {'canBroadcast': False})
+        print('PASS  check_message_types')
+
+    def check_role_tags(self):
+        """A gabbai creates a tag, assigns it, the person sees it; deleting it removes it from everyone."""
+        k, fam1 = self.k, self.people['fam1']
+        status, tag = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/admin/tags', {'name': 'Smoke tag'})
+        expect('tag_created', status == 201, str(status))
+        try:
+            status, _ = self.call(fam1[0], 'POST', f'/v1/kehilot/{k}/admin/tags', {'name': 'Nope'})
+            expect('member_cannot_create_tag', status == 403, str(status))
+            status, body = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam1[1]}/tags',
+                                     {'tagIds': [tag['tagId']]})
+            expect('tag_assigned', status == 200 and [t['tagId'] for t in body['tags']] == [tag['tagId']], str(status))
+            mine = self.call(fam1[0], 'GET', f'/v1/kehilot/{k}')[1].get('tags')
+            expect('person_sees_own_tag', [t['tagId'] for t in mine or ()] == [tag['tagId']], str(mine))
+        finally:
+            status, _ = self.call(self.gab, 'DELETE', f'/v1/kehilot/{k}/admin/tags/{tag["tagId"]}')
+        mine = self.call(fam1[0], 'GET', f'/v1/kehilot/{k}')[1].get('tags')
+        expect('tag_deleted_everywhere', status == 204 and not mine, f'{status} {mine}')
+        print('PASS  check_role_tags')
 
     def check_private_reply(self):
         k, m = self.k, self.msg
@@ -518,7 +570,7 @@ class Smoke:
         status, other = self.call(t1, 'GET', f'/v1/kehilot/{k}/family')
         expect('partners_share_family_id', status == 200 and other['familyId'] == family, str(status))
         status, msg = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', {
-            'channelId': self.channels['simchas']['channelId'], 'type': 'celebration', 'title': 'Smoke family blessing',
+            'channelId': self.channels['announcements']['channelId'], 'type': 'celebration', 'title': 'Smoke family blessing',
             'body': '', 'targetMemberId': u1})
         expect('family_blessing_posted', status == 201, str(status))
         path = f'/v1/kehilot/{k}/messages/{msg["messageId"]}/replies'
@@ -580,7 +632,7 @@ class Smoke:
             text = json.dumps(rows)
             expect('phone_list_has_family', status == 200 and ua in text, str(status))  # positive control
             expect('phone_list_hides_children', '"children"' not in text and child not in text)
-            channel = self.channels['simchas']['channelId']
+            channel = self.channels['announcements']['channelId']
             status, rows = self.call(tb, 'GET', f'/v1/kehilot/{k}/families?channelId={channel}')
             text = json.dumps(rows)
             expect('picker_has_family', status == 200 and any(r['targetMemberId'] == ua for r in rows), str(status))
@@ -754,7 +806,7 @@ class Smoke:
         expect('push_device_registered', status == 204, str(status))
         start_ms = int(time.time() * 1000)
         status, _ = self.call(self.gab, 'POST', f'/v1/kehilot/{self.k}/messages', {
-            'channelId': self.channels['simchas']['channelId'], 'type': 'weekly', 'title': 'Smoke push', 'body': ''})
+            'channelId': self.channels['announcements']['channelId'], 'type': 'weekly', 'title': 'Smoke push', 'body': ''})
         expect('push_message_posted', status == 201, str(status))
         deadline, trail, zeros = time.time() + 90, [], 0
         while time.time() < deadline:
