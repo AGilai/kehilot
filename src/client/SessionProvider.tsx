@@ -46,6 +46,10 @@ export type SessionApi = {
   setNotify(partial: Partial<NotifyPrefs>): Promise<void>;
   /** Me: names and language (the server's answer becomes me.profile). */
   editProfile(p: { firstName: string; lastName: string; lang: Lang }): Promise<void>;
+  /** Me: my phone number (E.164) or null to remove it. */
+  setPhone(phone: string | null): Promise<void>;
+  /** Me: my phone-list switch for the open Kehila. */
+  setShowPhone(show: boolean): Promise<void>;
   /** Me: leaves a Kehila; the app then moves to another Kehila or the join screen. Throws on a refusal (last_gabbai). */
   leaveKehila(kehilaId: string): Promise<void>;
   /** Message actions in the open Kehila (see the store). */
@@ -140,6 +144,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     pollNow: () => store.pollNow(),
     setNotify: p => store.setNotify(p),
     editProfile: p => store.editProfile(p),
+    setPhone: p => store.setPhone(p),
+    setShowPhone: s => store.setShowPhone(s),
     async leaveKehila(k) {
       const gen = store.getState().generation;
       const r = await store.leaveKehila(k);

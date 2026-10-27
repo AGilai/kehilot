@@ -50,13 +50,13 @@ export function Card({ children, edgeColor, style }: { children: React.ReactNode
   );
 }
 
-export function Button({ title, onPress, kind = 'primary', busy, disabled }: { title: string; onPress: () => void; kind?: 'primary' | 'secondary' | 'danger'; busy?: boolean; disabled?: boolean }) {
+export function Button({ title, onPress, kind = 'primary', busy, disabled, accessibilityLabel }: { title: string; onPress: () => void; kind?: 'primary' | 'secondary' | 'danger'; busy?: boolean; disabled?: boolean; accessibilityLabel?: string }) {
   const k = useTokens();
   const bg = kind === 'primary' ? k.tekhelet : kind === 'danger' ? k.danger : 'transparent';
   const fg = kind === 'secondary' ? k.tekhelet : k.onAction;
   const off = !!(busy || disabled);
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled: off, busy }} disabled={off} onPress={onPress}
+    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled: off, busy }} disabled={off} onPress={onPress}
       style={({ pressed }) => [{ minHeight: TOUCH, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: bg, borderWidth: kind === 'secondary' ? 1.5 : 0, borderColor: k.tekhelet, opacity: off || pressed ? 0.6 : 1 }]}>
       {busy ? <ActivityIndicator color={fg} /> : <Txt bold color={fg} style={{ textAlign: 'center' }}>{title}</Txt>}
     </Pressable>
@@ -64,7 +64,7 @@ export function Button({ title, onPress, kind = 'primary', busy, disabled }: { t
 }
 
 /** Text field with a code-point counter (`[...s].length`, matching the server). */
-export function Field({ label, value, onChangeText, maxCodePoints, error, ...rest }: TextInputProps & { label: string; value: string; onChangeText: (v: string) => void; maxCodePoints?: number; error?: string | null }) {
+export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, ...rest }: TextInputProps & { label: string; value: string; onChangeText: (v: string) => void; maxCodePoints?: number; error?: string | null; /** Always left to right (numbers, even in Hebrew). */ ltr?: boolean }) {
   const { lang, dir, t } = useI18n();
   const k = useTokens();
   const n = [...value].length;
@@ -73,7 +73,7 @@ export function Field({ label, value, onChangeText, maxCodePoints, error, ...res
     <View style={{ gap: 6 }}>
       <Txt size="small" bold>{label}</Txt>
       <TextInput {...rest} accessibilityLabel={label} value={value} onChangeText={onChangeText} placeholderTextColor={k.muted}
-        style={[{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: over || error ? k.danger : k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }, rest.multiline ? { paddingVertical: 10, minHeight: 120, textAlignVertical: 'top' } : null]} />
+        style={[{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: over || error ? k.danger : k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: ltr ? 'ltr' : dir, textAlign: ltr ? 'left' : textStart(lang) }, rest.multiline ? { paddingVertical: 10, minHeight: 120, textAlignVertical: 'top' } : null]} />
       {maxCodePoints !== undefined ? <Txt size="caption" color={over ? k.danger : k.muted}>{t('field.counter', { n, max: maxCodePoints })}</Txt> : null}
       {error ? <Txt size="small" color={k.danger} accessibilityRole="alert">{error}</Txt> : null}
     </View>

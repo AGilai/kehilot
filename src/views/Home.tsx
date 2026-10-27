@@ -24,7 +24,7 @@ const loaders = config.fixtures
   : { zmanim: loadZmanim, shabbat: loadShabbat };
 
 /** M1 (the day arc comes later): greeting, dates, zmanim grid, Shabbat card, and the latest three titles. */
-export function Home({ onOpen, onMessages }: { onOpen: (id: string) => void; onMessages: () => void }) {
+export function Home({ onOpen, onMessages, onPhoneList }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void }) {
   const { t, dir } = useI18n();
   const k = useTokens();
   const { signOut } = useAuth();
@@ -114,6 +114,19 @@ export function Home({ onOpen, onMessages }: { onOpen: (id: string) => void; onM
         ) : null}
         {shabbatError ? <Banner tone="error" text={t('home.shabbatError')} action={{ title: t('common.retry'), onPress: () => setRevision(n => n + 1) }} /> : null}
       </Card>
+
+      {onPhoneList && roleFeatures(kehila.role).phoneList ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={t('home.phoneList')} onPress={onPhoneList}>
+          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Txt serif size="heading">☎</Txt>
+            <View style={{ flex: 1 }}>
+              <Txt bold>{t('home.phoneList')}</Txt>
+              <Txt size="small" color={k.muted}>{t('home.phoneListSub')}</Txt>
+            </View>
+            <Txt bold color={k.tekhelet}>{dir === 'rtl' ? '‹' : '›'}</Txt>
+          </Card>
+        </Pressable>
+      ) : null}
 
       {guest ? <MembershipCard /> : null}
 

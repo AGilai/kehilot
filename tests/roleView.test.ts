@@ -43,3 +43,10 @@ test('chat: everyone posts exactly where the server says canPost', () => {
   assert.equal(canPostInChat('member', ch({ conversation: true, canPost: false })), false);
   assert.equal(canPostInChat('gabbai', ch({ conversation: true, canPost: true })), true);
 });
+
+test('only members and gabbaim get the phone list (entry, Me card)', () => {
+  assert.equal(roleFeatures('listener').phoneList, false);
+  assert.equal(roleFeatures(undefined).phoneList, false);
+  assert.equal(roleFeatures('member').phoneList, true);
+  assert.equal(roleFeatures('gabbai').phoneList, true);
+});

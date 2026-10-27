@@ -370,6 +370,22 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     if (guard(gen) && state.me) set({ me: { ...state.me, profile } });
   }
 
+  /** Me: my phone number (E.164) or null to remove it. The server's answer becomes me.profile.phone. */
+  async function setPhone(phone: string | null): Promise<void> {
+    const gen = state.generation;
+    const r = await api.putPhone(phone);
+    if (guard(gen) && state.me?.profile) set({ me: { ...state.me, profile: { ...state.me.profile, phone: r.phone } } });
+  }
+
+  /** Me: my switch for the open Kehila's phone list. Changes only after the server agrees. */
+  async function setShowPhone(show: boolean): Promise<void> {
+    const gen = state.generation;
+    const k = state.kehilaId;
+    if (!k) return;
+    const r = await api.putPhoneList(k, show);
+    if (guard(gen) && state.kehila && state.kehilaId === k) set({ kehila: { ...state.kehila, showPhone: r.show } });
+  }
+
   /**
    * Leaves a Kehila. The store drops it when it was open, its search cache is wiped, and the route moves to
    * another Kehila (or the picker) or to 'none'. A refusal (409 last_gabbai) is thrown with everything kept.
@@ -398,7 +414,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
     loadMe, selectKehila, chooseKehila, start, saveProfile, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, cacheStatus, cachedMessage, loadHit, reset, guard,
-    setNotify, editProfile, leaveKehila, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
+    setNotify, editProfile, setPhone, setShowPhone, leaveKehila, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };
 }

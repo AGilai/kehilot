@@ -4,6 +4,7 @@ import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { NAME_MAX } from '../auth/validate.ts';
 import { inviteUrl } from '../client/links.ts';
+import { roleFeatures } from '../client/roleView.ts';
 import { ApiCodeError } from '../client/errors.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { InviteRow, Lang } from '../client/types.ts';
@@ -12,6 +13,7 @@ import { Banner, Button, Card, Chip, Field, Txt, useTokens } from '../kit/compon
 import { TOUCH } from '../kit/theme.ts';
 import { DeleteAccount } from './DeleteAccount.tsx';
 import { MyGroups } from './MyGroups.tsx';
+import { PhoneCard } from './me/PhoneCard.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
 export function BackLink({ onPress }: { onPress: () => void }) {
@@ -123,7 +125,7 @@ function MyLinks({ kehilaId, version, onToast }: { kehilaId: string; version: nu
  * M7, the cloud part: name, language, invites (member, gabbai), notification preferences, leaving, sign out and
  * account deletion. A listener sees the name, the language, groups, notification preferences, sign out and delete.
  */
-export function Me({ onPrefs, onBack, onToast, onLeft, onManage, onGroup }: { onPrefs?: () => void; /** A group admin opens one group's screen. */ onGroup?: (g: { groupId: string; name: string }) => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
+export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, onGroup }: { onPrefs?: () => void; /** Opens the phone list (members and gabbaim). */ onPhoneList?: () => void; /** A group admin opens one group's screen. */ onGroup?: (g: { groupId: string; name: string }) => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const { signOut, api } = useAuth();
   const { state, editProfile, leaveKehila } = useSession();
@@ -206,6 +208,8 @@ export function Me({ onPrefs, onBack, onToast, onLeft, onManage, onGroup }: { on
           </>
         )}
       </Card>
+
+      {roleFeatures(role).phoneList && onPhoneList ? <PhoneCard onOpenList={onPhoneList} onToast={onToast} /> : null}
 
       <Card>
         <Txt serif size="heading" accessibilityRole="header">{t('me.lang.title')}</Txt>

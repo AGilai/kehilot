@@ -18,6 +18,8 @@ export type RoleFeatures = {
   join: boolean;
   /** M10: the "request membership" card and the locked rows on Home. */
   membershipCard: boolean;
+  /** The phone list: Home entry card, Me card and the screen (members and gabbaim only). */
+  phoneList: boolean;
 };
 
 /**
@@ -28,9 +30,9 @@ export type RoleFeatures = {
 export function roleFeatures(role: Role | undefined): RoleFeatures {
   const tabs: MainTab[] = ['home', 'messages', 'me'];
   if (role === 'member' || role === 'gabbai') {
-    return { tabs, compose: true, directory: true, management: role === 'gabbai', blessingReply: true, join: true, membershipCard: false };
+    return { tabs, compose: true, directory: true, management: role === 'gabbai', blessingReply: true, join: true, membershipCard: false, phoneList: true };
   }
-  return { tabs, compose: false, directory: false, management: false, blessingReply: false, join: false, membershipCard: true };
+  return { tabs, compose: false, directory: false, management: false, blessingReply: false, join: false, membershipCard: true, phoneList: false };
 }
 
 export const mainTabs = (role: Role | undefined): MainTab[] => roleFeatures(role).tabs;

@@ -213,3 +213,32 @@ test('markRead keeps the message unread when the server call fails, so the next 
   assert.equal(calls, 2);
   store.reset();
 });
+
+test('setPhone and setShowPhone update me and the open Kehila', async () => {
+  const sent: unknown[] = [];
+  const { api } = fakeApi(meOf(['k1']), {
+    kehila: async (k: string) => ({ ...kehilaOf(k), showPhone: false }),
+    putPhone: async (phone: string | null) => { sent.push(phone); return { phone }; },
+    putPhoneList: async (_k: string, show: boolean) => { sent.push(show); return { show }; },
+  });
+  const store = createStore(api, memory());
+  await store.start();
+  await store.setPhone('+972500000001');
+  assert.equal(store.getState().me?.profile?.phone, '+972500000001');
+  await store.setShowPhone(true);
+  assert.equal(store.getState().kehila?.showPhone, true);
+  await store.setPhone(null);
+  assert.equal(store.getState().me?.profile?.phone, null);
+  assert.deepEqual(sent, ['+972500000001', true, null]);
+});
+
+test('setShowPhone leaves the switch as it was when the server refuses', async () => {
+  const { api } = fakeApi(meOf(['k1']), {
+    kehila: async (k: string) => ({ ...kehilaOf(k), showPhone: false }),
+    putPhoneList: async () => { throw new Error('x'); },
+  });
+  const store = createStore(api, memory());
+  await store.start();
+  await assert.rejects(store.setShowPhone(true));
+  assert.equal(store.getState().kehila?.showPhone, false);
+});

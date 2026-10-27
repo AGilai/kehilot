@@ -23,6 +23,7 @@ import { Members } from './admin/Members.tsx';
 import { Import } from './admin/Import.tsx';
 import { PushTexts } from './admin/PushTexts.tsx';
 import { Overview } from './admin/Overview.tsx';
+import { PhoneList } from './PhoneList.tsx';
 import { Compose } from './Compose.tsx';
 import type { ComposeInitial } from './Compose.tsx';
 import { ChatView } from './ChatView.tsx';
@@ -43,6 +44,7 @@ type Nav =
   | { tab: 'chat'; channelId: string }
   | { tab: 'compose' }
   | { tab: 'me' }
+  | { tab: 'phoneList'; from: 'home' | 'me' }
   | { tab: 'overview' }
   | { tab: 'approvals' }
   | { tab: 'members' }
@@ -67,6 +69,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
   if (s === 'me') return { nav: { tab: 'me' } };
+  if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
   if (s === 'overview') return { nav: { tab: 'overview' }, manage: true };
   if (s === 'approvals') return { nav: { tab: 'approvals' }, manage: true };
   if (s === 'members') return { nav: { tab: 'members' }, manage: true };
@@ -167,8 +170,8 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
   const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || (nav.tab === 'group' && nav.from === 'groups');
-  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
-    : nav.tab === 'home' || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
+  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
+    : nav.tab === 'home' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
     { key: 'overview' as const, label: t('admin.tabs.overview'), icon: '▦', badge: 0 },
     { key: 'approvals' as const, label: t('admin.tabs.approvals'), icon: '✓', badge: pending },
@@ -184,7 +187,10 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   let body: React.ReactNode;
   switch (nav.tab) {
     case 'home':
-      body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />;
+      body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'home' }) : undefined} />;
+      break;
+    case 'phoneList':
+      body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'me' })} /> : null;
       break;
     case 'messages':
       body = <Messages initialFilter={filter} onSearch={() => setNav({ tab: 'search' })} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
@@ -226,7 +232,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'me':
-      body = <Me onGroup={g => setNav({ tab: 'group', ...g, from: 'me' })} onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
+      body = <Me onGroup={g => setNav({ tab: 'group', ...g, from: 'me' })} onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'me' }) : undefined} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
       break;
     case 'compose':
       body = !feats.compose ? <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} /> : <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
