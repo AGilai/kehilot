@@ -91,6 +91,9 @@ screen (GD3), Messages chip row, `src/i18n/he.json` / `en.json`, `src/client/fix
 **Interfaces — Consumes:** channel `postableTypes`; settings `typeRules`; PUT settings.
 - [ ] Per §12: Compose lists only `postableTypes` (no picker for one); 403 shows §12's toast. GD3 "Message
       types" section saves via PUT settings. Chip row per §12. `general` labels he/en.
+- [ ] Messages filter (spec 8a): free text + multi-select types, combined; pure filter function
+      test-first (AND text×types, OR within types, empty selection = all, Hebrew/English text, niqqud-insensitive
+      if the existing search is).
 - [ ] Fixtures: one main channel + a group, `postableTypes` per role.
 - [ ] Pure logic test-first (type list for compose, settings form → body). `npm test`, typecheck. Commit.
 

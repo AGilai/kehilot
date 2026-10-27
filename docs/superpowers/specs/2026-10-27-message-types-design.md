@@ -47,6 +47,12 @@ already exist (`weekly`, `celebration`, `condolence`, `event`); the extra channe
    by the designer (one look and feel).
 8. **Compose**: the type picker lists only `postableTypes` for the chosen channel; if only one, no picker.
 
+8a. **Filter the messages list** (owner, 2026-10-27: "the message types become a filter on channel. So allow
+   filter by free text or message type, where MT is a multi select"). On Messages: a free-text filter and a
+   **multi-select** of message types, combined (AND between text and types, OR among the selected types),
+   applied on the device to what the person may already see (no new server route). Works with the
+   "mine / all" switch and the channel chips when those show. Overrides the design's earlier "no type
+   filter" call; layout by the designer (§12).
 9. **Role tags** (owner, 2026-10-27: "support from now a roles tag … I'm not actually a gabbai, I'm the
    technical person of the Kehila … the chips and the ability to assign roles to people in the Kehila will be
    a good foundation"). Kehila-defined names (e.g. גבאי, רב, טכני, ועד שמחות); several per person; created,
