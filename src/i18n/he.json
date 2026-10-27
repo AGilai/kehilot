@@ -59,7 +59,6 @@
     "invalid_rows": "הרשימה לא תקינה (1 עד 10 שורות בכל פעם)",
     "invalid_can_broadcast": "ערך לא תקין להרשאת שליחה",
     "invalid_key": "סוג התראה לא מוכר",
-    "invalid_lang": "שפה לא מוכרת",
     "invalid_text": "הטקסט חייב להיות שורה אחת של עד 80 תווים",
     "invalid_max_listeners": "מספר המאזינים חייב להיות בין 0 ל-5000",
     "invalid_allow": "ערך לא תקין",

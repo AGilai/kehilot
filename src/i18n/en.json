@@ -59,7 +59,6 @@
     "invalid_rows": "The list is not valid (1 to 10 rows at a time)",
     "invalid_can_broadcast": "Invalid value for the posting permission",
     "invalid_key": "Unknown notification type",
-    "invalid_lang": "Unknown language",
     "invalid_text": "The text must be one line of up to 80 characters",
     "invalid_max_listeners": "The number of listeners must be between 0 and 5000",
     "invalid_allow": "Invalid value",

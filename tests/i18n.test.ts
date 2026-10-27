@@ -70,3 +70,26 @@ test('every API error code in server/API.md has an errors.<code> key', () => {
     assert.ok(fe[`errors.${c}`], `en errors.${c}`);
   }
 });
+
+test('he.json and en.json have no duplicate keys at any level', () => {
+  for (const file of ['he.json', 'en.json']) {
+    const raw = readFileSync(new URL('../src/i18n/' + file, import.meta.url), 'utf8');
+    const stack: Array<Set<string> | null> = [];
+    const dups: string[] = [];
+    const re = /"(?:[^"\\]|\\.)*"|[{}\[\]:,]|[^\s"{}\[\]:,]+/g;
+    let prev = '', prevPrev = '';
+    for (const m of raw.matchAll(re)) {
+      const tok = m[0];
+      if (tok === '{') stack.push(new Set());
+      else if (tok === '[') stack.push(null);
+      else if (tok === '}' || tok === ']') stack.pop();
+      else if (tok === ':' && prev.startsWith('"')) {
+        const top = stack[stack.length - 1];
+        if (top) { if (top.has(prev)) dups.push(prev); top.add(prev); }
+      }
+      prevPrev = prev; prev = tok;
+    }
+    void prevPrev;
+    assert.deepEqual(dups, [], file);
+  }
+});

@@ -66,7 +66,7 @@ export function PushTexts({ onBack, onToast }: { onBack: () => void; onToast: (t
       {data ? pushKeys(data).map(key => (
         <Card key={key}>
           <Txt bold accessibilityRole="header">{t(`admin.pushTexts.key.${key}`)}</Txt>
-          {[...PUSH_LANGS].sort(l => (l === uiLang ? -1 : 1)).map(lang => {
+          {((uiLang === 'he' ? ['he', 'en'] : ['en', 'he']) as Lang[]).map(lang => {
             const rowId = id(key, lang);
             const text = value(data, key, lang);
             const problem = pushTextError(text);

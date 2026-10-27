@@ -108,3 +108,29 @@ class PushTextsTest(unittest.TestCase):
         self.assertEqual(push.resolve_text({}, 'celebration', 'en'), PUSH_TEXT['celebration']['en'])
         self.assertEqual(push.resolve_text({'pushTexts': {'celebration': {'en': ''}}}, 'celebration', 'en'),
                          PUSH_TEXT['celebration']['en'])
+
+    def test_control_and_bidi_characters_rejected_and_strip_first(self):
+        for code in (0x09, 0x00, 0x1f, 0x7f, 0x85, 0x9f, 0x2028, 0x2029, 0x200e, 0x200f, 0x202a, 0x202e,
+                     0x2066, 0x2069):
+            self.assertEqual(self.put('celebration', 'en', 'a' + chr(code) + 'b'), (400, {'error': 'invalid_text'}),
+                             hex(code))
+        self.assertEqual(self.put('celebration', 'en', 'a\u200db\u05d0')[0], 200)  # ZWJ and Hebrew are fine
+        self.assertEqual(self.put('celebration', 'en', '  ' + 'x' * 80 + '  ')[0], 200)  # strip, then length
+        self.assertEqual(self.call('GET', self.url())[1]['custom'], {'celebration': {'en': 'x' * 80}})
+        self.assertEqual(self.put('celebration', 'en', '\t')[0], 400)
+
+    def test_other_kehila_gabbai_gets_404_and_nothing_written(self):
+        other_k = self.repo.create_kehila('Beit Other', {})
+        outsider = self.call('GET', '/v1/me', sub='outsider')[1]['userId']
+        self.repo.put_membership(other_k, outsider, 'gabbai')
+        url = f'/v1/kehilot/{self.k}/admin/push-texts'
+        self.assertEqual(self.call('PUT', url, sub='outsider', body={'key': 'reply', 'lang': 'en', 'text': 'x'}),
+                         (404, {'error': 'kehila_not_found'}))
+        self.assertEqual(self.call('GET', url, sub='outsider'), (404, {'error': 'kehila_not_found'}))
+        self.assertEqual(self.call('GET', self.url())[1]['custom'], {})
+
+    def test_set_after_last_language_removed_reuses_empty_key_map(self):
+        self.put('reply', 'en', 'a')
+        self.put('reply', 'en', '')
+        self.assertEqual(self.put('reply', 'he', 'ב')[0], 200)
+        self.assertEqual(self.call('GET', self.url())[1]['custom'], {'reply': {'he': 'ב'}})

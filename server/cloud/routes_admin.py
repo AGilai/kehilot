@@ -1,6 +1,7 @@
 """Routes: membership requests, approval, member management and broadcast rights."""
 import logging
 import os
+import re
 import time
 from collections import Counter
 
@@ -12,6 +13,8 @@ from .routes_groups import GABBAI, group_ids
 
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 LANGS = ('he', 'en')
+# control characters (Cc, incl. tab and newlines), line/paragraph separators and bidi overrides/isolates/marks
+_UNSAFE_TEXT = re.compile('[\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]')
 ROLES = ('listener', 'member', 'gabbai')
 IMPORT_MAX_ROWS = 10
 IMPORT_MAX_BODY = 64 * 1024
@@ -210,8 +213,10 @@ def put_push_text(ctx, params):
     if not isinstance(lang, str) or lang not in LANGS:
         raise ApiError(400, 'invalid_lang')
     text = d.get('text')
-    if (not isinstance(text, str) or len(text) > push.PUSH_TEXT_MAX
-            or any(c in text for c in '\n\r\x0b\x0c\x85\u2028\u2029')):
+    if not isinstance(text, str) or _UNSAFE_TEXT.search(text):  # checked before the strip: no hidden controls
         raise ApiError(400, 'invalid_text')
-    ctx.repo.set_push_text(params['k'], key, lang, text.strip())
+    text = text.strip()
+    if len(text) > push.PUSH_TEXT_MAX:
+        raise ApiError(400, 'invalid_text')
+    ctx.repo.set_push_text(params['k'], key, lang, text)
     return 200, {}
