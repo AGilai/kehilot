@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Sheet, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { useErrorText } from './auth/Frame.tsx';
+import { KehilaInfo } from './me/KehilaInfo.tsx';
 import { KehilaLogo } from './TopBar.tsx';
 
 /** M6: every Kehila of the user, with logo and role chip; the current one is marked. */
@@ -15,14 +16,17 @@ export function KehilaSwitcher({ visible, onClose, onManage }: { visible: boolea
   const errText = useErrorText();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [info, setInfo] = React.useState(false);
   async function pick(id: string) {
     if (busy) return;
-    if (id === state.kehilaId) { onClose(); return; }
+    if (id === state.kehilaId) { setInfo(true); return; } // the current row opens "about this Kehila"
     setBusy(true); setError(null);
     try { await select(id); onClose(); } catch (e) { setError(errText(e)); } finally { setBusy(false); }
   }
   return (
-    <Sheet visible={visible} title={t('switcher.title')} onClose={onClose}>
+    <>
+    <KehilaInfo visible={visible && info} onClose={() => { setInfo(false); onClose(); }} />
+    <Sheet visible={visible && !info} title={t('switcher.title')} onClose={onClose}>
       {error ? <Banner tone="error" text={error} /> : null}
       {onManage && state.kehila?.role === 'gabbai' ? <Button title={t('admin.enter')} onPress={onManage} /> : null}
       {(state.me?.kehilot ?? []).map(x => {
@@ -40,5 +44,6 @@ export function KehilaSwitcher({ visible, onClose, onManage }: { visible: boolea
         );
       })}
     </Sheet>
+    </>
   );
 }

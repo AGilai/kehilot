@@ -14,7 +14,9 @@ import { TOUCH } from '../kit/theme.ts';
 import { DeleteAccount } from './DeleteAccount.tsx';
 import { MyGroups } from './MyGroups.tsx';
 import { FamilyCard } from './me/FamilyCard.tsx';
+import { KehilaInfo } from './me/KehilaInfo.tsx';
 import { PhoneCard } from './me/PhoneCard.tsx';
+import { PrivacyCard } from './me/PrivacyCard.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
 export function BackLink({ onPress }: { onPress: () => void }) {
@@ -148,6 +150,16 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
   const [version, setVersion] = React.useState(0);
   const [asking, setAsking] = React.useState(false);
   const [leaveError, setLeaveError] = React.useState<string | null>(null);
+  const [about, setAbout] = React.useState(false);
+  // The partner's name for the leave confirm (members and gabbaim in a family only).
+  const [partner, setPartner] = React.useState<string | null>(null);
+  const kehilaId = kehila?.kehilaId;
+  React.useEffect(() => {
+    if (!asking || !kehilaId || role === 'listener') { setPartner(null); return; }
+    let live = true;
+    api.family(kehilaId).then(f => { if (live) setPartner(f.adults.find(a => !a.me)?.displayName ?? null); }, () => { if (live) setPartner(null); });
+    return () => { live = false; };
+  }, [asking, kehilaId, role, api]);
 
   if (view === 'delete') return <DeleteAccount onBack={() => setView('me')} />;
   if (!profile) return null;
@@ -235,11 +247,20 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
             {created ? <Button kind="secondary" title={t('me.invite.create')} onPress={() => void invite()} busy={busy} /> : null}
           </Card>
           <MyLinks kehilaId={kehila.kehilaId} version={version} onToast={onToast} />
-          {onPrefs ? <Button kind="secondary" title={t('me.prefs')} onPress={onPrefs} /> : null}
+        </>
+      ) : null}
+
+      {onPrefs ? <Button kind="secondary" title={t('me.prefs')} onPress={onPrefs} /> : null}
+      {kehila ? (
+        <>
+          <PrivacyCard onAbout={() => setAbout(true)} />
+          <KehilaInfo visible={about} onClose={() => setAbout(false)} />
           <Card>
             {asking ? (
               <>
-                <Txt>{t('me.leave.confirm', { kehila: kehila.name })}</Txt>
+                <Txt>{t(role === 'listener' ? 'me.leave.confirmListener' : 'me.leave.confirm', { kehila: kehila.name })}</Txt>
+                {partner ? <Txt size="small">{t('me.leave.family', { name: partner })}</Txt> : null}
+                <Txt size="small" color={k.muted}>{t('me.leave.posts')}</Txt>
                 {leaveError ? <Banner tone="error" text={leaveError} /> : null}
                 <Button kind="danger" title={t('me.leave.yes')} onPress={() => void leave()} busy={busy} />
                 <Button kind="secondary" title={t('me.profile.cancel')} onPress={() => { setAsking(false); setLeaveError(null); }} disabled={busy} />
@@ -249,7 +270,6 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
         </>
       ) : null}
 
-      {!canInvite && onPrefs ? <Button kind="secondary" title={t('me.prefs')} onPress={onPrefs} /> : null}
       <Button kind="secondary" title={t('me.signOut')} onPress={() => void signOut()} />
       <Button kind="danger" title={t('me.deleteAction')} onPress={() => setView('delete')} />
     </ScrollView>
