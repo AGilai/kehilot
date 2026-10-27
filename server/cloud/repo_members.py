@@ -398,8 +398,10 @@ class AdminRepo:
     def list_members(self, k):
         return self._query_prefix(k, 'M#')
 
-    def _query_prefix(self, k, prefix, condition=None):
+    def _query_prefix(self, k, prefix, condition=None, consistent=False):
         items, kwargs = [], ({'FilterExpression': condition} if condition is not None else {})
+        if consistent:
+            kwargs['ConsistentRead'] = True
         while True:
             page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').begins_with(prefix),
                                     **kwargs)

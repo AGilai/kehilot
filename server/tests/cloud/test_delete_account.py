@@ -118,7 +118,7 @@ class DeleteAccountTest(unittest.TestCase):
                 batch.put_item(Item={'pk': f'K#{self.k1}#U#{self.dana}', 'sk': f'READ#{n:05d}', 'at': 1})
         with mock.patch.object(self.repo.table, 'delete_item', wraps=self.repo.table.delete_item) as single:
             self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
-        self.assertEqual(single.call_count, 0)
+        self.assertEqual([c for c in single.call_args_list if c.kwargs['Key']['sk'].startswith('READ#')], [])
         for item in self.repo.table.scan()['Items']:
             self.assertNotIn(self.dana, item['pk'] + item['sk'])
 
@@ -164,3 +164,23 @@ class DeleteAccountTest(unittest.TestCase):
             del os.environ['USER_POOL_ID']
             self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 500)
         self.assertIsNotNone(self.repo.get_membership(self.k1, self.dana))
+
+    def test_deletion_drops_out_of_family(self):
+        self.repo.put_profile(self.dana, 'Dana', 'Test', 'en')
+        self.repo.update_children(self.k1, self.repo.ensure_family(self.k1, self.dana),
+                                 lambda c: c + [{'id': 'C' * 26, 'firstName': 'Noa', 'gender': 'f'}])
+        self.repo.link(self.k1, self.gab, self.dana)
+        self.repo.put_link_request(self.k1, self.dana, self.gab, 1)
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana'), (204, None))
+        (family,) = self.repo._query_prefix(self.k1, 'F#')
+        self.assertEqual(family['adults'], [self.gab])
+        self.assertEqual([c['firstName'] for c in family['children']], ['Noa'])
+        self.assertNotIn('familyNotice', self.repo.get_membership(self.k1, self.gab))
+        for item in self.repo.table.scan()['Items']:
+            if item['pk'] != 'U#sub-dana':
+                self.assertNotIn(self.dana, json.dumps(item, default=str), item)
+
+    def test_deletion_of_last_adult_removes_family(self):
+        self.repo.ensure_family(self.k1, self.dana)
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana'), (204, None))
+        self.assertEqual(self.repo._query_prefix(self.k1, 'F#'), [])

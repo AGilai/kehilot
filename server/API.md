@@ -400,7 +400,7 @@ Member or gabbai only (listener 403 `forbidden`). A family is created on first u
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/v1/kehilot/{k}/family` | member, gabbai | - | 200 FamilyView `{familyId, name, adults:[{userId, displayName, me}], children:[child], sent, received, notice}`; `name` from the adults' profiles; `sent` is `{toUserId, toName, expiresAt, state: "pending"\|"declined"\|"expired"}` or null (the caller's own request; a marker is ignored 7 days after it expired), `received` is `[{fromUserId, fromName, expiresAt}]` (live requests, oldest first) and `notice` is null for now | 403 `forbidden` |
+| GET | `/v1/kehilot/{k}/family` | member, gabbai | - | 200 FamilyView `{familyId, name, adults:[{userId, displayName, me}], children:[child], sent, received, notice}`; `name` from the adults' profiles; `sent` is `{toUserId, toName, expiresAt, state: "pending"\|"declined"\|"expired"}` or null (the caller's own request; a marker is ignored 7 days after it expired), `received` is `[{fromUserId, fromName, expiresAt}]` (live requests, oldest first) and `notice` is `{gabbaiName, partnerName}` from the caller's `familyNotice` (a gabbai link) or null. A departed adult (membership gone) is pruned: never listed, `received` is `[]` while the family has two live adults, and the pruned list is written back | 403 `forbidden` |
 | POST | `/v1/kehilot/{k}/family/children` | member, gabbai | `{firstName (1-60), gender: "m"\|"f", birthDate?: "YYYY-MM-DD"}`; absent or `""` omits the birth date, otherwise a real date from 1900-01-01 to today (Israel) | 201 child `{id, firstName, gender, birthDate?}` | 400 `invalid_first_name`, `invalid_gender`, `invalid_birth_date`; 409 `children_limit` (20), `try_again` |
 | PUT | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | same body (replaces the child) | 200 child | as above; 404 `child_not_found` |
 | DELETE | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | - | 204 | 404 `child_not_found`; 409 `try_again` |
@@ -413,14 +413,26 @@ Member or gabbai only. Linking needs the other person's confirmation. A request 
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/v1/kehilot/{k}/family/candidates` | member, gabbai | - | 200 `[{userId, displayName, cooldownUntil?}]`: members and gabbaim other than the caller whose family has one adult, by `displayName`; `cooldownUntil` (seconds) while the caller's earlier request to them was declined | 403 `forbidden` |
+| GET | `/v1/kehilot/{k}/family/candidates` | member, gabbai | - | 200 `[{userId, displayName, cooldownUntil?}]`: members and gabbaim other than the caller whose family has one live adult, by `displayName`; `cooldownUntil` (seconds) while the caller's earlier request to them was declined | 403 `forbidden` |
 | POST | `/v1/kehilot/{k}/family/requests` | member, gabbai | `{toUserId}` | 201 `{toUserId, expiresAt}`; queues push `family_request` for the target | 400 `invalid_to_user_id` (not a ULID, the caller, or not a member/gabbai here); 409 `already_linked` (the caller has a partner), `partner_taken` (the target has one), `request_pending`, `request_cooldown`, `try_again` |
 | DELETE | `/v1/kehilot/{k}/family/requests/mine` | member, gabbai | - | 204 (withdraws a pending request; also dismisses a declined or expired banner; 204 when there is none) | - |
 | POST | `/v1/kehilot/{k}/family/requests/{fromUserId}/confirm` | member, gabbai | - | 200 FamilyView. The confirmer's family is kept: adults `[confirmer, sender]`, children = the confirmer's then the sender's (may exceed 20; adding is refused until under 20). One transaction; all requests of both people are then cleared | 404 `request_not_found` (none, expired or already consumed); 409 `already_linked`, `partner_taken`, `try_again` |
 | POST | `/v1/kehilot/{k}/family/requests/{fromUserId}/decline` | member, gabbai | - | 204; no push | 404 `request_not_found` |
-| POST | `/v1/kehilot/{k}/family/unlink` | member, gabbai | - | 200 FamilyView of the caller's new family (a copy of the children). The old family, its ID and blessings stay with the other adult | 409 `not_linked`, `try_again` |
+| POST | `/v1/kehilot/{k}/family/unlink` | member, gabbai | - | 200 FamilyView of the caller's new family (a copy of the children). The old family, its ID and blessings stay with the other adult | 409 `not_linked` (also when the other adult has left: the family is pruned), `try_again` |
 
 Two link actions racing (crossed confirms, or a confirm while a gabbai links one of them) commit exactly once; the other gets 409 `already_linked` / `partner_taken` (or 404 `request_not_found` once the winner cleared the requests). Items: `PR#<to>#<from>` (request, TTL +7 days), `PS#<from>` (sender marker with `state` `pending`|`declined`), `PD#<from>#<to>` (cooldown, +30 days).
+
+#### Gabbai link, cards, leaving and deletion
+
+| Method | Path | Role | Request | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/v1/kehilot/{k}/admin/families/link` | gabbai | `{userIds: [a, b]}`: two distinct ULIDs of members or gabbaim of the Kehila | 200 `{familyId}`. `a`'s family is kept (adults `[a, b]`, children merged); both people's requests are cleared; both memberships get `familyNotice {byUserId, partnerUserId, at}` and a push `family_gabbai` | 400 `invalid_user_ids` (not two distinct members/gabbaim), 403, 409 `partner_taken` (either already has a partner), `try_again` |
+| GET | `/v1/kehilot/{k}/admin/families` | gabbai | - | 200 `[{familyId, name, adults:[{userId, displayName}], children:[{firstName, gender, birthYear?}]}]`, one row per family with at least one live adult, sorted by name. Birth year only (an int); no phone numbers | 403 |
+| POST | `/v1/kehilot/{k}/me/cards/{card}/dismiss` | member, gabbai | - | 204. `card` is `gabbai_link` ("that's right": clears the caller's `familyNotice`; undo is `POST .../family/unlink`, whoever taps it leaves) | 400 `invalid_card`, 403 |
+
+`GET /v1/kehilot/{k}` adds `cards: {gabbaiLink: {gabbaiName, partnerName}|null, request: {fromUserId, fromName}|null}`; `request` is the oldest live received link request, shown only while the family has one live adult. A departed gabbai's name is `""`. Listeners get both null.
+
+Leaving (`DELETE .../membership`), removal (`DELETE .../admin/members/{userId}`) and account deletion (`DELETE /v1/me`) take the person out of their family right after the membership change: with a partner, the partner keeps the family and the children (their `familyNotice` is cleared); alone, the family item is deleted. Every request to and from the person and their decline markers (`PD#`) go too. Account deletion does this for every Kehila before the data purge. If the clean-up fails after a leave or removal, reads prune the departed adult anyway. A demotion to listener has no route (`role_change_not_allowed`), so it needs no hook.
 
 #### Change feed and notification preferences
 

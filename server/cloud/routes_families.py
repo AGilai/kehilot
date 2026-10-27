@@ -1,4 +1,5 @@
 """Routes: the family view and its children (families & privacy spec 3.2)."""
+import logging
 import time
 
 from . import inputs, push, repo_messages
@@ -7,28 +8,64 @@ from .errors import ApiError
 from .families import clean_child, family_name
 from .ids import ID_RE, new_id
 
+log = logging.getLogger(__name__)
+
 MEMBERS = ('member', 'gabbai')
 MAX_CHILDREN = 20
 SENT_KEEP = 7 * 86400  # a sent marker is ignored this long after it expired
 
 
+def notice_of(repo, k, membership):
+    """{gabbaiName, partnerName} from the membership's familyNotice, names from the current memberships (a
+    departed gabbai's name is ''). None when there is no notice or the partner is no longer a member."""
+    notice = membership.get('familyNotice')
+    if not notice:
+        return None
+    found = repo.batch_get([(f'K#{k}', f'M#{notice["byUserId"]}'), (f'K#{k}', f'M#{notice["partnerUserId"]}')])
+    partner = found.get((f'K#{k}', f'M#{notice["partnerUserId"]}'))
+    if not partner or partner.get('role') not in MEMBERS:
+        return None
+    by = found.get((f'K#{k}', f'M#{notice["byUserId"]}')) or {}
+    return {'gabbaiName': by.get('displayName', ''), 'partnerName': partner.get('displayName', '')}
+
+
+def live_received(repo, k, user_id, live_count, now):
+    """The caller's live received requests, oldest first, as (request item, sender membership) pairs. None while
+    the family already has two live adults (a stale request after a link race), and senders who are no longer
+    members are left out."""
+    if live_count >= 2:
+        return []
+    requests = repo.received_requests(k, user_id, now)
+    found = repo.batch_get([(f'K#{k}', f'M#{r["fromUserId"]}') for r in requests])
+    return [(r, found[(f'K#{k}', f'M#{r["fromUserId"]}')]) for r in requests
+            if (found.get((f'K#{k}', f'M#{r["fromUserId"]}')) or {}).get('role') in MEMBERS]
+
+
+def request_card(repo, k, user_id, membership):
+    """cards.request: the oldest live received request, or None."""
+    if not repo.received_requests(k, user_id, int(time.time())):
+        return None
+    family = repo.get_family(k, membership['familyId']) if membership.get('familyId') else None
+    live = len(repo.live_adults(k, family)) if family else 1
+    pairs = live_received(repo, k, user_id, live, int(time.time()))
+    return {'fromUserId': pairs[0][0]['fromUserId'], 'fromName': pairs[0][1].get('displayName', '')} if pairs else None
+
+
 def family_view(ctx, k, membership):
-    """FamilyView of the caller's family; creates a one-adult family when the membership has none."""
+    """FamilyView of the caller's family; creates a one-adult family when the membership has none. A departed
+    adult is pruned from the family (written back) before anything is shown."""
     repo = ctx.repo
     family_id = membership.get('familyId') or repo.ensure_family(k, ctx.user_id)
     family = repo.get_family(k, family_id) if family_id else None
     if not family:
         raise ApiError(404, 'family_not_found')
     now = int(time.time())
-    adults = list(family['adults'])
-    received = repo.received_requests(k, ctx.user_id, now)
-    keys = [key for u in adults for key in ((f'U#{u}', 'PROFILE'), (f'K#{k}', f'M#{u}'))]
-    keys.append((f'K#{k}', f'PS#{ctx.user_id}'))
-    keys += [(f'K#{k}', f'M#{r["fromUserId"]}') for r in received]
+    family, live = repo.prune_family(k, family)
+    adults = [m['userId'] for m in live] or list(family['adults'])
+    names = {m['userId']: m.get('displayName', '') for m in live}
+    received = live_received(repo, k, ctx.user_id, len(live), now)
+    keys = [(f'U#{u}', 'PROFILE') for u in adults] + [(f'K#{k}', f'PS#{ctx.user_id}')]
     found = repo.batch_get(keys)
-
-    def name_of(user_id):
-        return (found.get((f'K#{k}', f'M#{user_id}')) or {}).get('displayName', '')
     marker = found.get((f'K#{k}', f'PS#{ctx.user_id}'))
     sent = None
     if marker and int(marker['expiresAt']) + SENT_KEEP > now:
@@ -36,15 +73,16 @@ def family_view(ctx, k, membership):
         if state == 'pending' and int(marker['expiresAt']) <= now:
             state = 'expired'
         to_user = marker['toUserId']
-        sent = {'toUserId': to_user, 'toName': name_of(to_user) or _name_of_missing(repo, k, to_user),
+        sent = {'toUserId': to_user, 'toName': _name_of_missing(repo, k, to_user),
                 'expiresAt': int(marker['expiresAt']), 'state': state}
+    me = repo.get_membership(k, ctx.user_id) or membership
     return {'familyId': family['familyId'],
             'name': family_name([found.get((f'U#{u}', 'PROFILE')) for u in adults]),
-            'adults': [{'userId': u, 'displayName': name_of(u), 'me': u == ctx.user_id} for u in adults],
+            'adults': [{'userId': u, 'displayName': names.get(u, ''), 'me': u == ctx.user_id} for u in adults],
             'children': family.get('children') or [], 'sent': sent,
-            'received': [{'fromUserId': r['fromUserId'], 'fromName': name_of(r['fromUserId']),
-                          'expiresAt': int(r['expiresAt'])} for r in received],
-            'notice': None}
+            'received': [{'fromUserId': r['fromUserId'], 'fromName': m.get('displayName', ''),
+                          'expiresAt': int(r['expiresAt'])} for r, m in received],
+            'notice': notice_of(repo, k, me) if len(live) > 1 else None}
 
 
 def _name_of_missing(repo, k, user_id):
@@ -125,10 +163,9 @@ def create_request(ctx, params):
     target = repo.get_membership(k, to_user)
     if to_user == ctx.user_id or not target or target.get('role') not in MEMBERS:
         raise ApiError(400, 'invalid_to_user_id')
-    mine, theirs = repo.family_of(k, ctx.user_id), repo.family_of(k, to_user)
-    if mine and len(mine['adults']) > 1:
+    if _live_pair(repo, k, ctx.user_id):
         raise ApiError(409, 'already_linked')
-    if theirs and len(theirs['adults']) > 1:
+    if _live_pair(repo, k, to_user):
         raise ApiError(409, 'partner_taken')
     now = int(time.time())
     if repo.live_decline(k, ctx.user_id, to_user, now):
@@ -177,16 +214,83 @@ def candidates(ctx, params):
     k, repo = params['k'], ctx.repo
     require(repo, ctx.user_id, k, MEMBERS)
     now = int(time.time())
-    others = [m for m in repo.list_members(k) if m['role'] in MEMBERS and m['userId'] != ctx.user_id]
+    members = repo.list_members(k)
+    live_ids = {m['userId'] for m in members if m['role'] in MEMBERS}
+    others = [m for m in members if m['role'] in MEMBERS and m['userId'] != ctx.user_id]
     found = repo.batch_get([(f'K#{k}', f'F#{m["familyId"]}') for m in others if m.get('familyId')])
     cooldowns = repo.decline_markers(k, ctx.user_id, now)
     out = []
     for m in sorted(others, key=lambda m: (m.get('displayName') or '', m['userId'])):
         family = found.get((f'K#{k}', f'F#{m["familyId"]}')) if m.get('familyId') else None
-        if family and len(family['adults']) > 1:
+        if family and len([a for a in family['adults'] if a in live_ids]) > 1:
             continue
         entry = {'userId': m['userId'], 'displayName': m.get('displayName', '')}
         if m['userId'] in cooldowns:
             entry['cooldownUntil'] = int(cooldowns[m['userId']]['until'])
         out.append(entry)
     return 200, out
+
+
+def _live_pair(repo, k, user_id):
+    """True when the user's family has two live adults."""
+    family = repo.family_of(k, user_id)
+    return bool(family) and len(repo.live_adults(k, family)) > 1
+
+
+def admin_families(ctx, params):
+    k, repo = params['k'], ctx.repo
+    require(repo, ctx.user_id, k, ('gabbai',))
+    families = repo.list_families(k)
+    keys = [(f'K#{k}', f'M#{u}') for f in families for u in f['adults']]
+    keys += [(f'U#{u}', 'PROFILE') for f in families for u in f['adults']]
+    found = repo.batch_get(keys)
+    rows = []
+    for family in families:
+        live = [found[(f'K#{k}', f'M#{u}')] for u in family['adults']
+                if (found.get((f'K#{k}', f'M#{u}')) or {}).get('role') in MEMBERS]
+        if not live:
+            continue
+        children = []
+        for child in family.get('children') or []:
+            row = {'firstName': child['firstName'], 'gender': child['gender']}
+            if child.get('birthDate'):
+                row['birthYear'] = int(child['birthDate'][:4])
+            children.append(row)
+        rows.append({'familyId': family['familyId'],
+                     'name': family_name([found.get((f'U#{m["userId"]}', 'PROFILE')) for m in live]),
+                     'adults': [{'userId': m['userId'], 'displayName': m.get('displayName', '')} for m in live],
+                     'children': children})
+    return 200, sorted(rows, key=lambda r: (r['name'], r['familyId']))
+
+
+def gabbai_link(ctx, params):
+    k, repo = params['k'], ctx.repo
+    require(repo, ctx.user_id, k, ('gabbai',))
+    ids = inputs.body_object(ctx).get('userIds')
+    if not isinstance(ids, list) or len(ids) != 2 or not all(isinstance(u, str) and ID_RE.fullmatch(u) for u in ids) \
+            or ids[0] == ids[1]:
+        raise ApiError(400, 'invalid_user_ids')
+    a, b = ids
+    if any((repo.get_membership(k, u) or {}).get('role') not in MEMBERS for u in ids):
+        raise ApiError(400, 'invalid_user_ids')
+    try:
+        family_id = repo.link(k, keep_user=a, move_user=b)
+    except ApiError as error:
+        raise ApiError(409, 'partner_taken') if error.code == 'already_linked' else error
+    now = time.time()
+    for user, partner in ((a, b), (b, a)):
+        try:
+            repo.set_family_notice(k, user, ctx.user_id, partner, now)
+        except Exception:  # the link stands; the card is a courtesy
+            log.warning('family notice failed kehila=%s', k)
+        push.enqueue('family_gabbai', k, user)
+    return 200, {'familyId': family_id}
+
+
+def dismiss_card(ctx, params):
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    if params['card'] != 'gabbai_link':
+        raise ApiError(400, 'invalid_card')
+    ctx.repo.clear_family_notice(k, ctx.user_id)
+    return 204, None

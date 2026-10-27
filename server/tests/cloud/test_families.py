@@ -442,5 +442,225 @@ class FamiliesTest(test_messages.MessagesTest):
                              (400, {'error': 'invalid_key'}))
 
 
+    # gabbai link, leaving, removal, pruning, gabbai view
+    def link_path(self):
+        return f'{self.base()}/admin/families/link'
+
+    def gabbai_link(self, a, b, sub='gabbai-sub'):
+        return self.call('POST', self.link_path(), sub=sub, body={'userIds': [a, b]})
+
+    def cards(self, sub):
+        return self.call('GET', self.base(), sub=sub)[1]['cards']
+
+    def link_pair(self, a_sub='member-sub', b_sub='quiet-sub'):
+        a, b = self.user_of(a_sub), self.user_of(b_sub)
+        self.repo.link(self.k, a, b)
+        return a, b
+
+    def user_of(self, sub):
+        return {'member-sub': self.member, 'quiet-sub': self.quiet, 'gabbai-sub': self.gabbai}[sub]
+
+    def test_gabbai_links_two_members_with_notice_and_push(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        with mock.patch.object(push, 'enqueue') as enqueue:
+            status, body = self.gabbai_link(self.member, self.quiet)
+        self.assertEqual(status, 200)
+        self.assertEqual(body['familyId'], self.family_id(self.member))
+        self.assertEqual(self.family_id(self.quiet), body['familyId'])
+        self.assertEqual(sorted(c.args for c in enqueue.call_args_list),
+                         sorted([('family_gabbai', self.k, self.member), ('family_gabbai', self.k, self.quiet)]))
+        self.assertEqual(self.cards('member-sub')['gabbaiLink'],
+                         {'gabbaiName': 'Gabi Gabbai', 'partnerName': 'Quinn Quiet'})
+        self.assertEqual(self.cards('quiet-sub')['gabbaiLink'],
+                         {'gabbaiName': 'Gabi Gabbai', 'partnerName': 'Mia Member'})
+        self.assertEqual(self.view('quiet-sub')['notice'], {'gabbaiName': 'Gabi Gabbai', 'partnerName': 'Mia Member'})
+        self.assertEqual([c['firstName'] for c in self.view('quiet-sub')['children']], ['Noa'])
+        self.assertEqual(self.call('POST', f'{self.base()}/me/cards/gabbai_link/dismiss', sub='quiet-sub'),
+                         (204, None))
+        self.assertIsNone(self.cards('quiet-sub')['gabbaiLink'])
+        self.assertIsNone(self.view('quiet-sub')['notice'])
+        self.assertIsNotNone(self.cards('member-sub')['gabbaiLink'])
+        self.assertEqual(self.call('POST', f'{self.base()}/me/cards/bogus/dismiss', sub='quiet-sub'),
+                         (400, {'error': 'invalid_card'}))
+        self.assertEqual(self.call('POST', f'{self.base()}/me/cards/gabbai_link/dismiss', sub='listener-sub')[0], 403)
+
+    def test_gabbai_link_errors(self):
+        for ids in ([self.member, self.member], [self.member, self.listener], [self.member], [],
+                    [self.member, 'nope'], [self.member, 'nobody' * 5], 'x', [self.member, self.quiet, self.gabbai]):
+            self.assertEqual(self.call('POST', self.link_path(), body={'userIds': ids}),
+                             (400, {'error': 'invalid_user_ids'}), ids)
+        self.assertEqual(self.call('POST', self.link_path(), body={}), (400, {'error': 'invalid_user_ids'}))
+        self.assertEqual(self.gabbai_link(self.member, self.quiet)[0], 200)
+        for pair in ((self.member, self.gabbai), (self.gabbai, self.quiet), (self.quiet, self.member)):
+            self.assertEqual(self.gabbai_link(*pair), (409, {'error': 'partner_taken'}), pair)
+        self.assertEqual(self.gabbai_link(self.gabbai, self.member, sub='member-sub'), (403, {'error': 'forbidden'}))
+        self.assertEqual(len(self.repo.family_of(self.k, self.member)['adults']), 2)
+
+    def test_gabbai_link_deletes_outstanding_requests(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('quiet-sub', self.member)
+            self.gabbai_link(self.quiet, self.gabbai)
+        self.assertIsNone(self.view('quiet-sub')['sent'])
+        self.assertEqual(self.view('member-sub')['received'], [])
+        self.assertEqual(self.pending_items(), [])
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)  # quiet is linked: refused, nothing recorded
+        self.assertEqual(self.pending_items(), [])
+
+    def test_undo_gabbai_link_leaver_gets_new_family(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        with mock.patch.object(push, 'enqueue'):
+            self.gabbai_link(self.member, self.quiet)
+        kept = self.family_id(self.member)
+        status, mine = self.call('POST', self.fam('/unlink'), sub='quiet-sub')
+        self.assertEqual(status, 200)
+        self.assertNotEqual(mine['familyId'], kept)
+        self.assertEqual([c['firstName'] for c in mine['children']], ['Noa'])
+        self.assertEqual(self.family_id(self.member), kept)
+        self.assertIsNone(self.cards('member-sub')['gabbaiLink'])
+        self.assertIsNone(self.cards('quiet-sub')['gabbaiLink'])
+
+    def test_leave_keeps_family_with_partner(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        with mock.patch.object(push, 'enqueue'):
+            self.gabbai_link(self.member, self.quiet)
+        self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='member-sub'), (204, None))
+        family = self.repo.family_of(self.k, self.quiet)
+        self.assertEqual((family['adults'], [c['firstName'] for c in family['children']], int(family['version'])),
+                         ([self.quiet], ['Noa'], 4))  # create, child, link, drop
+        self.assertIsNone(self.cards('quiet-sub')['gabbaiLink'])
+        self.assertEqual([a['userId'] for a in self.view('quiet-sub')['adults']], [self.quiet])
+        self.assertEqual(len(self.families()), 1)
+
+    def test_removed_member_drops_out(self):
+        self.link_pair()
+        self.assertEqual(self.call('DELETE', f'{self.base()}/admin/members/{self.quiet}'), (204, None))
+        self.assertEqual(self.repo.family_of(self.k, self.member)['adults'], [self.member])
+        (family,) = self.families()
+        self.assertNotIn(self.quiet, family['adults'])
+
+    def test_last_adult_leaving_deletes_family(self):
+        self.add_child(sub='member-sub')
+        self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='member-sub'), (204, None))
+        self.assertEqual(self.families(), [])
+
+    def test_leave_survives_failing_family_cleanup(self):
+        self.link_pair()
+        with mock.patch.object(self.repo, 'drop_adult', side_effect=RuntimeError('boom')):
+            self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='member-sub'), (204, None))
+        self.assertEqual([a['userId'] for a in self.view('quiet-sub')['adults']], [self.quiet])
+
+    def test_leave_deletes_pending_requests_to_and_from(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('member-sub', self.quiet)
+            self.ask('gabbai-sub', self.member)
+        self.repo.table.put_item(Item={**self.repo._key(self.k, f'PD#{self.member}#{self.quiet}'),
+                                       'until': 1, 'expiresAt': 9999999999})
+        self.repo.table.put_item(Item={**self.repo._key(self.k, f'PD#{self.quiet}#{self.member}'),
+                                       'until': 1, 'expiresAt': 9999999999})
+        self.repo.table.put_item(Item={**self.repo._key(self.k, f'PD#{self.quiet}#{self.gabbai}'),
+                                       'until': 1, 'expiresAt': 9999999999})
+        self.call('DELETE', f'{self.base()}/membership', sub='member-sub')
+        self.assertEqual(self.pending_items(), [])
+        self.assertEqual([i['sk'] for i in self.repo._query_prefix(self.k, 'PD#')],
+                         [f'PD#{self.quiet}#{self.gabbai}'])
+        self.assertEqual(self.view('quiet-sub')['received'], [])
+        self.assertIsNone(self.view('gabbai-sub')['sent'])
+
+    def drop_membership_only(self, user_id):
+        self.repo.table.delete_item(Key=self.repo._key(self.k, f'M#{user_id}'))
+
+    def test_departed_adult_pruned_on_read(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        with mock.patch.object(push, 'enqueue'):
+            self.gabbai_link(self.member, self.quiet)
+        family_id = self.family_id(self.member)
+        before = int(self.repo.get_family(self.k, family_id)['version'])
+        self.drop_membership_only(self.member)
+        rows = self.call('GET', f'{self.base()}/admin/families')[1]
+        self.assertEqual([[a['userId'] for a in r['adults']] for r in rows if r['familyId'] == family_id],
+                         [[self.quiet]])
+        ids = [c['userId'] for c in self.call('GET', self.fam('/candidates'), sub='gabbai-sub')[1]]
+        self.assertIn(self.quiet, ids)
+        view = self.view('quiet-sub')
+        self.assertEqual([a['userId'] for a in view['adults']], [self.quiet])
+        self.assertEqual([c['firstName'] for c in view['children']], ['Noa'])
+        self.assertIsNone(view['notice'])
+        stored = self.repo.get_family(self.k, family_id)
+        self.assertEqual((stored['adults'], int(stored['version'])), ([self.quiet], before + 1))
+        self.assertIsNone(self.cards('quiet-sub')['gabbaiLink'])
+        self.assertNotIn('familyNotice', self.repo.get_membership(self.k, self.quiet))
+
+    def test_pruned_candidates_before_any_family_read(self):
+        self.link_pair()
+        self.drop_membership_only(self.member)
+        ids = [c['userId'] for c in self.call('GET', self.fam('/candidates'), sub='gabbai-sub')[1]]
+        self.assertIn(self.quiet, ids)
+        self.assertEqual(self.ask('gabbai-sub', self.quiet)[0], 201)
+
+    def test_unlink_with_departed_partner_does_not_trap(self):
+        self.link_pair()
+        self.drop_membership_only(self.member)
+        self.assertEqual(self.call('POST', self.fam('/unlink'), sub='quiet-sub'), (409, {'error': 'not_linked'}))
+        self.assertEqual(self.repo.family_of(self.k, self.quiet)['adults'], [self.quiet])
+
+    def test_drop_adult_without_membership_finds_the_family(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        self.link_pair()
+        self.drop_membership_only(self.member)
+        self.repo.drop_adult(self.k, self.member)
+        self.repo.drop_adult(self.k, self.member)  # idempotent
+        family = self.repo.family_of(self.k, self.quiet)
+        self.assertEqual((family['adults'], len(family['children'])), ([self.quiet], 1))
+        self.drop_membership_only(self.quiet)
+        self.repo.drop_adult(self.k, self.quiet)
+        self.assertEqual(self.families(), [])
+
+    def test_stale_received_hidden_when_two_live_adults(self):
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('quiet-sub', self.member)
+        with mock.patch.object(self.repo, 'clear_requests'):
+            self.repo.link(self.k, self.member, self.gabbai)
+        self.assertEqual(self.view('member-sub')['received'], [])
+        self.assertIsNone(self.cards('member-sub')['request'])
+        self.assertEqual(self.view('gabbai-sub')['received'], [])
+
+    def test_cards_request_is_oldest_received(self):
+        self.assertIsNone(self.cards('member-sub')['request'])
+        with mock.patch.object(push, 'enqueue'), mock.patch('time.time', return_value=time.time() - 100):
+            self.ask('quiet-sub', self.member)
+        with mock.patch.object(push, 'enqueue'), mock.patch('time.time', return_value=time.time() - 50):
+            self.ask('gabbai-sub', self.member)
+        self.assertEqual(self.cards('member-sub')['request'], {'fromUserId': self.quiet, 'fromName': 'Quinn Quiet'})
+        self.assertEqual(self.cards('listener-sub'), {'gabbaiLink': None, 'request': None})
+
+    def test_consistent_prefix_reads(self):
+        self.assertFalse(hasattr(self.repo, 'query_consistent'))
+        with mock.patch.object(self.repo.table, 'query', wraps=self.repo.table.query) as query:
+            self.repo._query_prefix(self.k, 'PR#', consistent=True)
+            self.repo._query_prefix(self.k, 'PR#')
+        self.assertEqual([c.kwargs.get('ConsistentRead') for c in query.call_args_list], [True, None])
+        with mock.patch.object(self.repo.table, 'query', wraps=self.repo.table.query) as query:
+            self.repo.clear_requests(self.k, self.member)
+        self.assertTrue(query.call_args_list)
+        self.assertTrue(all(c.kwargs.get('ConsistentRead') is True for c in query.call_args_list))
+
+    def test_admin_families_children_year_only(self):
+        self.add_child(sub='member-sub', firstName='Noa', birthDate='2015-12-31')
+        self.add_child(sub='member-sub', firstName='Ari', birthDate='')
+        self.link_pair()
+        status, rows = self.call('GET', f'{self.base()}/admin/families')
+        self.assertEqual(status, 200)
+        (row,) = [r for r in rows if self.member in [a['userId'] for a in r['adults']]]
+        self.assertEqual(row['adults'], [{'userId': self.member, 'displayName': 'Mia Member'},
+                                         {'userId': self.quiet, 'displayName': 'Quinn Quiet'}])
+        self.assertEqual(row['children'], [{'firstName': 'Noa', 'gender': 'f', 'birthYear': 2015},
+                                           {'firstName': 'Ari', 'gender': 'f'}])
+        self.assertTrue(all(isinstance(c.get('birthYear', 0), int) for c in row['children']))
+        self.assertNotIn('phone', str(rows))
+        self.assertNotIn(self.listener, str(rows))
+        self.assertEqual(self.call('GET', f'{self.base()}/admin/families', sub='member-sub')[0], 403)
+
+
 if __name__ == '__main__':
     unittest.main()

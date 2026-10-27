@@ -110,13 +110,25 @@ def remove_member(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     target = _target(ctx, params, 'member_not_found')
     ctx.repo.remove_member(params['k'], params['userId'], target['role'])
+    _drop_from_family(ctx, params['k'], params['userId'], target['role'])
     ctx.repo.revoke_member_invites(params['k'], params['userId'])
     return 204, None
+
+
+def _drop_from_family(ctx, k, user_id, role):
+    """Family clean-up after the membership is gone. Best effort: reads prune a departed adult anyway."""
+    if role not in ('member', 'gabbai'):
+        return
+    try:
+        ctx.repo.drop_adult(k, user_id)
+    except Exception as error:
+        log.warning('drop_adult failed kehila=%s error=%s', k, type(error).__name__)
 
 
 def leave(ctx, params):
     membership = require(ctx.repo, ctx.user_id, params['k'])
     ctx.repo.remove_member(params['k'], ctx.user_id, membership['role'])
+    _drop_from_family(ctx, params['k'], ctx.user_id, membership['role'])
     ctx.repo.revoke_member_invites(params['k'], ctx.user_id)
     return 204, None
 

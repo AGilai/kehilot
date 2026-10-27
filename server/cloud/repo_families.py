@@ -2,7 +2,7 @@
 import logging
 import time
 
-from boto3.dynamodb.conditions import Attr, Key
+from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
 from .errors import ApiError
@@ -76,6 +76,52 @@ class FamiliesRepo:
         family_id = (membership or {}).get('familyId')
         return self.get_family(k, family_id) if family_id else None
 
+    def live_adults(self, k, family):
+        """Membership items of the family's adults that are still member or gabbai, in adult order (one
+        batch_get). A departed adult (membership gone, or a listener) is left out."""
+        found = self.batch_get([(f'K#{k}', f'M#{u}') for u in family['adults']])
+        live = [found.get((f'K#{k}', f'M#{u}')) for u in family['adults']]
+        return [m for m in live if m and m.get('role') in MEMBER_ROLES]
+
+    def prune_family(self, k, family):
+        """(family, live memberships): the family without its departed adults. The pruned list is written back
+        (version check; a lost race is ignored, the next read prunes again). A family with no live adult is
+        left alone."""
+        live = self.live_adults(k, family)
+        ids = [m['userId'] for m in live]
+        if not ids or ids == list(family['adults']):
+            return family, live
+        try:
+            family = self.table.update_item(
+                Key=self._key(k, f'F#{family["familyId"]}'), UpdateExpression='SET adults = :a, version = :v1',
+                ConditionExpression='version = :v',
+                ExpressionAttributeValues={':a': ids, ':v': int(family['version']), ':v1': int(family['version']) + 1},
+                ReturnValues='ALL_NEW')['Attributes']
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            return {**family, 'adults': ids}, live
+        for user_id in ids:
+            self.clear_family_notice(k, user_id)
+        return family, live
+
+    def clear_family_notice(self, k, user_id):
+        try:
+            self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression='REMOVE familyNotice',
+                                   ConditionExpression='attribute_exists(sk)')
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+
+    def set_family_notice(self, k, user_id, by_user, partner, now):
+        self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression='SET familyNotice = :n',
+                               ConditionExpression='attribute_exists(sk)',
+                               ExpressionAttributeValues={':n': {'byUserId': by_user, 'partnerUserId': partner,
+                                                                 'at': int(now)}})
+
+    def list_families(self, k):
+        return self._query_prefix(k, 'F#')
+
     def update_children(self, k, family_id, change):
         """Read the family, apply change(children) -> children, write with a version check. A lost race re-reads
         and re-applies (3 tries, then 409 try_again). `change` may raise ApiError. Returns the new item."""
@@ -97,16 +143,6 @@ class FamiliesRepo:
         raise ApiError(409, 'try_again')
 
     # link requests (PR# at the target, PS# at the sender, PD# decline cooldown)
-    def query_consistent(self, k, prefix):
-        items, kwargs = [], {}
-        while True:
-            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}') & Key('sk').begins_with(prefix),
-                                    ConsistentRead=True, **kwargs)
-            items += page['Items']
-            if 'LastEvaluatedKey' not in page:
-                return items
-            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
-
     def put_link_request(self, k, from_user, to_user, now):
         """Record the request (PS# marker + PR# at the target) in one transaction; returns expiresAt.
         409 request_pending when the sender has a live pending request."""
@@ -136,7 +172,7 @@ class FamiliesRepo:
         return item if item and int(item['expiresAt']) > int(now if now is not None else time.time()) else None
 
     def received_requests(self, k, user_id, now):
-        items = [i for i in self.query_consistent(k, f'PR#{user_id}#') if int(i['expiresAt']) > int(now)]
+        items = [i for i in self._query_prefix(k, f'PR#{user_id}#', consistent=True) if int(i['expiresAt']) > int(now)]
         return sorted(items, key=lambda i: (int(i['createdAt']), i['fromUserId']))
 
     def live_decline(self, k, from_user, to_user, now):
@@ -144,7 +180,7 @@ class FamiliesRepo:
         return item if item and int(item['expiresAt']) > int(now) else None
 
     def decline_markers(self, k, from_user, now):
-        return {i['sk'].split('#')[2]: i for i in self.query_consistent(k, f'PD#{from_user}#')
+        return {i['sk'].split('#')[2]: i for i in self._query_prefix(k, f'PD#{from_user}#', consistent=True)
                 if int(i['expiresAt']) > int(now)}
 
     def decline_request(self, k, to_user, from_user, now):
@@ -180,12 +216,12 @@ class FamiliesRepo:
 
     def clear_requests(self, k, user_id):
         """Drop every request to and from the user, their marker, and the markers of those who asked them."""
-        for item in self.query_consistent(k, f'PR#{user_id}#'):
+        for item in self._query_prefix(k, f'PR#{user_id}#', consistent=True):
             self.table.delete_item(Key=self._key(k, item['sk']))
             marker = self.table.get_item(Key=self._key(k, f'PS#{item["fromUserId"]}'), ConsistentRead=True).get('Item')
             if marker and marker.get('toUserId') == user_id:
                 self.table.delete_item(Key=self._key(k, marker['sk']))
-        for item in self._query_prefix(k, 'PR#', Attr('fromUserId').eq(user_id)):
+        for item in self._query_prefix(k, 'PR#', Attr('fromUserId').eq(user_id), consistent=True):
             self.table.delete_item(Key=self._key(k, item['sk']))
         self.table.delete_item(Key=self._key(k, f'PS#{user_id}'))
 
@@ -196,6 +232,48 @@ class FamiliesRepo:
                 self.clear_requests(k, user)
             except Exception:
                 log.exception('clear_requests failed kehila=%s', k)  # best effort: expiry cleans up
+
+    def drop_adult(self, k, user_id):
+        """The user left, was removed or deleted their account: take them out of their family (two adults:
+        the other keeps the family and the children; one: the family goes), then drop every request to and from
+        them and their decline markers. Idempotent; works when the membership is already gone."""
+        membership = self.get_membership(k, user_id)
+        if membership and membership.get('familyId'):
+            family = self.get_family(k, membership['familyId'])
+            families = [family] if family else []
+        else:
+            families = self._query_prefix(k, 'F#', Attr('adults').contains(user_id), consistent=True)
+        for family in families:
+            self._drop_from(k, family['familyId'], user_id)
+        self.clear_requests(k, user_id)
+        for item in self._query_prefix(k, 'PD#', consistent=True):
+            parts = item['sk'].split('#')
+            if user_id in parts[1:]:
+                self.table.delete_item(Key=self._key(k, item['sk']))
+
+    def _drop_from(self, k, family_id, user_id):
+        for _ in range(3):
+            family = self.get_family(k, family_id)
+            if not family or user_id not in family['adults']:
+                return
+            others = [a for a in family['adults'] if a != user_id]
+            try:
+                if others:
+                    self.table.update_item(
+                        Key=self._key(k, f'F#{family_id}'), UpdateExpression='SET adults = :a, version = :v1',
+                        ConditionExpression='version = :v',
+                        ExpressionAttributeValues={':a': others, ':v': int(family['version']),
+                                                   ':v1': int(family['version']) + 1})
+                    for other in others:
+                        self.clear_family_notice(k, other)
+                else:
+                    self.table.delete_item(Key=self._key(k, f'F#{family_id}'), ConditionExpression='version = :v',
+                                           ExpressionAttributeValues={':v': int(family['version'])})
+                return
+            except ClientError as error:
+                if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                    raise
+        raise ApiError(409, 'try_again')
 
     def link(self, k, keep_user, move_user, request_from=None):
         """Merge move_user's one-adult family into keep_user's. Returns the kept familyId.
@@ -211,6 +289,7 @@ class FamiliesRepo:
             keep, moved = self.get_family(k, keep_id), self.get_family(k, move_id)
             if not keep or not moved:
                 raise ApiError(404, 'family_not_found')
+            keep, moved = self.prune_family(k, keep)[0], self.prune_family(k, moved)[0]
             if keep_id == move_id or len(keep['adults']) != 1:
                 raise ApiError(409, 'already_linked')
             if len(moved['adults']) != 1:
@@ -264,6 +343,9 @@ class FamiliesRepo:
         for _ in range(2):
             family = self.family_of(k, user_id)
             if not family or len(family['adults']) != 2 or user_id not in family['adults']:
+                raise ApiError(409, 'not_linked')
+            if len(self.live_adults(k, family)) != 2:  # the partner is gone: prune, nothing to unlink
+                self.prune_family(k, family)
                 raise ApiError(409, 'not_linked')
             other = next(a for a in family['adults'] if a != user_id)
             old_id, new_id_ = family['familyId'], new_id()

@@ -93,6 +93,9 @@ ROUTES = [
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests/(?P<fromUserId>[^/]+)/decline$'),
      routes_families.decline_request),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/unlink$'), routes_families.unlink),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/families$'), routes_families.admin_families),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/families/link$'), routes_families.gabbai_link),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/cards/(?P<card>[^/]+)/dismiss$'), routes_families.dismiss_card),
 ]
 PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 

@@ -65,6 +65,9 @@ def delete_account(ctx, params):
             raise ApiError(409, 'last_gabbai')
     for k in gabbai_of:  # guarded removal: re-checks the other gabbai atomically (409 last_gabbai on a race)
         ctx.repo.remove_member(k, ctx.user_id, 'gabbai')
+    for m in memberships:  # before the purge, so the scan never meets the person in a family
+        if m['role'] in ('member', 'gabbai'):
+            ctx.repo.drop_adult(m['kehilaId'], ctx.user_id)
     deleted, blanked = ctx.repo.purge_user(ctx.user_id, ctx.caller.sub)
     _delete_cognito_user(ctx.caller.sub)
     log.info('account deleted user=%s items=%d blanked=%d', ctx.user_id, deleted, blanked)
