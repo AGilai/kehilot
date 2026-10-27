@@ -29,4 +29,18 @@ without names, the frame covering split seats, pinch-to-zoom, never rely on red/
 5. Later (not now): the server side — seat map per Kehila, allocations, the reminder schedule, the push,
    the gabbai summaries (GM5/GD5) — wired to this UI.
 
+## Two formats (owner, 2026-10-27)
+
+"the seats shall come in 2 formats — the member releasing — the gabbai map print from app or web — you
+can use our synagogue layout — you can find a map on gabbai folder".
+- **Member (phone):** the release flow above (card → seat page with his part of the block).
+- **Gabbai map (print, from app or web):** the whole hall for the coming Shabbat, per prayer: each seat
+  marked taken / released / free (shape + label, printable in black and white), counts per block, the
+  bimah and ark drawn; A4 landscape print/PDF from the web and a PDF from the phone. Names on the print:
+  the gabbai's own choice per print (default off) — the print may be posted in the hall.
+- **The hall layout:** the Kehila's real hall shape, as drawn (shape only, no names) in
+  `~/work/gabay/design/mockups/phase2-seat-map.html`: 5 blocks (שמאל, מרכז שמאל, מרכז, מרכז ימין, ימין),
+  rows 0–13, the bimah in the middle block, about 205 seats. It becomes the first Kehila's seat map
+  (data, configurable per Kehila later); never copy names from the Excel chart.
+
 Design through the designer (one look and feel): the card, the seat page with the block frame, the push copy.
