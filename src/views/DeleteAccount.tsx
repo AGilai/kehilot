@@ -1,21 +1,21 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { config } from '../config.ts';
 import { fixtureParams } from '../client/fixtures.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { deleteAccount } from '../client/account.ts';
 import { singleFlight } from '../client/singleFlight.ts';
+import { TOUCH } from '../kit/theme.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Check, Field, Txt, useTokens } from '../kit/components.tsx';
 import { BackLink } from './Me.tsx';
-import { LinkRow } from './me/KehilaInfo.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
 const ITEMS = ['i1', 'i2', 'i3', 'i4', 'i5'] as const;
 
 /** Confirm screen for account deletion (spec §4.5b): lists what is deleted; the word must be typed. */
 export function DeleteAccount({ onBack, onExport }: { onBack: () => void; /** Opens Me's privacy card ("download my data"); absent on the age gate, which has no Me. */ onExport?: () => void }) {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const k = useTokens();
   const { api, signOut } = useAuth();
   const errText = useErrorText();
@@ -61,7 +61,11 @@ export function DeleteAccount({ onBack, onExport }: { onBack: () => void; /** Op
         <Txt size="small" color={k.muted}>{t('deleteAccount.always')}</Txt>
         <Txt size="small" color={k.muted}>{t('deleteAccount.backups')}</Txt>
       </Card>
-      {onExport ? <LinkRow label={t('deleteAccount.exportFirst')} onPress={onExport} /> : null}
+      {onExport ? (
+        <Pressable accessibilityRole="link" accessibilityLabel={t('deleteAccount.exportFirst')} onPress={onExport} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
+          <Txt size="small" bold color={k.tekhelet}>{t('deleteAccount.exportFirst')} {dir === 'rtl' ? '‹' : '›'}</Txt>
+        </Pressable>
+      ) : null}
       <Card>
         <Field label={t('deleteAccount.typePrompt', { word })} value={typed} onChangeText={setTyped} editable={!busy}
           autoCapitalize="none" autoCorrect={false} accessibilityHint={t('deleteAccount.field')} />

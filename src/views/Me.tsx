@@ -144,11 +144,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
   const [view, setView] = React.useState<'me' | 'delete'>(config.fixtures && (fixtureParams().screen === 'delete' || fixtureParams().screen === 'delete-ticked') ? 'delete' : 'me');
   // "Want a copy first?" returns here and scrolls to the privacy card.
   const scrollRef = React.useRef<ScrollView>(null);
-  const privacyY = React.useRef(0);
-  const [toPrivacy, setToPrivacy] = React.useState(false);
-  React.useEffect(() => {
-    if (toPrivacy && view === 'me') { scrollRef.current?.scrollTo({ y: Math.max(0, privacyY.current - 16), animated: false }); setToPrivacy(false); }
-  }, [toPrivacy, view]);
+  const toPrivacy = React.useRef(false);
   const [editing, setEditing] = React.useState(false);
   const [first, setFirst] = React.useState('');
   const [last, setLast] = React.useState('');
@@ -170,7 +166,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
     return () => { live = false; };
   }, [asking, kehilaId, role, api]);
 
-  if (view === 'delete') return <DeleteAccount onBack={() => setView('me')} onExport={() => { setToPrivacy(true); setView('me'); }} />;
+  if (view === 'delete') return <DeleteAccount onBack={() => setView('me')} onExport={() => { toPrivacy.current = true; setView('me'); }} />;
   if (!profile) return null;
 
   const valid = !!first.trim() && [...first].length <= NAME_MAX && [...last].length <= NAME_MAX;
@@ -262,7 +258,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
       {onPrefs ? <Button kind="secondary" title={t('me.prefs')} onPress={onPrefs} /> : null}
       {kehila ? (
         <>
-          <View onLayout={e => { privacyY.current = e.nativeEvent.layout.y; }}><PrivacyCard onAbout={() => setAbout(true)} /></View>
+          <View onLayout={e => { if (toPrivacy.current) { toPrivacy.current = false; scrollRef.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 16), animated: false }); } }}><PrivacyCard onAbout={() => setAbout(true)} /></View>
           <KehilaInfo visible={about} onClose={() => setAbout(false)} />
           <Card>
             {asking ? (
