@@ -42,11 +42,9 @@ class InvitesTest(unittest.TestCase):
             KeyConditionExpression='pk = :p AND begins_with(sk, :s)',
             ExpressionAttributeValues={':p': f'K#{self.k}', ':s': 'C#'})['Items']
         by_name = {i['name']: i for i in items}
-        self.assertEqual(set(by_name), {'announcements', 'simchas', 'condolences'})
+        self.assertEqual(set(by_name), {'announcements'})
         self.assertEqual((by_name['announcements']['listenersCanRead'], by_name['announcements']['postPolicy']),
-                         (True, 'management'))
-        for name in ('simchas', 'condolences'):
-            self.assertEqual((by_name[name]['listenersCanRead'], by_name[name]['postPolicy']), (False, 'broadcasters'))
+                         (True, 'broadcasters'))
         self.assertEqual(self.repo.get_kehila(self.k)['settings'], {
             'pollSeconds': 30, 'memberBroadcastDefault': False, 'broadcastDailyLimit': 3, 'defaultLang': 'he'})
 

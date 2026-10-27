@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
+from . import type_rules as type_rules_module
 from .errors import ApiError
 from .ids import new_id
 
@@ -15,9 +16,7 @@ _CODE_FIXES = str.maketrans({'I': '1', 'L': '1', 'O': '0'})
 DEFAULT_SETTINGS = {'pollSeconds': 30, 'memberBroadcastDefault': False, 'broadcastDailyLimit': 3,
                     'defaultLang': 'he'}
 DEFAULT_CHANNELS = (  # (name, listenersCanRead, postPolicy)
-    ('announcements', True, 'management'),
-    ('simchas', False, 'broadcasters'),
-    ('condolences', False, 'broadcasters'),
+    ('announcements', True, 'broadcasters'),  # the one main channel; what each type allows is in settings.typeRules
 )
 
 
@@ -222,7 +221,7 @@ class MembersRepo:
             kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
 
     def create_kehila(self, name, settings):
-        """Write the Kehila and its three default channels; `settings` overrides the defaults."""
+        """Write the Kehila and its default channel; `settings` overrides the defaults."""
         k = new_id()
         self.put_kehila(k, name)
         self.table.update_item(Key={'pk': f'K#{k}', 'sk': 'META'}, UpdateExpression='SET settings = :s',
@@ -320,9 +319,17 @@ class MembersRepo:
                                ConditionExpression='attribute_exists(settings)',
                                ExpressionAttributeValues={':v': value})
 
-    def set_settings(self, k, max_listeners=None, privacy_contact=None):
-        """Set the given settings only (None = leave); privacy_contact '' removes it. Other settings are kept."""
+    def set_settings(self, k, max_listeners=None, privacy_contact=None, type_rules=None):
+        """Set the given settings only (None = leave); privacy_contact '' removes it. `type_rules` is a validated
+        partial `{type: {post, listeners}}`: those types are replaced, the other type keeps its (normalized) rule.
+        Other settings are kept."""
         sets, removes, values = [], [], {}
+        if type_rules:
+            kehila = self.get_kehila(k)
+            if not kehila:
+                raise ApiError(404, 'kehila_not_found')
+            sets.append('settings.typeRules = :t')
+            values[':t'] = {**type_rules_module.rules(kehila.get('settings')), **type_rules}
         if max_listeners is not None:
             sets.append('settings.maxListeners = :m')
             values[':m'] = max_listeners

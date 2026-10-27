@@ -86,6 +86,9 @@ class MessagesRepo:
                 raise
             raise ApiError(404, 'channel_not_found')
 
+    def delete_channel(self, k, channel_id):
+        self.table.delete_item(Key={'pk': f'K#{k}', 'sk': f'C#{channel_id}'})
+
     # changes (the /changes feed reads these)
     def put_change(self, k, kind, ref_id, channel_id, visible_to=None, message_id=None):
         item = {'pk': f'K#{k}', 'sk': f'CHG#{new_id()}', 'kind': kind, 'refId': ref_id, 'channelId': channel_id,

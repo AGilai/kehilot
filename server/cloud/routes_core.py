@@ -4,7 +4,7 @@ import base64
 from .authz import ROLES, require
 from .errors import ApiError
 from .routes_families import MEMBERS, notice_of, request_card
-from . import consents
+from . import consents, type_rules
 from .routes_invites import DEFAULT_MAX_LISTENERS
 from .routes_privacy import age13_required
 
@@ -36,6 +36,7 @@ def kehila(ctx, params):
     extra = {}
     if membership['role'] == 'gabbai':
         shown['maxListeners'] = int(settings.get('maxListeners', DEFAULT_MAX_LISTENERS))
+        extra['typeRules'] = type_rules.rules(settings)  # members get postableTypes per channel instead
         extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
     is_member = membership['role'] in MEMBERS
     cards = {'gabbaiLink': None, 'request': None, 'imported': bool(membership.get('importNotice')),

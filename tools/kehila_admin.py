@@ -3,6 +3,7 @@
 
        .venv/bin/python tools/kehila_admin.py gabbai-invite --env dev --kehila <id>
        .venv/bin/python tools/kehila_admin.py backfill-families --env dev [--kehila <id>]
+       .venv/bin/python tools/kehila_admin.py merge-channels --env dev [--kehila <id>] [--apply]   (dry run without --apply)
 
 Creates a Kehila (with default channels) and prints its ID and a one-use, 7-day gabbai invite code.
 The table name and (when AWS_DEFAULT_REGION is unset) the region come from `terraform output`. The functions are importable for tests and the smoke test.
@@ -17,6 +18,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from server.cloud.logo import validate_logo  # noqa: E402
 from server.cloud.repo import Repo  # noqa: E402
+
+
+LEGACY_CHANNELS = ('simchas', 'condolences')
+MAIN_CHANNEL = 'announcements'
 
 
 def terraform_output(env, name):
@@ -59,6 +64,28 @@ def sweep_orphan_families(repo, k=None, delete=True):
     return sum(repo.sweep_orphan_families(kehila, delete) for kehila in ([k] if k else repo.list_kehila_ids()))
 
 
+def merge_channels(repo, k=None, apply=False):
+    """Message types replace the `simchas` / `condolences` channels. Per Kehila (all, or just `k`): those channels
+    with no messages are deleted (only with `apply`), those holding messages are kept and reported, and the main
+    channel (`announcements`) post policy becomes `broadcasters`. Returns one dict of ids and counts per Kehila."""
+    plans = []
+    for kehila in ([k] if k else repo.list_kehila_ids()):
+        channels = repo.list_channels(kehila)
+        used = {m['channelId'] for m in repo.iter_messages(kehila)}
+        legacy = [c for c in channels if c['name'] in LEGACY_CHANNELS and not c.get('conversation')]
+        delete = [c['sk'][2:] for c in legacy if c['sk'][2:] not in used]
+        keep = [c['sk'][2:] for c in legacy if c['sk'][2:] in used]
+        main = [c for c in channels if c['name'] == MAIN_CHANNEL and c.get('postPolicy') != 'broadcasters']
+        plan = {'kehila': kehila, 'delete': delete, 'keep': keep, 'main': [c['sk'][2:] for c in main]}
+        plans.append(plan)
+        if apply:
+            for channel_id in delete:
+                repo.delete_channel(kehila, channel_id)
+            for c in main:
+                repo.update_channel(kehila, c['sk'][2:], c['name'], c['listenersCanRead'], 'broadcasters')
+    return plans
+
+
 def read_logo(path):
     """Read and validate a logo PNG; exits with a clear message when it is unusable."""
     try:
@@ -97,7 +124,21 @@ def main(argv=None):
     backfill.add_argument('--env', required=True, choices=['dev'])
     backfill.add_argument('--kehila', help='only this Kehila (default: all)')
     backfill.add_argument('--keep-orphans', action='store_true', help='only report families without a live adult')
+    merge = sub.add_parser('merge-channels', help='fold the simchas / condolences channels into the main channel '
+                                                  '(dry run unless --apply)')
+    merge.add_argument('--env', required=True, choices=['dev'])
+    merge.add_argument('--kehila', help='only this Kehila (default: all)')
+    merge.add_argument('--apply', action='store_true', help='make the changes (default: only print the plan)')
     args = parser.parse_args(argv)
+    if args.command == 'merge-channels':
+        plans = merge_channels(open_repo(args.env), args.kehila, args.apply)
+        verb = 'deleted' if args.apply else 'would delete'
+        for p in plans:  # ids and counts only, never names
+            print(f"kehila={p['kehila']} {verb}={len(p['delete'])} kept_with_messages={len(p['keep'])} "
+                  f"main_policy_{'set' if args.apply else 'to_set'}={len(p['main'])}"
+                  + ''.join(f' keep:{c}' for c in p['keep']))
+        print(f"kehilot={len(plans)} {'applied' if args.apply else 'dry-run (nothing changed)'}")
+        return
     if args.command == 'backfill-families':
         repo = open_repo(args.env)
         kehilot, created = backfill_families(repo, args.kehila)

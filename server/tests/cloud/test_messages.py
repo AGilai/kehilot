@@ -76,6 +76,7 @@ class MessagesTest(unittest.TestCase):
 
     def test_member_without_broadcast_right_gets_403(self):
         self.assertEqual(self.post('simchas', sub='quiet-sub'), (403, {'error': 'forbidden'}))
+        self.repo.update_channel(self.k, self.channels['announcements'], 'announcements', True, 'management')
         self.assertEqual(self.post('announcements', sub='member-sub', type='general'), (403, {'error': 'forbidden'}))
         status, body = self.post('simchas', sub='member-sub', type='general')
         self.assertEqual((status, body['authorKind']), (201, 'member'))

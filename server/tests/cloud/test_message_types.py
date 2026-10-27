@@ -82,6 +82,7 @@ class MessageTypesTest(test_messages.MessagesTest):
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{mid}', sub='listener-sub')[0], 404)
 
     def test_channel_list_can_post_unchanged(self):
+        self.repo.update_channel(self.k, self.channels['announcements'], 'announcements', True, 'management')
         chans = {c['name']: c for c in self.call('GET', f'{self.base()}/channels', sub='member-sub')[1]}
         self.assertTrue(chans['simchas']['canPost'])
         self.assertTrue(chans['main']['canPost'])

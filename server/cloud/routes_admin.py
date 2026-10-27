@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import accounts, consents, importer, inputs, push, routes_me
+from . import accounts, consents, importer, inputs, push, routes_me, type_rules
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -225,12 +225,24 @@ def import_list(ctx, params):
     return 200, {'results': results}
 
 
+def _type_rules(value):
+    """Strict: `{celebration?, condolence?}`, each exactly `{post: management|broadcasters, listeners: bool}`."""
+    if not isinstance(value, dict) or not value:
+        raise ApiError(400, 'invalid_type_rules')
+    for type_, rule in value.items():
+        if type_ not in type_rules.CONFIGURABLE or not isinstance(rule, dict) or set(rule) != {'post', 'listeners'} \
+                or rule['post'] not in type_rules.POST_WHO or not isinstance(rule['listeners'], bool):
+            raise ApiError(400, 'invalid_type_rules')
+    return {t: {'post': r['post'], 'listeners': r['listeners']} for t, r in value.items()}
+
+
 def set_settings(ctx, params):
-    """maxListeners and/or privacyContact (at least one). The contact is never logged."""
+    """maxListeners, privacyContact and/or typeRules (at least one). The contact is never logged."""
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     d = inputs.body_object(ctx)
-    if 'maxListeners' not in d and 'privacyContact' not in d:
+    if not any(key in d for key in ('maxListeners', 'privacyContact', 'typeRules')):
         raise ApiError(400, 'invalid_body')
+    new_rules = _type_rules(d['typeRules']) if 'typeRules' in d else None
     limit = inputs.integer(d, 'maxListeners', 0, 5000) if 'maxListeners' in d else None
     contact = None
     if 'privacyContact' in d:
@@ -240,7 +252,7 @@ def set_settings(ctx, params):
         contact = contact.strip()
         if len(contact) > PRIVACY_CONTACT_MAX:
             raise ApiError(400, 'invalid_privacy_contact')
-    ctx.repo.set_settings(params['k'], limit, contact)
+    ctx.repo.set_settings(params['k'], limit, contact, new_rules)
     return 200, {}
 
 
