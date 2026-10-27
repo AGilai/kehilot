@@ -14,6 +14,7 @@ import { TOUCH } from '../kit/theme.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
 import { isCurrentZmanim, ZMANIM_CACHE_PREFIX } from '../zmanim.ts';
 import { roleFeatures } from '../client/roleView.ts';
+import { HomeCards } from './HomeCards.tsx';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
 
@@ -24,7 +25,7 @@ const loaders = config.fixtures
   : { zmanim: loadZmanim, shabbat: loadShabbat };
 
 /** M1 (the day arc comes later): greeting, dates, zmanim grid, Shabbat card, and the latest three titles. */
-export function Home({ onOpen, onMessages, onPhoneList }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void }) {
+export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { onOpen: (id: string) => void; onMessages: () => void; /** Members and gabbaim only. */ onPhoneList?: () => void; /** The terms card's button (management mode until the terms gate exists). */ onTerms?: () => void; onToast?: (text: string) => void }) {
   const { t, dir } = useI18n();
   const k = useTokens();
   const { signOut } = useAuth();
@@ -81,6 +82,8 @@ export function Home({ onOpen, onMessages, onPhoneList }: { onOpen: (id: string)
         <Txt size="small" color={k.muted}>{displayDate(date)} · {hebrewDate(date)}</Txt>
         <Txt serif size="display" accessibilityRole="header">{first ? t('home.greeting', { name: first }) : t('home.greetingAnon')}</Txt>
       </View>
+
+      {onToast ? <HomeCards onTerms={onTerms ?? (() => {})} onToast={onToast} /> : null}
 
       <Card>
         <Txt bold>{t('home.zmanimTitle')}</Txt>

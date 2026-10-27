@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PUSH_TOKEN_KEY, chatPrefRows, mutedMemberRows, registerPush, routeFromPush, takePushTarget, toggleId } from '../src/client/push.ts';
+import { PUSH_TOKEN_KEY, chatPrefRows, mutedMemberRows, pushDestination, registerPush, routeFromPush, takePushTarget, toggleId } from '../src/client/push.ts';
 import { createStore } from '../src/client/store.ts';
 import { localSignOut } from '../src/auth/signout.ts';
 import type { Channel, Kehila, NotifyPrefs } from '../src/client/types.ts';
@@ -145,4 +145,9 @@ test('pushDestination: requests opens approvals for a gabbai only; group_request
   assert.equal(pushDestination({ screen: 'other' }, 'gabbai'), 'home');
   assert.equal(pushDestination({ messageId: 'm1' }, 'gabbai'), 'message');
   assert.equal(pushDestination({}, 'member'), 'home');
+});
+
+test('family screen opens home', () => {
+  assert.equal(pushDestination({ screen: 'family' }, 'member'), 'home');
+  assert.deepEqual(routeFromPush({ kehila: 'k1', screen: 'family', name: 'x' }), { kehila: 'k1', screen: 'family' });
 });

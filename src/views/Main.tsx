@@ -187,7 +187,8 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   let body: React.ReactNode;
   switch (nav.tab) {
     case 'home':
-      body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'home' }) : undefined} />;
+      body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'home' }) : undefined}
+        onTerms={() => { setManage(true); setNav({ tab: 'overview' }); }} onToast={showToast} />;
       break;
     case 'phoneList':
       body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'me' })} /> : null;
