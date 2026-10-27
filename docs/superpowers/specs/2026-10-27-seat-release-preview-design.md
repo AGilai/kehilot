@@ -95,3 +95,22 @@ tests."
 he will see the block that he sits in, two rows ahead and two rows behind." Binding: the member seat page
 shows **only** his block, his row(s) ±2 — **no whole-hall map, no mini-map, no other blocks**, and the API
 returns only that cut to a member (never the full layout). The full hall is for gabbaim (editor, print).
+
+## The Kehila's current seating sheet — structure only (owner's export, 2026-10-27; the file stays off git)
+
+A Google Sheet fed by a Google Form. Structure that changes the model (examples below are invented):
+- **Form responses** (one row per answer): timestamp; name; "seats I won't need this Shabbat" for
+  **ערב שבת** and for **יום שבת** separately; "how many of my seats will be free" for **חג** and for
+  **קריאת מגילה**; and **requests to reserve seats** per area: **נשים · בית הכנסת**, **גברים · אולם**,
+  **נשים · אולם**.
+- **The map**: one grid per prayer (ערב שבת, יום שבת), 13 numbered rows, blocks separated by empty
+  columns, a "בימה" cell; each seat cell is "<family>[ <initial>]<n>-" (invented example: "בדיוני1-",
+  "דוגמה ש2-.") and "פנוי" for an unassigned seat. Seat states: ממתין (no answer yet), משוחרר (released),
+  תפוס (taken), פנוי (free). A family's released count is applied to its seats in order. Summaries: free
+  seats, and "requested more than available".
+- **So the model needs:** several **areas** (main hall, the "אולם", women's sections), **events** beyond
+  Shabbat (חג, מגילה), and **reservation requests** besides releases — a release answer is a count per
+  event, mapped onto the family's seats.
+- **Paste from Excel** reads this cell format; the responses upload reads the Form's CSV columns above.
+- **Asked the owner**: the .xlsx export (a PDF loses cell positions), whether the women's sections have
+  their own maps or only counts, and where seats-per-family comes from.
