@@ -102,7 +102,7 @@ class MediaTest(test_conversation.ConversationTest):
         self.assertEqual(body['image'], {'contentType': 'image/jpeg', 'bytes': len(JPEG)})
         self.assertEqual(self.keys(), [f'm/{self.k}/{body["messageId"]}'])
         head = self.s3.head_object(Bucket=MEDIA_BUCKET, Key=f'm/{self.k}/{body["messageId"]}')
-        self.assertEqual((head['ContentType'], head['CacheControl']), ('image/jpeg', 'private, max-age=300'))
+        self.assertEqual((head['ContentType'], head['CacheControl']), ('image/jpeg', 'private, no-store'))
         got = self.call('GET', f'{self.base()}/messages/{body["messageId"]}')[1]
         self.assertEqual(got['image'], body['image'])
         listed = self.call('GET', f'{self.base()}/messages')[1]

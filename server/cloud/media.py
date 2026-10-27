@@ -96,7 +96,7 @@ def claim_upload(k, user_id, upload_id, message_id):
     try:
         client.copy_object(Bucket=name, Key=image_key(k, message_id), CopySource={'Bucket': name, 'Key': source},
                            MetadataDirective='REPLACE', ContentType=content_type,
-                           CacheControl=f'private, max-age={URL_SECONDS}')
+                           CacheControl='private, no-store')
         client.delete_object(Bucket=name, Key=source)
     except ClientError as error:
         raise _try_again(error)
