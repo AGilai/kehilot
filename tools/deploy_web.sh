@@ -37,10 +37,11 @@ if ! grep -rqF "${API_URL%/}" "$DIST/_expo/static/js"; then
   exit 1
 fi
 
-# 1. Everything except index.html: no-cache by default, then hashed assets as immutable.
-aws s3 sync "$DIST" "s3://$BUCKET" --delete --exclude index.html \
+# 1. New files first, nothing deleted: a client still on the old index.html keeps finding its old bundles.
+#    Everything except index.html: no-cache by default, then hashed assets as immutable.
+aws s3 sync "$DIST" "s3://$BUCKET" --exclude index.html \
   --exclude "_expo/static/*" --cache-control "no-cache"
-aws s3 sync "$DIST/_expo/static" "s3://$BUCKET/_expo/static" --delete \
+aws s3 sync "$DIST/_expo/static" "s3://$BUCKET/_expo/static" \
   --cache-control "public,max-age=31536000,immutable"
 # sync's guessed type for .html is text/html; make the privacy page explicit.
 if [ -f "$DIST/privacy/index.html" ]; then
@@ -48,11 +49,17 @@ if [ -f "$DIST/privacy/index.html" ]; then
     --content-type "text/html; charset=utf-8" --cache-control "no-cache"
 fi
 
-# 2. index.html last, so it never points at assets that are not uploaded yet.
+# 2. index.html next, so it never points at assets that are not uploaded yet.
 aws s3 cp "$DIST/index.html" "s3://$BUCKET/index.html" \
   --content-type "text/html; charset=utf-8" --cache-control "no-cache"
 
-# 3. Invalidate the entry points.
+# 3. Prune last: old hashed files go only after the new index.html is live.
+aws s3 sync "$DIST" "s3://$BUCKET" --delete --exclude index.html \
+  --exclude "_expo/static/*" --cache-control "no-cache"
+aws s3 sync "$DIST/_expo/static" "s3://$BUCKET/_expo/static" --delete \
+  --cache-control "public,max-age=31536000,immutable"
+
+# 4. Invalidate the entry points.
 aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths /index.html /privacy /privacy/ '/privacy/*' >/dev/null
 
 echo "Deployed to $WEB_URL"
