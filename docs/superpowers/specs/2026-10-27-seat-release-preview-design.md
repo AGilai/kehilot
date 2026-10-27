@@ -114,3 +114,36 @@ A Google Sheet fed by a Google Form. Structure that changes the model (examples 
 - **Paste from Excel** reads this cell format; the responses upload reads the Form's CSV columns above.
 - **Asked the owner**: the .xlsx export (a PDF loses cell positions), whether the women's sections have
   their own maps or only counts, and where seats-per-family comes from.
+
+## The real workbook (owner's .xlsx, 2026-10-27; kept off git — structure only here)
+
+Tabs: "Form Responses 1" (the Google Form answers — columns as listed above), "Map" (the seat chart),
+per-prayer calculation tabs (ערב שבת / יום שבת: family, free seats, max seats, relevant, seat 1–6), the
+gabbai printout tabs, and Positive/Summary tabs.
+- **Hall**: 225 seats in **6 blocks** (the earlier gabay mock-up had 5 blocks / 205 — it missed a 2-column
+  block at the far left: 20 seats). Sheet rows 6–19 → hall rows 0–13 (row 0 = an unnumbered front row, the
+  sheet labels rows 1–13 in a side column). Bimah = a 4×3 merged area in the middle block. Shape (no names):
+  `S` seat / `B` bimah / `.` empty, left→right as in the sheet:
+  ```
+   0 ....SS..................SSS..
+   1 SS.SSSSS................SSSSS
+   2 SS.SSSSS................SSSSS
+   3 SS.SSSSS................SSSSS
+   4 SS.SSSSS.SSSS.SSSS.SSSS.SSSSS
+   5 SS.SSSSS.SSSS......SSSS.SSSSS
+   6 SS.SSSSS.SSSS.BBBB.SSSS.SSSSS
+   7 SS.SSSSS.SSSS.BBBB.SSSS.SSSSS
+   8 SS.SSSSS.SSSS.BBBB.SSSS.SSSSS
+   9 SS.SSSSS.SSSS......SSSS.SSSSS
+  10 SS..SSS..SSSS.SSSS.SSSS.SSSSS
+  11 .........SSSS.SSSS.SSSS.SSSSS
+  12 .........SSSS.SSSS.SSSS.SSSSS
+  13 ........................SSSS.
+  ```
+- **Cell format**: every seat cell is exactly `<family>[ <initial>.]-<n>` (e.g. invented "בדיוני ש.-2") or
+  `פנוי`; 80 families, 1–6 seats each, 27 unassigned seats; all cells parse.
+- **Seats per family ("Max Family")** is not entered anywhere — it is the count of that family's cells on
+  the map. So the map is the single source of seat ownership.
+- **Women's seats**: no map — only reservation counts in the form (נשים · בית הכנסת, גברים · אולם, נשים ·
+  אולם). Model them as counted areas (capacity + requests), not seat maps — CTO default, owner to confirm.
+- Ark side and numbering direction are still not in the file (keep provisional).
