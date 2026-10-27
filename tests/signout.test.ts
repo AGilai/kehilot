@@ -63,11 +63,11 @@ test('sign-out also clears the per-user session keys, before the store resets, a
   assert.deepEqual(b.log, ['tokens', 'pending', 'wipe', 'reset', 'done']);
 });
 
-test('clearSessionKeys removes the signing-out user last-Kehila key and every logo key, nothing else', async () => {
+test('clearSessionKeys removes the signing-out user last-Kehila key and every logo and schedule key, nothing else', async () => {
   const { clearSessionKeys } = await import('../src/client/sessionKeys.ts');
   const data = new Map<string, string>([
     ['kehilot.lastKehila.u1', 'k1'], ['kehilot.lastKehila.u2', 'k9'],
-    ['kehilot.logo.k1', '{}'], ['kehilot.logo.k2', '{}'], ['kehilot.other', 'x'],
+    ['kehilot.logo.k1', '{}'], ['kehilot.logo.k2', '{}'], ['kehilot.schedule.v1.k1', '{}'], ['kehilot.schedule.v1.k2', '{}'], ['kehilot.other', 'x'],
   ]);
   const storage = { get: async (k: string) => data.get(k) ?? null, set: async () => {}, remove: async (k: string) => { data.delete(k); } };
   await clearSessionKeys(storage, 'u1', async () => [...data.keys()]);

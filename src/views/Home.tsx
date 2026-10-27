@@ -132,6 +132,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
       {schedule.state.status === 'error' ? <Card edgeColor={k.tekhelet}><Banner tone="error" text={t('schedule.error')} action={{ title: t('common.retry'), onPress: schedule.retry }} /></Card> : null}
       {doc && cardModel ? <ScheduleCard model={cardModel} doc={doc} cachedAt={schedule.state.status === 'ready' ? schedule.state.cachedAt : null} onFull={onSchedule ?? (() => {})} /> : null}
 
+      {schedule.state.status !== 'loading' ? (
       <CollapsibleCard title={t('home.zmanimTitle')} open={zmanimIsOpen} onToggle={toggleZmanim}
         summary={next && today ? t('home.zmanimNext', { zman: t(`zmanim.${next}`), time: clockTime(today.times[next]) }) : note ?? undefined}>
         {busy && !today ? <ActivityIndicator color={k.tekhelet} /> : null}
@@ -143,6 +144,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
         ))}
         {note ? <Banner tone={cached ? 'info' : 'error'} text={note} action={cached ? undefined : { title: t('common.retry'), onPress: () => setRevision(n => n + 1) }} /> : null}
       </CollapsibleCard>
+      ) : null}
 
       {!hasSchedule && schedule.state.status !== 'loading' ? (
       <Card edgeColor={k.gold}>

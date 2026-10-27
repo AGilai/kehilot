@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseCached } from '../src/schedule/cache.ts';
+import { parseCached, stateFor } from '../src/schedule/cache.ts';
 import { fixtureNow, fixtureScheduleDoc } from '../src/client/fixtures.ts';
 import { israelInstant } from '../src/seats/window.ts';
 import { israelNow } from '../src/schedule/week.ts';
@@ -210,4 +210,16 @@ test('a saved schedule copy is used only when it looks like one', () => {
 
 test('fixture clock: ?now= is Israel wall time, only in fixture mode', () => {
   assert.equal(fixtureNow('?now=2026-10-30T15:40'), null); // fixtures are off in tests
+});
+
+test('schedule state of another Kehila reads as loading', () => {
+  const held = { kehilaId: 'k1', state: { status: 'ready' as const, doc, cachedAt: null } };
+  assert.equal(stateFor(held, 'k1').status, 'ready');
+  assert.deepEqual(stateFor(held, 'k2'), { status: 'loading' });
+  assert.deepEqual(stateFor({ kehilaId: null, state: { status: 'error' } }, 'k1'), { status: 'loading' });
+});
+
+test('parasha names use hebcal Hebrew without niqqud, maqaf as a space', () => {
+  assert.equal(parashaOf('2026-10-24', 'he'), 'לך לך');
+  assert.ok(!/[\u0591-\u05C7]/.test(parashaOf('2027-07-24', 'he')!));
 });
