@@ -263,3 +263,93 @@ html[dir=rtl] .tile .th{border-radius:14px 4px 4px 14px;direction:rtl}
 .cards.b .tile .big{color:var(--on-deep)}
 .cards.dk .tile .th{background:var(--ash-bg);border-color:var(--ash)}
 .cards.dk .tile .big{color:var(--ash)}
+
+/* ---------- Families & privacy (P*) ----------
+   These frames draw the real app kit (src/kit/theme.ts tokens, src/kit/components.tsx), so developers build them 1:1
+   and QA can compare screenshots. --k-* mirror theme.ts exactly (light, then dark). */
+:root{--k-stone:#F6F7F2;--k-ink:#151A33;--k-tek:#2A3F94;--k-pom:#A32A47;--k-ash:#555B75;--k-gold:#8F6512;--k-olive:#44652A;--k-band:#161C44;--k-surface:#FFFFFF;--k-line:#DDE0D4;--k-muted:#555B75;--k-on:#FFFFFF;--k-danger:#A32A47}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A}}
+:root[data-theme="dark"]{--k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A}
+.phone.kit{background:var(--k-stone);color:var(--k-ink)}
+.phone.kit .sb{color:var(--k-ink)}
+/* TopBar: logo tile, Kehila name, chevron, bell */
+.ktop{min-height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px}
+.ktop .kn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-weight:700}
+.ktop .kn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.klogo{width:32px;height:32px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--k-tek);color:var(--k-on);font-weight:700}
+.ktop .bell{width:48px;height:48px;display:grid;place-items:center;font-size:19px}
+.kband{flex:none;min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--k-band);color:#fff;font-weight:700}
+.kband small{font-size:14px}
+.kscroll{flex:1;min-height:0;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:16px;position:relative}
+.kscroll>*{flex:none}
+.kscroll.fade::after{content:"";position:absolute;inset-inline:0;bottom:0;height:36px;background:linear-gradient(to bottom,transparent,var(--k-stone));pointer-events:none}
+.ktabs{flex:none;display:flex;border-top:1px solid var(--k-line);background:var(--k-surface)}
+.ktabs a{flex:1;min-height:56px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--k-muted);font-weight:700;font-size:14px;text-decoration:none}
+.ktabs a b{font-size:19px;font-weight:400}
+.ktabs a.on{color:var(--k-tek)}
+/* Txt sizes: 28 / 21 / 19 / 16 / 14 / 12.5, line height 1.5 */
+.kt{margin:0;font-size:16px;line-height:1.5}
+.kt.b{font-weight:700}.kt.s{font-size:14px}.kt.c{font-size:12.5px}.kt.m{color:var(--k-muted)}.kt.hd{font-size:19px}.kt.t{color:var(--k-tek)}.kt.r{color:var(--k-danger)}
+.kt.serif,.ktitle,.kh,.kdisp{font-family:var(--f-serif);font-weight:700}
+.ktitle{margin:0;font-size:21px;line-height:1.5}
+.kh{margin:0;font-size:19px;line-height:1.5}
+.kdisp{margin:0;font-size:28px;line-height:1.5}
+.knum{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.kback{min-height:48px;display:flex;align-items:center;align-self:flex-start;color:var(--k-tek);font-weight:700}
+/* Card */
+.kc{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.kc.e{border-inline-start:6px solid var(--e,var(--k-tek))}
+/* Button: primary / secondary / danger; busy shows a spinner instead of the title; disabled = .6 opacity */
+.kb{min-height:48px;padding:0 20px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;background:var(--k-tek);color:var(--k-on);font:700 16px/1.5 var(--f-ui);text-align:center}
+.kb.s{background:transparent;color:var(--k-tek);border:1.5px solid var(--k-tek)}
+.kb.d{background:var(--k-danger);color:var(--k-on)}
+.kb.off{opacity:.6}
+.kb.busy{opacity:.6}
+.kb.busy::before{content:"";width:20px;height:20px;border-radius:50%;border:2.5px solid currentColor;border-inline-end-color:transparent}
+.krow{display:flex;gap:8px;align-items:center}
+.krow>.kb{flex:1;width:auto;padding:0 12px}
+/* Field */
+.kf{display:flex;flex-direction:column;gap:6px}
+.kf>label{font-size:14px;font-weight:700}
+.kin{min-height:48px;border:1px solid var(--k-line);border-radius:10px;background:var(--k-surface);padding:0 12px;display:flex;align-items:center;font-size:16px;color:var(--k-ink)}
+.kin.ph{color:var(--k-muted)}
+.kin.err{border-color:var(--k-danger)}
+/* Chip */
+.kcp{display:inline-flex;align-items:center;min-height:48px;padding:0 16px;border-radius:24px;border:1.5px solid var(--k-line);background:var(--k-surface);font-size:14px;font-weight:700;white-space:nowrap}
+.kcp.on{border-color:var(--k-tek);background:var(--k-tek);color:var(--k-on)}
+/* Toggle: label + pill that says on/off */
+.ktg{min-height:48px;display:flex;align-items:center;gap:12px}
+.ktg>span{flex:1}
+.ktg>i{font-style:normal;min-width:56px;min-height:32px;padding:0 10px;border-radius:16px;display:grid;place-items:center;background:var(--k-line);color:var(--k-ink);font-size:12.5px;font-weight:700}
+.ktg>i.on{background:var(--k-olive);color:var(--k-on)}
+/* Banner */
+.kbn{--c:var(--k-tek);border:1px solid var(--c);border-inline-start-width:6px;border-radius:10px;background:var(--k-surface);padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5}
+.kbn.err{--c:var(--k-danger)}.kbn.ok{--c:var(--k-olive)}
+/* Tag (src/views/admin/shared.tsx) */
+.ktag{display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:12px;border:1px solid var(--k-line);background:var(--k-stone);color:var(--k-muted);font-size:12.5px;font-weight:700;white-space:nowrap}
+.ktag.st{border-color:var(--k-tek);color:var(--k-tek)}
+/* NEW Check: 24px box inside a 48px row */
+.kchk{min-height:48px;display:flex;align-items:flex-start;gap:12px;padding-top:12px}
+.kchk>i{flex:none;width:24px;height:24px;border-radius:6px;border:2px solid var(--k-muted);background:var(--k-surface);display:grid;place-items:center;font-style:normal;font-weight:700;font-size:15px;color:var(--k-on);margin-top:0}
+.kchk.on>i{background:var(--k-tek);border-color:var(--k-tek)}
+.kchk>span{flex:1}
+/* PickList row (extracted from Compose's family picker) */
+.kpick{min-height:48px;padding:6px 14px;border-radius:10px;border:1px solid var(--k-line);background:var(--k-surface);display:flex;flex-direction:column;justify-content:center}
+.kpick.on{border:2px solid var(--k-tek);font-weight:700}
+.kpicks{display:flex;flex-direction:column;gap:6px}
+/* list rows inside a Card */
+.kli{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 0;border-top:1px solid var(--k-line)}
+.kli .g{flex:1;min-width:0}
+.klink{color:var(--k-tek);font-weight:700;white-space:nowrap}
+/* Sheet + Toast */
+.kscrim{position:absolute;inset:0;background:rgba(21,26,51,.5);z-index:5}
+.ksheet{position:absolute;inset-inline:0;bottom:0;z-index:6;max-height:85%;background:var(--k-stone);border-radius:20px 20px 0 0;padding:16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.ktoast{position:absolute;inset-inline:24px;bottom:84px;z-index:7;display:flex;justify-content:center}
+.ktoast span{background:var(--k-band);color:#fff;border-radius:12px;padding:12px 16px;font-size:14px}
+/* frame layout: labelled state panels next to the phones */
+.kstates{display:flex;flex-direction:column;gap:22px;width:360px;max-width:100%;margin:8px}
+.kpanel{display:flex;flex-direction:column;gap:8px}
+.plabel{align-self:flex-start;font-size:12.5px;font-weight:700;color:var(--tek);background:var(--tek-bg);padding:2px 10px;border-radius:999px;margin:0}
+.kpanel>.kbody{background:var(--k-stone);color:var(--k-ink);border:1px solid var(--line2);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:16px}
+.cards.p .tile .th{background:var(--olive-bg);border-color:var(--olive)}
+.cards.p .tile .big{color:var(--olive)}

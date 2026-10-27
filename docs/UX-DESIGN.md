@@ -168,3 +168,279 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 ## 9. Verification status
 
 Checked by headless screenshots at phone and desktop widths: M1, M2, M3, M5, M6, M9, GM1, GD1, GD5, M4 in dark mode, and the index at 390 px (no horizontal scroll). Not individually screenshot-checked: M7, M8, M10, M11, GM2 to GM5, GD2 to GD4, GD6. Real Hebrew copy should be reviewed by a native editor.
+
+
+## 10. Families & privacy (P*)
+
+Added 2026-10-27 for `docs/superpowers/specs/2026-10-27-families-privacy-design.md`. Mockups: `design/mockups/frames/P1.html`
+to `P14.html` (index section "ד. משפחות ופרטיות"). Unlike the M/GM/GD drafts, **the P frames draw the shipped kit**
+(`src/kit/theme.ts` tokens, `src/kit/components.tsx`): TopBar with logo tile and 🔔, bottom tabs with glyphs, Card,
+Button (primary / secondary / danger), Field, Chip, Toggle (the "פעיל/כבוי" pill), Banner, Sheet, Toast and `Tag`
+from `admin/shared.tsx`. Build them 1:1; QA compares against them. Each frame has one or two phones plus labelled
+state panels. All names and numbers are invented.
+
+Dark mode: the frames use only `--k-*` variables in `shared.css`, which are the light and dark values of `theme.ts`
+exactly. Developers use `useTokens()`; no hard-coded colours (the Toast's `#FFFFFF` text and the band are as today).
+
+### 10.1 Screens
+
+| ID | Screen | Content | States | Kit |
+|---|---|---|---|---|
+| P1 | רשימת הטלפונים | Back, title, intro, search (same TextInput style as Members search), count, one Card per family: family display name (serif heading), then each adult who switched on: name, number (LTR, tabular) and a row of two secondary Buttons "☎ חיוג" (`tel:`) and "וואטסאפ" (`https://wa.me/<digits>`). Privacy note and "my settings" link at the end. Entry: a pressable Card on Home under the Shabbat card (members and gabbaim only) and the "פתיחת רשימת הטלפונים" button in Me. | Loading (spinner), error (Banner + retry), empty (nobody on; "show my phone" if I am off), no results, filtered. Listener: no entry point at all. | Txt, Card, Button, Banner |
+| P2 | אני · המשפחה שלי | Card "המשפחה שלי": adults (Tag "אני" on me), the action for the state, then children. Partner picker in a Sheet (search + PickList, footer "שליחת בקשה"). | none / request sent (Tag "ממתין לאישור", expiry date, withdraw) / request received (Banner + confirm / don't confirm) / not confirmed or expired (Banner, at the requester) / linked (unlink → inline confirm, danger + keep) / picker errors (30-day cooldown, already linked, no match). | Card, Tag, Banner, Button, Sheet, **PickList** |
+| P3 | ילד/ה: הוספה ועריכה | Sheet form: first name (Field, 60 code points), son/daughter (two Chips, required), date of birth (Field, optional, `d.m.yyyy` typed, stored `YYYY-MM-DD`). Edit adds "הסרה מהרשימה" with inline confirm. | add / edit / remove confirm / invalid or future date / gender missing / 20-child limit / empty list. | Sheet, Field, Chip, Button, Banner |
+| P4 | אני · טלפון ורשימה | Card "רשימת הטלפונים" right after Profile: my number (one for all Kehilot), change / remove, Toggle "show my phone in <Kehila>'s list" (current Kehila only), who sees it, "open the phone list". | no number (no Toggle, only "add"), editing (invalid number error, Save disabled when empty), switch off (offNote), toast on change. Listener: card hidden. | Card, Field, Toggle, Button, Toast |
+| P5 | אני · פרטיות ונתונים | Card near the end of Me, every role: Kehila privacy contact (as typed) or "not set", "על הקהילה" (P13), privacy policy (browser), "download my data". | export idle / preparing (busy Button + line) / ready (success Banner, primary "download", 10-minute note) / limit reached (info Banner, Button disabled) / error (retry). | Card, Button, Banner |
+| P6 | יציאה מהקהילה | Listeners now get the same "leave" Card and inline confirm as members. Members in a family see one more line about the family. | listener confirm, member-with-partner confirm. No "delete my posts" box: leaving never deletes posts. | Card, Button |
+| P7 | בית · כרטיסים חד־פעמיים | One card at a time under the greeting, above zmanim, in this order: gabbai linked you, partner request, imported notice, terms waiting (gabbai), phone-list invitation. Card with `edgeColor`: tekhelet = action, ash = imported (information), gold = terms. | phone invite with / without a number (Field inside, "save and show" disabled until valid); request confirm / don't confirm; gabbai link → "that's right" / unlink → inline confirm; imported → "got it"; terms → opens P8. | Card(edgeColor), Field, Button |
+| P8 | מסכים חוסמים | Age 13 for existing accounts: replaces the whole signed-in app (no TopBar, no tabs), AuthFrame layout, Check + Continue; "I am under 13" swaps in a Banner with delete account / sign out. Terms (gabbai): replaces every management tab of that Kehila until one gabbai accepts; one button "אישור התנאים בשם הקהילה", link to `/terms`. | unticked (Continue disabled), under 13, terms new version ("התנאים עודכנו"). | AuthFrame, **Check**, Card, Button, Banner |
+| P9 | הגדרת פרופיל | Today's ProfileSetup plus a Check "I am 13 or older" (unticked) with a note, and a privacy-policy link. Continue needs a first name and the tick; the save also records `age13` with the wording version. | unticked / ticked. | **Check**, Field, Chip, Button |
+| P10 | מחיקת החשבון | "What is deleted" gains i4 (new text) and i5. New Card: Check "also delete everything I posted" (unticked), the explanation for the current choice, the "either way" line and the 35-day backups line. Link "want a copy first?" to P5. Then today's type-the-word Card. `deleteAccount.kept` is no longer shown (its meaning is now `postsOff`). | unticked (explanation muted) / ticked (explanation in ink colour). | **Check**, Card, Field, Button |
+| P11 | גבאי · חברים ומשפחות | Each member card (and a "family" column on wide) gets one line: "family with X · children: n" or "no partner". "פעולות" shows a read-only family block (adults, children with birth year, read-only note). "קישור לבן/בת זוג" (only if no partner) opens a Sheet: first person fixed, PickList of members and gabbaim without a partner, what will happen, button with both names. No phone numbers on this screen. | 409 already linked (Banner in Sheet), success (Sheet closes, toast). | Card, Tag, Toggle, Button, Sheet, **PickList** |
+| P12 | גבאי · איש קשר לפרטיות | In Overview (there is no mobile settings screen), same view/edit pattern as the listener cap card: Field with `maxCodePoints=100`. A second Card shows who accepted the terms and when. On desktop the same card goes in the Kehila settings tab (GD3). | set / not set / editing / over 100 (counter red, Save disabled). | Card, Field, Button |
+| P13 | על הקהילה | Sheet titled with the Kehila name: my role (Tag), privacy contact, the roles sentence, privacy policy, Kehila terms. Opened from P5 and from the current-Kehila row of the switcher. | listener without contact. | Sheet, Tag |
+| P14 | בחירת משפחה לברכה | Compose's picker lists families: display name, adults' first names under it; stores `targetFamilyId` and an adult who can read the chosen channel as `targetMemberId`. A family with no adult who can read the channel is not listed. New note line under the picker. | no results. | PickList |
+
+Order of Me (member or gabbai): title, management mode, Profile, Phone list (P4), My family (P2), Language, Groups,
+Invite, My links, Notification preferences, Privacy and data (P5), Leave (P6), Sign out, Delete. Listener: Profile,
+Language, Groups, Notification preferences, Privacy and data, Leave, Sign out, Delete.
+
+Family display name (P1, P14): one last name if both adults share it, both joined with " · " if they differ
+("ניסיון · דמיון"), first names if there are no last names. Sorted with `Intl.Collator('he')`. Children are never
+shown in P1 or P14 and never in a push.
+
+Pushes (generic text, `data` = `{kehila, screen: 'family'}`): partner request → "בקשת קישור משפחה חדשה"; gabbai link →
+"הגבאי עדכן את פרטי המשפחה שלכם". The tap opens Home, where the P7 card is waiting.
+
+### 10.2 New components
+
+- **`Check`** (`src/kit/components.tsx`): `{ label: string; value: boolean; onChange: (v: boolean) => void; note?: string; disabled?: boolean }`.
+  A Pressable row, `minHeight: TOUCH`, `accessibilityRole="checkbox"`, `accessibilityState={{ checked, disabled }}`,
+  `accessibilityLabel=label`. Box 24×24, radius 6, border 2 `muted`, background `surface`; checked: background and border
+  `tekhelet`, a "✓" in `onAction` (uiBold, 15). Label `Txt` body, flex 1, top-aligned with the box (paddingTop 12).
+  `note` is a `Txt size="small" color=muted` under the row. Disabled: opacity .6. Used by P8, P9, P10.
+- **`PickList`** (extract Compose's family picker into `src/kit/`): `{ query: string; onQuery: (q: string) => void; placeholder: string; rows: { id: string; title: string; subtitle?: string }[]; selected: string | null; onSelect: (id: string) => void; empty: string; state: 'loading' | 'error' | 'ready'; errorText?: string; max?: number }`.
+  Same TextInput style as today; rows `minHeight: TOUCH`, radius 10, border 1 `line` (selected: border 2 `tekhelet`, bold,
+  "✓ " prefix), optional subtitle `Txt small muted`; gap 6; `max` default 8. Used by P2, P11, P14.
+- **`Tag`** moves from `src/views/admin/shared.tsx` to `src/kit/components.tsx` (member screens now use it), unchanged.
+
+No other new components: contact buttons are two secondary Buttons in a row; one-time cards are `Card` with
+`edgeColor`; inline confirms follow the existing leave/revoke pattern (text, danger Button, secondary Button).
+
+### 10.3 Copy
+
+New keys, Hebrew and English, to paste into `src/i18n/he.json` / `en.json` (dots are nesting). Keys that already
+exist and are reused unchanged are not listed. `deleteAccount.deleted.i4` replaces today's text.
+
+| Key | Hebrew | English |
+|---|---|---|
+| `phoneList.title` | רשימת הטלפונים | Phone list |
+| `phoneList.intro` | חברים וגבאים של {kehila} שבחרו להציג את המספר שלהם. | Members and gabbaim of {kehila} who chose to show their number. |
+| `phoneList.search` | חיפוש לפי שם | Search by name |
+| `phoneList.count` | {n} משפחות | {n} families |
+| `phoneList.call` | חיוג | Call |
+| `phoneList.whatsapp` | וואטסאפ | WhatsApp |
+| `phoneList.callA11y` | חיוג אל {name} | Call {name} |
+| `phoneList.whatsappA11y` | וואטסאפ אל {name} | WhatsApp {name} |
+| `phoneList.empty` | עדיין אף אחד לא בחר להופיע ברשימה. | Nobody has chosen to appear in the list yet. |
+| `phoneList.emptyJoin` | אפשר להיות הראשונים להופיע: | You can be the first to appear: |
+| `phoneList.showMine` | הצגת הטלפון שלי | Show my phone |
+| `phoneList.noResults` | לא נמצאה משפחה בשם "{q}". | No family named "{q}". |
+| `phoneList.noResultsHint` | אפשר לחפש לפי שם פרטי או שם משפחה. ברשימה מופיע רק מי שבחר להופיע. | Search by first or last name. Only people who chose to appear are listed. |
+| `phoneList.loadError` | לא הצלחנו לטעון את הרשימה. בדקו את החיבור ונסו שוב. | We couldn't load the list. Check your connection and try again. |
+| `phoneList.privacyNote` | הרשימה לא נשמרת בטלפון, ואי אפשר להעתיק או לשתף אותה. | The list is not saved on your phone and cannot be copied or shared. |
+| `phoneList.mySetting` | להופיע או להסתיר את המספר שלכם: בהגדרות שלי | To show or hide your number: my settings |
+| `home.phoneList` | רשימת הטלפונים | Phone list |
+| `home.phoneListSub` | מספרים של משפחות בקהילה | Numbers of families in the Kehila |
+| `me.phone.title` | רשימת הטלפונים | Phone list |
+| `me.phone.label` | מספר הטלפון שלי | My phone number |
+| `me.phone.none` | לא הוזן מספר. | No number entered. |
+| `me.phone.add` | הוספת מספר | Add a number |
+| `me.phone.edit` | שינוי המספר | Change number |
+| `me.phone.remove` | הסרת המספר | Remove number |
+| `me.phone.placeholder` | 050-0000000 | 050-0000000 |
+| `me.phone.hint` | המספר משמש רק לרשימת הטלפונים. | The number is used only for the phone list. |
+| `me.phone.invalid` | המספר לא נראה תקין. כתבו מספר ישראלי, למשל 050-0000000, או מספר בינלאומי שמתחיל ב־+. | That number doesn't look right. Use an Israeli number, e.g. 050-0000000, or an international one starting with +. |
+| `me.phone.saved` | המספר נשמר | Number saved |
+| `me.phone.removed` | המספר הוסר ולא מוצג באף רשימה | Number removed. It no longer shows in any list |
+| `me.phone.switch` | הצגת הטלפון שלי ברשימה של {kehila} | Show my phone in {kehila}'s list |
+| `me.phone.switchOff` | כבוי: המספר שלכם לא מוצג לאף אחד ב{kehila}. | Off: your number is not shown to anyone in {kehila}. |
+| `me.phone.who` | את הרשימה רואים רק חברים וגבאים של {kehila}. מתפללים אורחים וקהילות אחרות לא רואים אותה. | Only members and gabbaim of {kehila} see the list. Listeners and other Kehilot don't. |
+| `me.phone.needNumber` | כדי להופיע ברשימה, הוסיפו קודם מספר טלפון. | To appear in the list, add a phone number first. |
+| `me.phone.open` | פתיחת רשימת הטלפונים | Open the phone list |
+| `me.phone.shown` | המספר שלכם מוצג ברשימה | Your number is in the list |
+| `me.phone.hidden` | המספר שלכם הוסתר מהרשימה | Your number is hidden from the list |
+| `family.title` | המשפחה שלי | My family |
+| `family.intro` | המשפחה שלכם ב{kehila}. ברכות פרטיות למשפחה מגיעות לשני בני הזוג. | Your household in {kehila}. Private blessings to the family reach both adults. |
+| `family.me` | אני | Me |
+| `family.alone` | כרגע רק אתם במשפחה. | For now it's just you. |
+| `family.addPartner` | הוספת בן/בת הזוג | Add my partner |
+| `family.addHint` | בן/בת הזוג צריכים להיות חברים ב{kehila} ולאשר את הבקשה. | Your partner must be a member of {kehila} and confirm the request. |
+| `family.sent` | ממתין לאישור | Waiting |
+| `family.sentBody` | שלחתם בקשה ל{name}. אם לא תאושר, היא תפוג ב־{date}. | You sent a request to {name}. If it isn't confirmed, it expires on {date}. |
+| `family.withdraw` | ביטול הבקשה | Withdraw request |
+| `family.withdrawn` | הבקשה בוטלה | Request withdrawn |
+| `family.received` | {name} ביקש/ה לקשר אתכם כמשפחה אחת. | {name} asked to link you as one family. |
+| `family.confirm` | אישור | Confirm |
+| `family.decline` | לא לאשר | Don't confirm |
+| `family.declineNote` | אם לא תאשרו, {name} יראה/תראה רק שהבקשה לא אושרה. | If you don't confirm, {name} only sees that the request was not confirmed. |
+| `family.linked` | אתם מקושרים כמשפחה | You are linked as a family |
+| `family.notConfirmed` | הבקשה ל{name} לא אושרה. | Your request to {name} was not confirmed. |
+| `family.expired` | הבקשה ל{name} פגה אחרי 7 ימים. | Your request to {name} expired after 7 days. |
+| `family.unlink` | ביטול הקישור | Unlink |
+| `family.unlinkConfirm` | לבטל את הקישור עם {name}? תהיה לכם משפחה נפרדת עם עותק של רשימת הילדים. הברכות שהמשפחה קיבלה יישארו אצל {name}. | Unlink from {name}? You'll get a separate family with a copy of the children list. Blessings the family received stay with {name}. |
+| `family.unlinkYes` | כן, לבטל את הקישור | Yes, unlink |
+| `family.keep` | השארה | Keep |
+| `family.unlinked` | הקישור בוטל | Unlinked |
+| `family.pick.title` | הוספת בן/בת הזוג | Add my partner |
+| `family.pick.search` | חיפוש לפי שם | Search by name |
+| `family.pick.body` | הבקשה תגיע אליו/ה, והקישור ייווצר רק אחרי אישור. | They get a request; the link is made only once they confirm. |
+| `family.pick.hint` | מוצגים חברים וגבאים של {kehila} שעדיין לא מקושרים. | Showing members and gabbaim of {kehila} who aren't linked yet. |
+| `family.pick.none` | לא נמצא חבר בשם הזה שאפשר לקשר. | No member by that name who can be linked. |
+| `family.pick.send` | שליחת בקשה | Send request |
+| `family.pick.sent` | הבקשה נשלחה | Request sent |
+| `family.pick.cooldown` | אפשר לבקש שוב מ{name} החל מ־{date}. | You can ask {name} again from {date}. |
+| `family.pick.taken` | {name} כבר מקושר/ת לבן/בת זוג. | {name} already has a partner. |
+| `children.title` | ילדים · {n} | Children · {n} |
+| `children.empty` | לא נוספו ילדים. | No children added. |
+| `children.add` | הוספת ילד/ה | Add a child |
+| `children.shared` | רשימה אחת לכל המשפחה: כל אחד מבני הזוג יכול לעדכן. הגבאים רואים אותה ולא עורכים. ילדים לא מופיעים ברשימת הטלפונים. | One list for the whole family: either adult can edit it. Gabbaim can see it but not edit it. Children never appear in the phone list. |
+| `children.son` | בן | Son |
+| `children.daughter` | בת | Daughter |
+| `children.edit` | עריכה | Edit |
+| `children.max` | אפשר לרשום עד 20 ילדים במשפחה. | A family can list up to 20 children. |
+| `children.form.addTitle` | הוספת ילד/ה | Add a child |
+| `children.form.editTitle` | עריכת הפרטים של {name} | Edit {name} |
+| `children.form.firstName` | שם פרטי | First name |
+| `children.form.gender` | בן או בת | Son or daughter |
+| `children.form.birth` | תאריך לידה (לא חובה) | Date of birth (optional) |
+| `children.form.birthHint` | יום.חודש.שנה, למשל 31.12.2015 | Day.month.year, e.g. 31.12.2015 |
+| `children.form.birthInvalid` | התאריך לא תקין. כתבו יום.חודש.שנה. | That date isn't valid. Use day.month.year. |
+| `children.form.birthFuture` | תאריך הלידה לא יכול להיות בעתיד. | The date of birth can't be in the future. |
+| `children.form.pickGender` | בחרו בן או בת | Choose son or daughter |
+| `children.form.save` | שמירה | Save |
+| `children.form.saved` | הפרטים נשמרו | Saved |
+| `children.form.remove` | הסרה מהרשימה | Remove from the list |
+| `children.form.removeConfirm` | להסיר את {name} מרשימת הילדים? הפרטים יימחקו גם אצל בן/בת הזוג. | Remove {name} from the children list? It is removed for your partner too. |
+| `children.form.removeYes` | כן, להסיר | Yes, remove |
+| `children.form.removed` | הוסר/ה מהרשימה | Removed from the list |
+| `privacy.title` | פרטיות ונתונים | Privacy and data |
+| `privacy.contact` | פניות על המידע שלכם ב{kehila}: | Questions about your data in {kehila}: |
+| `privacy.contactNone` | הקהילה עוד לא הגדירה איש קשר לפרטיות. אפשר לפנות לגבאים. | The Kehila hasn't set a privacy contact yet. You can ask the gabbaim. |
+| `privacy.policy` | מדיניות הפרטיות | Privacy policy |
+| `privacy.about` | על הקהילה | About this Kehila |
+| `export.title` | הורדת הנתונים שלי | Download my data |
+| `export.body` | קובץ ZIP עם הפרופיל, המשפחה, ההסכמות שנתתם וכל מה שכתבתם, בכל הקהילות שלכם. | A ZIP file with your profile, family, the consents you gave and everything you wrote, across all your Kehilot. |
+| `export.start` | הכנת הקובץ | Prepare the file |
+| `export.preparing` | מכינים את הקובץ. זה יכול לקחת עד דקה. | Preparing your file. This can take up to a minute. |
+| `export.ready` | הקובץ מוכן. | Your file is ready. |
+| `export.download` | הורדת הקובץ | Download the file |
+| `export.readyNote` | הקישור פעיל 10 דקות. הקובץ נמחק מהשרת אחרי יום. | The link works for 10 minutes. The file is deleted from the server after a day. |
+| `export.limit` | כבר הכנתם קובץ היום. אפשר להכין קובץ חדש מחר. | You already prepared a file today. You can prepare a new one tomorrow. |
+| `export.failed` | לא הצלחנו להכין את הקובץ. נסו שוב. | We couldn't prepare the file. Try again. |
+| `me.leave.action` | יציאה מהקהילה | Leave the Kehila |
+| `me.leave.confirmListener` | לצאת מהקהילה: {kehila}? תפסיקו לקבל ממנה הודעות. אפשר לחזור בקישור הזמנה חדש. | Leave the Kehila: {kehila}? You will stop getting its messages. You can come back with a new invite link. |
+| `me.leave.family` | תצאו גם מהמשפחה שלכם בקהילה. {name} יישאר/תישאר בה עם רשימת הילדים. | You'll also leave your family here. {name} keeps it, with the children list. |
+| `me.leave.posts` | ההודעות שכתבתם בקהילה יישארו. | Messages you wrote here stay. |
+| `me.leave.yes` | כן, יציאה | Yes, leave |
+| `cards.phone.title` | להופיע ברשימת הטלפונים? | Appear in the phone list? |
+| `cards.phone.body` | חברי {kehila} יוכלו למצוא את המספר שלכם ולהתקשר. רק חברים וגבאים רואים את הרשימה. אפשר לשנות בכל עת ב"אני". | Members of {kehila} could find your number and call you. Only members and gabbaim see the list. You can change this any time in Me. |
+| `cards.phone.yes` | כן, להציג | Yes, show it |
+| `cards.phone.saveShow` | שמירה והצגה | Save and show |
+| `cards.phone.notNow` | לא עכשיו | Not now |
+| `cards.request.title` | בקשת קישור משפחה | Family link request |
+| `cards.request.body` | {name} ביקש/ה לקשר אתכם כמשפחה אחת ב{kehila}. אחרי האישור תהיה לכם רשימת ילדים משותפת, וברכות למשפחה יגיעו לשניכם. | {name} asked to link you as one family in {kehila}. Once you confirm you'll share one children list, and blessings to the family reach you both. |
+| `cards.gabbai.title` | הגבאי קישר אתכם כמשפחה | The gabbai linked you as a family |
+| `cards.gabbai.body` | {gabbai} קישר/ה אתכם עם {name} כמשפחה אחת ב{kehila}. לא נכון? אפשר לבטל. | {gabbai} linked you with {name} as one family in {kehila}. Not right? You can undo it. |
+| `cards.gabbai.ok` | זה נכון | That's right |
+| `cards.imported.title` | הקהילה {kehila} הוסיפה אתכם מרשימת החברים שלה | {kehila} added you from its members list |
+| `cards.imported.body` | מה נשמר: השם, כתובת הדוא״ל, התפקיד והקבוצות שלכם בקהילה. למה: כדי שתקבלו את הודעות הקהילה ותוכלו להשתתף. הקהילה אחראית למידע הזה, ופלטפורמת קהילות מפעילה את השירות עבורה. | What is stored: your name, email address, role and groups in the Kehila. Why: so you get the Kehila's messages and can take part. The Kehila is responsible for this data; the Kehilot platform runs the service for it. |
+| `cards.imported.ok` | הבנתי | Got it |
+| `cards.imported.leave` | לא רוצים להיות כאן? אפשר לצאת מהקהילה ב"אני". | Don't want to be here? You can leave the Kehila in Me. |
+| `cards.terms.title` | התנאים לקהילה ממתינים לאישור | The Kehila terms are waiting |
+| `cards.terms.body` | מסכי הניהול של {kehila} ייפתחו אחרי שגבאי אחד יאשר את התנאים. כל השאר עובד כרגיל. | {kehila}'s management screens open once one gabbai accepts the terms. Everything else works as usual. |
+| `cards.terms.open` | לקריאה ולאישור | Read and accept |
+| `age13.title` | רגע לפני שממשיכים | One moment before you continue |
+| `age13.body` | קהילות מיועדת לבני 13 ומעלה. אשרו את גילכם כדי להמשיך. | Kehilot is for people aged 13 and over. Confirm your age to continue. |
+| `age13.check` | אני בן/בת 13 ומעלה | I am 13 or older |
+| `age13.continue` | המשך | Continue |
+| `age13.under` | אני מתחת לגיל 13 | I am under 13 |
+| `age13.underBody` | מצטערים, האפליקציה מיועדת לבני 13 ומעלה. אפשר למחוק את החשבון עכשיו, או לצאת ולחזור כשתגיעו לגיל 13. | Sorry, the app is for people aged 13 and over. You can delete your account now, or sign out and come back when you're 13. |
+| `terms.title` | התנאים בין הקהילה לבין קהילות | Terms between the Kehila and Kehilot |
+| `terms.updatedTitle` | התנאים עודכנו | The terms have changed |
+| `terms.intro` | לפני ניהול {kehila}, גבאי אחד צריך לאשר את התנאים. האישור שלכם יחול על כל הקהילה. | Before managing {kehila}, one gabbai accepts these terms. Your acceptance covers the whole Kehila. |
+| `terms.p1` | הקהילה אחראית למידע של חבריה. קהילות מפעילה את השירות עבורה ומשתמשת במידע רק לשם כך. | The Kehila is responsible for its members' data. Kehilot runs the service for it and uses the data only for that. |
+| `terms.p2` | המידע נשמר מוצפן בשרתי AWS בישראל, וכל אחד רואה רק מה שהתפקיד שלו מאפשר. | Data is stored encrypted on AWS servers in Israel, and everyone sees only what their role allows. |
+| `terms.p3` | ספקי משנה: AWS (שרתים ואחסון), Expo (התראות, טקסט כללי בלבד), Google ו־Apple (כניסה, למי שבוחר בהן). | Sub-processors: AWS (servers and storage), Expo (notifications, generic text only), Google and Apple (sign-in, for those who use them). |
+| `terms.p4` | כשהקהילה מפסיקה להשתמש בשירות, המידע שלה נמחק. | When the Kehila stops using the service, its data is deleted. |
+| `terms.read` | קריאת התנאים המלאים | Read the full terms |
+| `terms.accept` | אישור התנאים בשם הקהילה | Accept the terms for the Kehila |
+| `terms.accepted` | התנאים אושרו. מסכי הניהול פתוחים | Terms accepted. Management is open |
+| `terms.others` | כל השאר באפליקציה, כולל רשימת הטלפונים, ממשיך לעבוד גם בלי האישור. | Everything else in the app, including the phone list, keeps working without it. |
+| `profileSetup.age13` | אני בן/בת 13 ומעלה | I am 13 or older |
+| `profileSetup.age13Note` | האפליקציה מיועדת לבני 13 ומעלה. | The app is for people aged 13 and over. |
+| `profileSetup.privacy` | מה נשמר ולמה: מדיניות הפרטיות | What we store and why: privacy policy |
+| `deleteAccount.deleted.i4` | המקום שלכם במשפחה בכל קהילה. אם אתם האחרונים במשפחה, גם רשימת הילדים נמחקת. | Your place in your family in each Kehila. If you are the last adult, the children list is deleted too. |
+| `deleteAccount.deleted.i5` | מספר הטלפון, ההגדרות וההסכמות שלכם, ובקשות קישור משפחה פתוחות. | Your phone number, settings and consents, and any open family link requests. |
+| `deleteAccount.posts` | למחוק גם את כל מה שפרסמתי (הודעות, תמונות, שיחה) | Also delete everything I posted (messages, photos, chat) |
+| `deleteAccount.postsOff` | לא מסומן: ההודעות שכתבתם יישארו בלי שמכם, ותמונות שצירפתם יישארו איתן. | Unticked: messages you wrote stay without your name, with any photos you attached. |
+| `deleteAccount.postsOn` | מסומן: כל ההודעות, הודעות השיחה והברכות הפרטיות שכתבתם, בכל הקהילות, יימחקו לכולם יחד עם התמונות. גם התגובות שנכתבו להודעות האלה יימחקו. | Ticked: every message, chat message and private blessing you wrote, in every Kehila, is removed for everyone with its photos. Replies under those messages are removed too. |
+| `deleteAccount.always` | בכל מקרה: ברכות שאחרים כתבו עליכם יישארו בלי שמכם. | Either way: blessings others wrote about you stay, without your name. |
+| `deleteAccount.backups` | עותקי גיבוי נשמרים עד 35 יום ואז נמחקים. | Backups keep the data for up to 35 days, then it is gone. |
+| `deleteAccount.exportFirst` | רוצים עותק קודם? הורדת הנתונים שלי | Want a copy first? Download my data |
+| `admin.members.family` | משפחה | Family |
+| `admin.members.familyWith` | משפחה עם {name} | Family with {name} |
+| `admin.members.familyAlone` | ללא בן/בת זוג | No partner |
+| `admin.members.children` | ילדים: {n} | Children: {n} |
+| `admin.members.readOnly` | הגבאים רואים את פרטי המשפחה ולא עורכים אותם. המשפחה מעדכנת אותם ב"אני". | Gabbaim see family details but don't edit them. The family updates them in Me. |
+| `admin.members.link` | קישור לבן/בת זוג | Link to a partner |
+| `admin.link.title` | קישור שני חברים כמשפחה | Link two members as a family |
+| `admin.link.with` | עם מי לקשר את {name}? | Who should {name} be linked with? |
+| `admin.link.hint` | מוצגים חברים וגבאים שאין להם בן/בת זוג. | Showing members and gabbaim without a partner. |
+| `admin.link.notice` | שניהם יקבלו התראה וכרטיס עם אפשרות לבטל. בקשות קישור פתוחות שלהם יימחקו. | Both get a notification and a card with an undo. Their open link requests are deleted. |
+| `admin.link.confirm` | קישור {a} ו{b} | Link {a} and {b} |
+| `admin.link.done` | הקישור נשמר. שניהם קיבלו הודעה | Linked. Both have been told |
+| `admin.link.taken` | {name} כבר מקושר/ת לבן/בת זוג. | {name} already has a partner. |
+| `admin.link.none` | לא נמצא חבר מתאים. | No matching member. |
+| `admin.overview.privacy.title` | איש קשר לפרטיות | Privacy contact |
+| `admin.overview.privacy.body` | למי פונים חברים בשאלות על המידע שלהם: שם, טלפון או דוא״ל. מוצג לכל מי שבקהילה. | Who members contact about their data: a name, phone or email. Shown to everyone in the Kehila. |
+| `admin.overview.privacy.none` | לא הוגדר | Not set |
+| `admin.overview.privacy.edit` | עריכה | Edit |
+| `admin.overview.privacy.field` | איש קשר לפרטיות | Privacy contact |
+| `admin.overview.privacy.saved` | איש הקשר נשמר | Contact saved |
+| `admin.overview.terms.title` | התנאים בין הקהילה לבין קהילות | Terms between the Kehila and Kehilot |
+| `admin.overview.terms.accepted` | אושרו על ידי {name} ב־{date} | Accepted by {name} on {date} |
+| `kehilaInfo.role` | התפקיד שלכם | Your role |
+| `kehilaInfo.contact` | פניות בנושא פרטיות | Privacy questions |
+| `kehilaInfo.roles` | הקהילה אחראית למידע של חבריה. את השירות מפעילה פלטפורמת קהילות. | The Kehila is responsible for its members' data. The Kehilot platform runs the service. |
+| `kehilaInfo.terms` | התנאים בין הקהילה לבין קהילות | Terms between the Kehila and Kehilot |
+| `compose.familyNote` | ברכות פרטיות יגיעו לכל המבוגרים במשפחה שנבחרה. | Private blessings reach every adult in the chosen family. |
+| `compose.familyAnd` | {a} ו{b} | {a} and {b} |
+| `push.familyRequest` | בקשת קישור משפחה חדשה | New family link request |
+| `push.familyGabbai` | הגבאי עדכן את פרטי המשפחה שלכם | The gabbai updated your family details |
+| `common.policyLink` | מדיניות הפרטיות | Privacy policy |
+
+Also change: `admin.members.count` stays; `me.leave.confirm` stays for members (P6 adds `me.leave.family` and `me.leave.posts`
+under it); `deleteAccount.kept` is no longer rendered.
+
+### 10.4 Decisions the spec left open (for the CTO to check)
+
+1. **One one-time card at a time** on Home, in a fixed priority order (P7), rather than a stack.
+2. **Age gate exit:** "I am under 13" offers delete account or sign out (spec says only that they may not use the app).
+3. **Terms acceptance is one button** ("אישור התנאים בשם הקהילה"), no extra checkbox. A gabbai also sees a
+   non-blocking Home card while the terms wait.
+4. **Phone-list entry on Home** is a pressable Card under the Shabbat card (Home has no menu today); in Me it is a button
+   in the phone-list card.
+5. **Family display name** with two different last names: "A · B".
+6. **Gabbai privacy contact** lives in Overview on mobile (no settings screen exists) and in GD3 on desktop.
+7. **Kehila info** is a new Sheet (no screen existed), opened from Me and from the switcher.
+8. **Export link expiry:** after the 10-minute link expires the same day, the card shows "limit reached" (429). The
+   server could instead re-issue a link to the day's ZIP; that would need a small API change.
+9. **Removing the phone number** keeps the per-Kehila switches as they are; they take effect again with a new number.
+10. **Blessing picker** hides families with no adult who can read the chosen channel.
+
+### 10.5 Verification
+
+Screenshot-checked at 1440 wide: P1 to P14, M7 for comparison, P7 also in dark mode, the index at 390 px.
+Not checked: English (LTR) rendering of these frames, and real device fonts. The Hebrew copy should be reviewed by a
+native editor; the terms summary (P8) and the privacy texts by the user's lawyer.
