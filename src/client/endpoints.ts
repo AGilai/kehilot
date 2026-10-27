@@ -1,8 +1,10 @@
 import type { Http } from './http.ts';
 import type {
-  AdminFamily, Candidate, Channel, ChannelCreated, Child, ChildFields, DismissCard, ExportLink, FamilyView, PhoneListFamily, TargetFamily, ChannelFields, ChangesPage, Classification, DirectoryEntry, Group, GroupMemberRow, GroupMembership,
+  AdminFamily, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
+  DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
-  MemberFields, MemberRow, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply, RequestRow, UploadGrant,
+  MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
+  RequestRow, TargetFamily, UploadGrant,
 } from './types.ts';
 
 const e = encodeURIComponent;

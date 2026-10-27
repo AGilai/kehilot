@@ -13,6 +13,10 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
+/** Screens for the P-frames. `me-linked` is P2's main state and P6's member-with-a-partner check;
+ *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
+export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
+
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
   'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
@@ -53,10 +57,22 @@ export function fixtureParams(): FixtureParams {
 }
 
 // All names below are invented.
-export function createFixtureApi(role: Role, screen: string | null = null, lang: Lang | null = null, card: string | null = null) {
+export function createFixtureApi(roleIn: Role, screen: string | null = null, lang: Lang | null = null, card: string | null = null) {
   assertFixturesAllowed();
+  // P6 (leave the Kehila) is a guest-listener frame whatever ?role says.
+  const role: Role = screen === 'leave-listener' ? 'listener' : roleIn;
+  // Screens for the P1-P14 frames use the frames' Kehila and people (design/mockups/frames).
+  const frame = !!screen && FRAME_SCREENS.includes(screen);
+  const meFirst = card === 'request' || screen === 'me-request' ? 'יוסי' : screen === 'leave-listener' ? 'רון' : 'דנה';
+  const meLast = screen === 'leave-listener' ? 'אורח' : 'בדיוני';
+  const meName = `${meFirst} ${meLast}`;
+  const PRIVACY_CONTACT = 'עמית דוגמה, גבאי · pratiyut@example.org';
+  const TERMS_AT = Math.floor(Date.parse('2026-10-27T10:00:00+02:00') / 1000);
+  // P4 main state: a number on file and the switch on. P1 empty: a number, switch off.
+  const phoneOn = !!screen && ['me', 'me-family', 'me-request', 'me-linked', 'child-sheet', 'partner-picker', 'phone-list'].includes(screen);
+  const hasPhone = phoneOn || screen === 'phone-list-empty' || card === 'phone';
   const kehila: Kehila = {
-    kehilaId: '01FIXTUREKEHILA0000000001', name: 'קהילת בדיוני', role, classification: '', logoVersion: null,
+    kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין נווה דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: null,
     canBroadcast: role === 'gabbai', pendingRequest: false,
     // ?screen=m5 shows M5 with some choices already made (one muted channel, type and member).
     notify: screen === 'm5'
@@ -64,24 +80,24 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
       : { mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [] },
     // A listener admitted to the youth group reads its channel and posts in its chat (spec §3c).
     groups: role === 'listener' ? ['01FIXTUREGROUP00000000001'] : [], adminGroups: [], settings: { pollSeconds: 60 },
-    privacyContact: screen === 'kehila-info' || screen === 'overview-privacy' ? 'gabbai@example.invalid' : '',
-    showPhone: screen === 'privacy-ready' || screen === 'phone-list' || screen === 'phone-list-empty' ? true : false,
+    privacyContact: screen === 'kehila-info' || screen === 'overview-privacy' || screen === 'privacy' || screen === 'privacy-ready' ? PRIVACY_CONTACT : '',
+    showPhone: phoneOn,
     cards: {
-      gabbaiLink: card === 'gabbai' ? { gabbaiName: 'יוסי לדוגמה', partnerName: 'אבי דמיון' } : null,
-      request: card === 'request' ? { fromUserId: '01FIXTUREUSER00000000005', fromName: 'אבי דמיון' } : null,
+      gabbaiLink: card === 'gabbai' ? { gabbaiName: 'עמית דוגמה', partnerName: 'דנה בדיוני' } : null,
+      request: card === 'request' ? { fromUserId: '01FIXTUREUSER00000000005', fromName: 'דנה בדיוני' } : null,
       imported: card === 'imported',
       phoneAsk: card === 'phone' || card === 'phone-nonumber',
       terms: role === 'gabbai' && (screen === 'terms' || card === 'terms'),
     },
-    ...(role === 'gabbai' ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'דנה בדויה', at: Math.floor(Date.now() / 1000) - 3 * 86400 } } : {}),
+    ...(role === 'gabbai' ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'עמית דוגמה', at: TERMS_AT } } : {}),
   };
   const me = {
     userId: '01FIXTUREUSER00000000001', email: 'dana@example.invalid',
     // ?screen=profile shows the profile form; ?screen=switcher gives three Kehilot and no remembered choice.
     profile: screen === 'profile' || screen === 'profile-age' ? null : {
-      firstName: lang === 'en' ? 'Dana' : 'דנה', lastName: lang === 'en' ? 'Example' : 'בדויה', lang: lang ?? ('he' as Lang),
-      // A number is on file for the "ready" privacy state and the phone card; the rest have none.
-      phone: screen === 'privacy-ready' || card === 'phone' || screen === 'phone-list' ? '+972500000001' : null,
+      firstName: lang === 'en' ? (meFirst === 'יוסי' ? 'Yossi' : 'Dana') : frame ? meFirst : 'דנה', lastName: lang === 'en' ? 'Example' : frame ? meLast : 'בדויה', lang: lang ?? ('he' as Lang),
+      // A number is on file where the frame shows one (P4, P1, P7 phone card); the rest have none.
+      phone: hasPhone ? '+972500000001' : null,
     },
     age13Required: screen === 'age13' || screen === 'age13-under' || screen === 'profile-age',
     kehilot: [
@@ -173,7 +189,15 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', createdAt: secs(now - 30 * H), previouslyRejected: false },
     { userId: '01FIXTUREUSER00000000012', displayName: 'אורי לדוגמה', createdAt: secs(now - 5 * H), previouslyRejected: true },
   ];
-  const memberRows = [
+  const adminFam = screen === 'admin-families' || screen === 'admin-link';
+  const U = (n: number) => `01FIXTUREUSER000000000${n}`;
+  const memberRows = adminFam ? [
+    { userId: U(21), displayName: 'דנה בדיוני', role: 'member', classification: 'א', canBroadcast: true, groups: [] },
+    { userId: U(22), displayName: 'יוסי בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [] },
+    { userId: U(23), displayName: 'מיכל דוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: [] },
+    { userId: U(24), displayName: 'אבי ניסיון', role: 'member', classification: '', canBroadcast: false, groups: [] },
+    { userId: U(25), displayName: 'אברהם אלמוני', role: 'member', classification: '', canBroadcast: false, groups: [] },
+  ] : [
     { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'] },
     { userId: 'm1', displayName: 'יוסי לדוגמה', role: 'gabbai', classification: 'א', canBroadcast: true, groups: [] },
     { userId: 'u7', displayName: 'רון לדוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001', '01FIXTUREGROUP00000000002'] },
@@ -217,32 +241,37 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     },
     custom: { celebration: { en: 'Mazal tov!' } },
   };
-  routes[`GET /v1/kehilot/${kehila.kehilaId}`] = { ...kehila, settings: { pollSeconds: 60, maxListeners: 500 }, listenerCount: 37 };
+  routes[`GET /v1/kehilot/${kehila.kehilaId}`] = { ...kehila, settings: { pollSeconds: 60, maxListeners: screen === 'overview-privacy' ? 100 : 500 }, listenerCount: screen === 'overview-privacy' ? 42 : 37 };
   routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] = [
     ...(routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] as unknown[]),
     { code: '3B6D9F2HKM', role: 'member', usesLeft: 3, expiresAt: secs(now + 3 * 24 * H), mine: false },
   ];
   // Families, phone list and privacy (invented names; times are Unix seconds).
-  const partner = { userId: '01FIXTUREUSER00000000005', displayName: 'אבי דמיון', me: false };
-  const meAdult = { userId: me.userId, displayName: 'דנה בדויה', me: true };
+  const partner = { userId: '01FIXTUREUSER00000000005', displayName: 'יוסי בדיוני', me: false };
+  const meAdult = { userId: me.userId, displayName: meName, me: true };
+  // P2/P3 main state: three children, one without a birth date.
   const kids: Child[] = [
-    { id: '01FIXTURECHILD00000000001', firstName: 'נועם', gender: 'm', birthDate: '2015-03-02' },
-    { id: '01FIXTURECHILD00000000002', firstName: 'שירה', gender: 'f' },
+    { id: '01FIXTURECHILD00000000001', firstName: 'נועה', gender: 'f', birthDate: '2015-03-12' },
+    { id: '01FIXTURECHILD00000000002', firstName: 'איתי', gender: 'm', birthDate: '2018-09-04' },
+    { id: '01FIXTURECHILD00000000003', firstName: 'אורי', gender: 'm' },
   ];
-  const linked = screen === 'me-linked' || screen === 'admin-link';
+  // `me-linked` is P2's main state and also P6's member-with-a-partner check; `child-sheet` has the same family.
+  const linked = screen === 'me-linked' || screen === 'child-sheet';
   const familyView: FamilyView = {
-    familyId: '01FIXTUREFAMILY0000000001', name: linked ? 'משפחת ניסיון' : 'משפחת בדויה',
+    familyId: '01FIXTUREFAMILY0000000001', name: 'בדיוני',
     adults: linked ? [meAdult, partner] : [meAdult],
-    children: screen === 'me-request' || screen === 'partner-picker' ? [] : kids,
+    children: linked ? kids : [],
     sent: null,
-    received: screen === 'me-request' ? [{ fromUserId: partner.userId, fromName: partner.displayName, expiresAt: secs(now + 6 * 24 * H) }] : [],
+    received: screen === 'me-request' ? [{ fromUserId: partner.userId, fromName: 'דנה בדיוני', expiresAt: secs(now + 6 * 24 * H) }] : [],
     notice: null,
   };
   routes[`GET ${K}/family`] = familyView;
   routes[`GET ${K}/family/candidates`] = [
-    { userId: partner.userId, displayName: partner.displayName },
-    { userId: '01FIXTUREUSER00000000006', displayName: 'רותי דמיון' },
-    { userId: '01FIXTUREUSER00000000007', displayName: 'מיכל דוגמה', cooldownUntil: secs(now + 20 * 24 * H) },
+    { userId: partner.userId, displayName: 'יוסי בדיוני' },
+    { userId: '01FIXTUREUSER00000000006', displayName: 'יונתן דוגמה' },
+    { userId: '01FIXTUREUSER00000000007', displayName: 'יואב ניסיון' },
+    { userId: '01FIXTUREUSER00000000008', displayName: 'רותי דמיון' },
+    { userId: '01FIXTUREUSER00000000009', displayName: 'מיכל דוגמה' },
   ];
   const phoneFamilies = screen === 'phone-list-empty' ? [] : [
     { familyId: '01FIXTUREFAMILY0000000002', name: 'אלמוני', people: [{ userId: 'u21', name: 'שרה אלמוני', phone: '+972500000005' }] },
@@ -253,20 +282,23 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   routes[`GET ${K}/phone-list`] = phoneFamilies;
   routes[`PUT ${K}/me/phone-list`] = { show: true };
   routes[`GET ${K}/families`] = [
-    { familyId: '01FIXTUREFAMILY0000000003', name: 'משפחת בדיוני', firstNames: ['דנה', 'יוסי'], targetMemberId: 'u22' },
-    { familyId: '01FIXTUREFAMILY0000000004', name: 'משפחת דוגמה', firstNames: ['מיכל'], targetMemberId: 'u24' },
-    { familyId: '01FIXTUREFAMILY0000000005', name: 'משפחת ניסיון', firstNames: ['אבי', 'רותי'], targetMemberId: 'u25' },
+    { familyId: '01FIXTUREFAMILY0000000003', name: 'בדיוני', firstNames: ['דנה', 'יוסי'], targetMemberId: U(21) },
+    { familyId: '01FIXTUREFAMILY0000000004', name: 'בן דמיון', firstNames: ['רון'], targetMemberId: 'u24' },
+    { familyId: '01FIXTUREFAMILY0000000005', name: 'ניסיון · דמיון', firstNames: ['אבי', 'רותי'], targetMemberId: 'u25' },
   ];
+  // P11: דנה and יוסי with three children, מיכל alone with one, and two members free to link.
   routes[`GET ${A}/families`] = [
-    { familyId: familyView.familyId, name: 'משפחת ניסיון', adults: [{ userId: me.userId, displayName: 'דנה בדויה' }, { userId: partner.userId, displayName: 'אבי דמיון' }], children: [{ firstName: 'נועם', gender: 'm', birthYear: 2015 }, { firstName: 'שירה', gender: 'f' }] },
-    { familyId: '01FIXTUREFAMILY0000000003', name: 'משפחת בדיוני', adults: [{ userId: 'u22', displayName: 'דנה בדיוני' }], children: [] },
-    { familyId: '01FIXTUREFAMILY0000000004', name: 'משפחת דוגמה', adults: [{ userId: 'u24', displayName: 'מיכל דוגמה' }], children: [{ firstName: 'תמר', gender: 'f', birthYear: 2019 }] },
+    { familyId: '01FIXTUREFAMILY0000000003', name: 'בדיוני', adults: [{ userId: U(21), displayName: 'דנה בדיוני' }, { userId: U(22), displayName: 'יוסי בדיוני' }], children: [{ firstName: 'נועה', gender: 'f', birthYear: 2015 }, { firstName: 'איתי', gender: 'm', birthYear: 2018 }, { firstName: 'אורי', gender: 'm' }] },
+    { familyId: '01FIXTUREFAMILY0000000004', name: 'דוגמה', adults: [{ userId: U(23), displayName: 'מיכל דוגמה' }], children: [{ firstName: 'תמר', gender: 'f', birthYear: 2019 }] },
+    { familyId: '01FIXTUREFAMILY0000000005', name: 'ניסיון', adults: [{ userId: U(24), displayName: 'אבי ניסיון' }], children: [] },
+    { familyId: '01FIXTUREFAMILY0000000006', name: 'אלמוני', adults: [{ userId: U(25), displayName: 'אברהם אלמוני' }], children: [] },
   ];
   routes[`POST ${A}/families/link`] = { familyId: familyView.familyId };
   routes[`POST ${A}/terms`] = { at: secs(now) };
   routes['PUT /v1/me/phone'] = { phone: '+972500000001' };
   routes['POST /v1/me/consents/age13'] = undefined;
-  routes['GET /v1/me/export'] = { url: FIXTURE_PICTURE, expiresAt: secs(now + 600_000) };
+  // P5: `privacy` is idle (no file yet), `privacy-ready` has a link.
+  if (screen === 'privacy-ready') routes['GET /v1/me/export'] = { url: FIXTURE_PICTURE, expiresAt: secs(now + 600_000) };
   routes['POST /v1/me/export'] = { url: FIXTURE_PICTURE, expiresAt: secs(now + 600_000) };
   routes[`POST ${K}/family/unlink`] = { ...familyView, adults: [meAdult] };
   routes[`POST ${K}/family/requests`] = { toUserId: partner.userId, expiresAt: secs(now + 7 * 24 * H) };
@@ -281,6 +313,7 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
   for (const c of ['gabbai_link', 'imported', 'phone']) routes[`POST ${K}/me/cards/${c}/dismiss`] = undefined;
   const http: Http = {
     async request(method, path, body) {
+      if (method === 'GET' && path === '/v1/me/export' && !('GET /v1/me/export' in routes)) throw new ApiCodeError(404, 'export_not_found');
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;
       if (screen === 'search-loading' && method === 'GET' && key.endsWith('/messages') && path.includes('before=')) throw new ApiCodeError(503, 'network');

@@ -90,7 +90,6 @@ test('fixture api answers every new endpoint', async () => {
   await api.age13Consent();
   await api.dismissCard(k, 'phone');
   await api.putPhoneList(k, true);
-  assert.ok((await api.exportStatus()).url);
   assert.ok((await api.startExport()).expiresAt > 0);
 });
 
@@ -112,4 +111,21 @@ test('fixture screens are listed and cards follow ?card=', async () => {
   assert.equal((await createFixtureApi('member', 'home').kehila(k)).cards.phoneAsk, false);
   assert.equal((await createFixtureApi('member', 'age13').me()).age13Required, true);
   assert.equal((await createFixtureApi('member', 'home').me()).age13Required, false);
+});
+
+test('fixture P5 export: idle is 404, ready has a link', async () => {
+  await assert.rejects(createFixtureApi('member', 'privacy').exportStatus(), { code: 'export_not_found' });
+  const ready = await createFixtureApi('member', 'privacy-ready').exportStatus();
+  assert.ok(ready.url && ready.expiresAt > 0);
+  const k = '01FIXTUREKEHILA0000000001';
+  for (const sc of ['privacy', 'privacy-ready']) {
+    assert.equal((await createFixtureApi('member', sc).kehila(k)).privacyContact, 'עמית דוגמה, גבאי · pratiyut@example.org');
+  }
+});
+
+test('fixture me-linked is P2 main state', async () => {
+  const api = createFixtureApi('member', 'me-linked');
+  const f = await api.family('01FIXTUREKEHILA0000000001');
+  assert.deepEqual(f.adults.map(a => [a.displayName, a.me]), [['דנה בדיוני', true], ['יוסי בדיוני', false]]);
+  assert.deepEqual(f.children.map(c => [c.firstName, c.gender, c.birthDate]), [['נועה', 'f', '2015-03-12'], ['איתי', 'm', '2018-09-04'], ['אורי', 'm', undefined]]);
 });
