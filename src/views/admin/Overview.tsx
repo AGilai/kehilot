@@ -95,7 +95,7 @@ function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged
 }
 
 /** GM1 without the seating meters: pending count, member and listener counts, the cap, the invite links. */
-export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onSeatPrint, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; /** The seat-release preview (UX §15.5): only passed when the preview flag is on. */ onSeatPrint?: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
+export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onSeatPrint, onSchedule, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; /** The seat-release preview (UX §15.5): only passed when the preview flag is on. */ onSeatPrint?: () => void; /** The prayer-schedule editor (UX §14.2). */ onSchedule?: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state, refreshKehila } = useSession();
@@ -140,6 +140,13 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
             <Txt bold size="heading">{counts.pending > 0 ? t('admin.overview.pending', { n: counts.pending }) : t('admin.overview.pendingNone')}</Txt>
             {counts.pending > 0 ? <Button title={t('admin.overview.review')} onPress={onApprovals} /> : null}
           </Card>
+          {onSchedule ? (
+            <Card>
+              <Txt serif size="heading" accessibilityRole="header">{t('editor.card.title')}</Txt>
+              <Txt size="small" color={k.muted}>{t('editor.card.body')}</Txt>
+              <Button title={t('editor.card.open')} onPress={onSchedule} />
+            </Card>
+          ) : null}
           {privacy ? <PrivacyContactCard contact={privacy.contact} onSaved={c => { setPrivacy(p => p && { ...p, contact: c }); onToast(t('admin.overview.privacy.saved')); void refreshKehila(); }} /> : null}
           {privacy ? <TermsCard accepted={privacy.terms} /> : null}
           <Card>

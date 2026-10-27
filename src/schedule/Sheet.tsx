@@ -27,7 +27,7 @@ const ltr = (value: string) => `⁦${value}⁩`;
  * "Classic two columns" (P23): one component for the editor preview, the web print page and the PNG. Fixed paper palette, a fixed
  * page size (A4 595x842 pt or square 540), never a second page: `fit` (default: `fitSheet(model)`) shrinks, then drops optional parts.
  */
-export function Sheet({ model, fit }: { model: SheetModel; fit?: SheetFit }) {
+export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: SheetFit; /** The editor's preview: the row being edited gets an outline (a row id of the week). */ highlightId?: string }) {
   const f = React.useMemo(() => fit ?? fitSheet(model), [fit, model]);
   const L = sheetLayout(model.variant, f);
   const inner = innerBox(model.variant, f);
@@ -55,11 +55,12 @@ export function Sheet({ model, fit }: { model: SheetModel; fit?: SheetFit }) {
   const row = (r: SheetRow) => {
     const mark = r.override ? ' *' : '';
     const top = r.gap ? L.gap : 0;
+    const lit = highlightId !== undefined && r.id === highlightId ? ({ outlineColor: PAPER.tek, outlineWidth: 3, outlineStyle: 'solid', outlineOffset: 1, backgroundColor: PAPER.soft } as object) : null;
     if (r.kind === 'text') {
-      return <Text key={r.id} style={t(L.textFont, F.ui, r.override ? PAPER.tek : PAPER.mute, { textAlign: 'center', paddingTop: 2 + top, paddingBottom: 4, paddingHorizontal: 8 })}>{r.label}{mark}</Text>;
+      return <Text key={r.id} style={[t(L.textFont, F.ui, r.override ? PAPER.tek : PAPER.mute, { textAlign: 'center', paddingTop: 2 + top, paddingBottom: 4, paddingHorizontal: 8 }), lit]}>{r.label}{mark}</Text>;
     }
     return (
-      <View key={r.id} style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingVertical: L.rowPad, marginTop: top }}>
+      <View key={r.id} style={[{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingVertical: L.rowPad, marginTop: top }, lit]}>
         <Text style={[t(L.rowFont, F.ui, PAPER.ink), { flexShrink: 1 }]}>{r.label}{mark}</Text>
         <View style={{ flex: 1, minWidth: 14, marginBottom: Math.round(L.rowFont * 0.28), borderBottomWidth: 1.5, borderBottomColor: PAPER.line, borderStyle: 'dotted' }} />
         <Text style={t(L.timeFont, F.bold, r.override ? PAPER.tek : PAPER.ink, { writingDirection: 'ltr' })}>{ltr(r.time)}</Text>

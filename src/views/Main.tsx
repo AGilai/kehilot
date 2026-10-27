@@ -10,9 +10,9 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { pushDestination } from '../client/push.ts';
 import { adminGuard, takeManageEntry } from '../client/membersView.ts';
 import { firstWithPending } from '../client/channelsView.ts';
-import { roleFeatures } from '../client/roleView.ts';
+import { roleFeatures, scheduleEditorAllowed } from '../client/roleView.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import { Toast, Txt, useTokens } from '../kit/components.tsx';
+import { Button, Sheet, Toast, Txt, useTokens } from '../kit/components.tsx';
 import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { AdminContext } from './admin/shared.tsx';
@@ -36,6 +36,8 @@ import type { ComposeInitial } from './Compose.tsx';
 import { ChatView } from './ChatView.tsx';
 import { Home } from './Home.tsx';
 import { Schedule } from './Schedule.tsx';
+import { ScheduleEditor } from './admin/ScheduleEditor.tsx';
+import { editorLeaveAsk } from '../schedule/editor.ts';
 import { Me } from './Me.tsx';
 import { NotifyPrefs } from './NotifyPrefs.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
@@ -61,6 +63,7 @@ type Nav =
   | { tab: 'pushTexts' }
   | { tab: 'seats' }
   | { tab: 'schedule' }
+  | { tab: 'scheduleEditor' }
   | { tab: 'seatPrint' }
   | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'me' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
@@ -91,6 +94,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (seat === 'seats') return { nav: { tab: 'seats' } };
   if (seat === 'seatPrint') return { nav: { tab: 'seatPrint' }, manage: true };
   if (s === 'schedule') return { nav: { tab: 'schedule' } };
+  if (s === 'schedule-editor' || s === 'schedule-editor-none') return scheduleEditorAllowed(state.kehila?.role) ? { nav: { tab: 'scheduleEditor' }, manage: true } : null;
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003' } };
   if (s === 'compose-family') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003', query: 'ב' } };
@@ -111,6 +115,10 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
   const [composeInitial, setComposeInitial] = React.useState<ComposeInitial | undefined>(undefined);
   const [toast, setToast] = React.useState<string | null>(null);
+  // The schedule editor reports unsaved changes; leaving its screen by a tap asks first (forced exits, like a lost role, do not).
+  const editorDirty = React.useRef(false);
+  const [leaveAsk, setLeaveAsk] = React.useState<(() => void) | null>(null);
+  const guard = (go: () => void) => { if (editorLeaveAsk(nav.tab, editorDirty.current)) setLeaveAsk(() => go); else go(); };
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
   const showToast = React.useCallback((text: string) => {
@@ -186,7 +194,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const kehila = state.kehila;
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || (nav.tab === 'group' && nav.from === 'groups');
+  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'scheduleEditor' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
     : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
@@ -210,6 +218,9 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     case 'schedule':
       body = <Schedule onBack={() => setNav({ tab: 'home' })} onToast={showToast} />;
       break;
+    case 'scheduleEditor':
+      body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => setNav({ tab: 'overview' }))} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
+      break;
     case 'seats':
       body = config.seatsPreview ? <SeatPage data={seatData!} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
@@ -229,7 +240,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintAllowed(state.kehila?.role, config.seatsPreview) ? () => setNav({ tab: 'seatPrint' }) : undefined} onCount={setPending} onToast={showToast} />;
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintAllowed(state.kehila?.role, config.seatsPreview) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onCount={setPending} onToast={showToast} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} />;
@@ -276,14 +287,14 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       <View style={{ paddingHorizontal: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        <TopBar onOpenSwitcher={onOpenSwitcher} onBell={() => setNav({ tab: 'prefs', from: active === 'home' || active === 'me' ? active : 'messages' })} />
+        <TopBar onOpenSwitcher={() => guard(onOpenSwitcher)} onBell={() => guard(() => setNav({ tab: 'prefs', from: active === 'home' || active === 'me' ? active : 'messages' }))} />
         {banner}
       </View>
       {manage ? (
         <View style={{ backgroundColor: k.band, paddingVertical: 8, paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
             <Txt bold color="#FFFFFF">{t('admin.band')}</Txt>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('admin.exit')} onPress={() => { setManage(false); setNav({ tab: 'home' }); }} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('admin.exit')} onPress={() => guard(() => { setManage(false); setNav({ tab: 'home' }); })} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
               <Txt size="small" bold color="#FFFFFF">{t('admin.exit')}</Txt>
             </Pressable>
           </View>
@@ -297,7 +308,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
             const c = on ? k.tekhelet : k.muted;
             return (
               <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected: on }}
-                accessibilityLabel={tab.badge ? `${tab.label} (${tab.badge})` : tab.label} onPress={() => setNav({ tab: tab.key })}
+                accessibilityLabel={tab.badge ? `${tab.label} (${tab.badge})` : tab.label} onPress={() => guard(() => setNav({ tab: tab.key }))}
                 style={{ flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                 {on ? <View style={{ position: 'absolute', top: 0, width: 36, height: 3, backgroundColor: k.tekhelet, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }} /> : null}
                 <View>
@@ -310,6 +321,10 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
           })}
         </View>
       </View>
+      <Sheet visible={leaveAsk !== null} title={t('editor.leaveTitle')} onClose={() => setLeaveAsk(null)} closeLabel={t('editor.leaveStay')}
+        footer={<Button kind="danger" title={t('editor.leaveDiscard')} onPress={() => { const go = leaveAsk; setLeaveAsk(null); editorDirty.current = false; go?.(); }} />}>
+        <Txt>{t('editor.leaveBody')}</Txt>
+      </Sheet>
       <Toast text={toast ?? ''} visible={toast !== null} />
     </SafeAreaView>
   );

@@ -15,7 +15,7 @@ import { israelNow } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
 
 /** The Kehila logo as a data URI, '' until it is known (never: no logo). */
-function useLogoUri(): { uri: string | null; ready: boolean } {
+export function useLogoUri(): { uri: string | null; ready: boolean } {
   const { state, logo } = useSession();
   const kehila = state.kehila;
   const [held, setHeld] = React.useState<{ key: string; uri: string | null } | null>(null);

@@ -10,13 +10,53 @@ import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
 import { BackIcon, ForwardIcon } from '../kit/Icon.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
 import { candleRowTime, clockLabel, dateRange, fullModel, hasTimedRows, isDefaultPlace, shortDate, textIn } from '../schedule/memberView.ts';
+import type { FullModel } from '../schedule/memberView.ts';
 import { openPrintPage, sharePdf } from '../schedule/printSheet.ts';
 import { buildSheet } from '../schedule/sheetSource.ts';
 import { israelNow } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
-import type { ComputedRow } from '../schedule/types.ts';
+import type { ComputedRow, ScheduleDoc } from '../schedule/types.ts';
 import { CandleLine, useCountdownText, useShabbatTitle } from './ScheduleCard.tsx';
 import { ScheduleRow } from './ScheduleRow.tsx';
+
+/** The week's section cards and the footer line of P22: also the editor's phone preview, so both always read the same. */
+export function FullSections({ doc, model }: { doc: ScheduleDoc; model: FullModel }) {
+  const { t, lang } = useI18n();
+  const k = useTokens();
+  const counting = useCountdownText();
+  return (
+    <>
+      {model.sections.map(section => {
+        const shabbat = section.kind === 'shabbat';
+        const days = shabbat ? `${t('schedule.daysShabbat')} · ${dateRange(model.week.friday, model.week.shabbat, true)}` : `${t('schedule.daysWeekday')} · ${dateRange(model.week.weekdays[0]!, model.week.weekdays[4]!)}`;
+        const rows = section.rows.filter((row: ComputedRow) => row.role !== 'candles');
+        return (
+          <Card key={section.id} edgeColor={shabbat ? k.gold : k.tekhelet}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <Txt serif size="heading" accessibilityRole="header">{textIn(section.title, lang)}</Txt>
+              <Txt size="caption" color={k.muted}>{days}</Txt>
+            </View>
+            {shabbat ? <CandleLine doc={doc} week={model.week} fallback={candleRowTime(model.computed)} border={false} /> : null}
+            <View>
+              {rows.map((row, i) => {
+                const isNext = model.next?.rowId === row.id;
+                const countText = isNext ? counting(model.next!.countdown) : null;
+                return (
+                  <ScheduleRow key={row.id} row={row} first={i === 0 && !shabbat} next={isNext} past={model.past.has(row.id)}
+                    nextCaption={isNext ? [t('schedule.nextShort'), countText].filter(Boolean).join(' · ') : undefined} />
+                );
+              })}
+            </View>
+            {section.hidden.length ? <Txt size="caption" color={k.muted}>{t('schedule.notThisWeek', { list: section.hidden.map(row => textIn(row.label, lang)).join(', ') })}</Txt> : null}
+          </Card>
+        );
+      })}
+      <Txt size="caption" color={k.muted}>
+        {t('schedule.updated', { city: isDefaultPlace(doc.location) ? t('home.petahTikva') : t('schedule.cityFallback'), date: doc.updatedAt ? shortDate(israelDate(new Date(doc.updatedAt))) : '' })}
+      </Txt>
+    </>
+  );
+}
 
 /** P22: every section of the saved schedule for the current or the next schedule week, with this week's changes. Print: web opens the print page, phone makes a PDF and shares it. */
 export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (text: string) => void }) {
@@ -86,34 +126,7 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
             </View>
             {arrow(1, weekIndex === 0, t('schedule.weekNext'), <ForwardIcon color={k.tekhelet} />)}
           </View>
-          {model.sections.map(section => {
-            const shabbat = section.kind === 'shabbat';
-            const days = shabbat ? `${t('schedule.daysShabbat')} · ${dateRange(model.week.friday, model.week.shabbat, true)}` : `${t('schedule.daysWeekday')} · ${dateRange(model.week.weekdays[0]!, model.week.weekdays[4]!)}`;
-            const rows = section.rows.filter((row: ComputedRow) => row.role !== 'candles');
-            return (
-              <Card key={section.id} edgeColor={shabbat ? k.gold : k.tekhelet}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                  <Txt serif size="heading" accessibilityRole="header">{textIn(section.title, lang)}</Txt>
-                  <Txt size="caption" color={k.muted}>{days}</Txt>
-                </View>
-                {shabbat ? <CandleLine doc={doc} week={model.week} fallback={candleRowTime(model.computed)} border={false} /> : null}
-                <View>
-                  {rows.map((row, i) => {
-                    const isNext = model.next?.rowId === row.id;
-                    const countText = isNext ? counting(model.next!.countdown) : null;
-                    return (
-                      <ScheduleRow key={row.id} row={row} first={i === 0 && !shabbat} next={isNext} past={model.past.has(row.id)}
-                        nextCaption={isNext ? [t('schedule.nextShort'), countText].filter(Boolean).join(' · ') : undefined} />
-                    );
-                  })}
-                </View>
-                {section.hidden.length ? <Txt size="caption" color={k.muted}>{t('schedule.notThisWeek', { list: section.hidden.map(row => textIn(row.label, lang)).join(', ') })}</Txt> : null}
-              </Card>
-            );
-          })}
-          <Txt size="caption" color={k.muted}>
-            {t('schedule.updated', { city: isDefaultPlace(doc.location) ? t('home.petahTikva') : t('schedule.cityFallback'), date: doc.updatedAt ? shortDate(israelDate(new Date(doc.updatedAt))) : '' })}
-          </Txt>
+          <FullSections doc={doc} model={model} />
         </>
       ) : null}
     </PadScroll>

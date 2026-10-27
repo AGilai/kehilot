@@ -4,7 +4,7 @@
 import { anchorDates, formatClock, parseClock, roundMinutes } from './formula.ts';
 import { ANCHORS } from './types.ts';
 import type {
-  Clock, ComputedRow, ComputedWeek, ExtraRow, Formula, Row, RowOverride, Section, ScheduleWeek, ShabbatDay, Text, Time, WeekOverrides, ZmanimFor,
+  Clock, ComputedRow, ComputedSection, ComputedWeek, ExtraRow, Formula, Row, RowOverride, Section, ScheduleWeek, ShabbatDay, Text, Time, WeekOverrides, ZmanimFor,
 } from './types.ts';
 import { evaluate } from './formula.ts';
 import { addDays, scheduleWeekOf } from './week.ts';
@@ -692,3 +692,35 @@ export function classicSections(): Section[] {
     ] },
   ];
 }
+
+// ---- what a section lists for the selected week -----------------------------------------------------------------------------------------
+
+
+export type RowItem =
+  | { kind: 'row'; row: Row; computed: ComputedRow | undefined; override: RowOverride | undefined; hidden: boolean }
+  | { kind: 'extra'; extra: ExtraRow; computed: ComputedRow | undefined };
+
+/** The section's rows in order with the selected week's changes: hidden rows stay (struck through), extra rows sit after the row they follow. */
+export function sectionItems(section: Section, week: WeekOverrides | undefined, computed: ComputedSection | undefined): RowItem[] {
+  const byId = new Map<string, ComputedRow>();
+  for (const r of [...(computed?.rows ?? []), ...(computed?.hidden ?? [])]) byId.set(r.id, r);
+  const extras = (week?.extra ?? []).filter(e => e.sectionId === section.id);
+  const known = new Set(section.rows.map(r => r.id));
+  const out: RowItem[] = [];
+  const addExtras = (after: string | null) => {
+    for (const extra of extras) if ((extra.afterRowId && known.has(extra.afterRowId) ? extra.afterRowId : null) === after) out.push({ kind: 'extra', extra, computed: byId.get(extra.id) });
+  };
+  for (const row of section.rows) {
+    const override = week?.rows?.[row.id];
+    out.push({ kind: 'row', row, computed: byId.get(row.id), override, hidden: override?.kind === 'hide' });
+    addExtras(row.id);
+  }
+  addExtras(null);
+  return out;
+}
+
+/** How many "this week only" entries a week has. */
+export const weekChanges = (week: WeekOverrides | undefined): number => Object.keys(week?.rows ?? {}).length + (week?.extra?.length ?? 0);
+
+/** Leaving the editor screen with unsaved changes asks first (the channel sheet's discard pattern). */
+export const editorLeaveAsk = (tab: string, dirty: boolean): boolean => tab === 'scheduleEditor' && dirty;

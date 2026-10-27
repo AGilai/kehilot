@@ -27,7 +27,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -376,7 +376,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { familyId: '01FIXTUREFAMILY0000000004', name: 'דוגמה', people: [{ userId: 'u24', name: 'מיכל דוגמה', phone: '+972500000003', tags: tagNamed('טכני') }] },
     { familyId: '01FIXTUREFAMILY0000000005', name: 'ניסיון · דמיון', people: [{ userId: 'u25', name: 'אבי ניסיון', phone: '+972500000004', tags: [] }, { userId: 'u26', name: 'רותי דמיון', phone: '+972500000006', tags: tagNamed('רב') }] },
   ];
-  if (screen !== 'schedule-none') routes[`GET ${K}/schedule`] = fixtureLongRows(fixtureScheduleDoc(overrideFriday(israelDate(fixtureNow() ?? new Date()))));
+  if (screen !== 'schedule-none' && screen !== 'schedule-editor-none') routes[`GET ${K}/schedule`] = fixtureLongRows(fixtureScheduleDoc(overrideFriday(israelDate(fixtureNow() ?? new Date()))));
   else routes[`GET ${K}/schedule`] = { version: 1, sections: [], weekOverrides: {}, sheet: { candleCities: [] }, location: { latitude: 32.0878, longitude: 34.8878, elevation: 'sea', candleMinutes: 40 }, updatedAt: null };
   routes[`GET ${K}/phone-list`] = phoneFamilies;
   routes[`PUT ${K}/me/phone-list`] = { show: true };
@@ -413,8 +413,32 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   routes[`DELETE ${K}/family/children/${kids[0]!.id}`] = undefined;
   routes[`DELETE ${K}/family/children/${kids[1]!.id}`] = undefined;
   for (const c of ['gabbai_link', 'imported', 'phone']) routes[`POST ${K}/me/cards/${c}/dismiss`] = undefined;
+  // The schedule is kept in memory so the editor's saves show up on the next read; `?conflict=1` makes the first save answer 409
+  // (somebody else saved: their copy has another Maariv time).
+  let scheduleDoc = structuredClone(routes[`GET ${K}/schedule`]) as ScheduleDoc;
+  let conflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
   const http: Http = {
     async request(method, path, body) {
+      if (path.split('?')[0] === `${K}/schedule`) {
+        if (method === 'GET') return structuredClone(scheduleDoc) as any;
+      }
+      if (path === `${A}/schedule` && method === 'PUT') {
+        if (conflictPending) {
+          conflictPending = false;
+          scheduleDoc = { ...scheduleDoc, updatedAt: (scheduleDoc.updatedAt ?? 0) + 60_000, sections: scheduleDoc.sections.map(s => ({ ...s, rows: s.rows.map(r => (r.id === 'w-arvit' ? { ...r, time: { kind: 'fixed' as const, at: '17:20' } } : r)) })) };
+          throw new ApiCodeError(409, 'schedule_changed');
+        }
+        const b = body as { sections: ScheduleDoc['sections']; ifUpdatedAt: number | null };
+        if (b.ifUpdatedAt !== scheduleDoc.updatedAt) throw new ApiCodeError(409, 'schedule_changed');
+        scheduleDoc = { ...scheduleDoc, sections: b.sections, updatedAt: (scheduleDoc.updatedAt ?? 0) + 1000 };
+        return { updatedAt: scheduleDoc.updatedAt, warnings: [] } as any;
+      }
+      if (path.startsWith(`${A}/schedule/weeks/`)) {
+        const friday = decodeURIComponent(path.slice(`${A}/schedule/weeks/`.length));
+        scheduleDoc = { ...scheduleDoc, weekOverrides: { ...scheduleDoc.weekOverrides } };
+        if (method === 'PUT') { scheduleDoc.weekOverrides[friday] = body as ScheduleDoc['weekOverrides'][string]; return {} as any; }
+        if (method === 'DELETE') { delete scheduleDoc.weekOverrides[friday]; return undefined as any; }
+      }
       if (method === 'GET' && path === '/v1/me/export' && !('GET /v1/me/export' in routes)) throw new ApiCodeError(404, 'export_not_found');
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;

@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { evaluate } from '../src/schedule/formula.ts';
 import {
-  applyFormulaPatch, changeCount, classicSections, clockChangeIn, editorReducer, explainFormula, formulaWarnings, hideSuggestions,
+  applyFormulaPatch, changeCount, editorLeaveAsk, classicSections, clockChangeIn, editorReducer, explainFormula, formulaWarnings, hideSuggestions,
   initialEditorState, isDirty, issueTarget, nextId, nudgeClock, parseClockInput, saveDiff, timeOfKind, validateSections, validateWeekOverrides,
-  weekEditable, weekList,
+  weekEditable, weekList, sectionItems, weekChanges,
 } from '../src/schedule/editor.ts';
 import type { EditorAction, EditorState } from '../src/schedule/editor.ts';
 import type { Formula, Row, Section } from '../src/schedule/types.ts';
@@ -492,4 +492,34 @@ test('the classic layout is a valid schedule with a candle row', () => {
   assert.ok(all.some(r => r.time.kind === 'none'));
   assert.ok(all.some(r => r.time.kind === 'formula'));
   assert.equal(new Set(all.map(r => r.id)).size, all.length);
+});
+
+// ---- a section as the editor lists it ---------------------------------------------------------------------------------------------------
+
+test('section items: hidden rows stay, extras follow their row or go last', () => {
+  const friday = week.friday;
+  const schedule = {
+    version: 1 as const, sections: doc().sections,
+    weekOverrides: { [friday]: { rows: { d: { kind: 'hide' as const }, a: { kind: 'time' as const, at: '09:00' } }, extra: [
+      { id: 'x1', sectionId: 'wd', afterRowId: 'c', label: { he: 'שיעור' }, time: { kind: 'fixed' as const, at: '20:00' } },
+      { id: 'x2', sectionId: 'wd', label: { he: 'סוף' }, time: { kind: 'none' as const } },
+      { id: 'x3', sectionId: 'wd', afterRowId: 'gone', label: { he: 'יתום' }, time: { kind: 'none' as const } },
+    ] } },
+  };
+  const computed = computeWeek(schedule, friday, zmanim);
+  const items = sectionItems(schedule.sections[1]!, schedule.weekOverrides[friday], computed.sections[1]);
+  assert.deepEqual(items.map(i => (i.kind === 'row' ? i.row.id : i.extra.id)), ['c', 'x1', 'd', 'e', 'x2', 'x3']);
+  const d = items.find(i => i.kind === 'row' && i.row.id === 'd')!;
+  assert.equal(d.kind === 'row' && d.hidden, true);
+  assert.equal(d.computed?.time, '08:00', 'a hidden row still has its usual time');
+  const a = sectionItems(schedule.sections[0]!, schedule.weekOverrides[friday], computed.sections[0])[0]!;
+  assert.equal(a.kind === 'row' && a.computed?.time, '09:00');
+  assert.equal(weekChanges(schedule.weekOverrides[friday]), 5);
+  assert.equal(weekChanges(undefined), 0);
+});
+
+test('leaving the editor asks only when there are unsaved changes', () => {
+  assert.equal(editorLeaveAsk('scheduleEditor', true), true);
+  assert.equal(editorLeaveAsk('scheduleEditor', false), false);
+  assert.equal(editorLeaveAsk('overview', true), false);
 });
