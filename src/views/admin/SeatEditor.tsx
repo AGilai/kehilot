@@ -19,6 +19,7 @@ import { readPaste } from '../../seats/readPaste.ts';
 import type { PasteProblem } from '../../seats/readPaste.ts';
 import { defaultBlockNames, familiesForMatch } from '../../seats/savePlan.ts';
 import type { ParsedHall } from '../../seats/paste.ts';
+import { initialSaveSession, saveSessionReducer } from '../../seats/saveSession.ts';
 import { WIDE, useAdminErrText } from './shared.tsx';
 import { CheckStep } from './seatEditor/CheckStep.tsx';
 import { MatchStep } from './seatEditor/MatchStep.tsx';
@@ -62,6 +63,7 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
   const [problem, setProblem] = React.useState<{ code: PasteProblem; rows: number; cols: number } | null>(null);
   const [blockNames, setBlockNames] = React.useState<string[]>(() => (parsed ? defaultBlockNames(parsed.blocks.length) : []));
   const [match, dispatch] = React.useReducer(matchReducer, undefined, initialMatchState);
+  const [saveSession, dispatchSave] = React.useReducer(saveSessionReducer, undefined, initialSaveSession);
   const [layouts, setLayouts] = React.useState<SeatLayoutRow[] | null>(null);
   const [saved, setSaved] = React.useState(false);
 
@@ -199,7 +201,7 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
     );
   } else {
     body = (
-      <SaveStep parsed={parsed} state={match} blockNames={blockNames} layouts={layouts ?? load.layouts} onLayouts={setLayouts}
+      <SaveStep parsed={parsed} state={match} blockNames={blockNames} layouts={layouts ?? load.layouts} onLayouts={setLayouts} session={saveSession} dispatch={dispatchSave}
         onBack={() => setStep('match')} onDone={() => { onDirty(false); setSaved(true); onToast(t('seatEditor.save.toast')); onBack(); }} />
     );
   }

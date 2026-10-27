@@ -1763,7 +1763,14 @@
       "done": "The map is saved: {seats} seats, {holders} new holders.",
       "doneHelp": "Nothing is linked to an account without your confirmation.",
       "finish": "Done",
-      "toast": "Map saved"
+      "toast": "Map saved",
+      "replacesEarlier": "The map in effect from this Shabbat has {assigned} of {seats} seats assigned. Saving rewrites the whole map and every assignment; an assignment not in the paste is erased.",
+      "openTitle": "This Shabbat is already open for answers",
+      "openBody": "You can save, but members who already answered will see on their seat page: \"Your seats were updated by the gabbaim\". Their counts move to the new seats in order.",
+      "partialTitle": "The save stopped halfway",
+      "partialBody": "Some writes are already done. Retry (what was created is reused), or discard this partial state. Until then the date and Back are locked.",
+      "removeHolder": "Remove",
+      "discardPartial": "Discard the partial save"
     }
   }
 }

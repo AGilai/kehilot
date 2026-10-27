@@ -119,6 +119,8 @@ export function endpoints(http: Http) {
     putSeatAssignments: (k: string, from: string, body: { assignments: Record<string, string | null>; ifUpdatedAt: number | null }) =>
       r<{ updatedAt: number }>('PUT', `${A(k)}/seating/layouts/${e(from)}/assignments`, body),
     seatHolders: (k: string) => r<SeatHolder[]>('GET', `${A(k)}/seating/holders`),
+    seatWeek: (k: string, week: string) => r<{ week: string; open: boolean }>('GET', `${A(k)}/seats/week/${e(week)}`),
+    deleteSeatHolder: (k: string, id: string) => r<void>('DELETE', `${A(k)}/seating/holders/${e(id)}`),
     createSeatHolder: (k: string, body: { name: string; phone?: string }) => r<SeatHolder>('POST', `${A(k)}/seating/holders`, body),
     acceptTerms: (k: string) => r<{ at: number }>('POST', `${A(k)}/terms`),
     pushTexts: (k: string) => r<PushTexts>('GET', `${A(k)}/push-texts`),

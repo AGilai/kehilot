@@ -5,7 +5,7 @@ import { ScrollView, TextInput, View } from 'react-native';
 import { useI18n } from '../../../i18n/I18nProvider.tsx';
 import { textStart } from '../../../i18n/direction.ts';
 import { Banner, Button, Card, Chip, PickList, Tag, Txt, useTokens } from '../../../kit/components.tsx';
-import { cellKey, exactDecisions, isDecisionValid, remaining, twoNameCells, effectiveFamilies } from '../../../seats/decisions.ts';
+import { cellKey, decisionCounts, exactDecisions, isDecisionValid, twoNameCells, effectiveFamilies } from '../../../seats/decisions.ts';
 import type { CellChoice, Decision, MatchAction, MatchState } from '../../../seats/decisions.ts';
 import { normalizeName, suggestMatches } from '../../../seats/match.ts';
 import type { Holder, KehilaFamily, MatchResult } from '../../../seats/match.ts';
@@ -27,7 +27,8 @@ export function MatchStep({ parsed, blockNames, state, dispatch, families, holde
   const rows = React.useMemo(() => effectiveFamilies(parsed, state.cells), [parsed, state.cells]);
   const results = React.useMemo(() => new Map(suggestMatches(rows, families, holders).map((r) => [r.familyKey, r])), [rows, families, holders]);
   const twos = React.useMemo(() => twoNameCells(parsed), [parsed]);
-  const left = remaining(parsed, state);
+  const dc = decisionCounts(parsed, state);
+  const left = dc.todo;
   const [filter, setFilter] = React.useState<Filter>('all');
   const [query, setQuery] = React.useState('');
   const [selected, setSelected] = React.useState<string | null>(null);
@@ -40,9 +41,9 @@ export function MatchStep({ parsed, blockNames, state, dispatch, families, holde
   const flaggedKeys = React.useMemo(() => new Set(parsed.warnings.filter((w) => w.familyKey && w.code !== 'spans-blocks').map((w) => w.familyKey!)), [parsed]);
   const category = (key: string): Filter => { const r = results.get(key); return r?.level === 'exact' ? 'exact' : r?.level === 'likely' ? 'likely' : 'none'; };
   const counts: Record<Filter, number> = {
-    all: rows.length, todo: rows.filter((r) => !decided(r.familyKey)).length + twos.filter((c) => !state.cells[cellKey(c.row, c.col)]).length,
+    all: dc.all, todo: dc.todo,
     exact: rows.filter((r) => category(r.familyKey) === 'exact').length, likely: rows.filter((r) => category(r.familyKey) === 'likely').length,
-    none: rows.filter((r) => category(r.familyKey) === 'none').length, check: rows.filter((r) => flaggedKeys.has(r.familyKey)).length + twos.length,
+    none: rows.filter((r) => category(r.familyKey) === 'none').length, check: rows.filter((r) => flaggedKeys.has(r.familyKey)).length + dc.cellsTodo,
   };
   const q = normalizeName(query);
   const visible = rows.filter((r) => {
@@ -168,8 +169,8 @@ export function MatchStep({ parsed, blockNames, state, dispatch, families, holde
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: k.surface, borderBottomWidth: 1, borderBottomColor: k.line, flexWrap: 'wrap' }}>
         <Button kind="secondary" title={t('seatEditor.match.back')} onPress={onBack} />
         <View style={{ flex: 1 }} />
-        <View accessibilityLiveRegion="polite"><Txt bold color={left ? k.gold : k.olive}>{left ? t('seatEditor.match.left', { n: left, total: rows.length + twos.length }) : t('seatEditor.match.allDone')}</Txt></View>
-        <Button title={t('seatEditor.match.save')} disabled={left > 0} onPress={onSave} accessibilityLabel={left ? `${t('seatEditor.match.save')}. ${t('seatEditor.match.left', { n: left, total: rows.length + twos.length })}` : undefined} />
+        <View accessibilityLiveRegion="polite"><Txt bold color={left ? k.gold : k.olive}>{left ? t('seatEditor.match.left', { n: left, total: dc.all }) : t('seatEditor.match.allDone')}</Txt></View>
+        <Button title={t('seatEditor.match.save')} disabled={left > 0} onPress={onSave} accessibilityLabel={left ? `${t('seatEditor.match.save')}. ${t('seatEditor.match.left', { n: left, total: dc.all })}` : undefined} />
       </View>
       <View style={{ flex: 1, flexDirection: 'row' }}>
         <ScrollView style={{ flex: 1, minWidth: 0 }} contentContainerStyle={{ padding: 20, gap: 12 }} keyboardShouldPersistTaps="handled">

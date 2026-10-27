@@ -355,3 +355,94 @@ test('Main opens the seating editor only for a gabbai, and a dirty editor asks b
   assert.equal(editorLeaveAsk('seatEditor', false), false);
 });
 import { editorLeaveAsk } from '../src/schedule/editor.ts';
+
+// ---- fix round 1 ----
+import { decisionCounts } from '../src/seats/decisions.ts';
+import { openForAnswers, replaceWarning } from '../src/seats/effectiveFrom.ts';
+import { canLeaveSave, initialSaveSession, saveSessionReducer } from '../src/seats/saveSession.ts';
+import { savePlanKey } from '../src/seats/savePlan.ts';
+
+test('counts: all = households + undecided two-names cells; a decided cell counts only through its household; todo matches remaining', () => {
+  const p = hall();
+  let s = initialMatchState();
+  const base = effectiveFamilies(p, s.cells).length;
+  let c = decisionCounts(p, s);
+  assert.deepEqual([c.all, c.todo, c.cellsTodo], [base + 1, base + 1, 1]);
+  const [cell] = twoNameCells(p);
+  s = matchReducer(s, { type: 'cell', row: cell!.row, col: cell!.col, choice: 'free' });
+  c = decisionCounts(p, s);
+  assert.deepEqual([c.all, c.todo], [base, base]);
+  assert.equal(c.todo, remaining(p, s));
+  s = matchReducer(s, { type: 'cell', row: cell!.row, col: cell!.col, choice: 'a' });
+  c = decisionCounts(p, s);
+  assert.equal(c.all, base + 1, 'the chosen name is a household now');
+  assert.equal(c.todo, remaining(p, s));
+});
+
+test('save session: partial progress is bound to the plan key and reset when it changes', () => {
+  const carry = { created: { k1: 'H1' }, layout: { seats: [], updatedAt: 3 } };
+  let s = saveSessionReducer(initialSaveSession(), { type: 'sync', key: 'A' });
+  s = saveSessionReducer(s, { type: 'result', result: { ok: false, stage: 'assignments', code: 'x', conflict: false, carry, made: [{ id: 'H1', name: 'א' }] } });
+  assert.equal(s.failed, true);
+  assert.equal(canLeaveSave(s), false);
+  assert.deepEqual(s.carry, carry);
+  assert.equal(saveSessionReducer(s, { type: 'sync', key: 'A' }), s);
+  const other = saveSessionReducer(s, { type: 'sync', key: 'B' });
+  assert.deepEqual(other.carry, {});
+  assert.equal(other.failed, false);
+  assert.equal(other.holders.length, 1, 'holders made this session are remembered');
+});
+
+test('save session: discard resets the carry and unlocks; success unlocks; removing a holder drops it from the carry', () => {
+  const carry = { created: { k1: 'H1', k2: 'H2' }, layout: { seats: [], updatedAt: 3 } };
+  let s = saveSessionReducer(initialSaveSession(), { type: 'sync', key: 'A' });
+  s = saveSessionReducer(s, { type: 'result', result: { ok: false, stage: 'layout', code: 'x', conflict: false, carry, made: [{ id: 'H1', name: 'א' }, { id: 'H2', name: 'ב' }] } });
+  s = saveSessionReducer(s, { type: 'removeHolder', id: 'H1' });
+  assert.deepEqual(s.carry.created, { k2: 'H2' });
+  assert.deepEqual(s.holders.map((h) => h.id), ['H2']);
+  const d = saveSessionReducer(s, { type: 'discard' });
+  assert.deepEqual(d.carry, {});
+  assert.equal(canLeaveSave(d), true);
+  const ok = saveSessionReducer(s, { type: 'result', result: { ok: true, carry, made: [] } });
+  assert.equal(canLeaveSave(ok), true);
+});
+
+test('save plan key changes with date, layout, holders or refs', () => {
+  const L = plan().layout;
+  const a = savePlanKey('2026-10-30', L, [], { a: null });
+  assert.equal(a, savePlanKey('2026-10-30', L, [], { a: null }));
+  assert.notEqual(a, savePlanKey('2026-11-06', L, [], { a: null }));
+  assert.notEqual(a, savePlanKey('2026-10-30', { ...L, rowLabels: [null, 'x'] }, [], { a: null }));
+  assert.notEqual(a, savePlanKey('2026-10-30', L, [{ key: 'k', name: 'n' }], { a: null }));
+  assert.notEqual(a, savePlanKey('2026-10-30', L, [], { a: 'family:F' }));
+});
+
+test('runSave reuses a holder made earlier in the session (same name and phone) instead of creating it again', async () => {
+  const f = fakeApi();
+  const r = await runSave(plan(), f.api, {}, () => {}, [{ id: 'HOLD', name: 'משפחת א' }]);
+  assert.equal(r.ok, true);
+  assert.deepEqual(f.calls.filter((c) => c.startsWith('holder:')), ['holder:משפחת ב']);
+  assert.ok(f.calls.some((c) => c.includes('"a":"holder:HOLD"')));
+  if (r.ok) assert.deepEqual(r.made.map((m) => m.name), ['משפחת ב']);
+  // a different phone is a different holder
+  const g = fakeApi();
+  await runSave(plan(), g.api, {}, () => {}, [{ id: 'X', name: 'משפחת ב', phone: '+972509999999' }]);
+  assert.equal(g.calls.filter((c) => c.startsWith('holder:')).length, 2);
+});
+
+test('open for answers: not before Thursday 12:00, then the server week state (deadline rule as fallback)', () => {
+  const fri = '2026-10-30';
+  assert.equal(openForAnswers(new Date('2026-10-28T10:00:00Z'), fri, true), false, 'Wednesday: not open even if the server says open');
+  assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, true), true);
+  assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, false), false);
+  assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, null), true);
+  assert.equal(openForAnswers(new Date('2026-10-30T11:00:00Z'), fri, null), false, 'Friday 13:00 Israel: past the deadline');
+});
+
+test('replace warning: a version of that date, or the one in effect then with assignments', () => {
+  const rows = [{ effectiveFrom: '2026-10-16', seats: 200, assigned: 150 }, { effectiveFrom: '2026-11-13', seats: 210, assigned: 0 }];
+  assert.deepEqual(replaceWarning(rows, '2026-11-13'), { kind: 'same', seats: 210, assigned: 0 });
+  assert.deepEqual(replaceWarning(rows, '2026-10-30'), { kind: 'earlier', seats: 200, assigned: 150 });
+  assert.equal(replaceWarning(rows, '2026-10-09'), null);
+  assert.equal(replaceWarning([{ effectiveFrom: '2026-10-16', seats: 5, assigned: 0 }], '2026-10-30'), null);
+});

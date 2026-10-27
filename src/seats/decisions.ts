@@ -116,3 +116,10 @@ export function remaining(parsed: ParsedHall, state: MatchState): number {
   const u = undecided(parsed, state);
   return u.families.length + u.cells.length;
 }
+
+/** One model for the filter chips and the header: a two-names cell counts only while it is undecided. */
+export function decisionCounts(parsed: ParsedHall, state: MatchState): { all: number; todo: number; cellsTodo: number; familiesTodo: number } {
+  const u = undecided(parsed, state);
+  const families = effectiveFamilies(parsed, state.cells).length;
+  return { all: families + u.cells.length, todo: u.families.length + u.cells.length, cellsTodo: u.cells.length, familiesTodo: u.families.length };
+}

@@ -10,12 +10,14 @@ import { useI18n } from '../../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../../../kit/components.tsx';
 import { dateRange } from '../../../schedule/memberView.ts';
 import { scheduleWeekOf } from '../../../schedule/week.ts';
-import { defaultEffectiveFrom, effectiveOptions } from '../../../seats/effectiveFrom.ts';
+import { defaultEffectiveFrom, effectiveOptions, openForAnswers, replaceWarning } from '../../../seats/effectiveFrom.ts';
 import { effectiveFamilies } from '../../../seats/decisions.ts';
 import type { MatchState } from '../../../seats/decisions.ts';
 import { runSave } from '../../../seats/runSave.ts';
-import type { SaveCarry, SaveProgress, SaveResult, SaveStage } from '../../../seats/runSave.ts';
-import { assignmentsFor, buildLayout, holdersToCreate, refsFor } from '../../../seats/savePlan.ts';
+import type { SaveProgress, SaveResult, SaveStage } from '../../../seats/runSave.ts';
+import { canLeaveSave } from '../../../seats/saveSession.ts';
+import type { SaveSession, SaveSessionAction } from '../../../seats/saveSession.ts';
+import { assignmentsFor, buildLayout, holdersToCreate, refsFor, savePlanKey } from '../../../seats/savePlan.ts';
 import type { ParsedHall } from '../../../seats/paste.ts';
 import { useShabbatTitle } from '../../ScheduleCard.tsx';
 import { Select } from '../scheduleEditor/controls.tsx';
@@ -23,8 +25,9 @@ import { useAdminErrText } from '../shared.tsx';
 
 type Phase = { name: 'idle' } | { name: 'running'; progress: SaveProgress } | { name: 'failed'; result: Extract<SaveResult, { ok: false }>; confirmOverwrite: boolean } | { name: 'done'; holders: number };
 
-export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack, onDone }: {
-  parsed: ParsedHall; state: MatchState; blockNames: string[]; layouts: SeatLayoutRow[]; onLayouts: (rows: SeatLayoutRow[]) => void; onBack: () => void; onDone: () => void;
+export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, session, dispatch, onBack, onDone }: {
+  parsed: ParsedHall; state: MatchState; blockNames: string[]; layouts: SeatLayoutRow[]; onLayouts: (rows: SeatLayoutRow[]) => void;
+  /** Partial-save state, kept by SeatEditor. */ session: SaveSession; dispatch: React.Dispatch<SaveSessionAction>; onBack: () => void; onDone: () => void;
 }) {
   const { t } = useI18n();
   const k = useTokens();
@@ -35,7 +38,6 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack
   const now = React.useMemo(() => fixtureNow() ?? new Date(), []);
   const [from, setFrom] = React.useState(() => defaultEffectiveFrom(now));
   const [phase, setPhase] = React.useState<Phase>({ name: 'idle' });
-  const carry = React.useRef<SaveCarry>({});
   const options = React.useMemo(() => {
     const list = effectiveOptions(now, 14);
     return (list.includes(from) ? list : [from, ...list]).map((f) => {
@@ -48,6 +50,22 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack
   const holders = React.useMemo(() => holdersToCreate(parsed, state), [parsed, state]);
   const households = effectiveFamilies(parsed, state.cells).filter((f) => state.decisions[f.familyKey] && state.decisions[f.familyKey]!.kind !== 'skip').length;
   const existing = layouts.find((l) => l.effectiveFrom === from);
+  const warn = replaceWarning(layouts, from);
+  const [weekOpen, setWeekOpen] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    let live = true;
+    setWeekOpen(null);
+    api.seatWeek(kehilaId, from).then((w) => { if (live) setWeekOpen(w.open); }, () => { if (live) setWeekOpen(null); });
+    return () => { live = false; };
+  }, [api, kehilaId, from]);
+  const isOpen = openForAnswers(now, from, weekOpen);
+  const planKey = React.useMemo(() => (built ? savePlanKey(from, built.layout, holders, refsFor(state, {})) : null), [built, from, holders, state]);
+  React.useEffect(() => { if (planKey) dispatch({ type: 'sync', key: planKey }); }, [planKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const locked = !canLeaveSave(session);
+  const [removeError, setRemoveError] = React.useState<string | null>(null);
+  const removeHolder = async (id: string) => {
+    try { await api.deleteSeatHolder(kehilaId, id); dispatch({ type: 'removeHolder', id }); setRemoveError(null); } catch (e) { setRemoveError(errText(e)); }
+  };
 
   const run = async (overwrite: boolean) => {
     if (!built) return;
@@ -57,7 +75,7 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack
         const fresh = (await api.seatLayouts(kehilaId)).layouts;
         onLayouts(fresh);
         guard = fresh.find((l) => l.effectiveFrom === from)?.updatedAt ?? null;
-      } catch (e) { setPhase({ name: 'failed', result: { ok: false, stage: 'layout', code: (e as { code?: string }).code ?? 'generic', conflict: false, carry: carry.current }, confirmOverwrite: false }); return; }
+      } catch (e) { setPhase({ name: 'failed', result: { ok: false, stage: 'layout', code: (e as { code?: string }).code ?? 'generic', conflict: false, carry: session.carry, made: [] }, confirmOverwrite: false }); return; }
     }
     setPhase({ name: 'running', progress: { step: 'holders', done: 0, total: holders.length } });
     const result = await runSave({
@@ -68,11 +86,11 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack
       putLayout: (f, b) => api.putSeatLayout(kehilaId, f, b),
       assignmentsGuard: async (f) => (await api.seatAssignments(kehilaId, f)).updatedAt,
       putAssignments: (f, b) => api.putSeatAssignments(kehilaId, f, b),
-    }, carry.current, (progress) => setPhase({ name: 'running', progress }));
-    carry.current = result.carry;
+    }, session.carry, (progress) => setPhase({ name: 'running', progress }), session.holders);
+    dispatch({ type: 'result', result });
     if (result.ok) {
       try { onLayouts((await api.seatLayouts(kehilaId)).layouts); } catch { /* the list is only a hint */ }
-      setPhase({ name: 'done', holders: Object.keys(result.carry.created ?? {}).length });
+      setPhase({ name: 'done', holders: result.made.length });
     } else setPhase({ name: 'failed', result, confirmOverwrite: false });
   };
 
@@ -99,7 +117,7 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: k.surface, borderBottomWidth: 1, borderBottomColor: k.line }}>
-        <Button kind="secondary" title={t('seatEditor.save.back')} disabled={busy || phase.name === 'done'} onPress={onBack} />
+        <Button kind="secondary" title={t('seatEditor.save.back')} disabled={busy || locked || phase.name === 'done'} onPress={onBack} />
       </View>
       <ScrollView contentContainerStyle={{ padding: 24, gap: 16, width: '100%', maxWidth: 760, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
         {phase.name === 'done' ? (
@@ -117,9 +135,15 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack
             </Card>
             <View style={{ gap: 6, zIndex: 20 }}>
               <Txt bold>{t('seatEditor.save.from')}</Txt>
-              <Select label={t('seatEditor.save.from')} value={from} options={options} width={420} icon="cal" onChange={(f) => { if (!busy) setFrom(f); }} />
+              <View pointerEvents={busy || locked ? 'none' : 'auto'} style={{ opacity: busy || locked ? 0.5 : 1 }}><Select label={t('seatEditor.save.from')} value={from} options={options} width={420} icon="cal" onChange={(f) => { if (!busy && !locked) setFrom(f); }} /></View>
               <Txt size="small" color={k.muted}>{t('seatEditor.save.fromHelp')}</Txt>
-              {existing ? <Banner text={t('seatEditor.save.replaces')} /> : null}
+              {warn ? <Banner text={t(warn.kind === 'same' ? 'seatEditor.save.replaces' : 'seatEditor.save.replacesEarlier', { seats: warn.seats, assigned: warn.assigned })} /> : null}
+              {isOpen ? (
+                <View accessibilityRole="alert" style={{ gap: 4, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: k.gold, borderStartWidth: 6, backgroundColor: k.surface }}>
+                  <Txt bold color={k.gold}>{t('seatEditor.save.openTitle')}</Txt>
+                  <Txt size="small">{t('seatEditor.save.openBody')}</Txt>
+                </View>
+              ) : null}
             </View>
             {!built ? <Banner tone="error" text={t('seatEditor.save.notReady')} /> : null}
             {phase.name !== 'idle' ? (
@@ -144,11 +168,25 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, onBack
                 ) : (
                   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                     <Button kind="danger" title={t('seatEditor.save.overwrite')} onPress={() => setPhase({ name: 'failed', result: failed.result, confirmOverwrite: true })} />
-                    <Button kind="secondary" title={t('seatEditor.save.cancel')} onPress={() => setPhase({ name: 'idle' })} />
+                    
                   </View>
                 )}
               </View>
             ) : failed ? <Banner tone="error" text={failText} action={{ title: t('common.retry'), onPress: () => { void run(false); } }} /> : null}
+            {failed ? (
+              <Card edgeColor={k.gold}>
+                <Txt bold>{t('seatEditor.save.partialTitle')}</Txt>
+                <Txt size="small" color={k.muted}>{t('seatEditor.save.partialBody')}</Txt>
+                {session.holders.map((h) => (
+                  <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <Txt content style={{ flex: 1 }}>{h.name}</Txt>
+                    <Button kind="secondary" title={t('seatEditor.save.removeHolder')} onPress={() => { void removeHolder(h.id); }} />
+                  </View>
+                ))}
+                {removeError ? <Banner tone="error" text={removeError} /> : null}
+                <View style={{ alignSelf: 'flex-start' }}><Button kind="danger" title={t('seatEditor.save.discardPartial')} onPress={() => { dispatch({ type: 'discard' }); setPhase({ name: 'idle' }); }} /></View>
+              </Card>
+            ) : null}
             <Button title={busy ? t('seatEditor.save.saving') : t('seatEditor.save.go')} busy={busy} disabled={busy || !built || (!!failed && failed.result.conflict)} onPress={() => { void run(false); }} />
           </>
         )}

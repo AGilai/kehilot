@@ -152,3 +152,11 @@ export function assignmentsFor(
   }
   return out;
 }
+
+/** Identity of a save plan: the same key means the same layout, holders and seat refs, so partial progress may be reused. */
+export function savePlanKey(from: string, layout: LayoutBody, holders: NewHolder[], assignments: Record<string, string | null>): string {
+  const text = JSON.stringify([from, layout, holders, Object.entries(assignments).sort(([a], [b]) => (a < b ? -1 : 1))]);
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+  return `${from}:${text.length}:${h.toString(36)}`;
+}
