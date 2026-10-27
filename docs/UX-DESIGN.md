@@ -1288,9 +1288,10 @@ Blocks are always listed right to left (ימין → שמאל), as they stand.
 - **Layout (top to bottom):** back, `ktitle` "מקומות בשבת" + preview `Tag`, Shabbat line, segmented control
   ערבית · ליל שבת / שחרית · שבת בבוקר, a words summary ("ערבית: 2 מגיעים · 1 פנוי לאחרים"), the block `Card`, legend.
   A fixed footer above the tabs holds the deadline line and primary "שמירה", so Save is always visible.
-- **Block card:** heading "<block> · שורות a–b"; a mini-map of the whole hall (7 px cells, bimah hatched, own seats
-  tekhelet, the frame outlined); then the **frame**: only the person's block, his row ±2 (clipped at the hall's
-  edges), "↑ לכיוון ארון הקודש" above it, row numbers on the start side (his row in bold tekhelet).
+- **Block card:** heading "<block> · שורות a–b", then the **frame**: only the person's block, his row ±2 (clipped at
+  the hall's edges), "↑ לכיוון ארון הקודש" inside it, row numbers on the start side (his row in bold tekhelet).
+- **The member never sees the whole hall** (owner, binding): no mini-map, no other blocks, nothing beyond the cut.
+  The full hall exists only on gabbai screens (P26, P27).
 - **Seats in the frame:** blocks are 4–5 wide, so at 360 each seat tile is ~55×48 and is tapped directly (no separate
   list). **His seat, needed:** tekhelet fill, "✓ מגיע", "כיסא n" under it. **His seat, released:** surface fill, 2 px
   **dashed** tekhelet border, "לא מגיע". **Others' seats:** plain `line`-grey tile, no name, no state, hidden from
@@ -1300,15 +1301,14 @@ Blocks are always listed right to left (ימין → שמאל), as they stand.
   "אפשר להגדיל ולהקטין בשתי אצבעות."
 - **Split seats — decision:** seats in the same block whose rows are at most 4 apart (their ±2 windows touch) share
   **one frame** spanning from the first row − 2 to the last row + 2. Otherwise (other block, or farther apart)
-  **one frame per group**, each its own `Card` with its own heading, in block order right → left; the mini-map is shown
-  once, above them, with every frame outlined. One frame spanning distant rows would shrink seats below 48 and show
+  **one frame per group**, each its own `Card` with its own heading, in block order right → left, stacked. One frame spanning distant rows would shrink seats below 48 and show
   many strangers' seats.
 - **States:** saved (Toast "נשמר. תודה!" and a "נשמר ביום … " line); unsaved changes on back → discard confirm (channel
   sheet pattern); updated by a gabbai (info `Banner`, no gabbai name); after the deadline (Banner "הדיווח נסגר… לשינוי
   פנו לגבאי", tiles read-only at .75 opacity, no Save); **no allocation** (`Card` "עוד לא הוקצו לכם מקומות" / "את
   המקומות בבית הכנסת מקצה הגבאי. לשאלות פנו לגבאי."); Kehila without a hall map → a list, one row per seat with two
   `Chip`s מגיע / לא מגיע (also the screen-reader-friendly fallback); loading (spinner); error (Banner + retry).
-- **A11y:** each own seat is a `switch`, label "מרכז ימין, שורה 7, כיסא 3, מגיע"; the mini-map is decorative.
+- **A11y:** each own seat is a `switch`, label "מרכז ימין, שורה 7, כיסא 3, מגיע".
 - **English:** texts flip; the hall itself does not mirror (it is the same room).
 
 ### 15.4 Preview label
