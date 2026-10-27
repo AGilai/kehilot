@@ -35,7 +35,7 @@ export function PartnerPicker({ visible, kehilaId, kehilaName, onClose, onSent }
     setState('loading');
     try { setRows(await api.familyCandidates(kehilaId)); setState('ready'); } catch { setState('error'); }
   }, [api, kehilaId]);
-  React.useEffect(() => { if (visible) { setError(null); void load(); } }, [visible, load]);
+  React.useEffect(() => { if (visible) { setError(null); setQuery(fx ? 'יו' : ''); setSelected(fx ? '01FIXTUREUSER00000000005' : null); void load(); } }, [visible, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cooldownText = (c: Candidate) => c.cooldownUntil ? t('family.pick.cooldown', { name: c.displayName, date: shortDate(c.cooldownUntil) }) : null;
   const words = queryWords(query);
@@ -61,12 +61,11 @@ export function PartnerPicker({ visible, kehilaId, kehilaName, onClose, onSent }
     <Sheet visible={visible} title={t('family.pick.title')} onClose={onClose}
       footer={<Button title={t('family.pick.send')} onPress={() => void send()} busy={busy} disabled={!chosen || blocked} />}>
       <Txt size="small">{t('family.pick.body')}</Txt>
-      <Txt size="small" color={k.muted}>{t('family.pick.hint', { kehila: kehilaName })}</Txt>
       {error ? <Banner tone="error" text={error} /> : null}
       <PickList query={query} onQuery={q => { setQuery(q); setError(null); }} placeholder={t('family.pick.search')}
         rows={shown.map(c => ({ id: c.userId, title: c.displayName, subtitle: cooldownText(c) ?? undefined }))}
         selected={selected} onSelect={id => { setSelected(id); setError(null); }} empty={t('family.pick.none')}
-        state={state} errorText={t('errors.network')} disabled={busy} />
+        hint={<Txt size="small" color={k.muted} style={{ textAlign: 'center' }}>{t('family.pick.hint', { kehila: kehilaName })}</Txt>} state={state} errorText={t('errors.network')} disabled={busy} />
       {state === 'error' ? <Button kind="secondary" title={t('common.retry')} onPress={() => void load()} /> : null}
     </Sheet>
   );

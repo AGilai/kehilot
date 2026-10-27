@@ -149,9 +149,9 @@ export function Check({ label, value, onChange, note, disabled }: { label: strin
 export type PickRow = { id: string; title: string; subtitle?: string };
 
 /** Search box over a short list of rows; one can be selected. Shows at most `max` rows. */
-export function PickList({ query, onQuery, placeholder, rows, selected, onSelect, empty, state, errorText, max = 8, disabled }: {
+export function PickList({ query, onQuery, placeholder, rows, selected, onSelect, empty, state, errorText, max = 8, disabled, hint }: {
   query: string; onQuery: (q: string) => void; placeholder: string; rows: PickRow[]; selected: string | null; onSelect: (id: string) => void;
-  empty: string; state: 'loading' | 'error' | 'ready'; errorText?: string; max?: number; disabled?: boolean;
+  empty: string; state: 'loading' | 'error' | 'ready'; errorText?: string; max?: number; disabled?: boolean; /** Shown between the input and the rows. */ hint?: React.ReactNode;
 }) {
   const { lang, dir } = useI18n();
   const k = useTokens();
@@ -159,6 +159,7 @@ export function PickList({ query, onQuery, placeholder, rows, selected, onSelect
     <View style={{ gap: 8 }}>
       <TextInput accessibilityLabel={placeholder} placeholder={placeholder} placeholderTextColor={k.muted} value={query} onChangeText={onQuery}
         style={{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }} />
+      {hint}
       {state === 'loading' ? <ActivityIndicator color={k.tekhelet} /> : null}
       {state === 'error' && errorText ? <Banner tone="error" text={errorText} /> : null}
       {state === 'ready' && rows.length === 0 ? <Txt size="small" color={k.muted}>{empty}</Txt> : null}
