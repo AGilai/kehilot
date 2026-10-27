@@ -4,7 +4,7 @@ Nothing here logs a phone number, a name or the list."""
 import time
 
 from . import consents, inputs
-from .authz import require
+from .authz import ROLES, require
 from .errors import ApiError
 from .families import family_name
 from .phones import normalize_phone
@@ -14,7 +14,9 @@ MEMBERS = ('member', 'gabbai')
 
 def put_phone(ctx, params):
     d = inputs.body_object(ctx)
-    raw = d.get('phone')
+    if 'phone' not in d:  # only an explicit null or '' removes the number
+        raise ApiError(400, 'invalid_phone')
+    raw = d['phone']
     if raw is None or raw == '':
         phone = None
     else:
@@ -34,8 +36,9 @@ def put_switch(ctx, params):
         if not (profile or {}).get('phone'):
             raise ApiError(409, 'phone_required')
     version = consents.VERSIONS['phoneList']
-    ctx.repo.set_phone_switch(k, ctx.user_id, show, version)
+    # the record first: a switch that took effect always has one
     ctx.repo.add_consent(ctx.user_id, 'phoneList', 'on' if show else 'off', version, k)
+    ctx.repo.set_phone_switch(k, ctx.user_id, show, version)
     return 200, {'show': show}
 
 
@@ -64,3 +67,30 @@ def phone_list(ctx, params):
             rows.append({'familyId': family['familyId'], 'name': name, 'people': people})
     rows.sort(key=lambda r: (r['name'], r['familyId']))
     return 200, rows
+
+
+def age13(ctx, params):
+    ctx.repo.add_consent(ctx.user_id, 'age13', 'accepted', consents.VERSIONS['age13'])
+    return 204, None
+
+
+def age13_required(repo, user_id):
+    found = consents.latest(repo.list_consents(user_id), 'age13')
+    return not found or found.get('version') != consents.VERSIONS['age13']
+
+
+def dismiss_card(ctx, params):
+    """One route for the one-time cards. `imported` is for any role; `gabbai_link` and `phone` for M/G."""
+    k, card = params['k'], params['card']
+    require(ctx.repo, ctx.user_id, k, ROLES)
+    if card not in ('gabbai_link', 'imported', 'phone'):
+        raise ApiError(400, 'invalid_card')
+    if card == 'imported':
+        ctx.repo.dismiss_import_notice(k, ctx.user_id)
+        return 204, None
+    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    if card == 'gabbai_link':
+        ctx.repo.clear_family_notice(k, ctx.user_id)
+    else:  # "not now": no consent record
+        ctx.repo.set_phone_asked(k, ctx.user_id, consents.VERSIONS['phoneList'])
+    return 204, None

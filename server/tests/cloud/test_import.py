@@ -94,6 +94,17 @@ class ImportTest(unittest.TestCase):
         self.do_import([row(email='  Dana@Example.TEST ')])
         self.assertIsNotNone(self.user_id_of('dana@example.test'))
 
+    def test_import_sets_imported_card_once(self):
+        self.do_import([row()])
+        sub = self.cognito_users()[0]['Username']
+        card = lambda: self.call('GET', f'/v1/kehilot/{self.k}', sub, 'dana@example.test')[1]['cards']['imported']
+        self.assertTrue(card())
+        status, _ = self.call('POST', f'/v1/kehilot/{self.k}/me/cards/imported/dismiss', sub, 'dana@example.test')
+        self.assertEqual(status, 204)
+        self.assertFalse(card())
+        self.assertEqual(self.do_import([row()])[1]['results'][0]['status'], 'exists')
+        self.assertFalse(card())
+
     def test_reimport_is_idempotent(self):
         rows = [row(), row('Eli', 'Example', 'eli@example.test', 'listener')]
         self.do_import(rows)

@@ -92,7 +92,8 @@ class MembersRepo:
                       'kehilaId': k, 'userId': user_id, 'role': role, 'classification': classification,
                       'canBroadcast': can_broadcast, 'notify': {}, 'displayName': display_name}
         try:
-            self.table.put_item(Item=membership, ConditionExpression='attribute_not_exists(sk)',
+            self.table.put_item(Item={**membership, 'importNotice': True},
+                                ConditionExpression='attribute_not_exists(sk)',
                                 ReturnValuesOnConditionCheckFailure='ALL_OLD')
             return 'added'
         except ClientError as error:
@@ -306,6 +307,35 @@ class MembersRepo:
         self.table.update_item(Key=self._key(k, 'META'), UpdateExpression='SET settings.maxListeners = :v',
                                ConditionExpression='attribute_exists(settings)',
                                ExpressionAttributeValues={':v': value})
+
+    def set_settings(self, k, max_listeners=None, privacy_contact=None):
+        """Set the given settings only (None = leave); privacy_contact '' removes it. Other settings are kept."""
+        sets, removes, values = [], [], {}
+        if max_listeners is not None:
+            sets.append('settings.maxListeners = :m')
+            values[':m'] = max_listeners
+        if privacy_contact == '':
+            removes.append('settings.privacyContact')
+        elif privacy_contact is not None:
+            sets.append('settings.privacyContact = :p')
+            values[':p'] = privacy_contact
+        expression = ('SET ' + ', '.join(sets) if sets else '') + (' REMOVE ' + ', '.join(removes) if removes else '')
+        self.table.update_item(Key=self._key(k, 'META'), UpdateExpression=expression.strip(),
+                               ConditionExpression='attribute_exists(settings)',
+                               **({'ExpressionAttributeValues': values} if values else {}))
+
+    def accept_terms(self, k, user_id, version, now):
+        """The Kehila terms are accepted: the consent record first, then the META marker (no name stored)."""
+        self.add_consent(user_id, 'kehilaTerms', 'accepted', version, k)
+        self.table.update_item(Key=self._key(k, 'META'), UpdateExpression='SET termsAccepted = :t',
+                               ConditionExpression='attribute_exists(sk)',
+                               ExpressionAttributeValues={':t': {'version': version, 'userId': user_id, 'at': now}})
+
+    def dismiss_import_notice(self, k, user_id):
+        self._update_member_item(k, user_id, 'REMOVE importNotice', None)
+
+    def set_phone_asked(self, k, user_id, version):
+        self._update_member_item(k, user_id, 'SET phoneAsked = :v', {':v': version})
 
     def set_push_text(self, k, key, lang, text):
         """Set (or, for '', remove) the custom push text of `key` in `lang` with UpdateItem on the nested
@@ -544,8 +574,8 @@ class AdminRepo:
         try:
             self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression=expression,
                                    ConditionExpression='attribute_exists(sk)',
-                                   ExpressionAttributeValues=values, **(
-                                       {'ExpressionAttributeNames': names} if names else {}))
+                                   **({'ExpressionAttributeValues': values} if values else {}),
+                                   **({'ExpressionAttributeNames': names} if names else {}))
         except ClientError as error:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise

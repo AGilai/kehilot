@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import accounts, importer, inputs, push
+from . import accounts, consents, importer, inputs, push
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
@@ -16,6 +16,7 @@ LANGS = ('he', 'en')
 # control characters (Cc, incl. tab and newlines), line/paragraph separators and bidi overrides/isolates/marks
 _UNSAFE_TEXT = re.compile('[\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]')
 ROLES = ('listener', 'member', 'gabbai')
+PRIVACY_CONTACT_MAX = 100
 IMPORT_MAX_ROWS = 10
 IMPORT_MAX_BODY = 64 * 1024
 
@@ -205,9 +206,30 @@ def import_list(ctx, params):
 
 
 def set_settings(ctx, params):
+    """maxListeners and/or privacyContact (at least one). The contact is never logged."""
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
-    ctx.repo.set_max_listeners(params['k'], inputs.integer(inputs.body_object(ctx), 'maxListeners', 0, 5000))
+    d = inputs.body_object(ctx)
+    if 'maxListeners' not in d and 'privacyContact' not in d:
+        raise ApiError(400, 'invalid_body')
+    limit = inputs.integer(d, 'maxListeners', 0, 5000) if 'maxListeners' in d else None
+    contact = None
+    if 'privacyContact' in d:
+        contact = d['privacyContact']
+        if not isinstance(contact, str) or _UNSAFE_TEXT.search(contact):
+            raise ApiError(400, 'invalid_privacy_contact')
+        contact = contact.strip()
+        if len(contact) > PRIVACY_CONTACT_MAX:
+            raise ApiError(400, 'invalid_privacy_contact')
+    ctx.repo.set_settings(params['k'], limit, contact)
     return 200, {}
+
+
+def accept_terms(ctx, params):
+    """A gabbai accepts the Kehila terms for the Kehila. Recorded only; the gate is client-side."""
+    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    now = int(time.time())
+    ctx.repo.accept_terms(params['k'], ctx.user_id, consents.VERSIONS['kehilaTerms'], now)
+    return 200, {'at': now}
 
 
 def _editable(key):

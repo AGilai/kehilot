@@ -82,6 +82,8 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/image$'), routes_media.image_url),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/changes$'), routes_changes.changes),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/notify$'), routes_changes.put_notify),
+    ('POST', re.compile(r'^/v1/me/consents/age13$'), routes_privacy.age13),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/terms$'), routes_admin.accept_terms),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/phone-list$'), routes_privacy.put_switch),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/phone-list$'), routes_privacy.phone_list),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family$'), routes_families.get_family),
@@ -99,7 +101,7 @@ ROUTES = [
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/unlink$'), routes_families.unlink),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/families$'), routes_families.admin_families),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/families/link$'), routes_families.gabbai_link),
-    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/cards/(?P<card>[^/]+)/dismiss$'), routes_families.dismiss_card),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/me/cards/(?P<card>[^/]+)/dismiss$'), routes_privacy.dismiss_card),
 ]
 PUBLIC = {routes_core.health, routes_invites.preview}  # no caller: ctx.caller and ctx.user_id are None
 

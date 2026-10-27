@@ -285,12 +285,3 @@ def gabbai_link(ctx, params):
             log.warning('family notice failed kehila=%s', k)
         push.enqueue('family_gabbai', k, user)
     return 200, {'familyId': family_id}
-
-
-def dismiss_card(ctx, params):
-    k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
-    if params['card'] != 'gabbai_link':
-        raise ApiError(400, 'invalid_card')
-    ctx.repo.clear_family_notice(k, ctx.user_id)
-    return 204, None
