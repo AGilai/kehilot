@@ -161,6 +161,17 @@ test('fit: absurdly long labels and rows set overflow instead of a second page, 
   assert.equal(f.dropImage, true);
   assert.equal(f.droppedMazal, m.mazalTov.length);
   assert.equal(f.rowFont, 12.5);
+  assert.deepEqual(f.dropped.map(d => d.kind), ['image', ...m.mazalTov.map(() => 'mazal')]);
+  assert.ok(f.scale >= 0.75);
+});
+
+test('fit: the square never goes below 12.5 for rows, and whatever is dropped is listed', () => {
+  const rows = Array.from({ length: 12 }, (_, i) => fixed(`q${i}`, `שורה מספר ${i + 1}`, `${10 + i}:00`));
+  const m = build({ doc: withRows(rows), variant: 'square' });
+  const f = fitSheet(m);
+  assert.ok(f.rowFont >= 12.5);
+  assert.equal(f.dropped.length, f.droppedMazal + (f.dropImage ? 1 : 0));
+  assert.deepEqual(fitSheet(build()).dropped, []);
 });
 
 test('fit: long labels wrap instead of clipping, and cost height', () => {
@@ -218,8 +229,8 @@ test('fit: too long for the steps shrinks everything uniformly instead of clippi
   const m = build({ doc: withRows(rows), variant: 'square' });
   const f = fitSheet(m);
   assert.equal(f.overflow, true);
-  assert.ok(f.scale < 1 && f.scale >= 0.5, `scale ${f.scale}`);
-  assert.ok(neededHeight(m, f) <= 540 || f.scale === 0.5, 'fits after the shrink');
+  assert.ok(f.scale < 1 && f.scale >= 0.75, `scale ${f.scale}`);
+  assert.ok(neededHeight(m, f) <= 540 || f.scale === 0.75, 'fits after the shrink');
   const box = innerBox('square', f);
   const L = sheetLayout('square', f);
   assert.ok(Math.abs(box.w * f.scale - L.bodyW) < 1e-6);

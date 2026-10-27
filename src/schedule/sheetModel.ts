@@ -157,6 +157,8 @@ export type SheetFit = {
   dropImage: boolean;
   /** Mazal tov items left off, from the end. */
   droppedMazal: number;
+  /** What was left off to fit, for the editor to show: the picture and/or mazal tov items (by id). Never dropped silently. */
+  dropped: Array<{ kind: 'image' } | { kind: 'mazal'; id: string }>;
   /** Tightest row spacing, the last squeeze before dropping anything. */
   tight: boolean;
   /** Uniform shrink of everything inside the frame (1 = none); below 1 only when the sheet is too long. */
@@ -187,8 +189,11 @@ export function sheetLayout(variant: SheetVariant, fit: Pick<SheetFit, 'rowFont'
   };
 }
 
+/** The uniform shrink never goes below this. */
+export const SCALE_FLOOR = 0.75;
+
 export const BASE_FIT = (variant: SheetVariant): SheetFit => ({
-  rowFont: variant === 'a4' ? 14.5 : 12.5, mazalFont: variant === 'a4' ? 13 : 11.5, imageScale: 1, dropImage: false, droppedMazal: 0, tight: false, scale: 1, overflow: false,
+  rowFont: variant === 'a4' ? 14.5 : 12.5, mazalFont: variant === 'a4' ? 13 : 11.5, imageScale: 1, dropImage: false, droppedMazal: 0, dropped: [], tight: false, scale: 1, overflow: false,
 });
 
 const GLYPH = 0.49; // average Hebrew/digit advance in em, Heebo (measured in Chromium: ~0.47 for running Hebrew)
@@ -270,7 +275,7 @@ export function innerBox(variant: SheetVariant, fit: Pick<SheetFit, 'scale' | 'r
 }
 
 /** §14.5: mazal tov to 12 -> the picture down to 30% -> row font down to its floor -> squeeze spacing -> uniform shrink to 82% (overflow) ->
- *  drop the picture, then mazal tov from the end -> shrink to fit (at least 50%). The first step that fits wins. Never a second page,
+ *  drop the picture, then mazal tov from the end -> shrink to fit (floor 75%). The first step that fits wins. Never a second page,
  *  never a clipped row; `overflow` tells the editor to show the banner. */
 export function fitSheet(model: SheetModel): SheetFit {
   const a = model.variant === 'a4';
@@ -280,7 +285,7 @@ export function fitSheet(model: SheetModel): SheetFit {
   const small = { ...base, mazalFont: a ? 12 : 11 };
   if (model.pinned?.imageUri) for (const imageScale of [0.8, 0.6, 0.45, 0.3]) steps.push({ ...small, imageScale });
   const imageScale = model.pinned?.imageUri ? 0.3 : 1;
-  const floor = a ? 12.5 : 11.5;
+  const floor = 12.5;
   for (let rowFont = base.rowFont - 0.5; rowFont >= floor - 1e-9; rowFont -= 0.5) steps.push({ ...small, imageScale, rowFont });
   const squeezed = { ...small, imageScale, rowFont: floor, tight: true };
   steps.push(squeezed);
@@ -288,11 +293,18 @@ export function fitSheet(model: SheetModel): SheetFit {
   const shrunk = { ...squeezed, scale: 0.82, overflow: true };
   if (model.pinned?.imageUri) steps.push({ ...shrunk, dropImage: true });
   for (let n = 1; n <= model.mazalTov.length; n++) steps.push({ ...shrunk, dropImage: !!model.pinned?.imageUri, droppedMazal: n });
+  const named = (step: SheetFit): SheetFit => ({
+    ...step,
+    dropped: [
+      ...(step.dropImage && model.pinned?.imageUri ? [{ kind: 'image' as const }] : []),
+      ...model.mazalTov.slice(model.mazalTov.length - step.droppedMazal).map(item => ({ kind: 'mazal' as const, id: item.id })),
+    ],
+  });
   for (const step of steps) {
-    if (neededHeight(model, step) <= dims.h) return step;
+    if (neededHeight(model, step) <= dims.h) return named(step);
   }
-  // Nothing fits at 82%: shrink until it does (the content part scales with the factor; the padding does not).
+  // Nothing fits at 82%: shrink until it does, never below 75%; past that the sheet stays `overflow` (the editor says so).
   const last = steps[steps.length - 1]!;
   const content = (neededHeight(model, { ...last, scale: 1 }) - dims.padTop - dims.padBottom);
-  return { ...last, scale: Math.max(0.5, Math.min(0.82, Math.floor(((dims.h - dims.padTop - dims.padBottom) / content) * 100) / 100)), overflow: true };
+  return named({ ...last, scale: Math.max(SCALE_FLOOR, Math.min(0.82, Math.floor(((dims.h - dims.padTop - dims.padBottom) / content) * 100) / 100)), overflow: true });
 }

@@ -47,6 +47,8 @@ export function SchedulePrintPage({ request }: { request: PrintRequest }) {
   const zmanimFor = React.useMemo(() => zmanimForLocation(doc?.location), [doc]);
   const model = React.useMemo(() => {
     if (!doc || !hasTimedRows(doc) || !session.kehila) return null;
+    // Limit: the mazal tov come from the feed the client holds (the newest page the API returned); the messages API has no type or date filter,
+    // so a celebration older than that page is missing from the sheet. A server-side filter would fix it.
     const computed = fullModel(doc, israelNow(now), zmanimFor, request.weekIndex).computed;
     // Fixtures only: ?logo=1 gives the sheet a logo, ?pin=1 gives the sheet a pinned notice (the editor that sets it is a later task).
     const pinned = config.fixtures && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pin') === '1'
