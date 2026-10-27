@@ -34,6 +34,10 @@
 //   ExtraRow = { id: string, sectionId: string, afterRowId?: string | null, label: Text, note?: string,
 //                day?: "friday" | "shabbat", time: Time }     // time: "none" | "fixed" | "formula"
 //
+// Zmanim rules beyond Home's (CTO defaults, pending the rabbi's confirmation): sofZmanShmaMGA = 3 temporal hours
+// from alot 16.1 degrees to tzeit 16.1 degrees, rounded down; chatzot rounded down; shabbatEnd = sun 8.5 degrees
+// below the horizon rounded up (separate from tzeit, which is the Yeshiva nightfall).
+//
 // `role: "candles"` marks the candle-lighting row (it is never the "next prayer"; Home shows it on its own line);
 // it is explicit, a row anchored on candleLighting (e.g. Kabbalat Shabbat = candles + 10) is still a prayer.
 //

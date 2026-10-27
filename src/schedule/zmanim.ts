@@ -9,7 +9,8 @@ import type { DayZmanim, ZmanimFor } from './types.ts';
 // formulas are `applyYeshivaRules` itself, so Home and the schedule cannot drift. Candle lighting is
 // src/zmanim.ts `candleLighting` (sunset minus N, rounded down). Only the zmanim Home does not show are new here
 // (rounding chosen by direction of caution; not Yeshiva-verified): alot and misheyakir up, latest-shema (MGA) down,
-// mincha ketana up, chatzot nearest, tzeit/Shabbat end by degrees or minutes up.
+// mincha ketana up, chatzot down (a deadline), Shema MGA by 16.1 degrees (alot to tzeit) down, tzeit by degrees or minutes up,
+// Shabbat end 8.5 degrees up (SHABBAT_END_DEFAULT).
 //
 // The Kehila location is the one src/api.ts passes to Hebcal (Petah Tikva); sea level (no elevation), like Home.
 export const KEHILA_LOCATION = { latitude: 32.0878, longitude: 34.8878, tzid: TZ };
@@ -17,7 +18,10 @@ export const KEHILA_LOCATION = { latitude: 32.0878, longitude: 34.8878, tzid: TZ
 export type TzeitRule = { kind: 'yeshiva' } | { kind: 'minutes'; minutes: number } | { kind: 'degrees'; degrees: number };
 export type ZmanimSettings = { candleMinutes: number; tzeit: TzeitRule; shabbatEnd: TzeitRule };
 // 40 = the Petah Tikva candle-lighting minutes src/api.ts uses today.
-export const DEFAULT_ZMANIM_SETTINGS: ZmanimSettings = { candleMinutes: 40, tzeit: { kind: 'yeshiva' }, shabbatEnd: { kind: 'yeshiva' } };
+// Shabbat end is NOT the weekday nightfall: by default the sun is 8.5 degrees below the horizon, rounded up to the
+// minute (the settings hook: change `shabbatEnd` here or per Kehila later). tzeit keeps the Yeshiva nightfall rule.
+export const SHABBAT_END_DEFAULT: TzeitRule = { kind: 'degrees', degrees: 8.5 };
+export const DEFAULT_ZMANIM_SETTINGS: ZmanimSettings = { candleMinutes: 40, tzeit: { kind: 'yeshiva' }, shabbatEnd: SHABBAT_END_DEFAULT };
 
 const MINUTE = 60000;
 const geo = new GeoLocation(null, KEHILA_LOCATION.latitude, KEHILA_LOCATION.longitude, 0, KEHILA_LOCATION.tzid);
@@ -43,8 +47,8 @@ export function offlineDayZmanim(date: string, settings: ZmanimSettings = DEFAUL
   };
   const extra: Record<string, Date | string | null | undefined> = {
     alotHaShachar: dateOrNull(z.alotHaShachar(), 'up'), misheyakir: dateOrNull(z.misheyakir(), 'up'),
-    sofZmanShmaMGA: dateOrNull(z.sofZmanShmaMGA(), 'down'), minchaKetana: dateOrNull(z.minchaKetana(), 'up'),
-    chatzot: roundMs(astronomy.chatzot!.getTime(), 'nearest'),
+    sofZmanShmaMGA: dateOrNull(z.sofZmanShmaMGA16Point1(), 'down'), minchaKetana: dateOrNull(z.minchaKetana(), 'up'),
+    chatzot: roundMs(astronomy.chatzot!.getTime(), 'down'),
     candleLighting: roundMs(sunset - settings.candleMinutes * MINUTE, 'down'),
     tzeit: rule(settings.tzeit), shabbatEnd: rule(settings.shabbatEnd),
   };

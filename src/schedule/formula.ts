@@ -77,7 +77,7 @@ export function describe(formula: Formula, lang: Lang = 'he'): string {
   const early = formula.day === 'earliest';
   const ref = he
     ? `${name.ref}${span ? ` ${early ? (name.feminine ? 'המוקדמת' : 'המוקדם') : (name.feminine ? 'המאוחרת' : 'המאוחר')} בימים א׳–ה׳` : dayPhrase}`
-    : `${span ? `${early ? 'earliest' : 'latest'} ` : ''}${name.en}${span ? ' on Sun–Thu' : dayPhrase}`;
+    : `${span ? `the ${early ? 'earliest' : 'latest'} ` : ''}${name.en}${span ? ' on Sun–Thu' : dayPhrase}`;
   const at = he ? `${name.at}${span ? ` ${early ? (name.feminine ? 'המוקדמת' : 'המוקדם') : (name.feminine ? 'המאוחרת' : 'המאוחר')} בימים א׳–ה׳` : dayPhrase}`
     : ref;
   const bounds = (formula.notEarlierThan ? `, ${he ? 'לא לפני' : 'not earlier than'} ${formula.notEarlierThan}` : '') +
@@ -85,7 +85,7 @@ export function describe(formula: Formula, lang: Lang = 'he'): string {
   const { mode } = formula.rounding;
   const rounding = formula.rounding.mode === 'none' ? '' : he
     ? `, מעוגל ${mode === 'down' ? 'למטה' : mode === 'up' ? 'למעלה' : 'לקרוב'} ל־${formula.rounding.step}`
-    : `, rounded ${mode === 'nearest' ? 'to the nearest' : `${mode} to`} ${formula.rounding.step}`;
+    : `, rounded ${mode} to ${formula.rounding.step}`;
   if (formula.offset.minutes === 0) {
     const lead = he ? (rounding ? at : `בדיוק ${at}`) : `${rounding ? 'At' : 'Exactly at'} ${ref}`;
     return `${lead}${rounding}${bounds}.`;

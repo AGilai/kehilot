@@ -55,7 +55,7 @@ export function computeWeek(schedule: Schedule, date: string, zmanimFor: ZmanimF
       const computed = computeRow(row, section.kind, week, zmanimFor);
       const override = overrides.rows?.[row.id];
       if (override?.kind === 'hide') hidden.push(computed);
-      else if (override?.kind === 'time') {
+      else if (override?.kind === 'time' && parseClock(override.at) !== null) {
         const changed: ComputedRow = { ...computed, time: override.at, source: 'override', usual: computed.time };
         if (override.note) changed.overrideNote = override.note;
         rows.push(changed);

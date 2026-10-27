@@ -40,7 +40,14 @@ test('offline zmanim use the Home rules (same values as applyYeshivaRules on the
   const z = offlineDayZmanim('2026-10-25')!;
   assert.deepEqual([z.sunset, z.tzeit, z.minchaGedola, z.sunrise], ['16:57', '17:16', '11:55', '05:52']);
   assert.equal(offlineDayZmanim('2026-10-23')!.sunset, '17:59'); // still summer time on Friday
-  assert.equal(offlineDayZmanim('2026-10-24')!.shabbatEnd, '18:17');
+  assert.equal(offlineDayZmanim('2026-10-24')!.shabbatEnd, '18:36'); // 8.5 degrees, not the 18:17 weekday nightfall
+});
+
+test('Shabbat end is 8.5 degrees rounded up, separate from the Yeshiva tzeit; Shema MGA is 16.1 degrees; chatzot rounds down', () => {
+  const [a, b] = [offlineDayZmanim('2026-10-24')!, offlineDayZmanim('2026-11-07')!];
+  assert.deepEqual([a.shabbatEnd, a.tzeit, b.shabbatEnd, b.tzeit], ['18:36', '18:17', '17:24', '17:04']);
+  assert.deepEqual([a.sofZmanShmaMGA, b.sofZmanShmaMGA], ['09:00', '08:05']);
+  assert.deepEqual([a.chatzot, b.chatzot], ['12:24', '11:23']);
 });
 
 test('offline zmanim do not depend on the machine time zone', () => {
@@ -129,33 +136,33 @@ const results = (date: string) => {
 };
 
 test('normal week (Fri 2026-11-06)', () => {
-  assert.deepEqual(results('2026-11-06'), { shkia: '16:42', minus5: '16:37', minus5Down5: '16:35', capped: '16:25', candles: '16:06', tzeit: '17:03', shabbatEnd: '17:04' });
+  assert.deepEqual(results('2026-11-06'), { shkia: '16:42', minus5: '16:37', minus5Down5: '16:35', capped: '16:25', candles: '16:06', tzeit: '17:03', shabbatEnd: '17:24' });
 });
 
 test('October DST week (Fri 2026-10-23, clocks go back Sunday 25th): Friday in summer time, Sun-Thu in winter time', () => {
-  assert.deepEqual(results('2026-10-23'), { shkia: '16:53', minus5: '16:48', minus5Down5: '16:45', capped: '16:35', candles: '17:19', tzeit: '17:16', shabbatEnd: '18:17' });
+  assert.deepEqual(results('2026-10-23'), { shkia: '16:53', minus5: '16:48', minus5Down5: '16:45', capped: '16:35', candles: '17:19', tzeit: '17:16', shabbatEnd: '18:36' });
   // the weekday earliest sunset is Thursday's, not Friday's 17:59
   assert.equal(offline('2026-10-29')!.sunset, '16:53');
 });
 
 test('March DST week (Fri 2026-03-27, clocks forward that morning): the 18:30 bound caps the weekday time', () => {
-  assert.deepEqual(results('2026-03-27'), { shkia: '18:58', minus5: '18:53', minus5Down5: '18:50', capped: '18:30', candles: '18:16', tzeit: '19:20', shabbatEnd: '19:16' });
+  assert.deepEqual(results('2026-03-27'), { shkia: '18:58', minus5: '18:53', minus5Down5: '18:50', capped: '18:30', candles: '18:16', tzeit: '19:20', shabbatEnd: '19:34' });
 });
 
 test('the week before the March switch is all winter time', () => {
   const r = results('2026-03-20');
-  assert.deepEqual([r.shkia, r.capped, r.candles, r.shabbatEnd], ['17:53', '17:35', '17:11', '18:11']);
+  assert.deepEqual([r.shkia, r.capped, r.candles, r.shabbatEnd], ['17:53', '17:35', '17:11', '18:29']);
 });
 
 test('winter week (Fri 2027-01-08)', () => {
-  assert.deepEqual(results('2027-01-08'), { shkia: '16:53', minus5: '16:48', minus5Down5: '16:45', capped: '16:35', candles: '16:12', tzeit: '17:16', shabbatEnd: '17:11' });
+  assert.deepEqual(results('2027-01-08'), { shkia: '16:53', minus5: '16:48', minus5Down5: '16:45', capped: '16:35', candles: '16:12', tzeit: '17:16', shabbatEnd: '17:33' });
 });
 
 // ---- describe -------------------------------------------------------------------------------------------------
 
 test('describe: Hebrew and English plain-language summaries (UX-DESIGN §14.8)', () => {
   assert.equal(describe(sunsetEarliest, 'he'), '15 דקות לפני השקיעה המוקדמת בימים א׳–ה׳, מעוגל למטה ל־5, לא אחרי 18:30.');
-  assert.equal(describe(sunsetEarliest, 'en'), '15 minutes before earliest sunset on Sun–Thu, rounded down to 5, not later than 18:30.');
+  assert.equal(describe(sunsetEarliest, 'en'), '15 minutes before the earliest sunset on Sun–Thu, rounded down to 5, not later than 18:30.');
   const exact = f({ anchor: 'sunset', day: 'friday' });
   assert.equal(describe(exact, 'he'), 'בדיוק בשקיעה ביום שישי.');
   assert.equal(describe(exact, 'en'), 'Exactly at sunset on Friday.');
@@ -166,7 +173,7 @@ test('describe: Hebrew and English plain-language summaries (UX-DESIGN §14.8)',
     'דקה אחת אחרי מנחה גדולה המאוחרת בימים א׳–ה׳, מעוגל לקרוב ל־10, לא לפני 13:00.');
   assert.equal(describe(f({ anchor: 'candleLighting', day: 'friday', offset: { minutes: 2, direction: 'after' } }), 'en'), '2 minutes after candle lighting on Friday.');
   assert.equal(describe(f({ anchor: 'plagHaMincha', day: 'earliest', offset: { minutes: 10, direction: 'before' }, rounding: { mode: 'nearest', step: 5 } }), 'en'),
-    '10 minutes before earliest Plag HaMincha on Sun–Thu, rounded to the nearest 5.');
+    '10 minutes before the earliest Plag HaMincha on Sun–Thu, rounded nearest to 5.');
 });
 
 // ---- computeWeek, overrides, next ----------------------------------------------------------------------------
@@ -198,7 +205,7 @@ test('computeWeek marks rows fixed / formula / text and keeps Shabbat rows on th
   const shabbat = rows(computed, 'shabbat');
   assert.deepEqual(shabbat.map(r => [r.id, r.time, r.source, r.day]), [
     ['candles', '16:06', 'formula', 'friday'], ['kabbalat', '16:16', 'formula', 'friday'], ['shacharit', '08:30', 'fixed', 'shabbat'],
-    ['lessons', null, 'text', 'shabbat'], ['shabbat-end', '17:04', 'formula', 'shabbat'],
+    ['lessons', null, 'text', 'shabbat'], ['shabbat-end', '17:24', 'formula', 'shabbat'],
   ]);
   assert.equal(shabbat[0]!.role, 'candles');
   assert.equal(shabbat[3]!.note, 'לגברים, נשים וילדים');
@@ -242,7 +249,7 @@ test('next row: Thursday night and Friday go to the Shabbat rows (candle lightin
   assert.deepEqual(next(schedule, '2026-11-12', '20:00'), ['kabbalat', '2026-11-13', '16:11', 1]);
   assert.deepEqual(next(schedule, '2026-11-06', '10:00'), ['kabbalat', '2026-11-06', '16:16', 0]);
   assert.deepEqual(next(schedule, '2026-11-06', '16:30'), ['shacharit', '2026-11-07', '08:30', 1]);
-  assert.deepEqual(next(schedule, '2026-11-07', '08:31'), ['shabbat-end', '2026-11-07', '17:04', 0]);
+  assert.deepEqual(next(schedule, '2026-11-07', '08:31'), ['shabbat-end', '2026-11-07', '17:24', 0]);
   assert.deepEqual(next(schedule, '2026-11-07', '18:00'), ['shacharit-1', '2026-11-08', '06:30', 1]);
 });
 
@@ -258,9 +265,15 @@ test('next row skips rows hidden this week and includes this week\'s extra rows'
   assert.deepEqual(next(moved, '2026-11-10', '17:31'), ['arvit', '2026-11-10', '18:00', 0]);
   // Shabbat rows hidden this week
   const noEnd = withOverrides('2026-11-06', { rows: { kabbalat: { kind: 'hide' }, shacharit: { kind: 'hide' } } });
-  assert.deepEqual(next(noEnd, '2026-11-06', '10:00'), ['shabbat-end', '2026-11-07', '17:04', 1]);
+  assert.deepEqual(next(noEnd, '2026-11-06', '10:00'), ['shabbat-end', '2026-11-07', '17:24', 1]);
 });
 
 test('next row: an empty schedule has none', () => {
   assert.equal(nextRow({ version: 1, sections: [], weekOverrides: {} }, at('2026-11-10', '07:00'), offline), null);
+});
+
+test('an invalid override time is ignored (the row keeps its usual time)', () => {
+  const s = withOverrides('2026-11-06', { rows: { arvit: { kind: 'time', at: '25:99' } } });
+  const arvit = rows(computeWeek(s, '2026-11-10', offline), 'weekday').find(r => r.id === 'arvit')!;
+  assert.deepEqual([arvit.time, arvit.source], ['17:30', 'fixed']);
 });
