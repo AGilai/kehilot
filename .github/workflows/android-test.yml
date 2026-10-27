@@ -1,0 +1,98 @@
+name: android-test
+
+on:
+  push:
+    branches: [redesign]
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "locales/**"
+      - "app.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "index.*"
+      - "App.*"
+      - ".github/workflows/android-test.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-test
+  cancel-in-progress: true
+
+# Needed to create and prune releases; this workflow only.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      APP_VARIANT: test
+      BUILD_NUMBER: ${{ github.run_number }}
+      EXPO_PUBLIC_TEST_BUILD: "1"
+      EXPO_PUBLIC_BUILD_NUMBER: ${{ github.run_number }}
+      EXPO_PUBLIC_RELEASES_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Check settings
+        env:
+          TEST_ENV: ${{ vars.ANDROID_TEST_ENV }}
+          KEYSTORE_B64: ${{ secrets.ANDROID_TEST_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          [ -n "$TEST_ENV" ] || { echo "::error::repository variable ANDROID_TEST_ENV is empty (KEY=value lines, the EXPO_PUBLIC_* keys of the web build)"; exit 1; }
+          [ -n "$KEYSTORE_B64" ] || { echo "::error::secret ANDROID_TEST_KEYSTORE_B64 is missing; refusing to sign with any other key"; exit 1; }
+          [ -n "$KS_PASS" ] || { echo "::error::secret ANDROID_TEST_KEYSTORE_PASSWORD is missing"; exit 1; }
+          # Appended to GITHUB_ENV (no file on disk) so the Metro bundle inlines them.
+          printf '%s\n' "$TEST_ENV" >> "$GITHUB_ENV"
+
+      - run: npm ci
+      - run: npx expo prebuild --platform android --no-install --clean
+      - name: Build release APK
+        run: cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Align and sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_TEST_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          out=android/app/build/outputs/apk/release
+          src="$out/app-release.apk"
+          [ -f "$src" ] || src="$out/app-release-unsigned.apk"
+          [ -f "$src" ] || { echo "::error::no release APK in $out"; ls -R "$out"; exit 1; }
+          bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
+          echo "build-tools: $bt"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/test.p12"
+          "$bt/zipalign" -p -f 4 "$src" "$RUNNER_TEMP/aligned.apk"
+          "$bt/apksigner" sign --ks "$RUNNER_TEMP/test.p12" --ks-type PKCS12 --ks-pass env:KS_PASS \
+            --out "kehilot-test-${{ github.run_number }}.apk" "$RUNNER_TEMP/aligned.apk"
+          "$bt/apksigner" verify "kehilot-test-${{ github.run_number }}.apk"
+
+      - name: Delete keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/test.p12"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run=${{ github.run_number }}
+          subject=$(git log -1 --format=%s)
+          gh release create "android-test-$run" "kehilot-test-$run.apk" \
+            --target ${{ github.sha }} --title "Android test $run" \
+            --notes "$(git rev-parse --short HEAD) $subject" --latest
+          # Keep the newest 5 test releases.
+          gh release list --limit 100 --json tagName --jq '.[].tagName' \
+            | grep -E '^android-test-[0-9]+$' | sort -t- -k3 -n -r | tail -n +6 \
+            | while read -r tag; do gh release delete "$tag" --cleanup-tag --yes; done

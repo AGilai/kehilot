@@ -13,6 +13,10 @@ export const config = {
   webUrl: process.env.EXPO_PUBLIC_WEB_URL ?? '',
   federation,
   fixtures: process.env.EXPO_PUBLIC_FIXTURES === '1',
+  /** Owner's Android test build (GitHub Releases). Never set in the store build. */
+  testBuild: process.env.EXPO_PUBLIC_TEST_BUILD === '1',
+  buildNumber: Number(process.env.EXPO_PUBLIC_BUILD_NUMBER) || 0,
+  releasesRepo: process.env.EXPO_PUBLIC_RELEASES_REPO ?? '',
 };
 
 export const CLOUD = !!config.clientId || config.fixtures;

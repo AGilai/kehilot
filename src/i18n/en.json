@@ -1036,5 +1036,13 @@
   "push": {
     "familyRequest": "New family link request",
     "familyGabbai": "The gabbai updated your family details"
+  },
+  "testBuild": {
+    "title": "New test version",
+    "body": "Version {version} is ready. The download opens in your browser, then Android installs it over this version.",
+    "download": "Download",
+    "later": "Not now",
+    "downloadA11y": "Download test version {version}",
+    "tag": "Test build · {version}"
   }
 }

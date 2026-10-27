@@ -1,6 +1,11 @@
+// APP_VARIANT=test is the owner's GitHub-Actions Android build: its own package (installs beside the store app),
+// a launcher label that starts with the marker, and a versionCode from the CI run number.
+const test = process.env.APP_VARIANT === 'test';
+const buildNumber = Number(process.env.BUILD_NUMBER);
+
 export default {
   expo: {
-    name: 'הקהילה שלי',
+    name: test ? 'בדיקה · הקהילה שלי' : 'הקהילה שלי',
     slug: 'shul-regular',
     version: '0.1.0',
     orientation: 'portrait',
@@ -15,7 +20,8 @@ export default {
       infoPlist: { CFBundleAllowMixedLocalizations: true, CFBundleDevelopmentRegion: 'he' },
     },
     android: {
-      package: 'com.shulregular.member',
+      package: test ? 'com.shulregular.member.test' : 'com.shulregular.member',
+      versionCode: test && Number.isInteger(buildNumber) && buildNumber > 0 ? buildNumber : undefined,
       adaptiveIcon: { foregroundImage: './assets/icon/adaptive-foreground.png', backgroundColor: '#2A3F94' },
       googleServicesFile: process.env.GOOGLE_SERVICES_JSON,
     },

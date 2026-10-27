@@ -306,3 +306,13 @@ python3 -m server.app
 אפשר להעתיק ל־Codex לאחר פתיחת התיקייה המקומית:
 
 > זה המשך לפרויקט הקהילה שלי. קרא את AGENTS.md ואת HANDOFF.md. נסה להתקין את החבילות במחשב הזה, השלם את הבדיקות ותקן תקלות שיימצאו, ובנה והריץ את האפליקציה בסימולטור iPhone. כל הבנייה מקומית בלבד, ללא EAS Build. שמור על קוד Android ועל המזהים הנפרדים של הילדים; את מבנה מסד הנתונים המלא ואפליקציית הגבאים נגדיר בהמשך.
+
+## Android test build — October 27, 2026
+
+Owner-only test channel; members will install from the Play Store, and that build never runs the update check.
+
+- **Trigger:** a push to `redesign` that touches `src/`, `assets/`, `locales/`, `app.config.ts`, `package*.json`, `index.*`, `App.*` or `.github/workflows/android-test.yml`, or a manual run (Actions, "android-test", Run workflow). Workflow: `.github/workflows/android-test.yml`.
+- **Needs (repository settings):** secrets `ANDROID_TEST_KEYSTORE_B64` (base64 of a PKCS12 `.p12`) and `ANDROID_TEST_KEYSTORE_PASSWORD`; variable `ANDROID_TEST_ENV` (multi-line `KEY=value`: the same `EXPO_PUBLIC_*` keys as `.env.dev`, e.g. API URL, region, Cognito pool, client and domain, web URL, federation). Keep the same keystore forever: an update signed with another key cannot install over the old one. The job fails with a message when any of the three is missing.
+- **Where the APK is:** the repository's Releases page, tag `android-test-<run number>`, file `kehilot-test-<run>.apk` (the newest 5 are kept). The app is `com.shulregular.member.test` ("בדיקה · הקהילה שלי"), so it installs beside the store app.
+- **In the app:** on start and on return to the app (at most every 6 hours) the test build reads the latest release; a newer one shows a card on Home with Download (opens the APK in the browser) and Not now (remembered per build). Home also shows a "Test build · <run>" tag. Offline or any error shows nothing.
+- Not run here (2 GB machine): the workflow itself, Gradle, and the card on a device.

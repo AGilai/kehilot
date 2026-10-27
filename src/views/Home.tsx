@@ -9,12 +9,13 @@ import { visibleList } from '../client/messageView.ts';
 import { config } from '../config.ts';
 import { clockTime, dayOfWeek, displayDate, hebrewDate, israelDate, upcomingFriday } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
+import { Banner, Button, Card, Tag, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
 import { isCurrentZmanim, ZMANIM_CACHE_PREFIX } from '../zmanim.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { HomeCards } from './HomeCards.tsx';
+import { TestBuildCard } from './TestBuildCard.tsx';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
 
@@ -79,9 +80,14 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast }: { on
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <View style={{ gap: 4 }}>
-        <Txt size="small" color={k.muted}>{displayDate(date)} · {hebrewDate(date)}</Txt>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <Txt size="small" color={k.muted} style={{ flexShrink: 1 }}>{displayDate(date)} · {hebrewDate(date)}</Txt>
+          {config.testBuild ? <Tag label={t('testBuild.tag', { version: String(config.buildNumber) })} /> : null}
+        </View>
         <Txt serif size="display" accessibilityRole="header">{first ? t('home.greeting', { name: first }) : t('home.greetingAnon')}</Txt>
       </View>
+
+      <TestBuildCard />
 
       {onToast ? <HomeCards onTerms={onTerms ?? (() => {})} onToast={onToast} /> : null}
 
