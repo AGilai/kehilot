@@ -161,7 +161,7 @@ def update_holder(ctx, params):
     require(ctx.repo, ctx.user_id, k, GABBAI)
     item = _holder(ctx, params)
     name, phone = rules.validate_holder(inputs.body_object(ctx, rules.HOLDER_BODY_MAX))
-    return 200, _holder_out(ctx.repo.put_holder(k, item['holderId'], name, phone, item['createdAt']))
+    return 200, _holder_out(ctx.repo.put_holder(k, item['holderId'], name, phone, item['createdAt'], item['updatedAt']))
 
 
 def delete_holder(ctx, params):

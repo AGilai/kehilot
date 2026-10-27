@@ -59,7 +59,7 @@ def split_holder_name(name):
 
 
 def digits(phone):
-    return re.sub(r'\D', '', phone or '')[-9:]
+    return re.sub(r'[^0-9]', '', phone or '')[-9:]
 
 
 def _same(a, b):

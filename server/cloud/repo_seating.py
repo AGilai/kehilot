@@ -80,10 +80,10 @@ class SeatingRepo:
     def get_holder(self, k, holder_id):
         return self._seat_get(k, f'SEATHOLDER#{holder_id}')
 
-    def put_holder(self, k, holder_id, name, phone, created=None):
+    def put_holder(self, k, holder_id, name, phone, created=None, old_updated=None):
         now = int(time.time())
         item = {**self._key(k, f'SEATHOLDER#{holder_id}'), 'holderId': holder_id, 'name': name,
-                'createdAt': created or now, 'updatedAt': now}
+                'createdAt': created or now, 'updatedAt': _next(old_updated)}
         if phone:
             item['phone'] = phone
         self.table.put_item(Item=item)
@@ -110,6 +110,8 @@ class SeatingRepo:
                     break
                 except ApiError:
                     continue
+            else:
+                raise ApiError(409, 'try_again')
 
     def clear_family_seats(self, k, family_id):
         """A family is gone: free its seats in every layout version."""
@@ -143,6 +145,11 @@ class SeatingRepo:
 
     def clear_seat_link_notice(self, k, user_id):
         self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression='REMOVE seatLinkNotice')
+
+    def holder_ref_left(self, k, holder_id):
+        """True while any layout version still assigns a seat to the holder."""
+        ref = f'holder:{holder_id}'
+        return any(ref in item['assignments'].values() for item in self.list_assignments(k).values())
 
     def delete_holder_record(self, k, holder_id):
         """Only the holder item: its seats were moved already (delete_holder would free them)."""

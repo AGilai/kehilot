@@ -1,4 +1,9 @@
+from unittest import mock
+
 from moto import mock_aws
+
+from server.cloud import seating_link
+from server.cloud.errors import ApiError
 
 from server.tests.cloud import test_seatweek as sw
 from server.tests.cloud.test_groups import own_tests_only
@@ -248,3 +253,55 @@ class SeatLinkTest(sw.SeatWeekTest):
         self.assertEqual(len(self.released()), 1)  # the seats stayed as the member left them
         self.assertEqual(self.undo()[0], 200)
         self.assertEqual(self.admin_week()['prayers']['erev']['requests'], {})
+
+    # fix round 1
+    def test_a_failed_rewrite_raises_and_keeps_the_holder(self):
+        self.give(f'holder:{self.holder}', (4, 0))
+        with mock.patch.object(self.repo, 'put_assignments', side_effect=ApiError(409, 'assignments_changed')):
+            self.assertEqual(self.link(self.holder), (409, {'error': 'try_again'}))
+        self.assertIsNotNone(self.repo.get_holder(self.k, self.holder))
+        self.assertEqual(self.link(self.holder)[0], 200)  # a retry finishes
+        self.assertEqual(self.asg(), {self.at[(4, 0)]: f'family:{self.fam}'})
+
+    def test_holder_is_kept_while_a_ref_remains(self):
+        self.give(f'holder:{self.holder}', (4, 0))
+        with mock.patch.object(self.repo, 'move_holder_seats'):
+            self.assertEqual(self.link(self.holder), (409, {'error': 'try_again'}))
+        self.assertIsNotNone(self.repo.get_holder(self.k, self.holder))
+
+    def test_notice_is_written_before_the_move_and_not_counted_twice(self):
+        self.give(f'holder:{self.holder}', (4, 0), (4, 1))
+        with mock.patch.object(self.repo, 'move_holder_seats', side_effect=ApiError(409, 'try_again')):
+            self.assertEqual(self.link(self.holder)[0], 409)
+        self.assertEqual(self.cards('member-sub')['seatLink']['seats'], 2)
+        self.assertEqual(self.link(self.holder)[1]['seats'], 2)
+        self.assertEqual(self.cards('member-sub')['seatLink']['seats'], 2)
+
+    def test_no_notice_for_a_holder_without_seats(self):
+        self.assertEqual(self.link(self.holder)[0], 200)
+        self.assertIsNone(self.cards('member-sub')['seatLink'])
+
+    def test_notice_counts_future_versions(self):
+        later = friday(2)
+        status, out = self.call('PUT', f'{self.base()}/admin/seating/layouts/{later}', body={**sw.LAYOUT, 'ifUpdatedAt': None})
+        ids = {(s['row'], s['col']): s['id'] for s in out['seats']}
+        self.call('PUT', f'{self.base()}/admin/seating/layouts/{later}/assignments', body={
+            'assignments': {ids[(4, 0)]: f'holder:{self.holder}', ids[(4, 1)]: f'holder:{self.holder}',
+                            ids[(5, 0)]: f'holder:{self.holder}'}, 'ifUpdatedAt': None})
+        self.give(f'holder:{self.holder}', (4, 0))
+        self.assertEqual(self.link(self.holder)[1]['seats'], 3)
+        self.assertEqual(self.cards('member-sub')['seatLink']['seats'], 3)
+
+    def test_holder_updated_at_is_ms_and_always_moves(self):
+        h = self.holder_named('בדיוני מ.')
+        first = self.repo.get_holder(self.k, h)['updatedAt']
+        self.assertGreater(first, 10 ** 12)
+        out = self.call('PUT', f'{self.base()}/admin/seating/holders/{h}', body={'name': 'בדיוני מ.'})[1]
+        self.assertGreater(out['updatedAt'], first)
+        self.assertEqual(self.link(h, ifUpdatedAt=first), (409, {'error': 'holder_changed'}))
+        self.assertEqual(self.link(h, ifUpdatedAt=out['updatedAt'])[0], 200)
+
+    def test_phone_digits_are_ascii_only(self):
+        self.assertEqual(seating_link.digits('+972-50-1234567'), '501234567')
+        self.assertEqual(seating_link.digits('٠٥٠١٢٣٤٥٦٧'), '')
+        self.assertIsNone(seating_link.match({'name': 'אחר', 'phone': '٠٥٠١٢٣٤٥٦٧'}, {'lastName': 'x', 'phones': ['٠٥٠١٢٣٤٥٦٧']}))

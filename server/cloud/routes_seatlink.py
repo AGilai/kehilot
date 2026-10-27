@@ -81,11 +81,14 @@ def _now():
     return datetime.fromtimestamp(time.time(), ZoneInfo('Asia/Jerusalem'))
 
 
-def _moved(ctx, k, ref):
-    """Seats of `ref` in the layout version in effect today (0 when none)."""
-    layout = ctx.repo.layout_for(k, rules.current_shabbat(_now().date()).isoformat())
-    item = ctx.repo.get_assignments(k, layout['effectiveFrom']) if layout else None
-    return sum(1 for r in (item['assignments'] if item else {}).values() if r == ref)
+def _seats_of(ctx, k, ref):
+    """The most seats `ref` holds in any one layout version in effect today or later (0 when none)."""
+    today = rules.current_shabbat(_now().date()).isoformat()
+    layouts = ctx.repo.list_layouts(k)
+    current = max((i['effectiveFrom'] for i in layouts if i['effectiveFrom'] <= today), default=today)
+    counts = [sum(1 for r in item['assignments'].values() if r == ref)
+              for friday, item in ctx.repo.list_assignments(k).items() if friday >= current]
+    return max(counts, default=0)
 
 
 def link_holder(ctx, params):
@@ -110,10 +113,13 @@ def link_holder(ctx, params):
     if not adults:
         raise ApiError(404, 'family_not_found')
     holder_id = item['holderId']
-    seats = _moved(ctx, k, f'holder:{holder_id}')
+    seats = _seats_of(ctx, k, f'holder:{holder_id}')  # before the move: notices are idempotent per holder
+    if seats:
+        for m in adults:
+            ctx.repo.add_seat_link_notice(k, m['userId'], holder_id, seats, int(time.time()))
     ctx.repo.move_holder_seats(k, holder_id, family_id)
     ctx.repo.rename_week_ref(k, f'holder:{holder_id}', f'family:{family_id}')
-    for m in adults:
-        ctx.repo.add_seat_link_notice(k, m['userId'], holder_id, seats, int(time.time()))
+    if ctx.repo.holder_ref_left(k, holder_id):
+        raise ApiError(409, 'try_again')
     ctx.repo.delete_holder_record(k, holder_id)
     return 200, {'familyId': family_id, 'seats': seats}
