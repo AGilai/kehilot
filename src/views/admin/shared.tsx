@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
+import { useErrorText } from '../auth/Frame.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../../kit/components.tsx';
 import { TOUCH } from '../../kit/theme.ts';
@@ -33,3 +34,16 @@ export function Choice({ label, note, selected, onPress }: { label: string; note
 }
 
 export const WIDE = 1024;
+
+/** Provided by Main: called when an admin call is refused with 403 `forbidden` (the role was taken away). */
+export const AdminContext = React.createContext<{ onForbidden: () => void }>({ onForbidden: () => {} });
+
+/** Like `useErrorText`, and a `forbidden` answer also leaves management mode. */
+export function useAdminErrText(): (e: unknown) => string {
+  const text = useErrorText();
+  const { onForbidden } = React.useContext(AdminContext);
+  return e => {
+    if ((e as { code?: unknown } | null)?.code === 'forbidden') onForbidden();
+    return text(e);
+  };
+}

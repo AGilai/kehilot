@@ -20,3 +20,21 @@ export function filterMembers(rows: MemberRow[], f: MemberFilter): MemberRow[] {
 export function bulkCount(rows: MemberRow[], allow: boolean): number {
   return rows.filter(r => r.role === 'member' && r.canBroadcast !== allow).length;
 }
+
+type AdminNav = { tab: string };
+/** Management mode needs the gabbai role; without it the app returns to Home (`left`: show a toast). */
+export function adminGuard<N extends AdminNav>(role: Role | undefined, nav: N): { manage: boolean; nav: N | { tab: 'home' }; left?: true } {
+  return role === 'gabbai' ? { manage: true, nav } : { manage: false, nav: { tab: 'home' }, left: true };
+}
+
+/** A request to enter management mode is read once (a remount never replays it) and only counts for a gabbai. */
+export function takeManageEntry(holder: { current: number | null }, role: Role | undefined): boolean {
+  const v = holder.current;
+  holder.current = null;
+  return v !== null && role === 'gabbai';
+}
+
+/** Group IDs of a person that still exist in the Kehila's group list. */
+export function existingGroups(ids: string[], all: string[]): string[] {
+  return ids.filter(i => all.includes(i));
+}

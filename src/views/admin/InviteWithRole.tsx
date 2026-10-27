@@ -6,8 +6,7 @@ import type { Classification } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Txt, useTokens } from '../../kit/components.tsx';
 import { BackLink, LinkShare } from '../Me.tsx';
-import { useErrorText } from '../auth/Frame.tsx';
-import { Choice } from './shared.tsx';
+import { Choice, useAdminErrText } from './shared.tsx';
 
 const int = (s: string, lo: number, hi: number): number | null => (/^\d+$/.test(s.trim()) && +s >= lo && +s <= hi ? +s : null);
 
@@ -17,7 +16,7 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
   const { api } = useAuth();
   const { state } = useSession();
   const k = useTokens();
-  const errText = useErrorText();
+  const errText = useAdminErrText();
   const [role, setRole] = React.useState<'listener' | 'member'>(initialRole);
   const [classification, setClassification] = React.useState<Classification>('');
   const [uses, setUses] = React.useState('10');

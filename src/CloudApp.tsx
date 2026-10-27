@@ -72,6 +72,8 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const [meOpen, setMeOpen] = React.useState(() => config.fixtures && fixtureParams().screen === 'me');
   const [toast, setToast] = React.useState<string | null>(null);
   const [manageSignal, setManageSignal] = React.useState(0);
+  const manageReq = React.useRef<number | null>(null);
+  const takeManage = React.useCallback(() => takePushTarget(manageReq), []);
   const code = link.code ?? typed;
   // A link that opens before the profile exists waits as a pending invite (accepted right after ProfileSetup).
   React.useEffect(() => {
@@ -127,9 +129,9 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   }
   if (route === 'none') return <NoKehila onCode={setTyped} error={state.joinError ? errText({ code: state.joinError }) : null} onDismissError={dismissJoinError} />;
   const banner = state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null;
-  const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} onManage={() => { setSwitcher(false); setManageSignal(n => n + 1); }} />;
+  const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} onManage={() => { setSwitcher(false); manageReq.current = Date.now(); setManageSignal(n => n + 1); }} />;
   if (route === 'ready' && state.kehila && state.kehila.role !== 'listener') {
-    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} manageSignal={manageSignal} />{sheet}</>;
+    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} manageSignal={manageSignal} takeManage={takeManage} />{sheet}</>;
   }
   // A listener's Me: only the name, the language, sign out and delete.
   if (meOpen && route === 'ready' && state.kehila?.role === 'listener') {

@@ -593,6 +593,7 @@
       "create": "Create link",
       "ready": "The link is ready. You can share it.",
       "invalid": "Enter values within the allowed range"
-    }
+    },
+    "left": "You left management mode: you no longer have the gabbai role"
   }
 }

@@ -1,5 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
+import { keyedFlight } from '../../client/singleFlight.ts';
+import { existingGroups } from '../../client/membersView.ts';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
 import { bulkCount, filterMembers } from '../../client/membersView.ts';
@@ -8,8 +10,7 @@ import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { textStart } from '../../i18n/direction.ts';
 import { Banner, Button, Card, Chip, Sheet, Toggle, Txt, useTokens } from '../../kit/components.tsx';
 import { TOUCH, fonts, type } from '../../kit/theme.ts';
-import { useErrorText } from '../auth/Frame.tsx';
-import { Tag, WIDE } from './shared.tsx';
+import { Tag, WIDE, useAdminErrText } from './shared.tsx';
 
 const CLASS_KEY: Record<string, string> = { '': 'none', 'א': 'a', 'קבוע': 'kavua' };
 
@@ -19,7 +20,7 @@ function GroupsSheet({ row, groups, onClose, onSave }: { row: MemberRow | null; 
   const [ids, setIds] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  React.useEffect(() => { setIds(row?.groups ?? []); setError(null); }, [row]);
+  React.useEffect(() => { setIds(existingGroups(row?.groups ?? [], groups.map(g => g.groupId))); setError(null); }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (g: string) => setIds(cur => (cur.includes(g) ? cur.filter(x => x !== g) : [...cur, g]));
   return (
     <Sheet visible={!!row} title={t('admin.members.groupsTitle', { name: row?.displayName ?? '' })} onClose={onClose}>
@@ -74,7 +75,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
   const { api } = useAuth();
   const { state } = useSession();
   const k = useTokens();
-  const errText = useErrorText();
+  const errText = useAdminErrText();
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
   const kehilaId = state.kehilaId!;
@@ -90,6 +91,7 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
   const [busy, setBusy] = React.useState<string | null>(null);
   const [bulk, setBulk] = React.useState<boolean | null>(null);
   const [groupsFor, setGroupsFor] = React.useState<string | null>(null);
+  const flight = React.useRef(keyedFlight()).current;
 
   const load = React.useCallback(async () => {
     const [m, g] = await Promise.allSettled([api.members(kehilaId), api.groups(kehilaId)]);
@@ -105,23 +107,31 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
 
   /** Returns the error text, or null on success. */
   async function update(u: string, f: MemberFields, done = t('admin.members.saved')): Promise<string | null> {
-    setBusy(u); setRowError(null);
-    try { await api.updateMember(kehilaId, u, f); patch(u, f); onToast(done); return null; }
-    catch (e) { const text = errText(e); setRowError({ id: u, text }); return text; }
-    finally { setBusy(null); }
+    let out: string | null = null;
+    await flight(u, async () => {
+      setBusy(u); setRowError(null);
+      try { await api.updateMember(kehilaId, u, f); patch(u, f); onToast(done); }
+      catch (e) { out = errText(e); setRowError({ id: u, text: out }); }
+      finally { setBusy(null); }
+    });
+    return out;
   }
   async function remove(u: string) {
-    setBusy(u); setRowError(null);
-    try { await api.removeMember(kehilaId, u); setRows(cur => (cur ?? []).filter(r => r.userId !== u)); setOpen(null); onToast(t('admin.members.removed')); }
-    catch (e) { setRowError({ id: u, text: errText(e) }); } finally { setBusy(null); }
+    await flight(u, async () => {
+      setBusy(u); setRowError(null);
+      try { await api.removeMember(kehilaId, u); setRows(cur => (cur ?? []).filter(r => r.userId !== u)); setOpen(null); onToast(t('admin.members.removed')); }
+      catch (e) { setRowError({ id: u, text: errText(e) }); } finally { setBusy(null); }
+    });
   }
   async function doBulk(allow: boolean) {
-    setBusy('bulk'); setError(null);
-    try {
-      await api.setBroadcastAll(kehilaId, allow);
-      setRows(cur => (cur ?? []).map(r => (r.role === 'member' ? { ...r, canBroadcast: allow } : r)));
-      setBulk(null); onToast(t('admin.members.bulkDone'));
-    } catch (e) { setError(errText(e)); setBulk(null); } finally { setBusy(null); }
+    await flight('bulk', async () => {
+      setBusy('bulk'); setError(null);
+      try {
+        await api.setBroadcastAll(kehilaId, allow);
+        setRows(cur => (cur ?? []).map(r => (r.role === 'member' ? { ...r, canBroadcast: allow } : r)));
+        setBulk(null); onToast(t('admin.members.bulkDone'));
+      } catch (e) { setError(errText(e)); setBulk(null); } finally { setBusy(null); }
+    });
   }
 
   const sendSwitch = (r: MemberRow) => (r.role === 'member'

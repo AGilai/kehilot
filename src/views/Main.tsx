@@ -7,9 +7,11 @@ import { useSession } from '../client/SessionProvider.tsx';
 import { unreadCount } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { pushDestination } from '../client/push.ts';
+import { adminGuard, takeManageEntry } from '../client/membersView.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Toast, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
+import { AdminContext } from './admin/shared.tsx';
 import { Approvals } from './admin/Approvals.tsx';
 import { InviteWithRole } from './admin/InviteWithRole.tsx';
 import { Members } from './admin/Members.tsx';
@@ -64,7 +66,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
 }
 
 /** The signed-in app for members and gabbaim: top bar, the open screen, and the bottom tabs. */
-export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSignal }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string } | null; /** Changes when the switcher asks for management mode. */ manageSignal?: number }) {
+export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSignal, takeManage }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string } | null; /** Changes when the switcher asks for management mode. */ manageSignal?: number; /** Returns the pending request once. */ takeManage?: () => number | null }) {
   const { t } = useI18n();
   const k = useTokens();
   const { state } = useSession();
@@ -92,8 +94,22 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   }, [pushSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   const isGabbai = state.kehila?.role === 'gabbai';
   // Management mode is for gabbaim only, and ends when the role or the Kehila changes.
-  React.useEffect(() => { if (!isGabbai) setManage(false); }, [isGabbai]);
-  React.useEffect(() => { if (manageSignal) { setManage(true); setNav({ tab: 'overview' }); } }, [manageSignal]);
+  const role = state.kehila?.role;
+  // Left management (role taken away, or an admin call answered 403): back to Home with a toast.
+  const leaveManage = React.useCallback(() => {
+    const g = adminGuard(undefined, { tab: 'home' });
+    setManage(false); setNav(g.nav as Nav); showToast(t('admin.left'));
+  }, [showToast, t]);
+  React.useEffect(() => {
+    if (!manage || role === 'gabbai') return;
+    const g = adminGuard(role, nav);
+    setManage(g.manage); setNav(g.nav as Nav); if (g.left) showToast(t('admin.left'));
+  }, [role, manage]); // eslint-disable-line react-hooks/exhaustive-deps
+  const manageHolder = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    manageHolder.current = takeManage?.() ?? null;
+    if (takeManageEntry(manageHolder, role)) { setManage(true); setNav({ tab: 'overview' }); }
+  }, [manageSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (!manage || !isGabbai || !state.kehilaId) return;
     let live = true;
@@ -188,7 +204,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
           </View>
         </View>
       ) : null}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>{body}</KeyboardAvoidingView>
+      <AdminContext.Provider value={{ onForbidden: leaveManage }}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>{body}</KeyboardAvoidingView></AdminContext.Provider>
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
         {tabs.map(tab => (
           <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected: active === tab.key }}

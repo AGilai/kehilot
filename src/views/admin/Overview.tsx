@@ -7,8 +7,7 @@ import type { InviteRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Txt, useTokens } from '../../kit/components.tsx';
 import { LinkShare } from '../Me.tsx';
-import { useErrorText } from '../auth/Frame.tsx';
-import { Tag, useShortDate } from './shared.tsx';
+import { Tag, useShortDate, useAdminErrText } from './shared.tsx';
 
 type Counts = { pending: number; members: number; listeners: number };
 
@@ -18,7 +17,7 @@ function CapCard({ cap, listeners, onSaved }: { cap: number | undefined; listene
   const { api } = useAuth();
   const { state } = useSession();
   const k = useTokens();
-  const errText = useErrorText();
+  const errText = useAdminErrText();
   const [editing, setEditing] = React.useState(false);
   const [text, setText] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -53,7 +52,7 @@ function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged
   const { api } = useAuth();
   const { state } = useSession();
   const k = useTokens();
-  const errText = useErrorText();
+  const errText = useAdminErrText();
   const date = useShortDate();
   const [asking, setAsking] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -99,7 +98,7 @@ export function Overview({ onApprovals, onInvite, onCount, onToast }: { onApprov
   const { api } = useAuth();
   const { state } = useSession();
   const k = useTokens();
-  const errText = useErrorText();
+  const errText = useAdminErrText();
   const kehilaId = state.kehilaId!;
   const [counts, setCounts] = React.useState<Counts | null>(null);
   const [cap, setCap] = React.useState<{ max?: number; listeners?: number } | null>(null);

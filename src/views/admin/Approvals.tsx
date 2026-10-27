@@ -1,13 +1,13 @@
 import React from 'react';
 import { ActivityIndicator, ScrollView, View, useWindowDimensions } from 'react-native';
+import { keyedFlight } from '../../client/singleFlight.ts';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { ApiCodeError } from '../../client/errors.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { Classification, RequestRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
-import { useErrorText } from '../auth/Frame.tsx';
-import { Choice, Tag, WIDE, useShortDate } from './shared.tsx';
+import { Choice, Tag, WIDE, useShortDate, useAdminErrText } from './shared.tsx';
 
 type Pick = Classification | 'guest' | null;
 
@@ -44,13 +44,14 @@ export function Approvals({ onCount, onToast }: { onCount: (n: number) => void; 
   const { api } = useAuth();
   const { state } = useSession();
   const k = useTokens();
-  const errText = useErrorText();
+  const errText = useAdminErrText();
   const { width } = useWindowDimensions();
   const kehilaId = state.kehilaId!;
   const [rows, setRows] = React.useState<RequestRow[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<string | null>(null);
+  const flight = React.useRef(keyedFlight()).current;
 
   const load = React.useCallback(async () => {
     try { const r = await api.requests(kehilaId); setRows(r); onCount(r.length); setError(null); }
@@ -59,14 +60,15 @@ export function Approvals({ onCount, onToast }: { onCount: (n: number) => void; 
   React.useEffect(() => { void load(); }, [load]);
 
   async function act(u: string, run: () => Promise<unknown>, done: string) {
-    if (busy) return;
-    setBusy(u); setError(null);
-    try { await run(); onToast(done); setSelected(null); await load(); }
-    catch (e) {
-      // Handled elsewhere, or no longer a listener: the list is simply refreshed.
-      if (e instanceof ApiCodeError && (e.code === 'request_not_found' || e.code === 'not_a_listener')) { onToast(t('admin.approvals.refreshed')); setSelected(null); await load(); }
-      else setError(errText(e));
-    } finally { setBusy(null); }
+    await flight(u, async () => {
+      setBusy(u); setError(null);
+      try { await run(); onToast(done); setSelected(null); await load(); }
+      catch (e) {
+        // Handled elsewhere, or no longer a listener: the list is simply refreshed.
+        if (e instanceof ApiCodeError && (e.code === 'request_not_found' || e.code === 'not_a_listener')) { onToast(t('admin.approvals.refreshed')); setSelected(null); await load(); }
+        else setError(errText(e));
+      } finally { setBusy(null); }
+    });
   }
   const approve = (u: string, c: Classification) => act(u, () => api.approve(kehilaId, u, c), t('admin.approvals.approved'));
   const keep = (u: string) => act(u, () => api.reject(kehilaId, u), t('admin.approvals.kept'));

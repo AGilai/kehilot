@@ -7,3 +7,13 @@ export function singleFlight(fn: () => Promise<void>): () => Promise<void> {
     try { await fn(); } finally { running = false; }
   };
 }
+
+/** One guard per key: a call for a key that is running is ignored; other keys proceed. Hold it in a ref. */
+export function keyedFlight(): (key: string, fn: () => Promise<void>) => Promise<void> {
+  const running = new Set<string>();
+  return async (key, fn) => {
+    if (running.has(key)) return;
+    running.add(key);
+    try { await fn(); } finally { running.delete(key); }
+  };
+}
