@@ -1249,3 +1249,164 @@ Gedola · מנחה קטנה / Mincha Ketana · פלג המנחה / Plag HaMincha
 Frames written by hand, not screenshot-checked (no browser run on this 2 GB machine). Check P20 at 1280 and 1440,
 P21/P22 at 390 in light and dark, and P23 printed to PDF from a browser before building. Tag balance of the four new
 frames was checked with a parser.
+
+## 15. Seat release
+
+Added 2026-10-27 for `docs/superpowers/specs/2026-10-27-seat-release-preview-design.md` (including "Two formats" and
+"Running beside the old method"). Frames: `design/mockups/frames/P24.html` to `P27.html` (index section "ז").
+Kit-drawn like the P frames; frame-only helper styles sit in each frame's `<style>` (nothing added to `shared.css`).
+**P25 replaces M9** (M9 now carries a "replaced" note). All names and numbers are invented.
+
+### 15.1 The hall layout (data)
+
+The first Kehila's hall, shape only, from `~/work/gabay/design/mockups/phase2-seat-map.html`: 26 columns, rows 0–13,
+five blocks `R` ימין (x 21, 5 wide), `CR` מרכז ימין (x 16, 4), `C` מרכז (x 11, 4; seats in rows 4, 10–12; bimah rows
+6–8), `CL` מרכז שמאל (x 6, 4), `L` שמאל (x 0, 5); 205 seats. Shown to people as **row = index + 1** (1–14) and
+**seat numbered from the right inside its block** ("מרכז ימין · שורה 7 · כיסא 3"). The ark is drawn above row 1.
+*To confirm with the owner against the real hall:* which side the ark is on, and the seat-numbering direction.
+Blocks are always listed right to left (ימין → שמאל), as they stand.
+
+### 15.2 Home reminder card (P24)
+
+- **Who / when:** seat holders for the coming Shabbat (א household heads with an allocation), from the gabbai's reminder
+  time (default Thursday 12:00) to the deadline (default Friday 12:00). Nobody else ever sees it.
+- **Where (Home order):** greeting → test-build card (P15, owner's test build only) → **seat card** → the one P7
+  one-time card → prayer schedule card (§14, P21) → zmanim. The seat card is outside the P7 queue (like P15) and comes
+  before it because it has a deadline; it sits above the schedule card, which P21 already places under P7.
+- **Component:** `Card edgeColor={k.tekhelet}`, the P7 pattern: title row (`Txt bold heading` + preview `Tag`), the
+  question, a muted deadline line, primary `Button` "כן, כולם מגיעים" (one tap = no change, saves "all needed" for both
+  prayers), secondary `Button` "עדכון מקומות" → seat page. The yes-answer is primary, as in P7.
+- **Answered:** the card collapses to `Card edgeColor={k.olive}`: `Icon check` + title, a "תודה" line with the state,
+  and a `klink`-style "שינוי" → seat page. It stays until the deadline, then disappears. If a gabbai (or the uploaded
+  file) set the state, the line says "הגבאי עדכן…" instead.
+- **Push** at the reminder time, same wording, generic (counts only, no names), `data: {kehila, screen: 'seats'}`,
+  opens the seat page in that Kehila (switching Kehila if needed). Not sent to someone who already answered. After the
+  deadline the tap opens the page in its closed state. Designed now, not sent in the preview.
+
+### 15.3 Seat page, "part of the block" (P25)
+
+- **Layout (top to bottom):** back, `ktitle` "מקומות בשבת" + preview `Tag`, Shabbat line, segmented control
+  ערבית · ליל שבת / שחרית · שבת בבוקר, a words summary ("ערבית: 2 מגיעים · 1 פנוי לאחרים"), the block `Card`, legend.
+  A fixed footer above the tabs holds the deadline line and primary "שמירה", so Save is always visible.
+- **Block card:** heading "<block> · שורות a–b"; a mini-map of the whole hall (7 px cells, bimah hatched, own seats
+  tekhelet, the frame outlined); then the **frame**: only the person's block, his row ±2 (clipped at the hall's
+  edges), "↑ לכיוון ארון הקודש" above it, row numbers on the start side (his row in bold tekhelet).
+- **Seats in the frame:** blocks are 4–5 wide, so at 360 each seat tile is ~55×48 and is tapped directly (no separate
+  list). **His seat, needed:** tekhelet fill, "✓ מגיע", "כיסא n" under it. **His seat, released:** surface fill, 2 px
+  **dashed** tekhelet border, "לא מגיע". **Others' seats:** plain `line`-grey tile, no name, no state, hidden from
+  screen readers. Bimah rows (block C): one hatched "בימה" bar. Status is shape + word, never colour alone.
+- **Per prayer:** the two prayers are independent; each starts as "everyone coming". No automatic copy between them.
+- **Zoom:** the frame fits the width by default; pinch zooms (web: Ctrl + wheel / trackpad pinch). Note under the map:
+  "אפשר להגדיל ולהקטין בשתי אצבעות."
+- **Split seats — decision:** seats in the same block whose rows are at most 4 apart (their ±2 windows touch) share
+  **one frame** spanning from the first row − 2 to the last row + 2. Otherwise (other block, or farther apart)
+  **one frame per group**, each its own `Card` with its own heading, in block order right → left; the mini-map is shown
+  once, above them, with every frame outlined. One frame spanning distant rows would shrink seats below 48 and show
+  many strangers' seats.
+- **States:** saved (Toast "נשמר. תודה!" and a "נשמר ביום … " line); unsaved changes on back → discard confirm (channel
+  sheet pattern); updated by a gabbai (info `Banner`, no gabbai name); after the deadline (Banner "הדיווח נסגר… לשינוי
+  פנו לגבאי", tiles read-only at .75 opacity, no Save); **no allocation** (`Card` "עוד לא הוקצו לכם מקומות" / "את
+  המקומות בבית הכנסת מקצה הגבאי. לשאלות פנו לגבאי."); Kehila without a hall map → a list, one row per seat with two
+  `Chip`s מגיע / לא מגיע (also the screen-reader-friendly fallback); loading (spinner); error (Banner + retry).
+- **A11y:** each own seat is a `switch`, label "מרכז ימין, שורה 7, כיסא 3, מגיע"; the mini-map is decorative.
+- **English:** texts flip; the hall itself does not mirror (it is the same room).
+
+### 15.4 Preview label
+
+The clickable preview (spec step 4) shows the card always (no timer) with fixture data, to everyone on the dev web app.
+Marker: `Tag` variant **"תצוגה מקדימה" / "Preview"** with a 1 px **dashed ink** border and transparent fill, at the end
+of the card's title row and next to the seat page title — dashed so it never reads as a real status. Seat tiles toggle
+locally; "כן, כולם מגיעים" and "שמירה" show Toast "בקרוב. זו תצוגה מקדימה." "עדכון מקומות" really navigates.
+
+### 15.5 Gabbai hall map print (P26)
+
+- **What:** the whole hall for the coming Shabbat, one page per prayer ("שתיהן" = two pages), A4 landscape. Web: from
+  GD5 "הדפסה" → options → browser print / Save as PDF. Phone: GM5 gets "מפת האולם (PDF)" → same options in a `Sheet` →
+  PDF to the share sheet.
+- **Options:** prayer chips (ערבית / שחרית / שתיהן), `Check` "להדפיס עם שמות" — **off by default and not remembered**
+  (the print may be posted in the hall), primary print/PDF.
+- **Page:** title "מפת מקומות · שבת פרשת X", Hebrew date, Kehila; the prayer large; "מצב ביום … · הדיווח נסגר / פתוח
+  עד …" and "הודפס ב…". Ark bar above row 1, block names over the blocks, row numbers on both sides, bimah hatched.
+- **Seat marks (black and white):** **תפוס** grey fill + 1 px line; **שוחרר** white, 2 px line, diagonal stroke
+  ("אפשר לשבת"); **פנוי** (not allocated) dashed outline. Legend at the bottom. Fixed paper colours, never dark mode.
+- **Counts:** one strip under the map: total, then each block right → left: תפוס · שוחרר · פנוי.
+- **With names:** surname only, 9.5 pt inside the seat; released seats show the name struck through.
+- On screen (not on paper), tapping an allocated seat opens "עדכון בשם" (§15.6) for that household.
+
+### 15.6 Running beside the old method (P27)
+
+**On behalf of a household.** From the gabbai seat screen (web table, phone list) and the map. Opens a side panel
+(web) / `Sheet` (phone) "עדכון בשם <household>" with the same segmented control, frame and tiles as P25, an info
+Banner when past the deadline ("גבאי יכול לעדכן גם עכשיו"), the line "יירשם 'עודכן על ידי גבאי'…", primary "שמירה בשם
+המשפחה". No deadline for gabbaim. Stored with source `gabbai`, gabbai id and time; gabbaim see who, the household sees
+only "הגבאי עדכן" (P24 card, P25 banner).
+
+**Source column** on the gabbai screen: באפליקציה / עודכן על ידי גבאי / מקובץ התשובות / לא ענו · כל המקומות שמורים,
+with filter chips by source. (GD5's table gains this column and the row action "עדכון בשם".)
+
+**Responses file (web only;** the phone says "העלאת קובץ תשובות: באתר בלבד"). Three steps shown as a step row:
+1. *Upload:* drop zone (CSV / Excel) for this Shabbat + "הורדת תבנית (Excel)".
+2. *Match:* rows matched by phone, then by name; matched rows in a collapsed list to confirm; unmatched rows one card
+   each with a household search, or "לדלג על השורה".
+3. *Preview:* "ישתנו X · Y בלי שינוי · Z דולגו"; households that also answered in the app are listed with two chips
+   **האפליקציה** (default) / **הקובץ**; rows asking for more seats than allocated are errors and not applied. Primary
+   "החלת השינויים".
+
+After applying: success Banner at the top of the seat screen with "ביטול ההעלאה" (undo), available until Shabbat ends.
+Undo restores every household the file changed, except ones that changed in the app since. A second upload for the same
+Shabbat first undoes the first.
+
+**Template — provisional** until the owner sends a sample of the old method's output (invented names):
+
+| Column | Meaning |
+|---|---|
+| שם משק בית | as the gabbai writes it; matched to a household |
+| טלפון | optional; matched first |
+| ערבית | seats needed (0 … allocated); empty = no answer |
+| שחרית | same |
+| הערה | ignored by the import |
+
+### 15.7 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `seats.title` | מקומות בשבת | Shabbat seats |
+| `seats.preview` | תצוגה מקדימה | Preview |
+| `seats.previewToast` | בקרוב. זו תצוגה מקדימה. | Coming soon. This is a preview. |
+| `seats.card.question` (one / other) | השבת יש לכם מקום אחד. אתם מגיעים? / השבת יש לכם {n} מקומות. כולם מגיעים? | This Shabbat you have one seat. Are you coming? / This Shabbat you have {n} seats. Is everyone coming? |
+| `seats.card.deadline` | מקום שלא צריך אפשר לפנות לאחרים. אפשר לעדכן עד {day} {time}. | A seat you don't need can go to someone else. You can update until {day} {time}. |
+| `seats.card.yes` (one / other) | כן, מגיעים / כן, כולם מגיעים | Yes, coming / Yes, everyone's coming |
+| `seats.card.update` | עדכון מקומות | Update seats |
+| `seats.card.doneAll` | תודה. כל {n} המקומות שמורים לכם השבת. | Thanks. All {n} seats are kept for you this Shabbat. |
+| `seats.card.doneSome` | תודה. {prayer}: {need} מגיעים, {free} פנוי לאחרים. | Thanks. {prayer}: {need} coming, {free} free for others. |
+| `seats.card.byGabbai` | הגבאי עדכן את המקומות שלכם. | A gabbai updated your seats. |
+| `seats.card.change` | שינוי | Change |
+| `seats.push.title` | מקומות בשבת | Shabbat seats |
+| `seats.push.body` | השבת יש לכם {n} מקומות. כולם מגיעים? אפשר לעדכן עד {day} {time}. | You have {n} seats this Shabbat. Is everyone coming? You can update until {day} {time}. |
+| `seats.arvit` / `seats.shacharit` | ערבית · ליל שבת / שחרית · שבת בבוקר | Arvit · Friday night / Shacharit · Shabbat morning |
+| `seats.summary` | {prayer}: {need} מגיעים · {free} פנוי לאחרים | {prayer}: {need} coming · {free} free for others |
+| `seats.block` | {block} · שורות {from}–{to} | {block} · rows {from}–{to} |
+| `seats.toArk` | ↑ לכיוון ארון הקודש | ↑ Toward the ark |
+| `seats.coming` / `seats.notComing` | מגיע / לא מגיע | Coming / Not coming |
+| `seats.seatNo` | כיסא {n} | Seat {n} |
+| `seats.legendOthers` | מקומות של אחרים | Other people's seats |
+| `seats.zoom` | אפשר להגדיל ולהקטין בשתי אצבעות. | Pinch to zoom in and out. |
+| `seats.split` | המקומות שלכם בשני מקומות באולם. | Your seats are in two places in the hall. |
+| `seats.deadline` | אפשר לעדכן עד {day} {time} | You can update until {day} {time} |
+| `seats.save` / `seats.saved` | שמירה / נשמר. תודה! | Save / Saved. Thanks! |
+| `seats.closed` | הדיווח נסגר ב{day} {time}. לשינוי פנו לגבאי. | Updates closed {day} {time}. To change, ask a gabbai. |
+| `seats.byGabbai` | הגבאי עדכן את המקומות שלכם ב{day} {time}. אפשר לשנות עד המועד האחרון. | A gabbai updated your seats on {day} {time}. You can change them until the deadline. |
+| `seats.noneTitle` | עוד לא הוקצו לכם מקומות | You don't have seats yet |
+| `seats.noneBody` | את המקומות בבית הכנסת מקצה הגבאי. לשאלות פנו לגבאי. | Seats are allocated by the gabbai. For questions, ask a gabbai. |
+| `seats.a11ySeat` | {block}, שורה {row}, כיסא {n}, {state} | {block}, row {row}, seat {n}, {state} |
+| `seats.print.*` | מפת מקומות · תפוס · שוחרר · אפשר לשבת · פנוי · לא מוקצה · להדפיס עם שמות · ההדפסה נתלית לפעמים בבית הכנסת. בלי שמות רואים רק תפוס, שוחרר ופנוי. | Seat map · Taken · Released · free to sit · Free · not allocated · Print with names · Prints are sometimes posted in the hall. Without names it shows only taken, released and free. |
+| `seats.gabbai.*` | עדכון בשם {household} · שמירה בשם המשפחה · עודכן על ידי גבאי · מקובץ התשובות · באפליקציה · לא ענו · העלאת קובץ תשובות · הורדת תבנית · לדלג על השורה · החלת השינויים · ביטול ההעלאה | Update for {household} · Save for the household · Updated by a gabbai · From the responses file · In the app · No answer · Upload responses file · Download template · Skip this row · Apply changes · Undo upload |
+
+Block names: ימין / מרכז ימין / מרכז / מרכז שמאל / שמאל — Right / Center right / Center / Center left / Left.
+
+### 15.8 Verification
+
+Frames generated by a small script, not screenshot-checked (no browser run on this 2 GB machine); tag balance checked
+with a parser, and the hall layout counts 205 seats. Check P24/P25 at 390 in both directions and dark mode, P26
+printed to PDF (A4 landscape, black and white), and P27 at 1280 before building. Confirm the ark side and seat
+numbering (§15.1) and the file template (§15.6) with the owner.
