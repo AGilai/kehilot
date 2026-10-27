@@ -3,7 +3,7 @@ import { ApiCodeError } from './errors.ts';
 import { endpoints } from './endpoints.ts';
 import type { Http } from './http.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
-import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role } from './types.ts';
+import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
 
@@ -18,7 +18,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -79,7 +79,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       ? { mutedChannels: ['01FIXTURECHANNEL00000002'], mutedTypes: ['event'], membersBroadcasts: 'management_only', mutedMembers: ['m1'], chatChannels: [] }
       : { mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [] },
     // A listener admitted to the youth group reads its channel and posts in its chat (spec §3c).
-    groups: role === 'listener' ? ['01FIXTUREGROUP00000000001'] : [], adminGroups: [], settings: { pollSeconds: 60 },
+    groups: role === 'listener' ? ['01FIXTUREGROUP00000000001'] : [], adminGroups: [], tags: [] as RoleTag[], settings: { pollSeconds: 60 },
     privacyContact: screen === 'kehila-info' || screen === 'overview-privacy' || screen === 'privacy' || screen === 'privacy-ready' ? PRIVACY_CONTACT : '',
     showPhone: phoneOn,
     cards: {
@@ -204,21 +204,29 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const adminFam = screen === 'admin-families' || screen === 'admin-link';
   const U = (n: number) => `01FIXTUREUSER000000000${n}`;
   const memberRows = adminFam ? [
-    { userId: U(21), displayName: 'דנה בדיוני', role: 'member', classification: 'א', canBroadcast: true, groups: [] },
-    { userId: U(22), displayName: 'יוסי בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [] },
-    { userId: U(23), displayName: 'מיכל דוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: [] },
-    { userId: U(24), displayName: 'אבי ניסיון', role: 'member', classification: '', canBroadcast: false, groups: [] },
-    { userId: U(25), displayName: 'אברהם אלמוני', role: 'member', classification: '', canBroadcast: false, groups: [] },
+    { userId: U(21), displayName: 'דנה בדיוני', role: 'member', classification: 'א', canBroadcast: true, groups: [], tags: [] },
+    { userId: U(22), displayName: 'יוסי בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
+    { userId: U(23), displayName: 'מיכל דוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: [], tags: [] as RoleTag[] },
+    { userId: U(24), displayName: 'אבי ניסיון', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
+    { userId: U(25), displayName: 'אברהם אלמוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
   ] : [
-    { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'] },
-    { userId: 'm1', displayName: 'יוסי לדוגמה', role: 'gabbai', classification: 'א', canBroadcast: true, groups: [] },
-    { userId: 'u7', displayName: 'רון לדוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001', '01FIXTUREGROUP00000000002'] },
-    { userId: 'u8', displayName: 'מיכל בדויה', role: 'member', classification: 'א', canBroadcast: false, groups: ['01FIXTUREGROUP00000000002'] },
-    { userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [] },
-    { userId: '01FIXTUREUSER00000000013', displayName: 'תמר הנחל', role: 'listener', classification: '', canBroadcast: false, groups: [] },
+    { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'], tags: [] as RoleTag[] },
+    { userId: 'm1', displayName: 'יוסי לדוגמה', role: 'gabbai', classification: 'א', canBroadcast: true, groups: [], tags: [] as RoleTag[] },
+    { userId: 'u7', displayName: 'רון לדוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001', '01FIXTUREGROUP00000000002'], tags: [] as RoleTag[] },
+    { userId: 'u8', displayName: 'מיכל בדויה', role: 'member', classification: 'א', canBroadcast: false, groups: ['01FIXTUREGROUP00000000002'], tags: [] as RoleTag[] },
+    { userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
+    { userId: '01FIXTUREUSER00000000013', displayName: 'תמר הנחל', role: 'listener', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
   ];
+  // Role tags (invented): six names, some assigned. `tags-empty` starts with none, to show the starter set.
+  let tagList: RoleTag[] = screen === 'tags-empty' ? [] : ['גבאי', 'רב', 'חזן', 'גזבר', 'ועד שמחות', 'טכני'].map((name, i) => ({ tagId: `01FIXTURETAG00000000000${i + 1}`, name }));
+  const tagNamed = (n: string) => tagList.filter(x => x.name === n);
+  const assignTags = (id: string, ...names: string[]) => { const r = memberRows.find(x => x.userId === id); if (r) r.tags = names.flatMap(tagNamed); };
+  assignTags(me.userId, 'טכני'); assignTags('m1', 'גבאי', 'ועד שמחות'); assignTags('u7', 'גזבר', 'ועד שמחות'); assignTags('u8', 'רב'); assignTags(U(23), 'חזן');
+  if (screen === 'me' || screen === 'me-family' || screen === 'me-linked') kehila.tags = ['גזבר', 'ועד שמחות'].flatMap(tagNamed);
+  const tagRows = () => tagList.map(x => ({ ...x, memberCount: memberRows.filter(r => r.tags.some(y => y.tagId === x.tagId)).length })).sort((a, b) => a.name.localeCompare(b.name, 'he'));
   routes[`GET ${A}/requests`] = requests;
   routes[`GET ${A}/members`] = memberRows;
+  routes[`GET ${A}/tags`] = tagRows();
   routes[`GET ${A}/groups`] = [
     { groupId: '01FIXTUREGROUP00000000001', name: 'נוער', memberCount: 3, channelCount: 1, adminCount: 1, pendingCount: 2 },
     { groupId: '01FIXTUREGROUP00000000002', name: 'שיעור הדף', memberCount: 2, channelCount: 0, adminCount: 0, pendingCount: 0 },
@@ -286,10 +294,10 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { userId: '01FIXTUREUSER00000000009', displayName: 'מיכל דוגמה' },
   ];
   const phoneFamilies = screen === 'phone-list-empty' ? [] : [
-    { familyId: '01FIXTUREFAMILY0000000002', name: 'אלמוני', people: [{ userId: 'u21', name: 'שרה אלמוני', phone: '+972500000005' }] },
-    { familyId: '01FIXTUREFAMILY0000000003', name: 'בדיוני', people: [{ userId: 'u22', name: 'דנה בדיוני', phone: '+972500000001' }, { userId: 'u23', name: 'יוסי בדיוני', phone: '+972500000002' }] },
-    { familyId: '01FIXTUREFAMILY0000000004', name: 'דוגמה', people: [{ userId: 'u24', name: 'מיכל דוגמה', phone: '+972500000003' }] },
-    { familyId: '01FIXTUREFAMILY0000000005', name: 'ניסיון · דמיון', people: [{ userId: 'u25', name: 'אבי ניסיון', phone: '+972500000004' }, { userId: 'u26', name: 'רותי דמיון', phone: '+972500000006' }] },
+    { familyId: '01FIXTUREFAMILY0000000002', name: 'אלמוני', people: [{ userId: 'u21', name: 'שרה אלמוני', phone: '+972500000005', tags: [] }] },
+    { familyId: '01FIXTUREFAMILY0000000003', name: 'בדיוני', people: [{ userId: 'u22', name: 'דנה בדיוני', phone: '+972500000001', tags: ['ועד שמחות', 'גזבר'].flatMap(tagNamed) }, { userId: 'u23', name: 'יוסי בדיוני', phone: '+972500000002', tags: [] }] },
+    { familyId: '01FIXTUREFAMILY0000000004', name: 'דוגמה', people: [{ userId: 'u24', name: 'מיכל דוגמה', phone: '+972500000003', tags: tagNamed('טכני') }] },
+    { familyId: '01FIXTUREFAMILY0000000005', name: 'ניסיון · דמיון', people: [{ userId: 'u25', name: 'אבי ניסיון', phone: '+972500000004', tags: [] }, { userId: 'u26', name: 'רותי דמיון', phone: '+972500000006', tags: tagNamed('רב') }] },
   ];
   routes[`GET ${K}/phone-list`] = phoneFamilies;
   routes[`PUT ${K}/me/phone-list`] = { show: true };
@@ -346,6 +354,30 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       if (method === 'PUT' && /\/family\/children\/[^/]+$/.test(key)) return { id: key.split('/').pop(), ...(body as object) } as any;
       if (method === 'DELETE' && /\/family\/children\/[^/]+$/.test(key)) return undefined as any;
       if (method === 'POST' && /\/admin\/requests\/[^/]+\/(approve|reject)$/.test(key)) return {} as any;
+      // Tags are kept in memory so adding, renaming, deleting and assigning work in the fixture build.
+      if (/\/admin\/tags(\/|$)/.test(key) || /\/admin\/members\/[^/]+\/tags$/.test(key)) {
+        const name = String((body as { name?: unknown } | undefined)?.name ?? '').trim();
+        const id = key.split('/').pop()!;
+        if (method === 'GET') return tagRows() as any;
+        if (method === 'POST') {
+          if (tagList.length >= 20) throw new ApiCodeError(409, 'too_many_tags');
+          if (tagList.some(x => x.name.toLowerCase() === name.toLowerCase())) throw new ApiCodeError(409, 'tag_exists');
+          const created = { tagId: `01FIXTURETAG0000000${String(100 + Math.floor(Math.random() * 900))}`, name }; tagList = [...tagList, created]; return created as any;
+        }
+        if (method === 'PUT' && /\/members\//.test(key)) {
+          const u = key.split('/')[key.split('/').length - 2]!;
+          const ids = ((body as { tagIds?: string[] } | undefined)?.tagIds ?? []);
+          const r = memberRows.find(x => x.userId === u); if (!r) throw new ApiCodeError(404, 'member_not_found');
+          r.tags = tagList.filter(x => ids.includes(x.tagId)); return { tags: structuredClone(r.tags) } as any;
+        }
+        if (method === 'PUT') {
+          if (tagList.some(x => x.tagId !== id && x.name.toLowerCase() === name.toLowerCase())) throw new ApiCodeError(409, 'tag_exists');
+          tagList = tagList.map(x => (x.tagId === id ? { ...x, name } : x)); for (const r of memberRows) r.tags = r.tags.map(x => (x.tagId === id ? { ...x, name } : x));
+          return { tagId: id, name } as any;
+        }
+        if (method === 'DELETE') { tagList = tagList.filter(x => x.tagId !== id); for (const r of memberRows) r.tags = r.tags.filter(x => x.tagId !== id); return undefined as any; }
+      }
+      if (method === 'GET' && /\/admin\/members$/.test(key)) return structuredClone(memberRows) as any;
       if (method === 'PUT' && /\/admin\/members\/[^/]+$/.test(key)) return {} as any;
       if (method === 'DELETE' && /\/admin\/members\/[^/]+$/.test(key)) return undefined as any;
       if (method === 'DELETE' && /\/invites\/[^/]+$/.test(key)) return undefined as any;

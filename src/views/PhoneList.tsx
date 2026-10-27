@@ -9,6 +9,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { textStart } from '../i18n/direction.ts';
 import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH, fonts, type } from '../kit/theme.ts';
+import { TagChips } from './TagChips.tsx';
 import { BackLink } from './Me.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
@@ -95,7 +96,10 @@ export function PhoneList({ onBack, onMine }: { onBack: () => void; /** Opens Me
                   {f.people.map(p => (
                     <View key={p.userId} style={{ borderTopWidth: 1, borderTopColor: k.line, paddingTop: 8, marginTop: 4, gap: 8 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                        <Txt bold content style={{ flexShrink: 1 }}>{p.name}</Txt>
+                        <View style={{ flexShrink: 1, gap: 4 }}>
+                          <Txt bold content>{p.name}</Txt>
+                          <TagChips tags={p.tags} />
+                        </View>
                         <Txt color={k.muted} style={{ writingDirection: 'ltr', textAlign: 'left', fontVariant: ['tabular-nums'] }}>{formatPhone(p.phone)}</Txt>
                       </View>
                       <View style={{ flexDirection: 'row', gap: 8 }}>

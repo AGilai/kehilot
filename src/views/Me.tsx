@@ -16,6 +16,7 @@ import { TOUCH } from '../kit/theme.ts';
 import { DeleteAccount } from './DeleteAccount.tsx';
 import { MyGroups } from './MyGroups.tsx';
 import { FamilyCard } from './me/FamilyCard.tsx';
+import { TagChips } from './TagChips.tsx';
 import { KehilaInfo } from './me/KehilaInfo.tsx';
 import { PhoneCard } from './me/PhoneCard.tsx';
 import { PrivacyCard } from './me/PrivacyCard.tsx';
@@ -223,6 +224,13 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
         ) : (
           <>
             <Txt bold size="heading">{`${profile.firstName} ${profile.lastName}`.trim()}</Txt>
+            {kehila && kehila.tags.length > 0 ? (
+              <View style={{ gap: 6 }}>
+                <Txt size="small" color={k.muted}>{t('me.tags.label')}</Txt>
+                <TagChips tags={kehila.tags} />
+                <Txt size="caption" color={k.muted}>{t('me.tags.note')}</Txt>
+              </View>
+            ) : null}
             <Button kind="secondary" title={t('me.profile.edit')} onPress={() => { setFirst(profile.firstName); setLast(profile.lastName); setEditing(true); }} />
           </>
         )}

@@ -111,11 +111,11 @@
     "export_not_found": "File not found",
     "child_not_found": "The child was not found in the list",
     "invalid_type_rules": "The message type setting is not valid, try again",
-    "invalid_tag_name": "The tag name is not valid (up to 24 characters)",
-    "invalid_tag_ids": "The selected tags are not valid",
+    "invalid_tag_name": "A tag name must be 1 to 24 characters, with no special characters",
+    "invalid_tag_ids": "One of the selected tags no longer exists. Try again",
     "tag_exists": "A tag with this name already exists",
-    "tag_not_found": "Tag not found",
-    "too_many_tags": "You can add at most 20 tags"
+    "tag_not_found": "That tag no longer exists",
+    "too_many_tags": "Up to 20 tags. Delete one to add another."
   },
   "app": {
     "name": "Kehilot"
@@ -539,6 +539,10 @@
       "open": "Open the phone list",
       "shown": "Your number is in the list",
       "hidden": "Your number is hidden from the list"
+    },
+    "tags": {
+      "label": "My roles in the community",
+      "note": "The gabbaim set these tags."
     }
   },
   "deleteAccount": {
@@ -911,6 +915,52 @@
       "channelClosed": "Only gabbaim post in the Announcements channel, so members can't post any type. You can change this by editing the channel.",
       "saved": "Setting saved",
       "groupLabel": "{type}, who may post"
+    },
+    "tags": {
+      "button": "Role tags",
+      "title": "Role tags",
+      "intro": "Names for roles in the community, such as Rabbi or Tech. Tags show next to a name and grant no permissions.",
+      "listTitle": "Tags in this community",
+      "count": "{n} of 20",
+      "people": "{n} people",
+      "emptyStart": "No tags yet. You can start with these:",
+      "suggest": "Gabbai, Rabbi, Chazan, Torah reader, Treasurer, Committee, Simchas committee, Tech",
+      "suggestA11y": "Add the tag {name}",
+      "newField": "New tag (up to 24 characters)",
+      "add": "Add",
+      "renameA11y": "Rename {name}",
+      "renameField": "Rename",
+      "deleteA11y": "Delete the tag {name}",
+      "deleteConfirm": "Delete the tag \"{name}\"? It will be removed from {n} people.",
+      "deleteConfirmNone": "Delete the tag \"{name}\"? Nobody has it.",
+      "deleteYes": "Yes, delete",
+      "cancel": "Cancel",
+      "save": "Save",
+      "close": "Close",
+      "required": "Enter a name",
+      "duplicate": "A tag with this name already exists",
+      "limit": "Up to 20 tags. Delete one to add another.",
+      "added": "Tag added",
+      "renamed": "Name updated",
+      "deleted": "Tag deleted",
+      "member": {
+        "none": "No tags",
+        "edit": "Edit tags",
+        "editA11y": "Edit {name}'s tags",
+        "list": "Tags: {list}"
+      },
+      "assign": {
+        "title": "{name}'s tags",
+        "manage": "Manage the tag list",
+        "empty": "This community has no tags yet.",
+        "saved": "Tags saved"
+      },
+      "note": "Tags grant no permissions. What a person can do is set by their role and broadcast permission.",
+      "column": "Tags",
+      "discardConfirm": "You have unsaved changes. Close without saving?",
+      "discardYes": "Close without saving",
+      "back": "Back to editing",
+      "peopleOne": "1 person"
     }
   },
   "phoneList": {

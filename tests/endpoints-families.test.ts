@@ -59,7 +59,7 @@ test('fixture api returns a phone list with no children fields', async () => {
   assert.ok(list.length >= 3);
   for (const fam of list) {
     assert.deepEqual(Object.keys(fam).sort(), ['familyId', 'name', 'people']);
-    for (const p of fam.people) assert.deepEqual(Object.keys(p).sort(), ['name', 'phone', 'userId']);
+    for (const p of fam.people) assert.deepEqual(Object.keys(p).sort(), ['name', 'phone', 'tags', 'userId']);
   }
   assert.ok(!CHILD_KEYS.some(k => JSON.stringify(list).includes(`"${k}"`)));
   const empty = await createFixtureApi('member', 'phone-list-empty').phoneList('01FIXTUREKEHILA0000000001');

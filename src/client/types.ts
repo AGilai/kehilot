@@ -37,6 +37,8 @@ export type Kehila = {
   groups: string[];
   /** Groups the caller administers. */
   adminGroups: string[];
+  /** The caller's own role tags. */
+  tags: RoleTag[];
   settings: { pollSeconds: number; maxListeners?: number };
   /** Gabbaim only. */
   typeRules?: { celebration: TypeRule; condolence: TypeRule };
@@ -75,7 +77,7 @@ export type FamilyView = {
 export type Candidate = { userId: string; displayName: string; cooldownUntil?: number };
 
 /** Adults who chose to show a number; never children. */
-export type PhoneListFamily = { familyId: string; name: string; people: Array<{ userId: string; name: string; phone: string }> };
+export type PhoneListFamily = { familyId: string; name: string; people: Array<{ userId: string; name: string; phone: string; tags: RoleTag[] }> };
 
 export type TargetFamily = { familyId: string; name: string; firstNames: string[]; targetMemberId: string };
 
@@ -167,6 +169,10 @@ export type DirectoryEntry = { userId: string; displayName: string };
 
 export type RequestRow = { userId: string; displayName: string; createdAt: number; previouslyRejected: boolean };
 
+/** A Kehila-defined label on a person. Labels only: nothing in the client may gate on it. */
+export type RoleTag = { tagId: string; name: string };
+export type TagRow = RoleTag & { memberCount: number };
+
 export type MemberRow = {
   userId: string;
   displayName: string;
@@ -174,6 +180,7 @@ export type MemberRow = {
   classification: Classification;
   canBroadcast: boolean;
   groups: string[];
+  tags: RoleTag[];
 };
 export type MemberFields = Partial<{ role: Role; classification: Classification; canBroadcast: boolean; groups: string[] }>;
 

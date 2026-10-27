@@ -4,7 +4,7 @@ import { filterFamilies, sortFamilies } from '../src/client/phoneListView.ts';
 import type { PhoneListFamily } from '../src/client/types.ts';
 
 const fam = (name: string, ...people: string[]): PhoneListFamily =>
-  ({ familyId: name, name, people: people.map((n, i) => ({ userId: `${name}${i}`, name: n, phone: '+972500000001' })) });
+  ({ familyId: name, name, people: people.map((n, i) => ({ userId: `${name}${i}`, name: n, phone: '+972500000001', tags: [] })) });
 const rows = [fam('בדיוני', 'דנה בדיוני', 'יוסי בדיוני'), fam('ניסיון · דמיון', 'אבי ניסיון', 'רותי דמיון'), fam('אלמוני', 'שרה אלמוני')];
 
 test('search matches first or last name ignoring niqqud', () => {

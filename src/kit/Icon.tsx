@@ -23,6 +23,8 @@ const PATHS = {
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   belloff: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/>',
   pin: '<path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/>',
+  trash: '<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/>',
   send: '<path d="M3 12L21 4l-6 16-3-7z"/>',
 } as const;
 

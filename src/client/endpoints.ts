@@ -2,7 +2,7 @@ import type { Http } from './http.ts';
 import type {
   TypeRules,
   AdminFamily, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
-  DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, GroupMembership,
+  DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, RoleTag, TagRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
   MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
   RequestRow, TargetFamily, UploadGrant,
@@ -81,6 +81,11 @@ export function endpoints(http: Http) {
     removeMember: (k: string, u: string) => r<void>('DELETE', `${A(k)}/members/${e(u)}`),
     putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string; typeRules?: TypeRules }) =>
       r<Record<string, never>>('PUT', `${A(k)}/settings`, s),
+    tags: (k: string) => r<TagRow[]>('GET', `${A(k)}/tags`),
+    createTag: (k: string, name: string) => r<RoleTag>('POST', `${A(k)}/tags`, { name }),
+    renameTag: (k: string, id: string, name: string) => r<RoleTag>('PUT', `${A(k)}/tags/${e(id)}`, { name }),
+    deleteTag: (k: string, id: string) => r<void>('DELETE', `${A(k)}/tags/${e(id)}`),
+    setMemberTags: (k: string, u: string, tagIds: string[]) => r<{ tags: RoleTag[] }>('PUT', `${A(k)}/members/${e(u)}/tags`, { tagIds }),
     adminFamilies: (k: string) => r<AdminFamily[]>('GET', `${A(k)}/families`),
     adminLink: (k: string, a: string, b: string) =>
       r<{ familyId: string }>('POST', `${A(k)}/families/link`, { userIds: [a, b] }),

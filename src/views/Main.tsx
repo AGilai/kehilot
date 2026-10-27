@@ -72,7 +72,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
   if (s === 'overview' || s === 'overview-privacy' || s === 'terms') return { nav: { tab: 'overview' }, manage: true };
   if (s === 'approvals') return { nav: { tab: 'approvals' }, manage: true };
-  if (s === 'members' || s === 'admin-families' || s === 'admin-link') return { nav: { tab: 'members' }, manage: true };
+  if (s === 'members' || s === 'admin-families' || s === 'admin-link' || s === 'tags-manage' || s === 'tags-assign' || s === 'tags-empty') return { nav: { tab: 'members' }, manage: true };
   if (s === 'invite-member') return { nav: { tab: 'invite', member: true }, manage: true };
   if (s === 'groups') return { nav: { tab: 'groups' }, manage: true };
   if (s === 'channels' || s === 'channel-sheet') return { nav: { tab: 'channels' }, manage: true };

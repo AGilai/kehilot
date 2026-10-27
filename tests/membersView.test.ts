@@ -5,7 +5,7 @@ import type { MemberRow } from '../src/client/types.ts';
 
 // All names are invented.
 const row = (userId: string, displayName: string, over: Partial<MemberRow> = {}): MemberRow =>
-  ({ userId, displayName, role: 'member', classification: '', canBroadcast: false, groups: [], ...over });
+  ({ userId, displayName, role: 'member', classification: '', canBroadcast: false, groups: [], tags: [], ...over });
 const rows: MemberRow[] = [
   row('u1', 'דנה בדויה', { canBroadcast: true, groups: ['g1'] }),
   row('u2', 'יוסי לדוגמה', { role: 'gabbai', canBroadcast: true, groups: ['g1', 'g2'] }),
