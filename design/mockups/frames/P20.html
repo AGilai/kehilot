@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P20 עורך זמני התפילות · מחשב</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="../shared.css">
+
+</head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="flame-old" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="belloff" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M3 12L21 4l-6 16-3-7z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="chair" viewBox="0 0 24 24"><path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/></symbol>
+<symbol id="mega" viewBox="0 0 24 24"><path d="M3 10v4h4l8 4V6L7 10zM18 9a4 4 0 0 1 0 6"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+<symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="scroll" viewBox="0 0 24 24"><path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V6a2 2 0 0 0-2-2zM9 20H6"/><path d="M11 9h4M11 13h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol><symbol id="grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/></symbol>
+<symbol id="image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4 4 3 3-2 4 3"/></symbol>
+<symbol id="eyeoff" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7c2 0 3.8.8 5.3 1.8M22 12s-4 7-10 7c-2 0-3.8-.8-5.3-1.8M4 4l16 16"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 9V4h10v5M7 17H5a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2M7 14h10v6H7z"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="undo" viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-2"/></symbol>
+<symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></symbol>
+</defs></svg>
+
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P20 · עורך זמני התפילות · מחשב</b><span>UX-DESIGN §14: עורך ותצוגה חיה זה לצד זה, בחירת שבוע, מקטעים ושורות, בונה נוסחאות עם שעה מחושבת ומשפט פשוט, שינויים לשבוע הזה, שיתוף. גרסה צרה לטלפון.</span></div><nav class="pn"><a href="P19.html" aria-label="הקודם: דיווח על תקלה · גרסת אלפא">הקודם</a><a href="P21.html" aria-label="הבא: בית · כרטיס זמני התפילות">הבא</a></nav></header>
+<main class="stage wide"><div class="hscroll"><div class="edk" role="application" aria-label="עורך זמני התפילות">
+<div class="edtop"><span class="bk"><svg class="i s" aria-hidden="true"><use href="#back"/></svg>ניהול</span><span class="ttl">זמני התפילות</span><span class="sp"></span><span style="font-size:14px;opacity:.8">מצב ניהול · קהילת אור הדוגמה</span></div>
+<div class="edbar"><div class="wkp" role="group" aria-label="בחירת שבוע"><span class="kib" aria-label="השבוע הקודם"><svg class="i s" aria-hidden="true"><use href="#back"/></svg></span><span class="cur"><svg class="i s" aria-hidden="true"><use href="#cal"/></svg>שבת פרשת וירא · <span class="knum">30.10–5.11</span><svg class="i s" aria-hidden="true"><use href="#chev"/></svg></span><span class="kib" aria-label="השבוע הבא"><svg class="i s" aria-hidden="true"><use href="#fwd"/></svg></span></div><span class="ktag st">השבת הקרובה</span><span class="sp"></span><span class="dirty"><i></i>2 שינויים שלא נשמרו</span><button class="kb s">ביטול השינויים</button><button class="kb">שמירה</button><button class="kb s off" title="שומרים קודם, ואז משתפים"><svg class="i s" aria-hidden="true"><use href="#share"/></svg>שיתוף</button></div>
+<div class="edbody">
+<div class="edl kscroll fade" style="padding:20px 24px">
+<section class="esec e" style="--e:var(--k-gold)" aria-label="מקטע שבת"><div class="hd"><span class="grip"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><span class="nm">שבת קודש</span><span class="ktag">10 שורות</span><span class="wtag">2 שינויים לשבוע הזה</span><span class="sp"></span><span class="kt s m">נרות <span class="knum">16:33</span> · צאת השבת <span class="knum">17:48</span></span><span class="kib" aria-label="פתיחת המקטע" style="color:var(--k-muted)"><svg class="i s" aria-hidden="true"><use href="#chev"/></svg></span></div></section>
+<section class="esec e" style="--e:var(--k-tek)" aria-label="מקטע ימי החול"><div class="hd"><span class="grip"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><span class="nm">תפילות ימי החול</span><span class="ktag">8 שורות · שעה אחת לכל השבוע</span><span class="sp"></span><span class="kib" aria-label="שינוי שם המקטע" style="color:var(--k-muted)"><svg class="i s" aria-hidden="true"><use href="#edit"/></svg></span><span class="kib" aria-label="כיווץ המקטע" style="color:var(--k-muted);transform:rotate(180deg)"><svg class="i s" aria-hidden="true"><use href="#chev"/></svg></span></div>
+<div role="list">
+<div class="erow " role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>שחרית מניין א׳</b></div><div style="display:flex;gap:6px;align-items:center"><span class="fpill fx"><svg class="i xs" aria-hidden="true"><use href="#clock"/></svg>שעה קבועה</span></div><span class="tm">6:15</span><span class="kib" aria-label="פעולות לשורה שחרית מניין א׳"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+<div class="erow " role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>שיעור דף יומי</b></div><div style="display:flex;gap:6px;align-items:center"><span class="fpill fx"><svg class="i xs" aria-hidden="true"><use href="#clock"/></svg>שעה קבועה</span></div><span class="tm">7:00</span><span class="kib" aria-label="פעולות לשורה שיעור דף יומי"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+<div class="erow " role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>שחרית מניין ב׳</b></div><div style="display:flex;gap:6px;align-items:center"><span class="fpill fx"><svg class="i xs" aria-hidden="true"><use href="#clock"/></svg>שעה קבועה</span></div><span class="tm">8:00</span><span class="kib" aria-label="פעולות לשורה שחרית מניין ב׳"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+<div class="erow " role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>מנחה גדולה</b></div><div style="display:flex;gap:6px;align-items:center"><span class="fpill fx"><svg class="i xs" aria-hidden="true"><use href="#clock"/></svg>שעה קבועה</span></div><span class="tm">13:15</span><span class="kib" aria-label="פעולות לשורה מנחה גדולה"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+<div class="erow sel" role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>מנחה</b></div><div style="display:flex;gap:6px;align-items:center"><span class="fpill"><svg class="i xs" aria-hidden="true"><use href="#sliders"/></svg>שקיעה, המוקדמת א׳–ה׳ · ‎−15 · למטה ל־5 · עד 18:30</span></div><span class="tm">16:30</span><span class="kib" aria-label="פעולות לשורה מנחה"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+<div class="fb" role="group" aria-label="עריכת השורה מנחה">
+<div class="two"><div class="kf"><label>שם השורה</label><div class="kin">מנחה</div></div><div class="kf"><label>שם באנגלית (לא חובה)</label><div class="kin" dir="ltr">Mincha</div></div></div>
+<div class="kf"><label>הערה (לא חובה)</label><div class="kin ph">למשל: בבית המדרש הקטן</div></div>
+<div class="fctl"><label>השעה</label><div class="fseg" role="radiogroup" aria-label="סוג השעה" style="align-self:flex-start"><b>שעה קבועה</b><b class="on">לפי זמן היום</b><b>בלי שעה</b></div></div>
+<div class="fsent">
+<div class="fctl"><label>זמן</label><div class="fsel f" role="combobox" aria-expanded="false">שקיעה<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div></div>
+<div class="fctl"><label>של איזה יום</label><div class="fsel" style="min-width:200px">המוקדם בימים א׳–ה׳<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div></div>
+<div class="fctl"><label>דקות</label><div class="fstep"><span class="kib" aria-label="פחות דקה"><svg class="i s" aria-hidden="true"><use href="#minus"/></svg></span><b>15</b><span class="kib" aria-label="עוד דקה"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg></span></div></div>
+<div class="fctl"><label>&nbsp;</label><div class="fseg" role="radiogroup" aria-label="לפני או אחרי"><b class="on">לפני</b><b>אחרי</b></div></div>
+<div class="fctl"><label>עיגול</label><div style="display:flex;gap:6px"><div class="fsel" style="min-width:104px">למטה<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div><div class="fsel" style="min-width:84px">ל־5<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div></div></div>
+</div>
+<div class="fsent"><div class="kchk" style="padding-top:10px;min-height:44px"><i></i><span>לא לפני</span></div><div class="ftime ph">--:--</div><span style="width:12px"></span><div class="kchk on" style="padding-top:10px;min-height:44px"><i>✓</i><span>לא אחרי</span></div><div class="ftime">18:30</div></div>
+<div class="fres" aria-live="polite"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:96px"><span class="kt c m">השבוע</span><span class="big">16:30</span></div><div class="g"><p class="kt b" style="margin:0">15 דקות לפני השקיעה המוקדמת בימים א׳–ה׳, מעוגל למטה ל־5, לא אחרי 18:30.</p><p class="kt c m">השקיעה המוקדמת: יום ה׳ <span class="knum">16:48</span> ← פחות 15 = <span class="knum">16:33</span> ← עיגול = <span class="knum">16:30</span></p><div class="fdays" aria-label="השקיעה בכל יום"><span>א׳<b>16:52</b></span><span>ב׳<b>16:51</b></span><span>ג׳<b>16:50</b></span><span>ד׳<b>16:49</b></span><span class="pick">ה׳ · המוקדם<b>16:48</b></span></div></div></div>
+<div class="fwk"><div class="kchk" style="padding-top:0;min-height:32px"><i></i><span><b>שינוי לשבוע הזה בלבד</b> <span class="kt c m">· 30.10–5.11. הנוסחה נשארת לשבועות האחרים.</span></span></div></div>
+<div style="display:flex;gap:8px;align-items:center"><span class="addrow" style="border:0;padding:0"><span class="lnk"><svg class="i s" aria-hidden="true"><use href="#copy"/></svg>שכפול</span><span class="lnk" style="color:var(--k-danger)"><svg class="i s" aria-hidden="true"><use href="#trash"/></svg>מחיקת השורה</span></span><span style="flex:1"></span><span class="kt c m">Esc סוגר · Enter פותח שורה · Alt+↑↓ מזיז</span><button class="kb s" style="width:auto">סגירה</button></div>
+</div>
+<div class="erow " role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>ערבית</b></div><div style="display:flex;gap:6px;align-items:center"><span class="fpill"><svg class="i xs" aria-hidden="true"><use href="#sliders"/></svg>צאת הכוכבים, המאוחרת א׳–ה׳ · למעלה ל־5</span></div><span class="tm">17:15</span><span class="kib" aria-label="פעולות לשורה ערבית"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+<div class="erow hid" role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>שיעור דף יומי</b></div><div style="display:flex;gap:6px;align-items:center"><span class="wtag"><svg class="i xs" aria-hidden="true"><use href="#eyeoff"/></svg>מוסתר השבוע</span><span class="fpill fx"><svg class="i xs" aria-hidden="true"><use href="#clock"/></svg>שעה קבועה</span></div><span class="tm">19:55</span><span class="kib" aria-label="פעולות לשורה שיעור דף יומי"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+<div class="erow " role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>מניין ערבית ב׳</b></div><div style="display:flex;gap:6px;align-items:center"><span class="fpill fx"><svg class="i xs" aria-hidden="true"><use href="#clock"/></svg>שעה קבועה</span></div><span class="tm">20:15</span><span class="kib" aria-label="פעולות לשורה מניין ערבית ב׳"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div>
+</div>
+<div class="addrow"><span class="lnk"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg>שורה</span><span class="lnk"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg>שורת טקסט</span><span class="lnk" style="color:var(--k-gold)"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg>שורה לשבוע הזה בלבד</span></div></section>
+</div>
+<div class="edp"><div class="pvhd"><div class="kseg" style="min-height:44px"><b style="padding:0 18px">טלפון</b><b class="on" style="padding:0 18px">גיליון</b></div><div class="fseg"><b class="on">A4</b><b>ריבוע לוואטסאפ</b></div><span class="sp"></span><span class="kt c m">טיוטה · לא נשמרה</span></div>
+<div class="pvbox"><div class="scale" style="transform:scale(.86);margin-bottom:-118px"><div class="sht" role="img" aria-label="גיליון שבת פרשת וירא, תבנית שני טורים קלאסית, A4">
+<div class="shd"><div class="logo ph" title="מקום ללוגו הקהילה (מועלה על ידי הגבאי)">א</div><div class="tt"><h1>שבת פרשת <b>וירא</b></h1><div class="hdate">כ׳ בחשוון תשפ״ז · 31.10.2026</div></div><div class="kn">קהילת<br><b>אור הדוגמה</b></div></div>
+<div class="rule"></div>
+<div class="cols">
+<div><h2>שבת קודש</h2><div class="cand">הדלקת נרות · ירושלים <b>16:13</b> · תל אביב <b>16:33</b></div>
+<div class="r"><span>מנחה וקבלת שבת</span><b>16:45</b></div>
+<div class="r gap"><span>דף יומי</span><b>7:45</b></div>
+<div class="r"><span>שחרית</span><b>8:30</b></div>
+<div class="tx">שיעורים לגברים, נשים וילדים לאחר התפילה</div>
+<div class="tx" style="color:var(--s-tek)">קידוש לכבוד בר המצווה של איתי ניסיון, באולם הקטן *</div>
+<div class="r gap ovr"><span>מנחה גדולה</span><b>12:45</b></div>
+<div class="r"><span>מנחה וסעודה שלישית</span><b>16:20</b></div>
+<div class="r gap"><span>צאת השבת</span><b>17:48</b></div>
+<div class="r"><span>דף יומי</span><b>19:30</b></div>
+</div>
+<div class="spine" aria-hidden="true"><i></i><i></i><i></i></div>
+<div><h2>תפילות ימי החול</h2><div class="cand">א׳–ה׳ · <b>1.11–5.11</b></div>
+<div class="r"><span>שחרית מניין א׳</span><b>6:15</b></div>
+<div class="r"><span>שיעור דף יומי</span><b>7:00</b></div>
+<div class="r"><span>שחרית מניין ב׳</span><b>8:00</b></div>
+<div class="r gap"><span>מנחה גדולה</span><b>13:15</b></div>
+<div class="r gap hl"><span>מנחה</span><b>16:30</b></div>
+<div class="r"><span>ערבית</span><b>17:15</b></div>
+<div class="r gap"><span>מניין ערבית ב׳</span><b>20:15</b></div>
+</div>
+</div>
+<div class="bottom">
+<div><div class="orn" aria-hidden="true"><i></i><i></i><i></i></div><div class="note"><div class="img"><div><b>ערב לימוד לנשים</b>יום שלישי · 20:30<br>(מקום לתמונה נעוצה)</div></div></div></div>
+<div></div>
+<div><div class="orn" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="mt">מזל טוב למשה ורחל <b>בדיוני</b><br>להולדת הנכדה, בת לשירה ואורי <b>דוגמה</b>.<br>שתזכו לגדלה לתורה, לחופה ולמעשים טובים<svg class="ic" aria-hidden="true"><use href="#heart"/></svg></div>
+<div class="mt">מזל טוב לדני ונועה <b>ניסיון</b><br>לרגל בר המצווה של הבן איתי<svg class="ic" aria-hidden="true"><use href="#star"/></svg></div>
+</div>
+</div>
+<div class="ft"><span class="ovk">* שינוי לשבוע זה</span><span>שבת שלום ומבורך</span></div>
+</div>
+</div></div>
+<p class="kt c m">השורה שעורכים מודגשת בתצוגה. חברים רואים רק את מה שנשמר.</p></div>
+</div></div></div>
+<div style="display:flex;flex-wrap:wrap;gap:22px;margin-top:22px;align-items:flex-start">
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">בחירת זמן (רשימה פתוחה)</h3><div class="kbody"><div class="menu" style="position:static;box-shadow:none" role="listbox" aria-label="זמן">
+<span class="kt c m" style="min-height:28px;font-weight:700">בוקר</span><span>עלות השחר<small>4:59</small></span><span>משיכיר<small>5:28</small></span><span>הנץ החמה<small>6:12</small></span><span>סוף זמן ק״ש · מג״א<small>8:20</small></span><span>סוף זמן ק״ש · גר״א<small>8:56</small></span><span>סוף זמן תפילה · גר״א<small>9:52</small></span>
+<hr><span class="kt c m" style="min-height:28px;font-weight:700">צהריים</span><span>חצות היום<small>11:33</small></span><span>מנחה גדולה<small>12:03</small></span><span>מנחה קטנה<small>14:52</small></span><span>פלג המנחה<small>15:51</small></span>
+<hr><span class="kt c m" style="min-height:28px;font-weight:700">ערב</span><span class="on"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>שקיעה<small>16:48</small></span><span>הדלקת נרות · 22 דק׳<small>שישי בלבד</small></span><span>צאת הכוכבים<small>17:09</small></span><span>צאת השבת<small>שבת בלבד</small></span></div>
+<p class="kt c m">כל זמן מוצג עם השעה שלו ביום שנבחר, כדי שהגבאי יראה מה הוא בוחר. הקלדה מסננת (״שק״ → שקיעה). הגדרות הזמנים (מיקום, דקות להדלקה, מעלות לצאת הכוכבים) נמצאות בהגדרות הקהילה, עם קישור מתחתית הרשימה.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">של איזה יום · לפי המקטע</h3><div class="kbody"><div class="kf"><label>מקטע ״שבת״</label><div class="menu" style="position:static;box-shadow:none"><span class="on"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>יום שישי<small>ערב שבת</small></span><span>שבת<small>יום השבת</small></span></div></div>
+<div class="kf"><label>מקטע ״ימי החול״ (שעה אחת לכל השבוע)</label><div class="menu" style="position:static;box-shadow:none"><span class="on"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>המוקדם בימים א׳–ה׳<small>טוב למנחה</small></span><span>המאוחר בימים א׳–ה׳<small>טוב לערבית</small></span></div></div>
+<p class="kt c m">״יום השורה עצמה״ יופיע כשיהיו מקטעים של יום אחד (חג, תענית). הרמזים בצד נעזרים במנהג המקובל ולא מחייבים.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">עיגול</h3><div class="kbody"><div class="fsent"><div class="fctl"><label>עיגול</label><div class="menu" style="position:static;box-shadow:none;min-width:200px"><span>בלי עיגול</span><span class="on"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>למטה<small>מוקדם יותר</small></span><span>למעלה<small>מאוחר יותר</small></span><span>לקרוב</span></div></div><div class="fctl"><label>ל־</label><div class="menu" style="position:static;box-shadow:none;min-width:120px"><span>דקה</span><span class="on"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>5 דקות</span><span>10 דקות</span><span>15 דקות</span></div></div></div>
+<p class="kt c m">״ל־״ מוסתר כשבוחרים ״בלי עיגול״. עיגול לדקה חותך שניות.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">שעה קבועה · שורת טקסט</h3><div class="kbody"><div class="fctl"><label>השעה</label><div class="fseg" style="align-self:flex-start"><b class="on">שעה קבועה</b><b>לפי זמן היום</b><b>בלי שעה</b></div></div><div class="fsent"><div class="fctl"><label>שעה</label><div class="ftime" style="min-width:110px">8:30</div></div><p class="kt c m" style="flex:1">מקלידים 830, 8:30 או 08:30. חצים ↑↓ מוסיפים 5 דקות.</p></div>
+<div class="fctl"><label>שורת טקסט</label><div class="fseg" style="align-self:flex-start"><b>שעה קבועה</b><b>לפי זמן היום</b><b class="on">בלי שעה</b></div></div><div class="kf"><label>הטקסט</label><div class="kin" style="min-height:72px;align-items:flex-start;padding-top:10px">שיעורים לגברים, נשים וילדים לאחר התפילה</div></div></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">שינוי לשבוע הזה בלבד</h3><div class="kbody"><div class="fwk"><div class="kchk on" style="padding-top:0;min-height:32px"><i>✓</i><span><b>שינוי לשבוע הזה בלבד</b> <span class="kt c m">· 30.10–5.11</span></span></div>
+<div class="fseg" style="align-self:flex-start"><b class="on">שעה אחרת</b><b>הסתרה השבוע</b></div>
+<div class="fsent"><div class="fctl"><label>השעה השבוע</label><div class="ftime">12:45</div></div><div class="fctl" style="flex:1"><label>הערה לשבוע (לא חובה)</label><div class="kin">בגלל הקידוש</div></div></div>
+<p class="kt c m">בדרך כלל: <span class="knum">13:15</span> (שעה קבועה). מהשבוע הבא חוזר לבד.</p></div>
+<div class="esec" style="border-radius:10px"><div class="erow ovr" role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>מנחה גדולה</b><span>בגלל הקידוש</span></div><div style="display:flex;gap:6px;align-items:center"><span class="wtag">השבוע · במקום <span class="knum">13:15</span></span></div><span class="tm">12:45</span><span class="kib" aria-label="פעולות לשורה מנחה גדולה"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div><div class="erow ovr" role="listitem" tabindex="0"><span class="grip" aria-label="גרירה לשינוי הסדר (או Alt+חצים)"><svg class="i s" aria-hidden="true"><use href="#grip"/></svg></span><div class="lb"><b>קידוש לכבוד בר המצווה של איתי ניסיון</b><span>שורת טקסט</span></div><div style="display:flex;gap:6px;align-items:center"><span class="wtag">נוספה לשבוע הזה</span></div><span class="tm txt">—</span><span class="kib" aria-label="פעולות לשורה קידוש לכבוד בר המצווה של איתי ניסיון"><svg class="i s" aria-hidden="true"><use href="#more"/></svg></span></div></div>
+<p class="kt c m">סימון השבוע: מסגרת מקווקוות בזהב, רקע מפוספס עדין ותגית במילים. גם בגיליון ובטלפון יש סימון (כוכבית / ״השבוע״), לא רק צבע.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">אזהרות על הנוסחה</h3><div class="kbody"><div class="kbn"><b>השעה אחרי השקיעה</b>מנחה יוצאת <span class="knum">16:55</span>, והשקיעה ביום ה׳ ב־<span class="knum">16:48</span>. אולי התכוונתם ״לפני״ או ״למטה״?<span class="klink">שינוי ל״למטה״</span></div>
+<div class="kbn"><b>מוקדם מצאת השבת</b>עיגול ״למטה״ מקדים את צאת השבת ל־<span class="knum">17:45</span> (במקום <span class="knum">17:48</span>).<span class="klink">שינוי ל״למעלה״</span></div>
+<p class="kt c m">אזהרה בלבד: לא חוסמת שמירה (יש קהילות עם מנהג אחר). Banner info בתוך העורך, aria-live polite.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">שיתוף (אחרי שמירה)</h3><div class="kbody"><div style="display:flex;align-items:center;gap:8px"><span class="dirty"><i style="background:var(--k-olive)"></i>הכול נשמר</span><span style="flex:1"></span><button class="kb s" style="width:auto"><svg class="i s" aria-hidden="true"><use href="#share"/></svg>שיתוף<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></button></div>
+<div class="menu" style="position:static" role="menu"><span><svg class="i s" aria-hidden="true"><use href="#image"/></svg>תמונה לוואטסאפ<small>ריבוע 1080×1080</small></span><span><svg class="i s" aria-hidden="true"><use href="#image"/></svg>תמונה בגודל A4<small>PNG</small></span><span><svg class="i s" aria-hidden="true"><use href="#print"/></svg>PDF להדפסה<small>A4</small></span><hr><span><svg class="i s" aria-hidden="true"><use href="#image"/></svg>ההודעה הנעוצה כתמונה נפרדת<small>לריבוע</small></span><span><svg class="i s" aria-hidden="true"><use href="#link"/></svg>העתקת קישור לזמנים</span></div>
+<p class="kt c m">כשיש שינויים שלא נשמרו, ״שיתוף״ כבוי עם ההסבר ״שומרים קודם, ואז משתפים״: מה שמשתפים תמיד זהה למה שהחברים רואים. במחשב: הורדה. בטלפון: חלון השיתוף של המערכת.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">בחירת שבוע (פתוח)</h3><div class="kbody"><div class="menu" style="position:static;box-shadow:none" role="listbox" aria-label="בחירת שבוע"><span>לך לך<small>23.10–29.10</small></span><span class="on"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>וירא · השבת הקרובה<small>30.10–5.11 · 2 שינויים</small></span><span>חיי שרה<small>6.11–12.11</small></span><span>תולדות<small>13.11–19.11</small></span><span>ויצא<small>20.11–26.11</small></span><hr><span><svg class="i xs" aria-hidden="true"><use href="#clock"/></svg>נח · מעבר לשעון חורף<small>16.10–22.10</small></span></div>
+<p class="kt c m">שבוע = שישי עד חמישי שאחריו: שבת פרשת X ותפילות ימי החול שאחריה (כמו בגיליון). שבוע עם מעבר שעון מסומן, כי הזמנים בו קופצים.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">תוכן הגיליון לשבוע</h3><div class="kbody"><div class="kc"><p class="kh">בגיליון השבוע</p>
+<p class="kt b">מזל טוב</p>
+<div class="kchk on"><i>✓</i><span>משה ורחל בדיוני · הולדת נכדה<br><span class="kt c m">גלוי לכולם</span></span></div>
+<div class="kchk on"><i>✓</i><span>דני ונועה ניסיון · בר מצווה<br><span class="kt c m">גלוי לכולם</span></span></div>
+<div class="kchk"><i></i><span>אבי ומיכל דמיון · אירוסין<br><span class="kt c m">אורחים לא רואים מזל טוב בקהילה. בגיליון רק אם מסמנים.</span></span></div>
+<p class="kt b">תמונה נעוצה</p><div class="kli" style="border:0"><div style="width:72px;height:54px;border-radius:8px;background:repeating-linear-gradient(135deg,var(--k-line) 0 6px,var(--k-stone) 6px 12px)"></div><div class="g"><p class="kt s">ערב לימוד לנשים</p><p class="kt c m">עד 5.11</p></div><span class="klink">החלפה</span></div>
+<p class="kt b">ערים להדלקת נרות</p><p class="kt s">ירושלים (40 דק׳) · תל אביב (22 דק׳) <span class="klink">שינוי</span></p>
+<p class="kt b">תבנית</p><p class="kt s">שני טורים קלאסי <span class="kt c m">· תבניות נוספות בהמשך</span></p></div>
+<p class="kt c m">כרטיס בסוף עמודת העורך (מתחת למקטעים). מזל טוב נכנס מהודעות מסוג ״מזל טוב״ מהשבוע. ברירת המחדל מסומנת רק כשמותר לאורחים לראות.</p></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">תצוגה: טלפון</h3><div class="kbody"><div class="kseg" style="min-height:44px"><b>בית</b><b class="on">כל הזמנים</b></div><p class="kt c m">״טלפון״ מציג טלפון 360 רוחב (P21 או P22) בקנה מידה 1, עם החלפה בין ״בית״ ל״כל הזמנים״ ושעון מדומה: ״כאילו עכשיו״ יום ושעה, כדי לראות את ״התפילה הבאה״ ביום שישי.</p><div style="display:flex;gap:8px;align-items:center"><span class="kt s">כאילו עכשיו</span><div class="fsel">שישי<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div><div class="ftime">15:40</div></div></div></section>
+<section class="kpanel" style="width:460px;max-width:100%"><h3 class="plabel">ריק · פעם ראשונה</h3><div class="kbody"><div class="kc"><p class="kh">עוד אין זמני תפילות</p><p class="kt s">אפשר להתחיל ממבנה מוכן: שבת וימי חול עם השורות הנפוצות, וזמנים שכדאי לבדוק.</p><button class="kb">התחלה מהמבנה הקלאסי</button><button class="kb s">התחלה מדף ריק</button></div><p class="kt c m">המבנה הקלאסי ממלא שורות ונוסחאות (למשל מנחה = שקיעה −15) ומסמן את כולן ״לבדיקה״ עד שהגבאי פותח כל אחת.</p></div></section>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:22px;margin-top:22px;align-items:flex-start;justify-content:center"><div class="phone kit admin"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="kband"><span>זמני התפילות</span><small>ניהול</small></div><div class="kscroll fade" style="gap:12px"><div class="kseg"><b class="on">עריכה</b><b>תצוגה</b></div><div class="wkp" style="align-self:stretch"><span class="kib"><svg class="i s" aria-hidden="true"><use href="#back"/></svg></span><span class="cur" style="min-width:0;flex:1">וירא · <span class="knum">30.10–5.11</span></span><span class="kib"><svg class="i s" aria-hidden="true"><use href="#fwd"/></svg></span></div>
+<div class="esec e" style="--e:var(--k-gold)"><div class="hd"><span class="nm" style="font-size:17px">שבת קודש</span><span class="sp"></span><span class="wtag">2 השבוע</span><span class="kib" style="width:40px;height:40px;color:var(--k-muted)"><svg class="i s" aria-hidden="true"><use href="#chev"/></svg></span></div></div>
+<div class="esec e" style="--e:var(--k-tek)"><div class="hd"><span class="nm" style="font-size:17px">ימי החול</span><span class="sp"></span><span class="kib" style="width:40px;height:40px;color:var(--k-muted);transform:rotate(180deg)"><svg class="i s" aria-hidden="true"><use href="#chev"/></svg></span></div>
+<div class="erow" style="grid-template-columns:minmax(0,1fr) 56px 24px"><div class="lb"><b>שחרית מניין א׳</b><span>שעה קבועה</span></div><span class="tm">6:15</span><span><svg class="i xs" aria-hidden="true"><use href="#fwd"/></svg></span></div>
+<div class="erow" style="grid-template-columns:minmax(0,1fr) 56px 24px"><div class="lb"><b>מנחה גדולה</b><span>שעה קבועה</span></div><span class="tm">13:15</span><span><svg class="i xs" aria-hidden="true"><use href="#fwd"/></svg></span></div>
+<div class="erow" style="grid-template-columns:minmax(0,1fr) 56px 24px"><div class="lb"><b>מנחה</b><span>שקיעה המוקדמת −15, למטה ל־5</span></div><span class="tm">16:30</span><span><svg class="i xs" aria-hidden="true"><use href="#fwd"/></svg></span></div>
+<div class="erow" style="grid-template-columns:minmax(0,1fr) 56px 24px"><div class="lb"><b>ערבית</b><span>צאת הכוכבים המאוחר, למעלה ל־5</span></div><span class="tm">17:15</span><span><svg class="i xs" aria-hidden="true"><use href="#fwd"/></svg></span></div>
+</div></div><div style="position:absolute;inset-inline:0;bottom:24px;padding:12px 16px;background:var(--k-surface);border-top:1px solid var(--k-line);display:flex;gap:8px"><button class="kb s" style="flex:1"><svg class="i s" aria-hidden="true"><use href="#share"/></svg>שיתוף</button><button class="kb" style="flex:1">שמירה · 2</button></div></div><div class="gest"></div></div><div class="phone kit admin"><div class="sb"><span class="num">10:25</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="kband"><span>זמני התפילות</span><small>ניהול</small></div><div class="kscroll"><div class="kseg"><b class="on">עריכה</b><b>תצוגה</b></div></div><div class="kscrim"></div><div class="ksheet" style="max-height:92%"><div style="width:36px;height:4px;border-radius:2px;background:var(--k-line);margin:0 auto;flex:none"></div><p class="kh">מנחה</p>
+<div class="fseg"><b style="flex:1">קבועה</b><b class="on" style="flex:1">לפי זמן</b><b style="flex:1">בלי</b></div>
+<div class="fctl"><label>זמן</label><div class="fsel">שקיעה<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div></div>
+<div class="fctl"><label>של איזה יום</label><div class="fsel">המוקדם בימים א׳–ה׳<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div></div>
+<div class="fsent"><div class="fstep"><span class="kib"><svg class="i s" aria-hidden="true"><use href="#minus"/></svg></span><b>15</b><span class="kib"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg></span></div><div class="fseg" style="flex:1"><b class="on" style="flex:1">לפני</b><b style="flex:1">אחרי</b></div></div>
+<div class="fsent"><div class="fsel" style="flex:1;min-width:0">למטה<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div><div class="fsel" style="flex:1;min-width:0">ל־5<svg class="i s" aria-hidden="true"><use href="#chev"/></svg></div></div>
+<div class="fres" style="padding:10px"><span class="big" style="font-size:28px">16:30</span><p class="kt s" style="flex:1">15 דקות לפני השקיעה המוקדמת בימים א׳–ה׳, מעוגל למטה ל־5.</p></div>
+<div class="krow"><button class="kb s">ביטול</button><button class="kb">אישור</button></div></div></div><div class="gest"></div></div>
+<aside class="notes"><h2>P20 · עורך זמני התפילות</h2><div>מסך גבאי, נבנה למחשב (1280 ומעלה; המסגרת 1440). עורך מימין (תחילת השורה), תצוגה חיה משמאל. מתחת ל־1024: טלפון, עם ״עריכה / תצוגה״ ועריכת שורה בחלון תחתון.</div><ul>
+<li>שורה = אחת על כל הקצוות: גרירה, שם, תקציר הנוסחה בגלולה, השעה המחושבת לשבוע הנבחר. לחיצה או Enter פותחים את בונה הנוסחה בתוך השורה (אקורדיון), כך שהתצוגה נשארת גלויה.</li>
+<li>בונה הנוסחה נקרא כמשפט: זמן ▾ · של איזה יום ▾ · דקות · לפני/אחרי · עיגול ▾. ״לפני/אחרי״ במקום סימן ±. מתחת: השעה הגדולה, משפט בשפה פשוטה, החישוב צעד אחר צעד וזמן העוגן בכל יום (המוקדם מסומן).</li>
+<li>״לשבוע הזה בלבד״ תמיד בזהב מקווקו עם מילים. הנוסחה לא משתנה.</li>
+<li>שמירה מפורשת (לא כל הקשה): שינוי נוסחה משנה את ״בית״ לכל החברים. התצוגה מציגה טיוטה; שיתוף רק אחרי שמירה.</li>
+<li>מקלדת וגישה: §14.6.</li></ul></aside></div></main>
+</body>
+</html>

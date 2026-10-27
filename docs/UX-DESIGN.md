@@ -989,3 +989,263 @@ route name is what is sent. Values in `bug.auto` (version, OS) are LTR inside is
 
 Not screenshot-checked (no browser run on this machine). Check P19 at 390 in both directions and in dark mode, and
 the 1440 placement in the admin console, before building. The screenshot mechanism per platform is the builder's.
+
+## 14. Prayer schedule
+
+Added 2026-10-27 for `docs/superpowers/specs/2026-10-27-prayer-schedule-design.md` (incl. §3a, two formats).
+Frames: `P20.html` (gabbai editor, desktop and narrow), `P21.html` (Home), `P22.html` (full schedule and Print),
+`P23.html` (sheet template "Classic two columns"), index section "ו". Kit-drawn like the P frames; the printed sheet
+uses its own fixed palette. Styles: `shared.css`, block "§14 Prayer schedule". All names and the logo are invented
+placeholders; times are illustrative (Petah Tikva, week of Vayera 5787), the shared calculation decides the real ones.
+
+### 14.1 Terms the screens rely on
+
+- **Schedule week** = Friday through the following Thursday: "שבת פרשת X" plus the Sun–Thu weekday times after it.
+  This is what the Kehila's paper sheet means (its weekday column is for the coming week; it matters in DST-switch
+  weeks). Editor, Home, full schedule and sheet all use it. Weeks are named by their parasha.
+- **"This week only"** (override) is always marked three ways, never by colour alone: gold dashed outline or tag
+  with words ("השבוע", "מוסתר השבוע", "נוספה לשבוע הזה"), the usual value shown struck or in words, and on paper
+  an asterisk with the footnote "* שינוי לשבוע זה".
+- **Next** = the next row in time across today's weekday rows and this week's Shabbat rows (text-only rows and
+  candle lighting are never "next"; candle lighting has its own line).
+
+### 14.2 Gabbai editor (P20)
+
+**Entry:** Overview → card "זמני התפילות" (and on desktop a sidebar item when the console has one). Full-width
+page, not capped at 680: the 680 cap is for member screens.
+
+**Desktop (≥ 1024, designed at 1280–1440):**
+
+| Part | Spec |
+|---|---|
+| Top band | `k.band`, 56 high: back "ניהול", title (serif 19), Kehila name. |
+| Toolbar | `k.surface`, hairline under it. Week picker (prev / current ▾ / next, 44×44 arrows, current 300 min wide with `cal` icon), Tag "השבת הקרובה" when it is; at the end: unsaved count (8 px gold dot + "n שינויים שלא נשמרו"), secondary "ביטול השינויים", primary "שמירה", secondary "שיתוף ▾". Share is disabled while there are unsaved changes ("שומרים קודם, ואז משתפים"). |
+| Editor column | flex 1, padding 20/24, scrolls. One **section card** per section (`Card` with `edgeColor`: gold Shabbat, tekhelet weekdays; later sections tekhelet): header 52 (grip, serif 19 name, Tag with row count, override count tag, rename `edit`, collapse `chev`). Collapsed header shows a one-line summary (Shabbat: candles and Shabbat end). |
+| Row | grid `24 / 1fr / auto / 64 / 40`, min height 52: grip, label (bold) + note (12.5 muted), **formula pill** (28 high, radius 14, `sliders` icon + short summary, or `clock` "שעה קבועה", or "טקסט בלבד"), computed time (17 bold tabular, LTR isolate), `more` menu (rename, duplicate, move up/down, hide this week, delete). Selected: `k.stone` fill + 2 px tekhelet inset. Hidden this week: struck through + tag. Override rows: gold tag + faint hatching. |
+| Add | under each section: "+ שורה", "+ שורת טקסט", "+ שורה לשבוע הזה בלבד" (gold). Under the last section: "+ מקטע" and the **"בגיליון השבוע"** card (mazal tov checklist, pinned image, candle-lighting cities, template). |
+| Preview column | 600 wide, `k.surface`, hairline start border. Header: Segmented "טלפון / גיליון"; for sheet a second segmented "A4 / ריבוע לוואטסאפ"; for phone "בית / כל הזמנים" and a simulated "as if now" day + time. Body: the real component scaled to fit (sheet at ~0.86). The row in edit is highlighted in the preview (3 px tekhelet outline). Caption: draft vs saved. |
+
+**Formula builder** (expands inline under the selected row; `k.stone` background):
+
+1. Label (he) and label (en, optional) `Field`s side by side; note `Field` (optional).
+2. "השעה": 3-way segmented **שעה קבועה / לפי זמן היום / בלי שעה** (fixed / formula / text-only).
+3. Formula, read as a sentence, controls 44 high:
+   **זמן ▾** (anchor) · **של איזה יום ▾** · **דקות** stepper (− n +) · **לפני / אחרי** · **עיגול ▾** (בלי / למטה /
+   למעלה / לקרוב) + **ל־ ▾** (1 / 5 / 10 / 15; hidden for "בלי") · optional **לא לפני** / **לא אחרי** (Check + time).
+   Offset is a number plus before/after, not a signed number: gabbaim say "15 לפני השקיעה", not "−15".
+4. **Result box** (live): big time (34, tekhelet), the plain-language summary, the calculation step by step
+   ("יום ה׳ 16:48 ← פחות 15 = 16:33 ← עיגול = 16:30"), and for earliest/latest the anchor for each of Sun–Thu with
+   the chosen day outlined.
+5. **Warnings** (info `Banner`, do not block saving, one-tap fix): a row that ends after shkia on any day although
+   it is "before" shkia; Shabbat end or tzeit rounded down; candle lighting rounded up; a bound that wins every day
+   ("the formula never applies").
+6. **"שינוי לשבוע הזה בלבד"** box (gold dashed): Check; on → segmented "שעה אחרת / הסתרה השבוע", time, week note.
+   Shows the usual value. Comes back by itself next week.
+7. Footer: duplicate, delete (danger, inline confirm), hint line with keys, "סגירה".
+
+**Anchor list** (grouped, each with its time on the chosen day, type-to-filter): בוקר: עלות השחר, משיכיר, הנץ החמה,
+סוף זמן ק״ש מג״א, סוף זמן ק״ש גר״א, סוף זמן תפילה גר״א · צהריים: חצות היום, מנחה גדולה, מנחה קטנה, פלג המנחה ·
+ערב: שקיעה, הדלקת נרות (n דק׳, Fridays), צאת הכוכבים, צאת השבת (Shabbat). Link at the end: Kehila zmanim settings.
+
+**Day source per section:** Shabbat section: יום שישי / שבת. Weekday section: המוקדם בימים א׳–ה׳ / המאוחר בימים
+א׳–ה׳ (with hints "טוב למנחה" / "טוב לערבית"). "The row's own day" appears only for single-day sections (holidays,
+later).
+
+**Saving:** explicit "שמירה" (not save-per-tap as in §12.2): a formula change moves times on every member's Home,
+and a gabbai tries things. Preview shows the draft. Leaving with unsaved changes asks (the channel sheet's discard
+pattern). Toast "זמני התפילות נשמרו".
+
+**First time:** empty state card "עוד אין זמני תפילות" with "התחלה מהמבנה הקלאסי" (Shabbat + weekday rows with
+common formulas, each marked "לבדיקה" until opened) or "התחלה מדף ריק".
+
+**Narrow (< 1024, phone):** management band, segmented "עריכה / תצוגה", week picker, section cards with rows
+(label, formula summary under it, time, chevron). Tapping a row opens the builder in a `Sheet` (same controls stacked,
+result box, "ביטול / אישור"). Save and Share sit in a sticky footer ("שמירה · n").
+
+**Share** menu (saved state): תמונה לוואטסאפ (1080×1080), תמונה A4 (PNG), PDF להדפסה, the pinned notice as a
+separate image, copy link to the schedule. Desktop downloads; phone opens the system share sheet.
+
+### 14.3 Member Home (P21)
+
+Order: greeting, P7/P15 one-time cards, **schedule card**, **zmanim card (collapsible)**, phone list, latest.
+
+- **Shabbat mode (Thursday 00:00 until one hour after Shabbat end, or after the last Shabbat row if later):**
+  `Card edgeColor=gold`: overline "זמני התפילות" (12.5 bold muted), serif heading "שבת פרשת X", Hebrew date ·
+  date; candle-lighting line (`flame` gold, the sheet's two cities, tabular); **next block** (2 px tekhelet border,
+  radius 12: label "התפילה הבאה" 12.5 tekhelet bold, row name heading, countdown caption, time 28 tekhelet); up to 4
+  following rows (40 high, hairline); link "לכל הזמנים" (48). On Thursday the next block can be today's weekday
+  prayer ("התפילה הבאה · היום").
+- **Weekday mode:** `edgeColor=tekhelet`, overline "זמני התפילות · היום", next block, up to 3 more of today, a line
+  "שבת פרשת X · נרות ביום שישי {time}" (replaces the old "לקראת שבת" card), link. After the last row of the day:
+  overline "· מחר", next = tomorrow's first, caption "מחר, יום ראשון" (no countdown).
+- **Countdown:** minutes, updated each minute, only within 6 hours; "בעוד 40 דק׳", "בעוד שעה ו־5 דק׳", "בעוד
+  שעתיים ו־51 דק׳", "בעוד 3 שעות ו־10 דק׳". Not a live region.
+- **Overrides:** Tag "השבוע" after the row name; in the next block the caption says "השבוע בלבד · בדרך כלל 13:15".
+- **Zmanim card:** `Card` with a pressable header (min 56): "זמני היום · {city}" bold, caption "הבא: {zman} {time}",
+  `chev` 20 muted, rotates when open. Body: today's list unchanged. State remembered on the device; default closed;
+  when the Kehila has no schedule it is open and the old "לקראת שבת" card stays.
+- **States:** loading = quiet skeleton in the card; offline with a stored schedule = info Banner in the card
+  ("נשמרו במכשיר ב־9:02"); error without one = error Banner + retry. Guests see the same card.
+
+### 14.4 Full schedule and Print (P22)
+
+- Back "בית", title "זמני התפילות" with a secondary **Button "הדפסה"** (`print` icon, auto width, 48) at the end of
+  the title row; week switcher (current and next week only; 44×44 arrows; title "שבת פרשת X", dates, "השבוע").
+- One section `Card` per section (same edges), header serif 19 + days caption. Rows: name, note line (12.5 muted),
+  time (bold tabular, end). Text-only rows full width, 14 muted. Override: Tag "השבוע", usual time struck under the
+  new one, the week note. Hidden rows: one muted line at the end "השבוע אין: …". Next row: 2 px tekhelet outline,
+  caption "הבאה · בעוד …". Past rows today: muted. From Thursday Shabbat comes first; otherwise weekdays first.
+- Footer caption: city and "עודכן בידי הגבאים ב־{date}".
+- **Print (spec §3a), everyone who can see the schedule:** web (any browser) opens the print page in a new tab and
+  calls the print dialog; the print page is exactly P23's A4 sheet (`@page { size: A4; margin: 0 }`, nothing else on
+  the page). Phone app: Button busy ("מכין להדפסה") → PDF → system share sheet (print, WhatsApp, save). Prints the
+  week on screen. Guests: mazal tov block omitted unless guests may see mazal tov (the gabbai's sheet ticks do not
+  override this). Works offline from the stored schedule (template and logo are cached with it). Error: Banner +
+  retry.
+
+### 14.5 Sheet template "Classic two columns" (P23)
+
+Recognisable to the Kehila (same order: Shabbat right, weekdays left, mazal tov and a notice picture below; big blue
+"שבת פרשת **X**"; "name … time"), refreshed with the app's own marks.
+
+| Part | A4 (595×842 pt) | Square (1080², drawn 540) |
+|---|---|---|
+| Frame | inner hairline at 12, padding 34/36/26 | hairline at 8, padding 22/24/16 |
+| Header | logo slot 66×66 (start, `contain`, white), title serif 38 weight 500 with parasha 800, tekhelet; Hebrew + civil date 12.5; Kehila name 10 at the end | logo 44, title 28 |
+| Tallit rule | double tekhelet line under the header (2 + 1 + 2) | same |
+| Columns | `1fr 22 1fr`; spine = double line with three diamonds | same |
+| Column head | serif 17 800 tekhelet; candle band (pale tekhelet, 12.5, times 15 bold) / weekday dates band | 14 |
+| Row | 14.5, dotted leader, time 15 bold tabular; group gap 7; text row 12.5 centred muted; override time tekhelet + "*" | 12.5 / 13 |
+| Bottom | pinned image under Shabbat (4:3, tekhelet border), mazal tov under weekdays (13, centred, family name 800 pomegranate, small icon per notice, dotted separators); ornament = line + three diamonds | no image (sent as a second picture); mazal tov in one band, shortened |
+| Footer | "* שינוי לשבוע זה" · "שבת שלום ומבורך", 9.5 | same |
+
+Fixed colours (paper never goes dark): paper `#FCFCF9`, ink `#151A33`, tekhelet `#2A3F94`, pale `#E7EBF6`, line
+`#C3CADF`, pomegranate `#A32A47`. Fonts embedded: Noto Serif Hebrew, Heebo.
+
+**Fitting:** never a second page and never a clipped row. Steps: mazal tov to 12 → pinned image down to 30% of
+the height → row font down to 12.5 → editor Banner "הגיליון ארוך מעמוד אחד" with "hide rows" suggestions. No logo:
+the Kehila initial in a tekhelet tile with tallit lines. No mazal tov: a verse from the parasha or an ornament;
+no image: mazal tov spans both columns.
+
+### 14.6 Accessibility and keyboard (editor)
+
+- Sections are `list`s, rows `listitem`s with one tab stop each (roving focus). **↑/↓** move between rows, **Enter**
+  opens the builder, **Esc** closes it and returns focus to the row, **Alt+↑/↓** moves the row (also in its `more`
+  menu: "הזזה למעלה / למטה"; drag is never the only way), **Alt+Shift+↑/↓** moves a section, **Ctrl/⌘+S** saves,
+  **Ctrl/⌘+Z** undoes the last change in the draft, **Delete** on a row asks to delete.
+- Builder controls in sentence order. Selects are listboxes with type-ahead (Hebrew letters). Stepper: **↑/↓** ±1,
+  **Shift+↑/↓** ±5, digits type. Time fields accept "830", "8:30", "08:30"; ↑/↓ ±5 minutes.
+- The result box is a polite live region: after a change it announces "16:30. 15 דקות לפני השקיעה המוקדמת…".
+  Warnings are part of it. The unsaved count is polite. Moving a row announces "מנחה הועברה למקום 5 מתוך 8".
+- Grip has a label ("גרירה לשינוי הסדר"); preview is `aria-hidden` except the segmented controls (the editor
+  holds the same data). Focus ring 2 px tekhelet on every control; all targets ≥ 44 on desktop, 48 on phone.
+- Member side: next block reads "התפילה הבאה: מנחה וקבלת שבת, 16:45, בעוד שעה ו־5 דקות"; override rows read
+  "השבוע בלבד, 12:45, בדרך כלל 13:15"; the zmanim header is a button with `aria-expanded`; Print is a button
+  ("הדפסת זמני התפילות").
+
+### 14.7 Components
+
+Reused: `Card` (+`edgeColor`), `Txt`, `Button`, `Field`, `Segmented`, `Check`, `Tag`, `Banner`, `Sheet`, `Toast`,
+`Icon`. New, and why:
+
+- **`ScheduleCard`** (Home): the mode logic (Shabbat/weekday/tomorrow) and the next block belong together; used on
+  Home and in the editor's phone preview.
+- **`ScheduleRow`** (member): name/note/time/override/next/past in one row; used by ScheduleCard and P22.
+- **`CollapsibleCard`** (kit): `Card` with a pressable header, `title`, `summary`, `open`, `onToggle`. Generic; Home
+  zmanim first.
+- **`FormulaBuilder`**, **`TimeField`**, **`Stepper`**, **`Select`** (listbox with groups and side values): the
+  kit has no select or stepper today; the editor needs them and they are reusable.
+- **`WeekPicker`**: prev / current ▾ / next with parasha names and DST/override markers; editor and (arrows only) P22.
+- **`SheetClassic`**: the template; one component renders the editor preview, the print page, PNG and PDF.
+- Icons to add to `Icon.tsx`: `grip`, `clock`, `share`, `image`, `eyeoff`, `copy`, `print`, `flame`, `minus`,
+  `star`, `cal`, `sliders`, `more`, `edit`, `trash`, `down` (some exist in the frames' sprite only).
+
+### 14.8 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `schedule.title` | זמני התפילות | Prayer times |
+| `schedule.today` | זמני התפילות · היום | Prayer times · today |
+| `schedule.tomorrow` | זמני התפילות · מחר | Prayer times · tomorrow |
+| `schedule.shabbatOf` | שבת פרשת {parasha} | Shabbat {parasha} |
+| `schedule.candles` | הדלקת נרות | Candle lighting |
+| `schedule.candlesFriday` | שבת פרשת {parasha} · נרות ביום שישי | Shabbat {parasha} · candles on Friday |
+| `schedule.next` | התפילה הבאה | Next prayer |
+| `schedule.nextToday` | התפילה הבאה · היום | Next prayer · today |
+| `schedule.inMin` | בעוד {m} דק׳ | in {m} min |
+| `schedule.inHour` | בעוד שעה ו־{m} דק׳ | in 1 h {m} min |
+| `schedule.inTwoHours` | בעוד שעתיים ו־{m} דק׳ | in 2 h {m} min |
+| `schedule.inHours` | בעוד {h} שעות ו־{m} דק׳ | in {h} h {m} min |
+| `schedule.tomorrowDay` | מחר, {day} | Tomorrow, {day} |
+| `schedule.full` | לכל הזמנים | Full schedule |
+| `schedule.thisWeek` | השבוע | This week |
+| `schedule.usually` | השבוע בלבד · בדרך כלל {time} | This week only · usually {time} |
+| `schedule.notThisWeek` | השבוע אין: {list} | Not this week: {list} |
+| `schedule.updated` | הזמנים מחושבים ל{city}. עודכן בידי הגבאים ב־{date}. | Times are for {city}. Updated by the gabbaim on {date}. |
+| `schedule.print` | הדפסה | Print |
+| `schedule.printA11y` | הדפסת זמני התפילות | Print the prayer times |
+| `schedule.printing` | מכין להדפסה | Preparing to print |
+| `schedule.printError` | לא הצלחנו להכין את הקובץ להדפסה. | We couldn't prepare the file for printing. |
+| `schedule.offline` | זמני התפילות נשמרו במכשיר ב־{time}. אולי יש עדכון. | Prayer times saved on this device at {time}. There may be an update. |
+| `schedule.error` | לא ניתן לטעון את זמני התפילות. | Couldn't load the prayer times. |
+| `home.zmanimNext` | הבא: {zman} {time} | Next: {zman} {time} |
+| `editor.title` | זמני התפילות | Prayer times |
+| `editor.weekPrev` / `weekNext` | השבוע הקודם / השבוע הבא | Previous week / Next week |
+| `editor.upcoming` | השבת הקרובה | This coming Shabbat |
+| `editor.dstWeek` | מעבר שעון | Clock change |
+| `editor.unsaved` | {n} שינויים שלא נשמרו | {n} unsaved changes |
+| `editor.discard` | ביטול השינויים | Discard changes |
+| `editor.save` | שמירה | Save |
+| `editor.saved` | זמני התפילות נשמרו | Prayer times saved |
+| `editor.share` | שיתוף | Share |
+| `editor.shareSaveFirst` | שומרים קודם, ואז משתפים | Save first, then share |
+| `editor.shareSquare` | תמונה לוואטסאפ | Image for WhatsApp |
+| `editor.shareA4` | תמונה בגודל A4 | A4 image |
+| `editor.sharePdf` | PDF להדפסה | PDF for printing |
+| `editor.shareNotice` | ההודעה הנעוצה כתמונה נפרדת | The pinned notice as a separate image |
+| `editor.addRow` / `addText` / `addWeek` / `addSection` | שורה / שורת טקסט / שורה לשבוע הזה בלבד / מקטע | Row / Text row / Row for this week only / Section |
+| `editor.rowName` / `rowNameEn` / `rowNote` | שם השורה / שם באנגלית (לא חובה) / הערה (לא חובה) | Row name / English name (optional) / Note (optional) |
+| `editor.kind` | השעה | Time |
+| `editor.kindFixed` / `kindFormula` / `kindNone` | שעה קבועה / לפי זמן היום / בלי שעה | Fixed time / From a zman / No time |
+| `editor.anchor` / `day` / `minutes` | זמן / של איזה יום / דקות | Zman / Which day / Minutes |
+| `editor.before` / `after` | לפני / אחרי | before / after |
+| `editor.round` / `roundTo` | עיגול / ל־ | Rounding / to |
+| `editor.roundNone` / `Down` / `Up` / `Nearest` | בלי עיגול / למטה / למעלה / לקרוב | None / Down / Up / Nearest |
+| `editor.notBefore` / `notAfter` | לא לפני / לא אחרי | Not before / Not after |
+| `editor.dayFriday` / `dayShabbat` | יום שישי / שבת | Friday / Shabbat |
+| `editor.dayEarliest` / `dayLatest` | המוקדם בימים א׳–ה׳ / המאוחר בימים א׳–ה׳ | Earliest Sun–Thu / Latest Sun–Thu |
+| `editor.summary` | {n} דקות {before/after} {anchor}{day}, מעוגל {dir} ל־{step}{bounds}. | {n} minutes {before/after} {anchor}{day}, rounded {dir} to {step}{bounds}. |
+| `editor.summaryExact` | בדיוק ב{anchor}{day}. | Exactly at {anchor}{day}. |
+| `editor.weekOnly` | שינוי לשבוע הזה בלבד | Change for this week only |
+| `editor.weekOnlyNote` | הנוסחה נשארת לשבועות האחרים. | The formula stays for other weeks. |
+| `editor.weekOther` / `weekHide` | שעה אחרת / הסתרה השבוע | Different time / Hide this week |
+| `editor.tagWeek` / `tagHidden` / `tagAdded` | השבוע · במקום {time} / מוסתר השבוע / נוספה לשבוע הזה | This week · instead of {time} / Hidden this week / Added this week |
+| `editor.warnAfterSunset` | השעה אחרי השקיעה: {row} יוצאת {time}, והשקיעה ב{day} ב־{sunset}. | After sunset: {row} comes out at {time}, and sunset on {day} is {sunset}. |
+| `editor.warnEarlyEnd` | מוקדם מצאת השבת: העיגול מקדים ל־{time} (במקום {exact}). | Before Shabbat ends: rounding moves it to {time} (instead of {exact}). |
+| `editor.sheetTitle` | בגיליון השבוע | On this week's sheet |
+| `editor.sheetGuestsHidden` | אורחים לא רואים מזל טוב בקהילה. בגיליון רק אם מסמנים. | Guests don't see mazal tov here. On the sheet only if ticked. |
+| `editor.tooLong` | הגיליון ארוך מעמוד אחד. אפשר להסתיר שורות לשבוע הזה. | The sheet is longer than one page. You can hide rows for this week. |
+| `editor.emptyTitle` | עוד אין זמני תפילות | No prayer times yet |
+| `editor.startClassic` / `startBlank` | התחלה מהמבנה הקלאסי / התחלה מדף ריק | Start from the classic layout / Start blank |
+| `sheet.changed` | * שינוי לשבוע זה | * Changed this week |
+| `sheet.footer` | שבת שלום ומבורך | Shabbat shalom |
+
+Zman names (he / en): עלות השחר / Dawn · משיכיר / Misheyakir · הנץ החמה / Sunrise · סוף זמן ק״ש (מג״א / גר״א) /
+Latest Shema (MA / GRA) · סוף זמן תפילה (גר״א) / Latest Shacharit (GRA) · חצות היום / Midday · מנחה גדולה / Mincha
+Gedola · מנחה קטנה / Mincha Ketana · פלג המנחה / Plag HaMincha · שקיעה / Sunset · הדלקת נרות / Candle lighting · צאת
+הכוכבים / Nightfall · צאת השבת / Shabbat ends.
+
+### 14.9 Open points for the spec owner
+
+- **Week boundary** is not in the spec; this design assumes Friday→Thursday (the paper sheet's meaning). Confirm.
+- **"Row's own day"** contradicts "one weekly time per row" for weekday rows; offered only for future single-day
+  sections.
+- **Draft vs live:** the spec doesn't say when edits reach members; this design uses explicit Save.
+- **Countdown & Shabbat mode window** (Thursday 00:00 → Shabbat end + 1 h) are design choices to confirm.
+- Not in the spec but drawn: halachic-direction warnings, "start from the classic layout", overflow rules.
+
+### 14.10 Verification
+
+Frames written by hand, not screenshot-checked (no browser run on this 2 GB machine). Check P20 at 1280 and 1440,
+P21/P22 at 390 in light and dark, and P23 printed to PDF from a browser before building. Tag balance of the four new
+frames was checked with a parser.
