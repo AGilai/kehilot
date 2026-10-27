@@ -74,8 +74,8 @@ export function Search({ onBack, onOpen, initialQuery = '', onQuery }: { onBack:
           <Pressable accessibilityRole="button" onPress={() => onOpen(item.messageId)}
             style={{ backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, padding: 14, gap: 6 }}>
             <Txt size="caption" color={k.muted} numberOfLines={1}>{nameOf(item.channelId)} · {dateOf(item.messageId)}</Txt>
-            {item.title ? <Txt serif size="heading" numberOfLines={1}>{item.title}</Txt> : null}
-            <Txt size="small" color={k.muted}>{snippet([item.body, item.title, item.authorName, item.targetName].filter(Boolean).join(' · '), words)}</Txt>
+            {item.title ? <Txt serif size="heading" numberOfLines={1} content>{item.title}</Txt> : null}
+            <Txt size="small" color={k.muted} content>{snippet([item.body, item.title, item.authorName, item.targetName].filter(Boolean).join(' · '), words)}</Txt>
           </Pressable>
         )}
         ListEmptyComponent={<Txt color={k.muted}>{words.length === 0 ? t('search.hint') : t('search.empty')}</Txt>}

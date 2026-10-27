@@ -34,7 +34,7 @@ export function Icon({ name, size = 24, color }: { name: IconName; size?: number
   const c = color ?? tokens(scheme === 'dark' ? 'dark' : 'light').ink;
   const uri = React.useMemo(() => 'data:image/svg+xml;utf8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${PATHS[name]}</svg>`), [name, c]);
-  return <Image source={{ uri }} style={{ width: size, height: size }} contentFit="contain" accessible={false} />;
+  return <Image source={{ uri }} style={{ width: size, height: size }} contentFit="contain" accessible={false} importantForAccessibility="no" accessibilityElementsHidden />;
 }
 
 /** "Back" and "forward" arrows follow the reading direction: back points right in Hebrew, left in English. */
