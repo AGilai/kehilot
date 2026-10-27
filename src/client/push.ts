@@ -55,6 +55,13 @@ export function takePushTarget<T>(holder: { current: T | null }): T | null {
   return v;
 }
 
+/** Where a tapped push goes. `requests` is the approvals queue (gabbai only); `group_requests` waits for Task 16b. */
+export function pushDestination(t: { messageId?: string; screen?: string }, role: string | undefined): 'approvals' | 'message' | 'home' {
+  if (t.screen === 'requests' && role === 'gabbai') return 'approvals';
+  if (t.screen) return 'home';
+  return t.messageId ? 'message' : 'home';
+}
+
 export type ChatPrefRow = { channelId: string; name: string; on: boolean };
 
 /** The "שיחות" group: one row per conversation channel in the caller's audience; off unless listed in `chatChannels`. */

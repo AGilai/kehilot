@@ -71,6 +71,7 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const [typed, setTyped] = React.useState<string | null>(null);
   const [meOpen, setMeOpen] = React.useState(() => config.fixtures && fixtureParams().screen === 'me');
   const [toast, setToast] = React.useState<string | null>(null);
+  const [manageSignal, setManageSignal] = React.useState(0);
   const code = link.code ?? typed;
   // A link that opens before the profile exists waits as a pending invite (accepted right after ProfileSetup).
   React.useEffect(() => {
@@ -88,7 +89,7 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   // A push while the app is open polls at once; a tap opens its Kehila and message. Unknown Kehilot are ignored.
   const live = React.useRef({ state, select, pollNow });
   live.current = { state, select, pollNow };
-  const pushTarget = React.useRef<{ messageId?: string } | null>(null);
+  const pushTarget = React.useRef<{ messageId?: string; screen?: string } | null>(null);
   const [pushSignal, setPushSignal] = React.useState(0);
   const takePush = React.useCallback(() => takePushTarget(pushTarget), []);
   React.useEffect(() => {
@@ -101,8 +102,8 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
         const cur = live.current;
         if (!r || !cur.state.me?.kehilot.some(x => x.kehilaId === r.kehila)) return;
         try { if (cur.state.kehilaId !== r.kehila) await cur.select(r.kehila); } catch { return; }
-        // `screen` (requests, group_requests) has no screen yet: Home. Otherwise the message.
-        pushTarget.current = { messageId: r.screen ? undefined : r.messageId };
+        // `screen`: requests opens Approvals (Main checks the role); group_requests has no screen yet (Home).
+        pushTarget.current = { messageId: r.screen ? undefined : r.messageId, screen: r.screen };
         setPushSignal(n => n + 1);
       },
     }).then(f => { if (stopped) f(); else off = f; }, () => {});
@@ -126,9 +127,9 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   }
   if (route === 'none') return <NoKehila onCode={setTyped} error={state.joinError ? errText({ code: state.joinError }) : null} onDismissError={dismissJoinError} />;
   const banner = state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null;
-  const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} />;
+  const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} onManage={() => { setSwitcher(false); setManageSignal(n => n + 1); }} />;
   if (route === 'ready' && state.kehila && state.kehila.role !== 'listener') {
-    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} />{sheet}</>;
+    return <><Main onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} manageSignal={manageSignal} />{sheet}</>;
   }
   // A listener's Me: only the name, the language, sign out and delete.
   if (meOpen && route === 'ready' && state.kehila?.role === 'listener') {

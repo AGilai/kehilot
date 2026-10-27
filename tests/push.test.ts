@@ -133,3 +133,12 @@ test('a failed change does not restore over a newer change to the same field', a
   assert.deepEqual(store.getState().kehila!.notify.mutedChannels, ['a', 'b']);
   store.reset();
 });
+
+test('pushDestination: requests opens approvals for a gabbai only; group_requests stays on Home', async () => {
+  const { pushDestination } = await import('../src/client/push.ts');
+  assert.equal(pushDestination({ screen: 'requests' }, 'gabbai'), 'approvals');
+  assert.equal(pushDestination({ screen: 'requests' }, 'member'), 'home');
+  assert.equal(pushDestination({ screen: 'group_requests' }, 'gabbai'), 'home');
+  assert.equal(pushDestination({ messageId: 'm1' }, 'gabbai'), 'message');
+  assert.equal(pushDestination({}, 'member'), 'home');
+});

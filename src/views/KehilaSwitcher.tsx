@@ -2,13 +2,13 @@ import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Banner, Sheet, Txt, useTokens } from '../kit/components.tsx';
+import { Banner, Button, Sheet, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { useErrorText } from './auth/Frame.tsx';
 import { KehilaLogo } from './TopBar.tsx';
 
 /** M6: every Kehila of the user, with logo and role chip; the current one is marked. */
-export function KehilaSwitcher({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export function KehilaSwitcher({ visible, onClose, onManage }: { visible: boolean; onClose: () => void; /** Gabbai of the open Kehila: enters management mode. */ onManage?: () => void }) {
   const { state, select } = useSession();
   const { t } = useI18n();
   const k = useTokens();
@@ -24,6 +24,7 @@ export function KehilaSwitcher({ visible, onClose }: { visible: boolean; onClose
   return (
     <Sheet visible={visible} title={t('switcher.title')} onClose={onClose}>
       {error ? <Banner tone="error" text={error} /> : null}
+      {onManage && state.kehila?.role === 'gabbai' ? <Button title={t('admin.enter')} onPress={onManage} /> : null}
       {(state.me?.kehilot ?? []).map(x => {
         const current = x.kehilaId === state.kehilaId;
         return (

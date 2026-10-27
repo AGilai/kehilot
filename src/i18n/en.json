@@ -460,5 +460,139 @@
       "i3": "Your read marks and any healing-prayer entries you added",
       "i4": "The personal details in your family record: the name and link stay for the aliyah history, the personal details are cleared"
     }
+  },
+  "admin": {
+    "enter": "Management mode",
+    "exit": "Leave management mode",
+    "band": "Management mode",
+    "tabs": {
+      "overview": "Overview",
+      "approvals": "Approvals",
+      "messages": "Messages",
+      "members": "Members"
+    },
+    "back": "Back",
+    "overview": {
+      "title": "Overview",
+      "pending": "Pending requests: {n}",
+      "pendingNone": "No pending requests",
+      "review": "Go to approvals",
+      "counts": "Members and listeners",
+      "members": "Members: {n}",
+      "listeners": "Listeners: {n}",
+      "cap": {
+        "title": "Listener cap",
+        "body": "The most listeners the community accepts. 0 closes joining as a listener. The cap is soft: a few simultaneous joins may pass it.",
+        "value": "{n} of {max}",
+        "edit": "Change the cap",
+        "field": "Cap (0 to 5000)",
+        "save": "Save",
+        "saved": "Cap updated",
+        "invalid": "Enter a whole number from 0 to 5000"
+      },
+      "invites": {
+        "title": "Invite links",
+        "empty": "No active invite links.",
+        "mine": "Mine",
+        "other": "By another gabbai or member",
+        "role": {
+          "listener": "Guest worshipper",
+          "member": "Member",
+          "gabbai": "Gabbai"
+        },
+        "new": "Invite with a role"
+      }
+    },
+    "approvals": {
+      "title": "Approve members",
+      "empty": "No pending requests.",
+      "since": "Requested {date}",
+      "previouslyRejected": "Rejected before",
+      "choose": "Classification of the new member",
+      "optA": "Aleph",
+      "optKavua": "Regular",
+      "optGuest": "Keep as guest",
+      "noteA": "Becomes a member classified Aleph. Sees the members' channels and can take part.",
+      "noteKavua": "Becomes a member classified Regular. Sees the members' channels and can take part.",
+      "noteGuest": "The request is closed and the person stays a guest. They can ask again.",
+      "approve": "Approve as member",
+      "keepGuest": "Keep as guest",
+      "approved": "Request approved",
+      "kept": "The person stays a guest",
+      "refreshed": "The list was updated",
+      "pick": "Choose a classification to continue",
+      "next": "Next request",
+      "queue": "Pending requests ({n})"
+    },
+    "members": {
+      "title": "Members and permissions",
+      "search": "Search by name",
+      "count": "{n} shown",
+      "filter": {
+        "all": "Everyone",
+        "member": "Members",
+        "gabbai": "Gabbaim",
+        "listener": "Listeners",
+        "can": "Can send",
+        "cannot": "Cannot send",
+        "anyGroup": "All groups",
+        "group": "Group"
+      },
+      "empty": "No members found.",
+      "broadcast": "Can send messages",
+      "locked": "A gabbai can always send",
+      "role": {
+        "member": "Member",
+        "gabbai": "Gabbai",
+        "listener": "Listener"
+      },
+      "class": {
+        "none": "No classification",
+        "a": "Aleph",
+        "kavua": "Regular",
+        "label": "Classification"
+      },
+      "makeGabbai": "Make gabbai",
+      "makeMember": "Back to member",
+      "remove": "Remove from the community",
+      "removeConfirm": "Remove {name} from the community? Their invite links will be revoked.",
+      "removeYes": "Yes, remove",
+      "keep": "Cancel",
+      "removed": "Member removed",
+      "saved": "Change saved",
+      "bulkAllow": "Allow all",
+      "bulkBlock": "Block all",
+      "bulkAllowConfirm": "Allow {n} members to send? Gabbaim are not affected.",
+      "bulkBlockConfirm": "Block {n} members from sending? Gabbaim are not affected.",
+      "bulkYes": "Confirm",
+      "bulkNone": "No members would change.",
+      "bulkDone": "Permissions updated",
+      "groups": "Groups",
+      "groupsTitle": "Groups of {name}",
+      "groupsNone": "The community has no groups. They are created in channel management.",
+      "groupsSave": "Save groups",
+      "groupsSaved": "Groups saved",
+      "noGroups": "No groups",
+      "colName": "Name",
+      "colRole": "Role",
+      "colClass": "Class",
+      "colGroups": "Groups",
+      "colSend": "Send",
+      "details": "Actions"
+    },
+    "invite": {
+      "title": "Invite with a role",
+      "role": "Role of the invitee",
+      "listener": "Guest worshipper",
+      "member": "Member",
+      "listenerNote": "Can listen to the open channels only.",
+      "memberNote": "Joins directly as a member, with no further approval.",
+      "class": "Member classification",
+      "uses": "Number of uses (1 to 50)",
+      "days": "Valid for days (1 to 30)",
+      "create": "Create link",
+      "ready": "The link is ready. You can share it.",
+      "invalid": "Enter values within the allowed range"
+    }
   }
 }

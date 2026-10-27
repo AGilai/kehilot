@@ -13,7 +13,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 }
 
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5'];
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -146,12 +146,39 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
     { code: '4D8F2H6NRT', role: 'listener', usesLeft: 10, expiresAt: new Date(now + 2 * 24 * H).toISOString(), mine: true },
   ];
   routes[`POST /v1/kehilot/${kehila.kehilaId}/invites`] = { code: '9P2R5T8WXZ', expiresAt: new Date(now + 7 * 24 * H).toISOString() };
+  // Management (gabbai). Invented names only.
+  const A = `/v1/kehilot/${kehila.kehilaId}/admin`;
+  const requests = [
+    { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', createdAt: new Date(now - 30 * H).toISOString(), previouslyRejected: false },
+    { userId: '01FIXTUREUSER00000000012', displayName: 'אורי לדוגמה', createdAt: new Date(now - 5 * H).toISOString(), previouslyRejected: true },
+  ];
+  const memberRows = [
+    { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'] },
+    { userId: 'm1', displayName: 'יוסי לדוגמה', role: 'gabbai', classification: 'א', canBroadcast: true, groups: [] },
+    { userId: 'u7', displayName: 'רון לדוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001', '01FIXTUREGROUP00000000002'] },
+    { userId: 'u8', displayName: 'מיכל בדויה', role: 'member', classification: 'א', canBroadcast: false, groups: ['01FIXTUREGROUP00000000002'] },
+    { userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [] },
+    { userId: '01FIXTUREUSER00000000013', displayName: 'תמר הנחל', role: 'listener', classification: '', canBroadcast: false, groups: [] },
+  ];
+  routes[`GET ${A}/requests`] = requests;
+  routes[`GET ${A}/members`] = memberRows;
+  routes[`GET ${A}/groups`] = [
+    { groupId: '01FIXTUREGROUP00000000001', name: 'נוער', memberCount: 2, channelCount: 1, adminCount: 1, pendingCount: 0 },
+    { groupId: '01FIXTUREGROUP00000000002', name: 'שיעור הדף', memberCount: 2, channelCount: 0, adminCount: 0, pendingCount: 0 },
+  ];
+  routes[`PUT ${A}/settings`] = {};
+  routes[`PUT ${A}/broadcast`] = {};
+  routes[`GET /v1/kehilot/${kehila.kehilaId}`] = { ...kehila, settings: { pollSeconds: 60, maxListeners: 500 }, listenerCount: 37 };
+  routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] = [
+    ...(routes[`GET /v1/kehilot/${kehila.kehilaId}/invites`] as unknown[]),
+    { code: '3B6D9F2HKM', role: 'member', usesLeft: 3, expiresAt: new Date(now + 3 * 24 * H).toISOString(), mine: false },
+  ];
   const http: Http = {
     async request(method, path, body) {
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;
       if (screen === 'search-loading' && method === 'GET' && key.endsWith('/messages') && path.includes('before=')) throw new ApiCodeError(503, 'network');
-      if (method === 'GET' && key.endsWith('/members')) return [{ userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני' }, { userId: '01FIXTUREUSER00000000003', displayName: 'משפחת לדוגמה' }, { userId: '01FIXTUREUSER00000000004', displayName: 'משפחת הנחל' }] as any;
+      if (method === 'GET' && key.endsWith('/members') && !key.includes('/admin/')) return [{ userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני' }, { userId: '01FIXTUREUSER00000000003', displayName: 'משפחת לדוגמה' }, { userId: '01FIXTUREUSER00000000004', displayName: 'משפחת הנחל' }] as any;
       if (method === 'POST' && key.endsWith('/messages')) {
         const b = (body ?? {}) as Partial<Message>;
         return { messageId: fixtureUlid(Date.now(), 30), channelId: b.channelId ?? cAnn, type: b.type ?? 'chat', title: b.title ?? '', body: b.body ?? '', authorId: me.userId, authorName: 'דנה בדויה', authorKind: role === 'gabbai' ? 'management' : 'member', joinCount: 0 } as any;
@@ -160,6 +187,10 @@ export function createFixtureApi(role: Role, screen: string | null = null, lang:
         const text = String((body as { body?: unknown } | undefined)?.body ?? '');
         return { replyId: fixtureUlid(Date.now(), 31), authorId: me.userId, authorName: 'דנה בדויה', body: text, createdAt: new Date().toISOString() } as any;
       }
+      if (method === 'POST' && /\/admin\/requests\/[^/]+\/(approve|reject)$/.test(key)) return {} as any;
+      if (method === 'PUT' && /\/admin\/members\/[^/]+$/.test(key)) return {} as any;
+      if (method === 'DELETE' && /\/admin\/members\/[^/]+$/.test(key)) return undefined as any;
+      if (method === 'DELETE' && /\/invites\/[^/]+$/.test(key)) return undefined as any;
       if (key in routes && routes[key] === undefined) return undefined as any;
       const hit = routes[key];
       if (hit === undefined) throw new ApiCodeError(404, 'not_found');

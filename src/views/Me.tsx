@@ -38,7 +38,7 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 /** A link that can be sent: the share sheet, or where there is none a copyable field and a copy button. */
-function LinkShare({ code, onToast }: { code: string; onToast: (text: string) => void }) {
+export function LinkShare({ code, onToast }: { code: string; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { state } = useSession();
   const url = inviteUrl(code);
@@ -121,7 +121,7 @@ function MyLinks({ kehilaId, version, onToast }: { kehilaId: string; version: nu
  * M7, the cloud part: name, language, invites (member, gabbai), notification preferences, leaving, sign out and
  * account deletion. A listener sees only the name, the language, sign out and delete.
  */
-export function Me({ onPrefs, onBack, onToast, onLeft }: { onPrefs?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
+export function Me({ onPrefs, onBack, onToast, onLeft, onManage }: { onPrefs?: () => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const { signOut, api } = useAuth();
   const { state, editProfile, leaveKehila } = useSession();
@@ -185,6 +185,7 @@ export function Me({ onPrefs, onBack, onToast, onLeft }: { onPrefs?: () => void;
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       {onBack ? <BackLink onPress={onBack} /> : null}
       <Txt serif size="title" accessibilityRole="header">{t('me.title')}</Txt>
+      {role === 'gabbai' && onManage ? <Button title={t('admin.enter')} onPress={onManage} /> : null}
 
       <Card>
         <Txt serif size="heading" accessibilityRole="header">{t('me.profile.title')}</Txt>

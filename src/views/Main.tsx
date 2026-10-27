@@ -6,8 +6,14 @@ import { FIXTURE_PICTURE, fixtureParams } from '../client/fixtures.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { unreadCount } from '../client/messageView.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
+import { pushDestination } from '../client/push.ts';
+import { useAuth } from '../auth/AuthProvider.tsx';
 import { Toast, Txt, useTokens } from '../kit/components.tsx';
 import { TOUCH } from '../kit/theme.ts';
+import { Approvals } from './admin/Approvals.tsx';
+import { InviteWithRole } from './admin/InviteWithRole.tsx';
+import { Members } from './admin/Members.tsx';
+import { Overview } from './admin/Overview.tsx';
 import { Compose } from './Compose.tsx';
 import type { ComposeInitial } from './Compose.tsx';
 import { ChatView } from './ChatView.tsx';
@@ -28,10 +34,14 @@ type Nav =
   | { tab: 'chat'; channelId: string }
   | { tab: 'compose' }
   | { tab: 'me' }
+  | { tab: 'overview' }
+  | { tab: 'approvals' }
+  | { tab: 'members' }
+  | { tab: 'invite'; member?: boolean }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
-/** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat opens that screen. */
-function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter; compose?: ComposeInitial } | null {
+/** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat | overview | approvals | members | invite-member opens that screen (the last four in management mode). */
+function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter; compose?: ComposeInitial; manage?: boolean } | null {
   if (!config.fixtures) return null;
   const s = fixtureParams().screen;
   const byType = (type: string) => state.feed.order.map(id => state.feed.messages[id]!).find(m => m.type === type && m.targetMemberId);
@@ -43,6 +53,10 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
   if (s === 'me') return { nav: { tab: 'me' } };
+  if (s === 'overview') return { nav: { tab: 'overview' }, manage: true };
+  if (s === 'approvals') return { nav: { tab: 'approvals' }, manage: true };
+  if (s === 'members') return { nav: { tab: 'members' }, manage: true };
+  if (s === 'invite-member') return { nav: { tab: 'invite', member: true }, manage: true };
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetId: '01FIXTUREUSER00000000002' } };
   if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };
@@ -50,10 +64,13 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
 }
 
 /** The signed-in app for members and gabbaim: top bar, the open screen, and the bottom tabs. */
-export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string } | null }) {
+export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSignal }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string } | null; /** Changes when the switcher asks for management mode. */ manageSignal?: number }) {
   const { t } = useI18n();
   const k = useTokens();
   const { state } = useSession();
+  const { api } = useAuth();
+  const [manage, setManage] = React.useState(false);
+  const [pending, setPending] = React.useState(0);
   const [nav, setNav] = React.useState<Nav>({ tab: 'home' });
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
   const [composeInitial, setComposeInitial] = React.useState<ComposeInitial | undefined>(undefined);
@@ -65,12 +82,24 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenS
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
-  // A tapped push opens the message, or Home when there is none (the approvals screens come later).
+  // A tapped push opens the message, Approvals (requests, gabbai only), or Home.
   React.useEffect(() => {
     const target = takePush?.();
     if (!target) return;
-    setNav(target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
+    const dest = pushDestination(target, state.kehila?.role);
+    if (dest === 'approvals') { setManage(true); setNav({ tab: 'approvals' }); }
+    else setNav(dest === 'message' && target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
   }, [pushSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isGabbai = state.kehila?.role === 'gabbai';
+  // Management mode is for gabbaim only, and ends when the role or the Kehila changes.
+  React.useEffect(() => { if (!isGabbai) setManage(false); }, [isGabbai]);
+  React.useEffect(() => { if (manageSignal) { setManage(true); setNav({ tab: 'overview' }); } }, [manageSignal]);
+  React.useEffect(() => {
+    if (!manage || !isGabbai || !state.kehilaId) return;
+    let live = true;
+    api.requests(state.kehilaId).then(r => { if (live) setPending(r.length); }, () => {});
+    return () => { live = false; };
+  }, [manage, isGabbai, state.kehilaId, api]); // eslint-disable-line react-hooks/exhaustive-deps
   const jumped = React.useRef(false);
   const [searchQ, setSearchQ] = React.useState(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''));
 
@@ -79,14 +108,21 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenS
     if (jumped.current || !state.feed.loaded) return;
     const j = fixtureNav(state);
     jumped.current = true;
+    if (j?.manage) setManage(true);
     if (j) { setNav(j.nav); setFilter(j.filter); setComposeInitial(j.compose); }
   }, [state]);
 
   const kehila = state.kehila;
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const active: 'home' | 'messages' | 'me' = nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') ? 'me'
+  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite';
+  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'invite' ? 'overview' : nav.tab as 'overview' | 'approvals' | 'members') : nav.tab === 'me' || (nav.tab === 'prefs' && nav.from === 'me') ? 'me'
     : nav.tab === 'home' || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
-  const tabs = [
+  const tabs = manage ? [
+    { key: 'overview' as const, label: t('admin.tabs.overview'), icon: '▦', badge: 0 },
+    { key: 'approvals' as const, label: t('admin.tabs.approvals'), icon: '✓', badge: pending },
+    { key: 'messages' as const, label: t('admin.tabs.messages'), icon: '✉', badge: unread },
+    { key: 'members' as const, label: t('admin.tabs.members'), icon: '☷', badge: 0 },
+  ] : [
     { key: 'home' as const, label: t('tabs.home'), icon: '⌂', badge: 0 },
     { key: 'messages' as const, label: t('tabs.messages'), icon: '✉', badge: unread },
     { key: 'me' as const, label: t('me.tab'), icon: '☺', badge: 0 },
@@ -109,8 +145,20 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenS
     case 'prefs':
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
+    case 'overview':
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onCount={setPending} onToast={showToast} />;
+      break;
+    case 'approvals':
+      body = <Approvals onCount={setPending} onToast={showToast} />;
+      break;
+    case 'members':
+      body = <Members onToast={showToast} />;
+      break;
+    case 'invite':
+      body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
+      break;
     case 'me':
-      body = <Me onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
+      body = <Me onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
       break;
     case 'compose':
       body = <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
@@ -127,9 +175,19 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush }: { onOpenS
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       <View style={{ paddingHorizontal: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        <TopBar onOpenSwitcher={onOpenSwitcher} onBell={() => setNav({ tab: 'prefs', from: active })} />
+        <TopBar onOpenSwitcher={onOpenSwitcher} onBell={() => setNav({ tab: 'prefs', from: active === 'home' || active === 'me' ? active : 'messages' })} />
         {banner}
       </View>
+      {manage ? (
+        <View style={{ backgroundColor: k.band, paddingVertical: 8, paddingHorizontal: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+            <Txt bold color="#FFFFFF">{t('admin.band')}</Txt>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('admin.exit')} onPress={() => { setManage(false); setNav({ tab: 'home' }); }} style={{ minHeight: TOUCH, justifyContent: 'center' }}>
+              <Txt size="small" bold color="#FFFFFF">{t('admin.exit')}</Txt>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>{body}</KeyboardAvoidingView>
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
         {tabs.map(tab => (
