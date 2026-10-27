@@ -29,6 +29,8 @@ rm -rf "$DIST"
 npm run export:web -- --clear
 
 [ -f "$DIST/index.html" ] || { echo "missing $DIST/index.html after export" >&2; exit 1; }
+# Checked before any sync: sync --delete would otherwise remove the live privacy page.
+[ -f "$DIST/privacy/index.html" ] || { echo "missing $DIST/privacy/index.html after export" >&2; exit 1; }
 API_URL="$(tf_out api_url)"
 if ! grep -rqF "${API_URL%/}" "$DIST/_expo/static/js"; then
   echo "the bundle does not contain the $ENV_NAME API URL; refusing to deploy" >&2
