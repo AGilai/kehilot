@@ -232,17 +232,13 @@ def list_target_families(ctx, params):
     channel = ctx.repo.get_channel(k, channel_id)
     if not visibility.can_read_channel(membership, channel):
         raise ApiError(404, 'channel_not_found')
-    family_items = ctx.repo._query_prefix(k, 'F#')
-    adult_ids = list(dict.fromkeys(u for f in family_items for u in f['adults']))
-    found = ctx.repo.batch_get([(f'K#{k}', f'M#{u}') for u in adult_ids] + [(f'U#{u}', 'PROFILE') for u in adult_ids])
     rows = []
-    for family in family_items:
-        live = [found[(f'K#{k}', f'M#{u}')] for u in family['adults']
-                if (f'K#{k}', f'M#{u}') in found and found[(f'K#{k}', f'M#{u}')].get('role') in ('member', 'gabbai')]
+    for family in ctx.repo.list_families(k):
+        live = ctx.repo.live_adults(k, family)
         reachable = [m for m in live if visibility.reply_target_ok(m, channel)]
         if not reachable:
             continue
-        profiles = [found.get((f'U#{m["userId"]}', 'PROFILE')) or {} for m in live]
+        profiles = [ctx.repo.get_profile(m['userId']) or {} for m in live]
         rows.append({'familyId': family['familyId'], 'name': family_name(profiles),
                      'firstNames': [p.get('firstName', '') for p in profiles],
                      'targetMemberId': reachable[0]['userId']})

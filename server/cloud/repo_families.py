@@ -77,11 +77,12 @@ class FamiliesRepo:
         return self.get_family(k, family_id) if family_id else None
 
     def live_adults(self, k, family):
-        """Membership items of the family's adults that are still member or gabbai, in adult order (one
-        batch_get). A departed adult (membership gone, or a listener) is left out."""
+        """Membership items of the family's adults that are still member or gabbai and still belong to this
+        family (membership.familyId == familyId), in adult order (one batch_get). A departed adult (membership
+        gone, a listener, or one who rejoined with another family) is left out."""
         found = self.batch_get([(f'K#{k}', f'M#{u}') for u in family['adults']])
         live = [found.get((f'K#{k}', f'M#{u}')) for u in family['adults']]
-        return [m for m in live if m and m.get('role') in MEMBER_ROLES]
+        return [m for m in live if m and m.get('role') in MEMBER_ROLES and m.get('familyId') == family['familyId']]
 
     def prune_family(self, k, family):
         """(family, live memberships): the family without its departed adults. The pruned list is written back

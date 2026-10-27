@@ -147,6 +147,8 @@ class RepliesTest(test_messages.MessagesTest):
         self.assertEqual(self.replies('quiet-sub'), ['hello'])
         self.assertEqual(self.replies('other-sub'), ['hello'])
         self.assertEqual(self.replies('gabbai-sub'), [])
+        self.assertEqual(self.replies('member-sub', mid=self.post('simchas', type='celebration',
+                         targetMemberId=self.quiet)[1]['messageId']), [])
 
     def set_group(self, channel, members):
         self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'C#{self.channels[channel]}'},
@@ -216,6 +218,31 @@ class RepliesTest(test_messages.MessagesTest):
         self.assertEqual((status, body['targetFamilyId']), (201, fid))
         self.assertNotIn('targetFamilyId', self.post('simchas', type='celebration',
                                                      targetMemberId=self.other)[1])
+
+    def test_stale_adult_with_other_family_loses_access(self):
+        fid = self.link(self.quiet, self.other)
+        mid = self.post('simchas', type='celebration', targetMemberId=self.quiet, targetFamilyId=fid)[1]['messageId']
+        self.reply('member-sub', 'hi', mid=mid)
+        # Omri left and rejoined with a new family, but the clean-up of F never ran: F.adults still lists him
+        new_fid = self.repo.ensure_family(self.k, self.member)
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.other}'},
+                                    UpdateExpression='SET familyId = :f', ExpressionAttributeValues={':f': new_fid})
+        self.assertIn(self.other, self.repo.get_family(self.k, fid)['adults'])
+        self.assertEqual(self.replies('other-sub', mid=mid), [])
+        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, mid), [self.quiet])
+        self.assertEqual(self.post('simchas', type='celebration', targetMemberId=self.other,
+                                   targetFamilyId=fid), (400, {'error': 'invalid_target_family_id'}))
+        rows = self.families()[1]
+        self.assertEqual([r['targetMemberId'] for r in rows if r['familyId'] == fid], [self.quiet])
+
+    def test_target_family_refused_on_chat_message(self):
+        fid = self.repo.ensure_family(self.k, self.quiet)
+        chat = self.call('POST', f'{self.base()}/admin/channels', body={'name': 'Chat', 'conversation': True, 'listenersCanRead': False,
+                                                                      'postPolicy': 'management', 'groups': []})
+        self.assertEqual(chat[0], 201, chat)
+        status, body = self.call('POST', f'{self.base()}/messages', body={
+            'channelId': chat[1]['channelId'], 'body': 'x', 'targetFamilyId': fid})
+        self.assertEqual((status, body), (400, {'error': 'invalid_target_family_id'}))
 
     def set_names(self, **subs):
         for sub, (first, last) in subs.items():

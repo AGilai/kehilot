@@ -1,4 +1,4 @@
-"""Pure family rules: no I/O."""
+"""Family rules: pure helpers, plus target_adults and reachable_adults, which read through the repo."""
 import re
 from datetime import date
 
