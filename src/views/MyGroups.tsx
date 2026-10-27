@@ -5,8 +5,7 @@ import { useAuth } from '../auth/AuthProvider.tsx';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { GroupMembership } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
-import { Tag } from './admin/shared.tsx';
+import { Banner, Button, Card, Tag, Txt, useTokens } from '../kit/components.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 
 /**

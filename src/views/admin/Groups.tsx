@@ -6,9 +6,9 @@ import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { Group } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Field, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Card, Field, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { BackLink } from '../Me.tsx';
-import { Tag, useAdminErrText } from './shared.tsx';
+import { useAdminErrText } from './shared.tsx';
 
 const NAME_MAX = 60;
 

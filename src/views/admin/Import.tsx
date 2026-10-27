@@ -7,10 +7,10 @@ import { singleFlight } from '../../client/singleFlight.ts';
 import type { ImportRow } from '../../client/types.ts';
 import { config } from '../../config.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { checkGroups, decodeCsv, mapRows, parseCsv, readXlsx, runBatches, MAX_FILE_BYTES, type ImportSummary, type Table, type Problem } from '../../import/parse.ts';
 import { BackLink } from '../Me.tsx';
-import { Tag, useAdminErrText } from './shared.tsx';
+import { useAdminErrText } from './shared.tsx';
 
 const SHOWN = 50;
 

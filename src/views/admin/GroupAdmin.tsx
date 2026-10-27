@@ -7,10 +7,10 @@ import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { GroupMemberRow, GroupRequestRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { BackLink } from '../Me.tsx';
 import { useErrorText } from '../auth/Frame.tsx';
-import { Tag, useShortDate } from './shared.tsx';
+import { useShortDate } from './shared.tsx';
 
 /** One group: its members (remove, appoint), and the pending join requests (approve, reject). For gabbaim and for the group's admins. */
 export function GroupAdmin({ group, onBack, onGone, onToast }: { group: { groupId: string; name: string }; onBack: () => void; /** The admin rights ended (403): leave to Me. */ onGone: () => void; onToast: (text: string) => void }) {

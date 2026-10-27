@@ -8,9 +8,9 @@ import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { Channel, ChannelFields, Group } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Chip, Field, Sheet, Toggle, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Card, Chip, Field, Sheet, Tag, Toggle, Txt, useTokens } from '../../kit/components.tsx';
 import { BackLink } from '../Me.tsx';
-import { Choice, Tag, useAdminErrText } from './shared.tsx';
+import { Choice, useAdminErrText } from './shared.tsx';
 
 const NAME_MAX = 60;
 

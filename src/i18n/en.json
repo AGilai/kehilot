@@ -89,7 +89,27 @@
     "image_too_large": "The image is still too large after shrinking. Choose another one",
     "upload_expired": "The upload expired, try again",
     "upload_failed": "The image upload failed, try again",
-    "not_conversation": "This is not a conversation channel"
+    "not_conversation": "This is not a conversation channel",
+    "request_pending": "A family link request is already open.",
+    "request_cooldown": "You can send a new request to the same person only after a few days.",
+    "partner_taken": "That member already has a partner.",
+    "already_linked": "You are already linked to a partner.",
+    "phone_required": "To appear in the list, add a phone number first.",
+    "invalid_phone": "That number doesn't look right. Use an Israeli number, e.g. 050-0000000, or an international one starting with +.",
+    "children_limit": "A family can list up to 20 children.",
+    "export_limit": "You already prepared a file today. You can prepare a new one tomorrow.",
+    "not_linked": "You are not linked to a partner right now.",
+    "invalid_privacy_contact": "The privacy contact is not valid",
+    "invalid_target_family_id": "The chosen family is not valid",
+    "invalid_gender": "Choose son or daughter",
+    "invalid_birth_date": "That date isn't valid. Use day.month.year.",
+    "invalid_to_user_id": "The chosen member is not valid",
+    "invalid_show": "The setting is not valid",
+    "invalid_user_ids": "The chosen members are not valid",
+    "invalid_card": "The card is not valid",
+    "family_not_found": "Family not found",
+    "export_not_found": "File not found",
+    "child_not_found": "The child was not found in the list"
   },
   "app": {
     "name": "Kehilot"
@@ -101,7 +121,8 @@
     "close": "Close",
     "retry": "Try again",
     "loading": "Loading…",
-    "back": "Back"
+    "back": "Back",
+    "policyLink": "Privacy policy"
   },
   "field": {
     "counter": "{n} of {max}"
@@ -174,7 +195,10 @@
     "title": "Nice to meet you",
     "body": "What should we call you? Community members will see your name.",
     "langLabel": "App language",
-    "submit": "Continue"
+    "submit": "Continue",
+    "age13": "I am 13 or older",
+    "age13Note": "The app is for people aged 13 and over.",
+    "privacy": "What we store and why: privacy policy"
   },
   "switcher": {
     "title": "Switch community",
@@ -274,7 +298,9 @@
     "latest": "What's new",
     "allMessages": "All messages",
     "noMessages": "Messages from the gabbaim will appear here.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "phoneList": "Phone list",
+    "phoneListSub": "Numbers of families in the Kehila"
   },
   "zmanim": {
     "sunrise": "Sunrise",
@@ -393,7 +419,9 @@
       "uploading": "Uploading the image…",
       "publishing": "Publishing…"
     },
-    "permissionDenied": "No access to photos. You can allow it in the device settings."
+    "permissionDenied": "No access to photos. You can allow it in the device settings.",
+    "familyNote": "Private blessings reach every adult in the chosen family.",
+    "familyAnd": "{a} and {b}"
   },
   "viewer": {
     "close": "Close",
@@ -451,7 +479,10 @@
       "confirm": "Leave the Kehila: {kehila}? You will stop getting its messages, and the links you made there will be revoked.",
       "yes": "Yes, leave",
       "lastGabbai": "You are the only gabbai of this Kehila. To leave, appoint another gabbai first (management screen), then try again.",
-      "done": "You left the Kehila"
+      "done": "You left the Kehila",
+      "confirmListener": "Leave the Kehila: {kehila}? You will stop getting its messages. You can come back with a new invite link.",
+      "family": "You'll also leave your family here. {name} keeps it, with the children list.",
+      "posts": "Messages you wrote here stay."
     },
     "signOut": "Sign out",
     "deleteAction": "Delete account",
@@ -472,6 +503,26 @@
       "requestSent": "Request sent",
       "withdrawn": "Request withdrawn",
       "left": "You left the group"
+    },
+    "phone": {
+      "title": "Phone list",
+      "label": "My phone number",
+      "none": "No number entered.",
+      "add": "Add a number",
+      "edit": "Change number",
+      "remove": "Remove number",
+      "placeholder": "050-0000000",
+      "hint": "The number is used only for the phone list.",
+      "invalid": "That number doesn't look right. Use an Israeli number, e.g. 050-0000000, or an international one starting with +.",
+      "saved": "Number saved",
+      "removed": "Number removed. It no longer shows in any list",
+      "switch": "Show my phone in {kehila}'s list",
+      "switchOff": "Off: your number is not shown to anyone in {kehila}.",
+      "who": "Only members and gabbaim of {kehila} see the list. Listeners and other Kehilot don't.",
+      "needNumber": "To appear in the list, add a phone number first.",
+      "open": "Open the phone list",
+      "shown": "Your number is in the list",
+      "hidden": "Your number is hidden from the list"
     }
   },
   "deleteAccount": {
@@ -490,8 +541,15 @@
       "i1": "Your account and sign-in",
       "i2": "Your membership in every Kehila, and the devices registered for notifications",
       "i3": "Your read marks and any healing-prayer entries you added",
-      "i4": "The personal details in your family record: the name and link stay for the aliyah history, the personal details are cleared"
-    }
+      "i4": "Your place in your family in each Kehila. If you are the last adult, the children list is deleted too.",
+      "i5": "Your phone number, settings and consents, and any open family link requests."
+    },
+    "posts": "Also delete everything I posted (messages, photos, chat)",
+    "postsOff": "Unticked: messages you wrote stay without your name, with any photos you attached.",
+    "postsOn": "Ticked: every message, chat message and private blessing you wrote, in every Kehila, is removed for everyone with its photos. Replies under those messages are removed too.",
+    "always": "Either way: blessings others wrote about you stay, without your name.",
+    "backups": "Backups keep the data for up to 35 days, then it is gone.",
+    "exportFirst": "Want a copy first? Download my data"
   },
   "admin": {
     "enter": "Management mode",
@@ -537,7 +595,19 @@
       "groupsLink": "Groups",
       "channelsLink": "Channels",
       "importLink": "Import list",
-      "pushTextsLink": "Notification texts"
+      "pushTextsLink": "Notification texts",
+      "privacy": {
+        "title": "Privacy contact",
+        "body": "Who members contact about their data: a name, phone or email. Shown to everyone in the Kehila.",
+        "none": "Not set",
+        "edit": "Edit",
+        "field": "Privacy contact",
+        "saved": "Contact saved"
+      },
+      "terms": {
+        "title": "Terms between the Kehila and Kehilot",
+        "accepted": "Accepted by {name} on {date}"
+      }
     },
     "approvals": {
       "title": "Approve members",
@@ -614,7 +684,13 @@
       "colClass": "Class",
       "colGroups": "Groups",
       "colSend": "Send",
-      "details": "Actions"
+      "details": "Actions",
+      "family": "Family",
+      "familyWith": "Family with {name}",
+      "familyAlone": "No partner",
+      "children": "Children: {n}",
+      "readOnly": "Gabbaim see family details but don't edit them. The family updates them in Me.",
+      "link": "Link to a partner"
     },
     "invite": {
       "title": "Invite with a role",
@@ -683,10 +759,20 @@
       "save": "Save",
       "saved": "Saved",
       "reset": "Restore default",
-      "lang": { "he": "Hebrew", "en": "English" },
+      "lang": {
+        "he": "Hebrew",
+        "en": "English"
+      },
       "key": {
-        "weekly": "Weekly update", "celebration": "Mazal tov", "condolence": "Condolence notice", "event": "Event", "chat": "Chat message",
-        "message": "Other message", "reply": "Blessing", "request": "Membership request", "group_request": "Group join request"
+        "weekly": "Weekly update",
+        "celebration": "Mazal tov",
+        "condolence": "Condolence notice",
+        "event": "Event",
+        "chat": "Chat message",
+        "message": "Other message",
+        "reply": "Blessing",
+        "request": "Membership request",
+        "group_request": "Group join request"
       }
     },
     "channels": {
@@ -779,6 +865,176 @@
       "stoppedSkipped": "the server could not get to the rows",
       "note": "People sign in with \"forgot password\" or with Google/Apple. The import sends no email.",
       "tooBig": "The file is too large (up to 2 MB)."
+    },
+    "link": {
+      "title": "Link two members as a family",
+      "with": "Who should {name} be linked with?",
+      "hint": "Showing members and gabbaim without a partner.",
+      "notice": "Both get a notification and a card with an undo. Their open link requests are deleted.",
+      "confirm": "Link {a} and {b}",
+      "done": "Linked. Both have been told",
+      "taken": "{name} already has a partner.",
+      "none": "No matching member."
     }
+  },
+  "phoneList": {
+    "title": "Phone list",
+    "intro": "Members and gabbaim of {kehila} who chose to show their number.",
+    "search": "Search by name",
+    "count": "{n} families",
+    "call": "Call",
+    "whatsapp": "WhatsApp",
+    "callA11y": "Call {name}",
+    "whatsappA11y": "WhatsApp {name}",
+    "empty": "Nobody has chosen to appear in the list yet.",
+    "emptyJoin": "You can be the first to appear:",
+    "showMine": "Show my phone",
+    "noResults": "No family named \"{q}\".",
+    "noResultsHint": "Search by first or last name. Only people who chose to appear are listed.",
+    "loadError": "We couldn't load the list. Check your connection and try again.",
+    "privacyNote": "The list is not saved on your phone and cannot be copied or shared.",
+    "mySetting": "To show or hide your number: my settings"
+  },
+  "family": {
+    "title": "My family",
+    "intro": "Your household in {kehila}. Private blessings to the family reach both adults.",
+    "me": "Me",
+    "alone": "For now it's just you.",
+    "addPartner": "Add my partner",
+    "addHint": "Your partner must be a member of {kehila} and confirm the request.",
+    "sent": "Waiting",
+    "sentBody": "You sent a request to {name}. If it isn't confirmed, it expires on {date}.",
+    "withdraw": "Withdraw request",
+    "withdrawn": "Request withdrawn",
+    "received": "{name} asked to link you as one family.",
+    "confirm": "Confirm",
+    "decline": "Don't confirm",
+    "declineNote": "If you don't confirm, {name} only sees that the request was not confirmed.",
+    "linked": "You are linked as a family",
+    "notConfirmed": "Your request to {name} was not confirmed.",
+    "expired": "Your request to {name} expired after 7 days.",
+    "unlink": "Unlink",
+    "unlinkConfirm": "Unlink from {name}? You'll get a separate family with a copy of the children list. Blessings the family received stay with {name}.",
+    "unlinkYes": "Yes, unlink",
+    "keep": "Keep",
+    "unlinked": "Unlinked",
+    "pick": {
+      "title": "Add my partner",
+      "search": "Search by name",
+      "body": "They get a request; the link is made only once they confirm.",
+      "hint": "Showing members and gabbaim of {kehila} who aren't linked yet.",
+      "none": "No member by that name who can be linked.",
+      "send": "Send request",
+      "sent": "Request sent",
+      "cooldown": "You can ask {name} again from {date}.",
+      "taken": "{name} already has a partner."
+    },
+    "dismiss": "Dismiss"
+  },
+  "children": {
+    "title": "Children · {n}",
+    "empty": "No children added.",
+    "add": "Add a child",
+    "shared": "One list for the whole family: either adult can edit it. Gabbaim can see it but not edit it. Children never appear in the phone list.",
+    "son": "Son",
+    "daughter": "Daughter",
+    "edit": "Edit",
+    "max": "A family can list up to 20 children.",
+    "form": {
+      "addTitle": "Add a child",
+      "editTitle": "Edit {name}",
+      "firstName": "First name",
+      "gender": "Son or daughter",
+      "birth": "Date of birth (optional)",
+      "birthHint": "Day.month.year, e.g. 31.12.2015",
+      "birthInvalid": "That date isn't valid. Use day.month.year.",
+      "birthFuture": "The date of birth can't be in the future.",
+      "pickGender": "Choose son or daughter",
+      "save": "Save",
+      "saved": "Saved",
+      "remove": "Remove from the list",
+      "removeConfirm": "Remove {name} from the children list? It is removed for your partner too.",
+      "removeYes": "Yes, remove",
+      "removed": "Removed from the list"
+    }
+  },
+  "privacy": {
+    "title": "Privacy and data",
+    "contact": "Questions about your data in {kehila}:",
+    "contactNone": "The Kehila hasn't set a privacy contact yet. You can ask the gabbaim.",
+    "policy": "Privacy policy",
+    "about": "About this Kehila"
+  },
+  "export": {
+    "title": "Download my data",
+    "body": "A ZIP file with your profile, family, the consents you gave and everything you wrote, across all your Kehilot.",
+    "start": "Prepare the file",
+    "preparing": "Preparing your file. This can take up to a minute.",
+    "ready": "Your file is ready.",
+    "download": "Download the file",
+    "readyNote": "The link works for 10 minutes. The file is deleted from the server after a day.",
+    "limit": "You already prepared a file today. You can prepare a new one tomorrow.",
+    "failed": "We couldn't prepare the file. Try again.",
+    "photosOmitted": "Some photos did not fit in the file."
+  },
+  "cards": {
+    "phone": {
+      "title": "Appear in the phone list?",
+      "body": "Members of {kehila} could find your number and call you. Only members and gabbaim see the list. You can change this any time in Me.",
+      "yes": "Yes, show it",
+      "saveShow": "Save and show",
+      "notNow": "Not now"
+    },
+    "request": {
+      "title": "Family link request",
+      "body": "{name} asked to link you as one family in {kehila}. Once you confirm you'll share one children list, and blessings to the family reach you both."
+    },
+    "gabbai": {
+      "title": "The gabbai linked you as a family",
+      "body": "{gabbai} linked you with {name} as one family in {kehila}. Not right? You can undo it.",
+      "ok": "That's right"
+    },
+    "imported": {
+      "title": "{kehila} added you from its members list",
+      "body": "What is stored: your name, email address, role and groups in the Kehila. Why: so you get the Kehila's messages and can take part. The Kehila is responsible for this data; the Kehilot platform runs the service for it.",
+      "ok": "Got it",
+      "leave": "Don't want to be here? You can leave the Kehila in Me."
+    },
+    "terms": {
+      "title": "The Kehila terms are waiting",
+      "body": "{kehila}'s management screens open once one gabbai accepts the terms. Everything else works as usual.",
+      "open": "Read and accept"
+    }
+  },
+  "age13": {
+    "title": "One moment before you continue",
+    "body": "Kehilot is for people aged 13 and over. Confirm your age to continue.",
+    "check": "I am 13 or older",
+    "continue": "Continue",
+    "under": "I am under 13",
+    "underBody": "Sorry, the app is for people aged 13 and over. You can delete your account now, or sign out and come back when you're 13."
+  },
+  "terms": {
+    "title": "Terms between the Kehila and Kehilot",
+    "updatedTitle": "The terms have changed",
+    "intro": "Before managing {kehila}, one gabbai accepts these terms. Your acceptance covers the whole Kehila.",
+    "p1": "The Kehila is responsible for its members' data. Kehilot runs the service for it and uses the data only for that.",
+    "p2": "Data is stored encrypted on AWS servers in Israel, and everyone sees only what their role allows.",
+    "p3": "Sub-processors: AWS (servers and storage), Expo (notifications, generic text only), Google and Apple (sign-in, for those who use them).",
+    "p4": "When the Kehila stops using the service, its data is deleted.",
+    "read": "Read the full terms",
+    "accept": "Accept the terms for the Kehila",
+    "accepted": "Terms accepted. Management is open",
+    "others": "Everything else in the app, including the phone list, keeps working without it."
+  },
+  "kehilaInfo": {
+    "role": "Your role",
+    "contact": "Privacy questions",
+    "roles": "The Kehila is responsible for its members' data. The Kehilot platform runs the service.",
+    "terms": "Terms between the Kehila and Kehilot"
+  },
+  "push": {
+    "familyRequest": "New family link request",
+    "familyGabbai": "The gabbai updated your family details"
   }
 }

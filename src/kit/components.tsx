@@ -119,6 +119,65 @@ export function Banner({ text, tone = 'info', action }: { text: string; tone?: '
   );
 }
 
+/** Small read-only label (role, classification, group). */
+export function Tag({ label, tone = 'plain' }: { label: string; tone?: 'plain' | 'strong' }) {
+  const k = useTokens();
+  return (
+    <View style={{ paddingHorizontal: 10, minHeight: 24, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: tone === 'strong' ? k.tekhelet : k.line, backgroundColor: k.stone }}>
+      <Txt size="caption" bold color={tone === 'strong' ? k.tekhelet : k.muted}>{label}</Txt>
+    </View>
+  );
+}
+
+/** Checkbox row; `note` explains the consequence under it. */
+export function Check({ label, value, onChange, note, disabled }: { label: string; value: boolean; onChange: (v: boolean) => void; note?: string; disabled?: boolean }) {
+  const k = useTokens();
+  return (
+    <View style={{ gap: 4, opacity: disabled ? 0.6 : 1 }}>
+      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: value, disabled: !!disabled }} accessibilityLabel={label} disabled={disabled} onPress={() => onChange(!value)}
+        style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        <View style={{ width: 24, height: 24, marginTop: 12, borderRadius: 6, borderWidth: 2, borderColor: value ? k.tekhelet : k.muted, backgroundColor: value ? k.tekhelet : k.surface, alignItems: 'center', justifyContent: 'center' }}>
+          {value ? <Text style={{ color: k.onAction, fontSize: 15, lineHeight: 20, fontFamily: fonts.uiBold }}>✓</Text> : null}
+        </View>
+        <Txt style={{ flex: 1, paddingTop: 12 }}>{label}</Txt>
+      </Pressable>
+      {note ? <Txt size="small" color={k.muted}>{note}</Txt> : null}
+    </View>
+  );
+}
+
+export type PickRow = { id: string; title: string; subtitle?: string };
+
+/** Search box over a short list of rows; one can be selected. Shows at most `max` rows. */
+export function PickList({ query, onQuery, placeholder, rows, selected, onSelect, empty, state, errorText, max = 8, disabled }: {
+  query: string; onQuery: (q: string) => void; placeholder: string; rows: PickRow[]; selected: string | null; onSelect: (id: string) => void;
+  empty: string; state: 'loading' | 'error' | 'ready'; errorText?: string; max?: number; disabled?: boolean;
+}) {
+  const { lang, dir } = useI18n();
+  const k = useTokens();
+  return (
+    <View style={{ gap: 8 }}>
+      <TextInput accessibilityLabel={placeholder} placeholder={placeholder} placeholderTextColor={k.muted} value={query} onChangeText={onQuery}
+        style={{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }} />
+      {state === 'loading' ? <ActivityIndicator color={k.tekhelet} /> : null}
+      {state === 'error' ? <Banner tone="error" text={errorText ?? ''} /> : null}
+      {state === 'ready' && rows.length === 0 ? <Txt size="small" color={k.muted}>{empty}</Txt> : null}
+      <View style={{ gap: 6 }}>
+        {state === 'ready' ? rows.slice(0, max).map(r => {
+          const on = selected === r.id;
+          return (
+            <Pressable key={r.id} accessibilityRole="button" accessibilityState={{ selected: on }} disabled={disabled} onPress={() => onSelect(r.id)}
+              style={{ minHeight: TOUCH, paddingHorizontal: 14, paddingVertical: 4, justifyContent: 'center', borderRadius: 10, borderWidth: on ? 2 : 1, borderColor: on ? k.tekhelet : k.line, backgroundColor: k.surface }}>
+              <Txt bold={on}>{on ? '✓ ' : ''}{r.title}</Txt>
+              {r.subtitle ? <Txt size="small" color={k.muted}>{r.subtitle}</Txt> : null}
+            </Pressable>
+          );
+        }) : null}
+      </View>
+    </View>
+  );
+}
+
 /** `footer`: actions pinned below the scroll area, above Close. */
 export function Sheet({ visible, title, onClose, children, footer }: { visible: boolean; title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   const { t, dir } = useI18n();

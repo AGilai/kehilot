@@ -8,9 +8,9 @@ import { bulkCount, filterMembers } from '../../client/membersView.ts';
 import type { Classification, Group, MemberFields, MemberRow, Role } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { textStart } from '../../i18n/direction.ts';
-import { Banner, Button, Card, Chip, Sheet, Toggle, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Card, Chip, Sheet, Tag, Toggle, Txt, useTokens } from '../../kit/components.tsx';
 import { TOUCH, fonts, type } from '../../kit/theme.ts';
-import { Tag, WIDE, useAdminErrText } from './shared.tsx';
+import { WIDE, useAdminErrText } from './shared.tsx';
 
 const CLASS_KEY: Record<string, string> = { '': 'none', 'א': 'a', 'קבוע': 'kavua' };
 

@@ -1,15 +1,14 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import { BODY_MAX, TITLE_MAX, canPublish, needsTarget, postBody, postableChannels } from '../client/messageView.ts';
 import type { Draft } from '../client/messageView.ts';
 import type { DirectoryEntry, MessageType } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
-import { textStart } from '../i18n/direction.ts';
-import { Banner, Button, Chip, Field, Screen, Txt, useTokens } from '../kit/components.tsx';
+import { Banner, Button, Chip, Field, PickList, Screen, Txt, useTokens } from '../kit/components.tsx';
 import { Composer } from '../kit/Composer.tsx';
 import { AttachButton, AttachPreview } from '../kit/ImageAttach.tsx';
-import { TOUCH, fonts, type as scale } from '../kit/theme.ts';
+import { TOUCH } from '../kit/theme.ts';
 import type { Picked } from '../media/device.ts';
 import { sendMessage } from '../media/send.ts';
 import type { Stage } from '../media/send.ts';
@@ -27,7 +26,7 @@ export type ComposeInitial = { type?: MessageType; targetId?: string; image?: Pi
  * recipient count.
  */
 export function Compose({ onBack, onPublished, initial }: { onBack: () => void; onPublished: (messageId: string) => void; initial?: ComposeInitial }) {
-  const { t, lang, dir } = useI18n();
+  const { t, dir } = useI18n();
   const k = useTokens();
   const errText = useErrorText();
   const { state, postMessage, requestUpload, directory } = useSession();
@@ -116,19 +115,8 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
       {needsTarget(type) ? (
         <View style={{ gap: 8 }}>
           <Txt size="small" bold>{t('compose.family')}</Txt>
-          <TextInput accessibilityLabel={t('compose.familySearch')} placeholder={t('compose.familySearch')} placeholderTextColor={k.muted} value={q} onChangeText={setQ}
-            style={{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: scale.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }} />
-          {people === null ? <ActivityIndicator color={k.tekhelet} /> : null}
-          {people === 'error' ? <Txt size="small" color={k.danger} accessibilityRole="alert">{t('compose.familyLoadError')}</Txt> : null}
-          {Array.isArray(people) && shown.length === 0 ? <Txt size="small" color={k.muted}>{t('compose.familyNone')}</Txt> : null}
-          <View style={{ gap: 6 }}>
-            {shown.slice(0, 8).map(p => (
-              <Pressable key={p.userId} accessibilityRole="button" accessibilityState={{ selected: targetId === p.userId }} disabled={busy} onPress={() => setTargetId(p.userId)}
-                style={{ minHeight: TOUCH, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 10, borderWidth: targetId === p.userId ? 2 : 1, borderColor: targetId === p.userId ? k.tekhelet : k.line, backgroundColor: k.surface }}>
-                <Txt bold={targetId === p.userId}>{targetId === p.userId ? '✓ ' : ''}{p.displayName}</Txt>
-              </Pressable>
-            ))}
-          </View>
+          <PickList query={q} onQuery={setQ} placeholder={t('compose.familySearch')} rows={shown.map(p => ({ id: p.userId, title: p.displayName }))} selected={targetId} onSelect={setTargetId}
+            empty={t('compose.familyNone')} state={people === null ? 'loading' : people === 'error' ? 'error' : 'ready'} errorText={t('compose.familyLoadError')} disabled={busy} />
         </View>
       ) : null}
 

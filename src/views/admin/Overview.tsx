@@ -5,9 +5,9 @@ import { ApiCodeError } from '../../client/errors.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { InviteRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Field, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Card, Field, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { LinkShare } from '../Me.tsx';
-import { Tag, useShortDate, useAdminErrText } from './shared.tsx';
+import { useShortDate, useAdminErrText } from './shared.tsx';
 
 type Counts = { pending: number; members: number; listeners: number };
 

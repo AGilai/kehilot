@@ -12,16 +12,6 @@ export function useShortDate(): (seconds: number) => string {
   return seconds => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'short' }).format(fromEpochSeconds(seconds));
 }
 
-/** Small read-only label (role, classification, group). */
-export function Tag({ label, tone = 'plain' }: { label: string; tone?: 'plain' | 'strong' }) {
-  const k = useTokens();
-  return (
-    <View style={{ paddingHorizontal: 10, minHeight: 24, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: tone === 'strong' ? k.tekhelet : k.line, backgroundColor: k.stone }}>
-      <Txt size="caption" bold color={tone === 'strong' ? k.tekhelet : k.muted}>{label}</Txt>
-    </View>
-  );
-}
-
 /** A radio-like option with its consequence written under it. */
 export function Choice({ label, note, selected, onPress }: { label: string; note: string; selected: boolean; onPress: () => void }) {
   const k = useTokens();

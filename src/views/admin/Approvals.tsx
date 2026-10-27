@@ -6,8 +6,8 @@ import { ApiCodeError } from '../../client/errors.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { Classification, RequestRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
-import { Choice, Tag, WIDE, useShortDate, useAdminErrText } from './shared.tsx';
+import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { Choice, WIDE, useShortDate, useAdminErrText } from './shared.tsx';
 
 type Pick = Classification | 'guest' | null;
 
