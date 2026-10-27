@@ -179,7 +179,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const gen = state.generation;
     const profile = await api.putProfile(p);
     if (!guard(gen) || !state.me) return 'none';
-    set({ me: { ...state.me, profile } });
+    set({ me: { ...state.me, profile: { ...state.me.profile, ...profile } } });
     if (o.age13) {
       await api.age13Consent();
       if (!guard(gen)) return 'none';
@@ -383,7 +383,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   async function editProfile(p: { firstName: string; lastName: string; lang: Lang }): Promise<void> {
     const gen = state.generation;
     const profile = await api.putProfile(p);
-    if (guard(gen) && state.me) set({ me: { ...state.me, profile } });
+    if (guard(gen) && state.me) set({ me: { ...state.me, profile: { ...state.me.profile, ...profile } } });
   }
 
   /** Me: my phone number (E.164) or null to remove it. The server's answer becomes me.profile.phone. */

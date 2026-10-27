@@ -661,6 +661,74 @@ class FamiliesTest(test_messages.MessagesTest):
         self.assertNotIn(self.listener, str(rows))
         self.assertEqual(self.call('GET', f'{self.base()}/admin/families', sub='member-sub')[0], 403)
 
+    # final review fixes: partial deletion, orphan families
+    def test_drop_adult_with_kept_membership_clears_family_id(self):
+        """A deletion that fails after drop_adult leaves the person a member: they get a fresh family, not the
+        ex-partner's, and a later confirm links only the two people who agreed."""
+        self.add_child(sub='member-sub', firstName='Noa')
+        self.link_pair()
+        old_id = self.family_id(self.member)
+        self.repo.drop_adult(self.k, self.quiet)  # membership stays (the rest of DELETE /v1/me failed)
+        self.assertIsNone(self.family_id(self.quiet))
+        view = self.view('quiet-sub')
+        self.assertEqual(([a['userId'] for a in view['adults']], view['children']), ([self.quiet], []))
+        self.assertNotEqual(view['familyId'], old_id)
+        with mock.patch.object(push, 'enqueue'):
+            self.ask('gabbai-sub', self.quiet)
+        self.assertEqual(self.call('POST', self.fam(f'/requests/{self.gabbai}/confirm'), sub='quiet-sub')[0], 200)
+        self.assertEqual(self.repo.get_family(self.k, old_id)['adults'], [self.member])
+        self.assertEqual(sorted(self.repo.family_of(self.k, self.quiet)['adults']), sorted([self.quiet, self.gabbai]))
+
+    def test_foreign_or_dangling_family_id_self_heals(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        theirs = self.repo.ensure_family(self.k, self.member)
+        for bad in (theirs, 'gone'):
+            self.repo.table.update_item(Key=self.repo._key(self.k, f'M#{self.quiet}'),
+                                        UpdateExpression='SET familyId = :f', ExpressionAttributeValues={':f': bad})
+            self.assertIsNone(self.repo.family_of(self.k, self.quiet))
+            status, view = self.call('GET', self.fam(), sub='quiet-sub')
+            self.assertEqual(status, 200)
+            self.assertEqual(([a['userId'] for a in view['adults']], view['children']), ([self.quiet], []))
+            self.assertEqual(self.repo.get_family(self.k, theirs)['adults'], [self.member])
+            self.repo.table.update_item(Key=self.repo._key(self.k, f'M#{self.quiet}'),
+                                        UpdateExpression='REMOVE familyId')
+            self.repo.table.delete_item(Key=self.repo._key(self.k, f'F#{view["familyId"]}'))
+
+    def test_admin_views_ignore_a_rejoined_adult_in_the_old_family(self):
+        self.link_pair()
+        old_id = self.family_id(self.member)
+        self.repo.table.update_item(Key=self.repo._key(self.k, f'M#{self.quiet}'),
+                                    UpdateExpression='REMOVE familyId')
+        self.repo.ensure_family(self.k, self.quiet)  # rejoined with a family of their own
+        rows = self.call('GET', f'{self.base()}/admin/families')[1]
+        row = [r for r in rows if r['familyId'] == old_id][0]
+        self.assertEqual([a['userId'] for a in row['adults']], [self.member])
+
+    def test_purge_user_removes_the_user_from_orphan_and_shared_families(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        self.link_pair()
+        shared = self.family_id(self.member)
+        before = int(self.repo.get_family(self.k, shared)['version'])
+        self.drop_membership_only(self.quiet)  # drop_adult never ran
+        self.repo.purge_user(self.quiet, 'quiet-sub')
+        family = self.repo.get_family(self.k, shared)
+        self.assertEqual((family['adults'], len(family['children'])), ([self.member], 1))
+        self.assertGreater(int(family['version']), before)
+        self.drop_membership_only(self.member)
+        self.repo.purge_user(self.member, 'member-sub')
+        self.assertEqual(self.families(), [])
+
+    def test_sweep_deletes_families_without_a_live_adult(self):
+        self.add_child(sub='member-sub', firstName='Noa')
+        self.add_child(sub='quiet-sub', firstName='Ari')
+        keep = self.family_id(self.quiet)
+        self.drop_membership_only(self.member)
+        self.assertEqual(kehila_admin.sweep_orphan_families(self.repo, self.k, delete=False), 1)
+        self.assertEqual(len(self.families()), 2)
+        self.assertEqual(kehila_admin.sweep_orphan_families(self.repo, self.k), 1)
+        self.assertEqual([f['familyId'] for f in self.families()], [keep])
+        self.assertEqual(kehila_admin.sweep_orphan_families(self.repo), 0)
+
 
 if __name__ == '__main__':
     unittest.main()

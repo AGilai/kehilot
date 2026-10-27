@@ -148,3 +148,12 @@ test('editProfile updates me.profile with the server answer', async () => {
   await store.editProfile({ firstName: 'דנית', lastName: 'בדויה', lang: 'en' });
   assert.deepEqual(store.getState().me?.profile, { firstName: 'דנית', lastName: 'בדויה', lang: 'en' });
 });
+
+test('editProfile keeps the phone when the server answer lacks it', async () => {
+  const { store } = storeWith(['k1'], { putPhone: async (phone: string | null) => ({ phone }) });
+  await store.start();
+  await store.setPhone('+972500000001');
+  await store.editProfile({ firstName: 'דנית', lastName: 'בדויה', lang: 'en' });
+  assert.equal(store.getState().me?.profile?.phone, '+972500000001');
+  assert.equal(store.getState().me?.profile?.firstName, 'דנית');
+});

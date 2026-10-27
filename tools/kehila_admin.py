@@ -53,6 +53,12 @@ def backfill_families(repo, k=None):
     return len(kehilot), created
 
 
+def sweep_orphan_families(repo, k=None, delete=True):
+    """Families with no live adult (all Kehilot, or just `k`). Deleted unless `delete` is False (report only).
+    Returns how many."""
+    return sum(repo.sweep_orphan_families(kehila, delete) for kehila in ([k] if k else repo.list_kehila_ids()))
+
+
 def read_logo(path):
     """Read and validate a logo PNG; exits with a clear message when it is unusable."""
     try:
@@ -90,10 +96,13 @@ def main(argv=None):
     backfill = sub.add_parser('backfill-families', help='create a family for every member and gabbai without one')
     backfill.add_argument('--env', required=True, choices=['dev'])
     backfill.add_argument('--kehila', help='only this Kehila (default: all)')
+    backfill.add_argument('--keep-orphans', action='store_true', help='only report families without a live adult')
     args = parser.parse_args(argv)
     if args.command == 'backfill-families':
-        kehilot, created = backfill_families(open_repo(args.env), args.kehila)
-        print(f'kehilot={kehilot} created={created}')
+        repo = open_repo(args.env)
+        kehilot, created = backfill_families(repo, args.kehila)
+        orphans = sweep_orphan_families(repo, args.kehila, delete=not args.keep_orphans)
+        print(f'kehilot={kehilot} created={created} orphan_families_{"found" if args.keep_orphans else "deleted"}={orphans}')
         return
     if args.command == 'gabbai-invite':
         print(f'Gabbai invite code (one use, 7 days): {gabbai_invite(open_repo(args.env), args.kehila)}')

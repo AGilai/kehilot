@@ -32,8 +32,15 @@ class MeTest(unittest.TestCase):
     def test_profile_roundtrip_with_lang(self):
         self.assertIsNone(self.call('GET', '/v1/me')[1]['profile'])
         profile = {'firstName': 'Dana', 'lastName': 'Test', 'lang': 'en'}
-        self.assertEqual(self.call('PUT', '/v1/me/profile', body=profile), (200, profile))
+        self.assertEqual(self.call('PUT', '/v1/me/profile', body=profile), (200, {**profile, 'phone': None}))
         self.assertEqual(self.call('GET', '/v1/me')[1]['profile'], {**profile, 'phone': None})
+
+    def test_profile_put_returns_the_stored_phone(self):
+        profile = {'firstName': 'Dana', 'lastName': 'Test', 'lang': 'en'}
+        self.call('PUT', '/v1/me/profile', body=profile)
+        self.assertEqual(self.call('PUT', '/v1/me/phone', body={'phone': '+972500000001'})[0], 200)
+        status, body = self.call('PUT', '/v1/me/profile', body={**profile, 'lang': 'he'})
+        self.assertEqual((status, body), (200, {**profile, 'lang': 'he', 'phone': '+972500000001'}))
 
     def test_profile_rejects_unknown_lang(self):
         status, body = self.call('PUT', '/v1/me/profile', body={'firstName': 'Dana', 'lastName': 'T', 'lang': 'fr'})

@@ -171,7 +171,7 @@ class MembersRepo:
         """
         key_fields = ('pk', 'sk', 'gsi1pk', 'gsi1sk')
         condition = Attr('userId').eq(user_id) | Attr('authorId').eq(user_id) | Attr('targetMemberId').eq(user_id) \
-            | Attr('inviterId').eq(user_id)
+            | Attr('inviterId').eq(user_id) | Attr('adults').contains(user_id)
         for needle in (user_id, sub):
             for field in key_fields:
                 condition = condition | Attr(field).contains(needle)
@@ -184,6 +184,11 @@ class MembersRepo:
                 for item in page['Items']:
                     key = {'pk': item['pk'], 'sk': item['sk']}
                     if key == sub_key:
+                        continue
+                    if item['sk'].startswith('F#') and user_id in (item.get('adults') or []):
+                        # an orphan family the leave clean-up never reached: out of the list, or gone if solo
+                        self._drop_from(item['pk'][len('K#'):], item['familyId'], user_id)
+                        blanked += 1
                         continue
                     if any(needle in item.get(field, '') for needle in (user_id, sub) for field in key_fields) \
                             or item.get('userId') == user_id or item.get('inviterId') == user_id:

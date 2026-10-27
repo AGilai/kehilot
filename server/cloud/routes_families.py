@@ -45,7 +45,7 @@ def request_card(repo, k, user_id, membership):
     """cards.request: the oldest live received request, or None."""
     if not repo.received_requests(k, user_id, int(time.time())):
         return None
-    family = repo.get_family(k, membership['familyId']) if membership.get('familyId') else None
+    family = repo.family_of(k, user_id)
     live = len(repo.live_adults(k, family)) if family else 1
     pairs = live_received(repo, k, user_id, live, int(time.time()))
     return {'fromUserId': pairs[0][0]['fromUserId'], 'fromName': pairs[0][1].get('displayName', '')} if pairs else None
@@ -55,7 +55,7 @@ def family_view(ctx, k, membership):
     """FamilyView of the caller's family; creates a one-adult family when the membership has none. A departed
     adult is pruned from the family (written back) before anything is shown."""
     repo = ctx.repo
-    family_id = membership.get('familyId') or repo.ensure_family(k, ctx.user_id)
+    family_id = repo.ensure_family(k, ctx.user_id)  # heals a missing or foreign familyId
     family = repo.get_family(k, family_id) if family_id else None
     if not family:
         raise ApiError(404, 'family_not_found')
@@ -90,7 +90,7 @@ def _name_of_missing(repo, k, user_id):
 
 
 def _family_id(ctx, k, membership):
-    return membership.get('familyId') or ctx.repo.ensure_family(k, ctx.user_id)
+    return ctx.repo.ensure_family(k, ctx.user_id)
 
 
 def get_family(ctx, params):
@@ -215,14 +215,14 @@ def candidates(ctx, params):
     require(repo, ctx.user_id, k, MEMBERS)
     now = int(time.time())
     members = repo.list_members(k)
-    live_ids = {m['userId'] for m in members if m['role'] in MEMBERS}
+    family_of_user = {m['userId']: m.get('familyId') for m in members if m['role'] in MEMBERS}
     others = [m for m in members if m['role'] in MEMBERS and m['userId'] != ctx.user_id]
     found = repo.batch_get([(f'K#{k}', f'F#{m["familyId"]}') for m in others if m.get('familyId')])
     cooldowns = repo.decline_markers(k, ctx.user_id, now)
     out = []
     for m in sorted(others, key=lambda m: (m.get('displayName') or '', m['userId'])):
         family = found.get((f'K#{k}', f'F#{m["familyId"]}')) if m.get('familyId') else None
-        if family and len([a for a in family['adults'] if a in live_ids]) > 1:
+        if family and len([a for a in family['adults'] if family_of_user.get(a) == family['familyId']]) > 1:
             continue
         entry = {'userId': m['userId'], 'displayName': m.get('displayName', '')}
         if m['userId'] in cooldowns:
@@ -247,7 +247,8 @@ def admin_families(ctx, params):
     rows = []
     for family in families:
         live = [found[(f'K#{k}', f'M#{u}')] for u in family['adults']
-                if (found.get((f'K#{k}', f'M#{u}')) or {}).get('role') in MEMBERS]
+                if (found.get((f'K#{k}', f'M#{u}')) or {}).get('role') in MEMBERS
+                and found[(f'K#{k}', f'M#{u}')].get('familyId') == family['familyId']]
         if not live:
             continue
         children = []

@@ -20,7 +20,7 @@ def put_profile(ctx, params):
     last = inputs.text(d, 'lastName', 60)
     lang = inputs.choice(d, 'lang', LANGS)
     ctx.repo.put_profile(ctx.user_id, first, last, lang)
-    return 200, {'firstName': first, 'lastName': last, 'lang': lang}
+    return 200, ctx.repo.get_profile(ctx.user_id)
 
 
 def put_device(ctx, params):

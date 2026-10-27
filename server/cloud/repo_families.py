@@ -42,7 +42,10 @@ class FamiliesRepo:
         if not membership or membership.get('role') not in ('member', 'gabbai'):
             return None, False
         if membership.get('familyId'):
-            return membership['familyId'], False
+            held = self.get_family(k, membership['familyId'])
+            if held and user_id in held['adults']:
+                return membership['familyId'], False
+            self._release_family_id(k, user_id, membership['familyId'])  # missing, or someone else's: start fresh
         family_id = new_id()
         family = {'pk': f'K#{k}', 'sk': f'F#{family_id}', 'familyId': family_id, 'adults': [user_id],
                   'children': [], 'version': 1, 'createdAt': int(time.time())}
@@ -65,6 +68,16 @@ class FamiliesRepo:
             return (current or {}).get('familyId'), False
         return family_id, True
 
+    def _release_family_id(self, k, user_id, family_id):
+        """REMOVE the membership's familyId when it is still `family_id` (a lost race is fine)."""
+        try:
+            self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression='REMOVE familyId',
+                                   ConditionExpression='familyId = :f',
+                                   ExpressionAttributeValues={':f': family_id})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+
     def ensure_family(self, k, user_id):
         """The familyId of a member or gabbai, creating a one-adult family when the membership has none.
         None for a listener or a missing membership. Idempotent."""
@@ -74,7 +87,8 @@ class FamiliesRepo:
         """The family item of the user's membership (never creates one), or None."""
         membership = self.get_membership(k, user_id)
         family_id = (membership or {}).get('familyId')
-        return self.get_family(k, family_id) if family_id else None
+        family = self.get_family(k, family_id) if family_id else None
+        return family if family and user_id in family['adults'] else None
 
     def live_adults(self, k, family):
         """Membership items of the family's adults that are still member or gabbai and still belong to this
@@ -227,12 +241,31 @@ class FamiliesRepo:
         self.table.delete_item(Key=self._key(k, f'PS#{user_id}'))
 
     # link / unlink
+    def sweep_orphan_families(self, k, delete=True):
+        """Families of Kehila k with no live adult (see live_adults). Deleted with a version check when `delete`.
+        Returns how many there are (deleted ones, when `delete`)."""
+        count = 0
+        for family in self.list_families(k):
+            if self.live_adults(k, family):
+                continue
+            if not delete:
+                count += 1
+                continue
+            try:
+                self.table.delete_item(Key=self._key(k, f'F#{family["familyId"]}'), ConditionExpression='version = :v',
+                                       ExpressionAttributeValues={':v': int(family['version'])})
+                count += 1
+            except ClientError as error:
+                if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                    raise
+        return count
+
     def _clear_quietly(self, k, users):
         for user in users:
             try:
                 self.clear_requests(k, user)
-            except Exception:
-                log.exception('clear_requests failed kehila=%s', k)  # best effort: expiry cleans up
+            except Exception as e:
+                log.warning('clear_requests failed kehila=%s error=%s', k, type(e).__name__)  # best effort: expiry cleans up
 
     def drop_adult(self, k, user_id):
         """The user left, was removed or deleted their account: take them out of their family (two adults:
@@ -246,6 +279,8 @@ class FamiliesRepo:
             families = self._query_prefix(k, 'F#', Attr('adults').contains(user_id), consistent=True)
         for family in families:
             self._drop_from(k, family['familyId'], user_id)
+            if membership and membership.get('familyId') == family['familyId']:  # the membership may outlive this
+                self._release_family_id(k, user_id, family['familyId'])
         self.clear_requests(k, user_id)
         for item in self._query_prefix(k, 'PD#', consistent=True):
             parts = item['sk'].split('#')
