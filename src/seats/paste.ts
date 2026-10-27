@@ -56,7 +56,8 @@ export type WarningCode =
   | 'bimah-unsized' // TSV: one "בימה" cell, the area is not known
   | 'bimah-multiple' // several separate bimah areas
   | 'label-ignored' // a non-numeric cell in the row-label column
-  | 'no-seats';
+  | 'no-seats'
+  | 'too-large'; // beyond MAX_COLS x MAX_ROWS (or an absurd paste): no grid is returned
 export type ParseWarning = {
   code: WarningCode;
   /** Position in the returned grid; col -1 = the dropped row-label column. */
@@ -91,6 +92,11 @@ export type ParsedHall = {
   counts: { seats: number; assigned: number; unassigned: number; families: number; blocks: number; rows: number };
   warnings: ParseWarning[];
 };
+
+export const MAX_COLS = 60;
+export const MAX_ROWS = 40;
+const MAX_SPAN_CELLS = 2400;
+const MAX_TEXT = 2_000_000;
 
 export type PasteInput = string | { text?: string; html?: string };
 
@@ -190,29 +196,35 @@ function decode(s: string): string {
 }
 
 /** The first <table> of a text/html clipboard flavour; keeps rowspan/colspan as merges. */
-export function parseHtmlTable(html: string): Matrix | null {
+export function parseHtmlTable(html: string): Matrix | 'too-large' | null {
+  html = html.replace(/<(script|style|head|template)\b[\s\S]*?(<\/\1\s*>|$)/gi, '').replace(/<!--[\s\S]*?(-->|$)/g, '');
   const table = /<table\b[\s\S]*?(<\/table>|$)/i.exec(html);
   if (!table) return null;
   const cells: string[][] = [];
   const merges: Merge[] = [];
   const taken = new Set<string>();
   let r = -1;
+  let marked = 0;
   const rowRe = /<tr\b[^>]*>([\s\S]*?)(?=<tr\b|<\/table>|$)/gi;
   let rm: RegExpExecArray | null;
   while ((rm = rowRe.exec(table[0]))) {
     r++;
+    if (r > MAX_ROWS * 5) return 'too-large';
     cells[r] ??= [];
     let c = 0;
     const cellRe = /<t[dh]\b([^>]*)>([\s\S]*?)(?=<t[dh]\b|<\/tr>|$)/gi;
     let cm: RegExpExecArray | null;
     while ((cm = cellRe.exec(rm[1]!))) {
       while (taken.has(`${r},${c}`)) c++;
+      if (c > MAX_COLS * 5) return 'too-large';
       const span = (name: string) => Math.max(1, Math.min(200, Number(new RegExp(`${name}\\s*=\\s*["']?(\\d+)`, 'i').exec(cm![1]!)?.[1] ?? 1)));
       const rows = span('rowspan');
       const cols = span('colspan');
       const body = cm[2]!.replace(/<\/t[dh]>[\s\S]*$/i, '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
       const text = decode(body).replace(/[ \t\r\f]+/g, ' ').replace(/ ?\n ?/g, '\n').trim();
       cells[r]![c] = text;
+      marked += rows * cols - 1;
+      if (marked > MAX_SPAN_CELLS) return 'too-large';
       for (let dr = 0; dr < rows; dr++) for (let dc = 0; dc < cols; dc++) {
         if (dr || dc) taken.add(`${r + dr},${c + dc}`);
       }
@@ -228,10 +240,20 @@ export function parseHtmlTable(html: string): Matrix | null {
 
 const isNumericLabel = (s: string) => /^\d{1,2}$/.test(clean(s));
 
+function tooLarge(): ParsedHall {
+  return {
+    rows: 0, cols: 0, grid: [], blocks: [], rowLabels: [], labelColumn: null, bimahAreas: [], families: [],
+    counts: { seats: 0, assigned: 0, unassigned: 0, families: 0, blocks: 0, rows: 0 },
+    warnings: [{ code: 'too-large', row: 0, col: 0 }],
+  };
+}
+
 export function parseHall(input: PasteInput): ParsedHall {
   const text = typeof input === 'string' ? input : input.text ?? '';
   const html = typeof input === 'string' ? '' : input.html ?? '';
+  if (text.length > MAX_TEXT || html.length > MAX_TEXT) return tooLarge();
   const fromHtml = html && /<table\b/i.test(html) ? parseHtmlTable(html) : null;
+  if (fromHtml === 'too-large') return tooLarge();
   const matrix = fromHtml ?? parseTsv(text);
 
   const width = Math.max(0, ...matrix.cells.map((r) => r.length));
@@ -290,6 +312,7 @@ export function parseHall(input: PasteInput): ParsedHall {
 
   const rows = raw.length;
   const cols = raw[0]?.length ?? 0;
+  if (rows > MAX_ROWS || cols > MAX_COLS) return tooLarge();
   const grid: HallCell[][] = raw.map((r) => r.map(classifyCell));
 
   // bimah areas: merges that anchor on a bimah cell, else connected bimah cells (bounding box)

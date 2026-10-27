@@ -17,7 +17,7 @@ test('normalizeName folds final letters, geresh/gershayim, maqaf, punctuation an
 
 test('spelling keys equate full and defective spelling', () => {
   assert.equal(spellingKey('בדיוני'), spellingKey('בדיונ'));
-  assert.equal(spellingKey('משפחת דוגמה'), spellingKey('דוגמא'));
+  assert.equal(spellingKey('דוגמה'), spellingKey('דוגמא'));
   assert.notEqual(spellingKey('דוגמה'), spellingKey('ניסיון'));
 });
 
@@ -110,4 +110,23 @@ test('results keep the paste order, one per family', () => {
   const rs = suggestMatches([p('אפשרי'), p('דוגמה', 'ג'), p('בדיוני', 'א')], FAMS, []);
   assert.deepEqual(rs.map((r) => r.familyKey), ['אפשרי', 'דוגמה ג', 'בדיוני א']);
   assert.deepEqual(rs.map((r) => r.level), ['none', 'exact', 'exact']);
+});
+
+test('spelling variants need a key of at least 3 letters', () => {
+  const fams: KehilaFamily[] = [{ id: 'a', lastName: 'בו', firstName: 'א' }, { id: 'b', lastName: 'לוי', firstName: 'א' }];
+  const [short, shortOther] = suggestMatches([p('בי'), p('לי')], fams, []); // both reduce to <3 letters
+  assert.equal(short!.level, 'none');
+  assert.equal(shortOther!.level, 'none');
+});
+
+test('a "בית" prefix is stripped only to meet a candidate, never from a surname like "בית הלל"', () => {
+  const fams: KehilaFamily[] = [{ id: 'h', lastName: 'הלל', firstName: 'א' }, { id: 'bh', lastName: 'בית הלל', firstName: 'ב' }, { id: 'd', lastName: 'דוגמה', firstName: 'ג' }];
+  const [a, b, c] = suggestMatches([p('בית הלל'), p('משפחת דוגמה'), p('בית דוגמה')], fams, []);
+  assert.equal(a!.candidates[0]!.id, 'bh'); // the full name ranks and matches first
+  assert.ok(a!.candidates.some((x) => x.id === 'h')); // stripped form is only a lower candidate for a gabbai to judge
+  assert.equal(b!.candidates[0]!.id, 'd');
+  assert.equal(c!.candidates[0]!.id, 'd');
+  // with no household "הלל", "בית הלל" is not reduced to anything
+  const [d] = suggestMatches([p('בית הלל')], [{ id: 'x', lastName: 'ניסיון' }], []);
+  assert.equal(d!.level, 'none');
 });

@@ -238,3 +238,43 @@ test('a plain number grid is not mistaken for row labels when fewer than 3 numbe
   assert.equal(h.labelColumn, null);
   assert.equal(h.grid[0]![0]!.kind, 'unknown');
 });
+
+test('too large: beyond 60 columns x 40 rows, or a crafted span table, returns a too-large warning and no grid, fast', () => {
+  const wide = parseHall(Array.from({ length: 3 }, () => Array.from({ length: 61 }, (_, i) => `בדיוני-${i + 1}`).join('\t')).join('\n'));
+  assert.deepEqual(codes(wide), ['too-large']);
+  assert.equal(wide.grid.length, 0);
+  const tall = parseHall(Array.from({ length: 41 }, () => 'בדיוני-1').join('\n'));
+  assert.deepEqual(codes(tall), ['too-large']);
+  assert.equal(parseHall(Array.from({ length: 40 }, () => Array.from({ length: 60 }, () => 'פנוי').join('\t')).join('\n')).counts.seats, 2400);
+  const html = '<table><tr><td rowspan="300" colspan="300">בימה</td><td rowspan="9999" colspan="9999">x</td></tr></table>';
+  const t0 = performance.now();
+  const crafted = parseHall({ html });
+  assert.ok(performance.now() - t0 < 200);
+  assert.deepEqual(codes(crafted), ['too-large']);
+  assert.equal(crafted.grid.length, 0);
+});
+
+test('HTML script/style/comment content is never promoted to a cell', () => {
+  const html = '<style>td{color:red} בדיוני-9</style><script>var x="דוגמה-9"</script><!-- ניסיון-9 --><table><tr><td>בדיוני-1</td><td><script>alert("דוגמה-8")</script>פנוי</td></tr></table>';
+  const h = parseHall({ html });
+  assert.equal(h.counts.seats, 2);
+  assert.equal(h.counts.assigned, 1);
+  assert.deepEqual(codes(h), []);
+  assert.deepEqual(h.families.map((f) => f.familyKey), ['בדיוני']);
+});
+
+test('bimah-multiple: two separate bimah areas warn at the second', () => {
+  const h = parseHall('בימה\t\tבדיוני-1\nבימה\t\t\n\t\t\nפנוי\t\tבימה\n');
+  assert.equal(h.bimahAreas.length, 2);
+  const w = h.warnings.filter((x) => x.code === 'bimah-multiple');
+  assert.deepEqual(w.map((x) => [x.row, x.col]), [[3, 2]]);
+});
+
+test('label-ignored: a stray non-numeric cell in the label column is dropped and listed with col -1', () => {
+  const rows = ['1\t\tבדיוני-1', '2\t\tדוגמה-1', 'סה"כ\t\t', '3\t\tפנוי', '4\t\tניסיון-1'];
+  const h = parseHall(rows.join('\n'));
+  assert.equal(h.labelColumn, 'left');
+  assert.deepEqual(h.rowLabels, ['1', '2', null, '3', '4']);
+  assert.deepEqual(h.warnings.filter((w) => w.code === 'label-ignored').map((w) => [w.row, w.col, w.raw]), [[2, -1, 'סה"כ']]);
+  assert.equal(h.counts.seats, 4);
+});

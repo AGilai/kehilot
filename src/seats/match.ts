@@ -24,23 +24,34 @@ export function normalizeName(s: string): string {
 }
 
 const PREFIX = /^(משפחת|משפחה|משפ|בית)\s+/;
-function surnameOf(name: string): string {
-  return normalizeName(name).replace(PREFIX, '');
+/**
+ * The surname as written, plus (only when the name has more than one word) the form without a "משפחת"/"בית" prefix.
+ * The stripped form is a candidate for comparison only: "בית הלל" never turns into "הלל" unless a household called
+ * "הלל" is actually being compared.
+ */
+function surnameVariants(name: string): string[] {
+  const n = normalizeName(name);
+  const stripped = n.replace(PREFIX, '');
+  return stripped !== n && stripped ? [n, stripped] : [n];
 }
+const sameName = (a: string[], b: string[]) => a.some((x) => x !== '' && b.includes(x));
+const letters = (k: string) => k.replace(/\s/g, '').length;
 /** Spelling-variant key: full/defective spelling (ו, י dropped), final א/ה dropped, doubled letters merged. */
 export function spellingKey(name: string): string {
-  return surnameOf(name)
+  return normalizeName(name)
     .split(' ')
-    .map((w) => w.replace(/[וי]/g, '').replace(/[אה]$/, '').replace(/(.)\1+/g, '$1'))
+    .map((w) => w.replace(/[\u05D5\u05D9]/g, '').replace(/[\u05D0\u05D4]$/, '').replace(/(.)\1+/g, '$1'))
     .join(' ');
 }
-/** "בדיוני ש." / "משפחת בדיוני" → surname + optional initial. */
-function splitHolderName(name: string): { surname: string; initial?: string } {
-  const n = normalizeName(name).replace(PREFIX, '');
+/** Spelling keys that are long enough (>= 3 letters) to mean something. */
+const spellingKeys = (name: string) => surnameVariants(name).map(spellingKey).filter((k) => letters(k) >= 3);
+/** "בדיוני ש." / "משפחת בדיוני" → surname variants + optional initial. */
+function splitHolderName(name: string): { surnames: string[]; initial?: string } {
+  const n = normalizeName(name);
   const t = n.split(' ');
   const last = t[t.length - 1] ?? '';
-  if (t.length >= 2 && /^[\u05D0-\u05EA]$/.test(last)) return { surname: t.slice(0, -1).join(' '), initial: last };
-  return { surname: n };
+  if (t.length >= 2 && /^[\u05D0-\u05EA]$/.test(last)) return { surnames: surnameVariants(t.slice(0, -1).join(' ')), initial: last };
+  return { surnames: surnameVariants(n) };
 }
 const firstLetter = (s?: string) => (s ? normalizeName(s).charAt(0) : '');
 const digits = (p?: string) => (p ?? '').replace(/\D/g, '').slice(-9);
@@ -93,8 +104,8 @@ const RANK: Record<MatchWhy, number> = { 'phone-surname': 6, 'surname-initial': 
 
 export function suggestMatches(familiesInPaste: PastedFamily[], kehilaFamilies: KehilaFamily[], holders: Holder[] = []): MatchResult[] {
   return familiesInPaste.map((p) => {
-    const sur = surnameOf(p.family);
-    const spell = spellingKey(p.family);
+    const sur = surnameVariants(p.family);
+    const spell = spellingKeys(p.family);
     const ini = firstLetter(p.initial);
     const phone = digits(p.phone);
     const found: (MatchCandidate & { rank: number })[] = [];
@@ -102,9 +113,8 @@ export function suggestMatches(familiesInPaste: PastedFamily[], kehilaFamilies: 
       found.push({ ...c, whyText: WHY_TEXT[c.why], rank: RANK[c.why] });
 
     for (const f of kehilaFamilies) {
-      const fsur = surnameOf(f.lastName);
-      const sameSurname = fsur === sur && sur !== '';
-      const sameSpelling = !sameSurname && spellingKey(f.lastName) === spell && spell !== '';
+      const sameSurname = sameName(surnameVariants(f.lastName), sur);
+      const sameSpelling = !sameSurname && sameName(spellingKeys(f.lastName), spell);
       const samePhone = phone.length >= 7 && digits(f.phone) === phone;
       const name = `${f.lastName}${f.firstName ? ' ' + f.firstName : ''}`;
       const base = { kind: 'family' as const, id: f.id, name, holdsSeats: !!f.holdsSeats };
@@ -118,8 +128,8 @@ export function suggestMatches(familiesInPaste: PastedFamily[], kehilaFamilies: 
     }
     for (const h of holders) {
       const hn = splitHolderName(h.name);
-      const sameSurname = hn.surname === sur && sur !== '';
-      const sameSpelling = !sameSurname && spellingKey(hn.surname) === spell && spell !== '';
+      const sameSurname = sameName(hn.surnames, sur);
+      const sameSpelling = !sameSurname && sameName(hn.surnames.map(spellingKey).filter((k) => letters(k) >= 3), spell);
       const samePhone = phone.length >= 7 && digits(h.phone) === phone;
       const base = { kind: 'holder' as const, id: h.id, name: h.name, holdsSeats: true };
       const iniEq = (hn.initial ?? '') === ini;
