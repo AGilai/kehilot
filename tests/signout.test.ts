@@ -53,3 +53,24 @@ test('start: restored, none, signed out, and network failure keeps the session o
   assert.equal(await resolveStart(async () => false), 'signedOut');
   assert.equal(await resolveStart(async () => { throw new AuthError('network'); }), 'offline');
 });
+
+test('sign-out also clears the per-user session keys, before the store resets, and its failure is isolated', async () => {
+  const a = deps({ clearSessionKeys: async () => { a.log.push('keys'); } });
+  await localSignOut(a.d);
+  assert.deepEqual(a.log, ['tokens', 'pending', 'wipe', 'keys', 'reset', 'done']);
+  const b = deps({ clearSessionKeys: async () => { throw new Error('x'); } });
+  await localSignOut(b.d);
+  assert.deepEqual(b.log, ['tokens', 'pending', 'wipe', 'reset', 'done']);
+});
+
+test('clearSessionKeys removes the signing-out user last-Kehila key and every logo key, nothing else', async () => {
+  const { clearSessionKeys } = await import('../src/client/sessionKeys.ts');
+  const data = new Map<string, string>([
+    ['kehilot.lastKehila.u1', 'k1'], ['kehilot.lastKehila.u2', 'k9'],
+    ['kehilot.logo.k1', '{}'], ['kehilot.logo.k2', '{}'], ['kehilot.other', 'x'],
+  ]);
+  const storage = { get: async (k: string) => data.get(k) ?? null, set: async () => {}, remove: async (k: string) => { data.delete(k); } };
+  await clearSessionKeys(storage, 'u1', async () => [...data.keys()]);
+  assert.deepEqual([...data.keys()].sort(), ['kehilot.lastKehila.u2', 'kehilot.other']);
+  await clearSessionKeys(storage, null, async () => { throw new Error('no list'); }); // no user, no listing: still no throw
+});

@@ -6,6 +6,8 @@ export type LocalSignOutDeps = {
   clearPush?: () => Promise<void>;
   /** The on-phone message cache, the image cache and the share files (Task 12b). */
   wipeCaches: () => Promise<void>;
+  /** The signing-out user's `kehilot.lastKehila.<userId>` and the `kehilot.logo.*` cache (runs before the store reset). */
+  clearSessionKeys?: () => Promise<void>;
   /** Session store reset. */
   resetStore: () => void;
   /** Sets the UI status to signedOut. */
@@ -23,7 +25,7 @@ export type SignOutDeps = LocalSignOutDeps & {
  */
 export async function localSignOut(d: LocalSignOutDeps): Promise<void> {
   try {
-    for (const step of [d.clearTokens, d.clearPending, d.clearPush, d.wipeCaches]) {
+    for (const step of [d.clearTokens, d.clearPending, d.clearPush, d.wipeCaches, d.clearSessionKeys]) {
       try { await step?.(); } catch { /* storage failure must not block the sign-out */ }
     }
   } finally { d.resetStore(); d.done?.(); }

@@ -27,6 +27,12 @@ export function setSessionStoreReset(fn: () => void): void {
   resetSessionStore = fn;
 }
 
+// The session provider registers how to clear the per-user session keys (it knows the user and the storage).
+let clearSessionKeysFn: () => Promise<void> = async () => {};
+export function setSessionKeysClear(fn: () => Promise<void>): void {
+  clearSessionKeysFn = fn;
+}
+
 // The push registration code (client/push.ts) reports the device token here; it is also stored under
 // kehilot.pushToken, which sign-out falls back to after an app restart.
 let pushToken: string | null = null;
@@ -102,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearPending: () => pendingInvite.clear(),
     clearPush,
     wipeCaches,
+    clearSessionKeys: () => clearSessionKeysFn(),
     resetStore: () => { setPendingNames(null); resetSessionStore(); },
     done: () => setStatus('signedOut'),
   }), [core, clearPush]);
@@ -157,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const rt = await core.storage.get(REFRESH_KEY).catch(() => null);
             if (rt) await cognito.revoke(rt);
           },
-          clearTokens: () => core.tokens.clear(), clearPending: () => pendingInvite.clear(), clearPush, wipeCaches,
+          clearTokens: () => core.tokens.clear(), clearPending: () => pendingInvite.clear(), clearPush, wipeCaches, clearSessionKeys: () => clearSessionKeysFn(),
           resetStore: () => { setPendingNames(null); resetSessionStore(); }, done: () => setStatus('signedOut'),
         })();
       },

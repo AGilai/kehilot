@@ -2,9 +2,10 @@ import React from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { KeyValue } from '../auth/tokens.ts';
-import { setSessionStoreReset, useAuth } from '../auth/AuthProvider.tsx';
+import { setSessionKeysClear, setSessionStoreReset, useAuth } from '../auth/AuthProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { createLogoCache } from './logoCache.ts';
+import { clearSessionKeys } from './sessionKeys.ts';
 import { pendingInvite } from './pendingStore.ts';
 import { createImageUrls } from '../media/imageUrl.ts';
 import { createStore } from './store.ts';
@@ -84,7 +85,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     setSessionStoreReset(() => store.reset());
-    return () => { setSessionStoreReset(() => {}); store.reset(); images.clear(); };
+    setSessionKeysClear(() => clearSessionKeys(storage, store.getState().me?.userId ?? null, () => AsyncStorage.getAllKeys()));
+    return () => { setSessionStoreReset(() => {}); setSessionKeysClear(async () => {}); store.reset(); images.clear(); };
   }, [store, images]);
 
   React.useEffect(() => {
