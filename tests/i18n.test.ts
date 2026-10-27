@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { deviceLang, dirOf, textStart } from '../src/i18n/direction.ts';
 import { translate } from '../src/i18n/translate.ts';
@@ -66,6 +67,35 @@ test('every API error code in server/API.md has an errors.<code> key', () => {
   assert.ok(codes.size > 30, `parsed ${codes.size} codes`);
   const fh = flat(he), fe = flat(en);
   for (const c of codes) {
+    assert.ok(fh[`errors.${c}`], `he errors.${c}`);
+    assert.ok(fe[`errors.${c}`], `en errors.${c}`);
+  }
+});
+
+test('every error code the server source raises, and every AuthError code in src, has an errors.<code> key', () => {
+  const INTERNAL = new Set(['witness_changed']); // never reaches a client
+  const codes = new Set<string>();
+  const walk = (dir: URL, out: string[], ext: string) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(new URL(`${e.name}/`, dir), out, ext);
+      else if (e.name.endsWith(ext)) out.push(fileURLToPath(new URL(e.name, dir)));
+    }
+  };
+  const py: string[] = []; walk(new URL('../server/cloud/', import.meta.url), py, '.py');
+  for (const f of py) {
+    const src = readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/ApiError\(\d+, *'([a-z0-9_]+)'/g)) codes.add(m[1]!);
+    for (const m of src.matchAll(/'(invalid_[a-z0-9_]+)'/g)) codes.add(m[1]!);
+    // inputs.text(d, 'firstName', ...) fails with invalid_first_name
+    for (const m of src.matchAll(/(?:inputs\.\w+\(\w+|_code\()\s*,?\s*'([A-Za-z]+)'/g)) codes.add('invalid_' + m[1]!.replace(/(?<!^)([A-Z])/g, '_$1').toLowerCase());
+  }
+  const ts: string[] = []; walk(new URL('../src/', import.meta.url), ts, '.ts'); walk(new URL('../src/', import.meta.url), ts, '.tsx');
+  for (const f of ts) for (const m of readFileSync(f, 'utf8').matchAll(/AuthError\('([a-z_]+)'\)/g)) codes.add(m[1]!);
+  assert.ok(codes.size > 40, `parsed ${codes.size} codes`);
+  assert.ok(codes.has('invalid_conversation') && codes.has('unsupported'));
+  const fh = flat(he), fe = flat(en);
+  for (const c of codes) {
+    if (INTERNAL.has(c)) continue;
     assert.ok(fh[`errors.${c}`], `he errors.${c}`);
     assert.ok(fe[`errors.${c}`], `en errors.${c}`);
   }
