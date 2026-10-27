@@ -93,3 +93,15 @@ built by us).
 
 Look of the formula builder, the editor/preview split, the Home card and collapsible zmanim card, the
 full-schedule screen, the first template's look (fresh, but recognisable to the Kehila).
+
+## CTO rulings on the designer's questions (2026-10-27)
+
+- **Week:** Friday to the following Thursday (the paper sheet's week). Weekday rows computed "for the
+  week" use Sun–Thu inside that week.
+- **"The row's own day"** applies only to single-day sections (holidays later); weekday rows show one
+  time per week (earliest/latest of Sun–Thu, or a fixed time).
+- **When edits reach members:** on the gabbai's explicit Save — immediately, for the current and future
+  weeks; no publish step. "This week only" overrides expire after their week.
+- **Rounding direction:** warnings, never blocks (the gabbai knows his Kehila); the warning names the
+  risk (e.g. Shabbat end rounded earlier).
+- **Overflow:** the designer's fitting rules (§14.5) are binding; never a second page.
