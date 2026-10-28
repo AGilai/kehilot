@@ -320,7 +320,7 @@ class MembersRepo:
                                ExpressionAttributeValues={':v': value})
 
     def set_settings(self, k, max_listeners=None, privacy_contact=None, type_rules=None, location=None, sheet=None, seat_deadline=None,
-                     sheet_members=None):
+                     sheet_members=None, seat_reminders=None):
         """Set the given settings only (None = leave); privacy_contact '' removes it. `type_rules` is a validated
         partial `{type: {post, listeners}}`: those types are replaced, the other type keeps its (normalized) rule.
         `location` / `sheet` (validated) replace those settings whole. Other settings are kept."""
@@ -334,6 +334,9 @@ class MembersRepo:
         if seat_deadline is not None:
             sets.append('settings.seatDeadline = :sd')
             values[':sd'] = seat_deadline
+        if seat_reminders is not None:
+            sets.append('settings.seatReminders = :sr')
+            values[':sr'] = seat_reminders
         if sheet_members is not None:
             sets.append('settings.sheetMembers = :sm')
             values[':sm'] = sheet_members

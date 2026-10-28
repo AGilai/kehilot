@@ -65,6 +65,8 @@ ROUTES = [
      routes_seating.put_assignments),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/seats/me$'), routes_seatweek.get_mine),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/seats/me$'), routes_seatweek.put_mine),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/times$'), routes_seatweek.get_times),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/times$'), routes_seatweek.put_times),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/week/(?P<week>[^/]+)$'), routes_seatweek.get_week),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/week/(?P<week>[^/]+)$'), routes_seatweek.put_week),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seats/week/(?P<week>[^/]+)/responses$'),

@@ -5,7 +5,7 @@ import re
 import time
 from collections import Counter
 
-from . import seating_week, accounts, consents, importer, inputs, push, routes_me, routes_seatlink, schedule_rules, sheet_rules, tags, type_rules
+from . import seating_week, accounts, consents, importer, inputs, push, routes_me, routes_seatlink, schedule_rules, seat_times, sheet_rules, tags, type_rules
 from . import authz
 from .errors import ApiError
 from .ids import ID_RE
@@ -258,6 +258,9 @@ def set_settings(ctx, params):
     sheet = schedule_rules.validate_sheet(d['sheet']) if 'sheet' in d else None
     new_rules = _type_rules(d['typeRules']) if 'typeRules' in d else None
     seat_deadline = seating_week.valid_deadline(d['seatDeadline']) if 'seatDeadline' in d else None
+    if seat_deadline is not None:
+        seat_times.check(seat_times.reminders_of(ctx.repo.get_kehila(params['k']).get('settings')), seat_deadline,
+                         'deadline')
     sheet_members = d['sheetMembers'] if 'sheetMembers' in d else None
     if 'sheetMembers' in d and sheet_members not in sheet_rules.SHEET_MEMBERS:
         raise ApiError(400, 'invalid_sheet_members')

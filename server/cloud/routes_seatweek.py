@@ -208,6 +208,40 @@ def get_week(ctx, params):
                  'prayers': {p: _prayer_out(states[p], held) for p in wk.PRAYERS}}
 
 
+def _times_out(ctx, k):
+    settings = ctx.repo.get_kehila(k).get('settings', {})
+    friday = rules.current_shabbat(_now().date()).isoformat()
+    layout = ctx.repo.layout_for(k, friday)
+    sent = ctx.repo.seat_reminders_sent(k, friday)
+    return {'opens': dict(seat_times.OPENS), 'reminders': seat_times.reminders_of(settings),
+            'deadline': seat_times.deadline_hm(settings), 'week': friday, 'layout': bool(layout),
+            'pending': len(seat_reminders.unanswered_families(ctx.repo, k, friday)) if layout else None,
+            'sent': {n: n in sent for n in seat_times.DEFAULT_REMINDERS}}
+
+
+def get_times(ctx, params):
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
+    return 200, _times_out(ctx, params['k'])
+
+
+def put_times(ctx, params):
+    """`{deadline?, reminders?: {n: {on?, day?, time?}}}` (at least one): the merged chain must stay in order."""
+    k = params['k']
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
+    d = inputs.body_object(ctx)
+    if not d or not set(d) <= {'deadline', 'reminders'}:
+        raise ApiError(400, 'invalid_body')
+    settings = ctx.repo.get_kehila(k).get('settings', {})
+    current = seat_times.reminders_of(settings)
+    reminders = seat_times.parse_reminders(d['reminders'], current) if 'reminders' in d else current
+    deadline = wk.valid_deadline(d['deadline']) if 'deadline' in d else seat_times.deadline_hm(settings)
+    changed = f"reminders.{next(iter(d['reminders']))}" if 'reminders' in d and d['reminders'] else 'deadline'
+    seat_times.check(reminders, deadline, changed)
+    ctx.repo.set_settings(k, seat_deadline=deadline if 'deadline' in d else None,
+                          seat_reminders=reminders if 'reminders' in d else None)
+    return 200, _times_out(ctx, k)
+
+
 def put_week(ctx, params):
     """On behalf: `{prayer, released: {seatId: bool}, ifUpdatedAt}`, any time, any assigned seat, marked gabbai."""
     k = params['k']

@@ -329,6 +329,11 @@ class SeatingRepo:
                     raise
         raise ApiError(409, 'week_changed')
 
+    def seat_reminders_sent(self, k, friday):
+        """The reminder numbers already claimed for that Shabbat (markers `SEATREM#<friday>#<n>`)."""
+        prefix = f'SEATREM#{friday}#'
+        return {i['sk'][len(prefix):] for i in self._query_prefix(k, prefix, consistent=True)}
+
     def layout_for(self, k, friday):
         """The latest layout version taking effect on or before that Friday, or None."""
         found = [i for i in self.list_layouts(k) if i['effectiveFrom'] <= friday]
