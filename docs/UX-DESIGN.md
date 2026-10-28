@@ -1912,7 +1912,7 @@ Top to bottom, one column, RTL:
 4. A short wire and a pill "הילדים · n", then the **children grid**: 3 columns, gap 8, square tiles (≥ 104 high).
    A married child is one tile spanning 2 columns with the couple icon and both first names ("נועה ואליהו"). Last
    tile: dashed "+ ילד/ה". Seven children and one married child = 3 rows; nothing scrolls sideways, nothing shrinks.
-5. Privacy line with a lock: "רק אתם ו{partner} רואים את העץ ואת הפרטים."
+5. Privacy line with a lock: "את העץ והפרטים רואים אתם, {partner} והגבאים של הקהילה." (owner decision 1, §17.11)
 
 On a 390 × 844 screen the first view shows the parents, us and the first children row; the rest is plain vertical
 scroll. Pinch-zoom is not used.
@@ -1950,7 +1950,8 @@ One inline-SVG line set, 32 × 32, stroke `currentColor` 1.6, soft parts (hair, 
 
 The icon follows the role (generation) and the gender field; an empty slot already shows the right face. Deceased =
 the same icon in ash + candle + "ז״ל" (never the candle alone). The head-covering and kippah convention suits this
-Kehila; if another Kehila wants plain faces, that is one icon swap (open question 5).
+Kehila (owner decision 5: keep it). **P31–P33 still draw these line icons; the owner asked for illustrated figures,
+which §17.13 / P34 proposes. Once a direction is chosen, P31–P33 are redrawn with it.**
 
 ### 17.4 The person sheet (P32)
 
@@ -1961,7 +1962,7 @@ content is a side panel (§17.6).
    "הבת שלנו ובן הזוג שלה").
 2. **Computed name card** (tekhelet 6 px start edge): overline "השם לעלייה לתורה", the name in serif 21, and a line
    "למי שברך: יוסף בן שרה". Women: overline "השם של נועה", "נועה בת יוסף". Deceased: ash edge, overline "השם לאזכרה",
-   "אברהם בן יצחק הלוי ז״ל", and "יארצייט: כ״ג בשבט · השנה ביום א׳ 31.1.2027".
+   "אברהם בן יצחק הלוי ז״ל", and "נפטר בכ״ג בשבט תשע״ח".
    **Incomplete**: gold edge, overline "השם לעלייה לתורה · חסר שם האב", the missing part as a gold dashed blank
    ("יוסף בן ___"); same for "חסר שם האם" in the Mi Sheberach line. This is where "missing" is spelled out.
 3. **Fields** (in this order):
@@ -1970,13 +1971,13 @@ content is a side panel (§17.6).
    - שם האב / שם האם (one row). **When the parent's figure has a name, it is read-only** with a "מהעץ" link that opens
      that figure. When it is empty, it is a normal field ("השם העברי של אבא") with the note "השם יישמר גם בדמות של אבא
      בעץ": typing here fills the parent's figure, so there is one source of truth.
-   - כהן, לוי או ישראל — men only. Inherited when the father's figure has it (read-only "לוי · כמו האב"); otherwise three
-     Chips. Women: none (open question 4).
+   - כהן, לוי או ישראל — men only (women: none, owner decision 2). Three Chips, **prefilled from the father's figure
+     when the figure is created**, editable by hand afterwards ("נלקח מהאב כשהדמות נוצרה. אפשר לשנות.").
    - תאריך לידה: Hebrew day+month select and year select; the Gregorian date is computed and shown under it ("לועזי:
      24.6.1982"), and can be typed instead. Children under 13 (boys) / 12 (girls): "בר מצווה: י״ד בכסלו תשפ״ט, שבת
      2.12.2028" / "בת מצווה: …". Optional everywhere.
    - Segmented **בחיים / 🕯 נפטר/ה**. Deceased adds "תאריך הפטירה (עברי)" (day, month, year selects) with the Gregorian
-     date and "היארצייט יופיע אצלכם ב'ימי זיכרון'". Date unknown is allowed (no yahrzeit, no dot).
+     date. Date unknown is allowed (no dot for it). **No yahrzeit calculation** in this version (owner decision 4).
 4. **Save** (primary). Remove only for children and spouses (inline confirm: "להסיר את {name} מהעץ? הפרטים יימחקו גם
    אצל {partner}." danger "כן, להסיר" + "השארה"). Parents' figures have "ניקוי הפרטים" instead (the slot stays).
 
@@ -1991,8 +1992,9 @@ last level: first name, son/daughter and birth date only; their father's name co
 daughter's husband. The spouse's own parents are not drawn: the spouse sheet has free-text "שם האב" / "שם האם".
 
 **Dates.** Hebrew first (selects), Gregorian computed. Checks: death before birth, birth in the future (error Banners).
-Died in Adar of a non-leap year: in a leap year the yahrzeit falls in **אדר א׳ or אדר ב׳** — Chips per figure, "לפי
-המנהג שלכם" (no default; asked once when the date is saved).
+**Exact Adar**: the month select lists the months of the chosen year; in a leap year it offers "אדר א׳" and "אדר ב׳"
+(never a plain "אדר"), in a regular year one "אדר". The stored date keeps which Adar it was (birth and death alike).
+Yahrzeit logic will be added later (owner: from "Noam"); it reads these exact dates.
 
 ### 17.5 Name rules (for the developer)
 
@@ -2002,11 +2004,11 @@ Died in Adar of a non-leap year: in a leap year the yahrzeit falls in **אדר �
 - Memorial name = aliyah name + " ז״ל".
 - Father's name = the father figure's `hebrewFirst` (all its words, e.g. "יוסף חיים"). A figure is **complete** when its
   first name and both parents' names exist (tribe for men if the father's is unknown). Incomplete → dot on the tree.
-- Tribe of a man = his father's tribe when known.
+- Tribe of a man: copied from his father's figure when the figure is created; stored on the man and editable.
 - Data: one `people` list per family (both adults edit it, like the children list in §10), each with `relation`
   (self, spouse, father/mother of a person id, child, child's spouse, grandchild), `gender`, `hebrewFirst`, `surname`,
   `fatherName`/`motherName` (only when no parent figure), `tribe` (men, when no father figure), `birth` (Hebrew +
-  Gregorian), `deceased`, `death` (Hebrew), `adarChoice`. The children list (P2/P3) and today's `torahName`,
+  Gregorian), `deceased`, `death` (Hebrew; month stores אדר א׳ / אדר ב׳ in leap years). The children list (P2/P3) and today's `torahName`,
   `barMitzvahParasha`, `children[].spouse*` fields migrate into it; deceased figures produce the yahrzeit entries
   (`relationship` gains `spouse`); yahrzeits for siblings stay in the manual "ימי זיכרון" list.
 - Limits: 20 children (as §10), 20 grandchildren per married child, 6 generations up.
@@ -2049,17 +2051,17 @@ candle / empty / selected / path), **`FaceIcon`** (`oldman`, `oldwoman`, `man`, 
 | `tree.addChild` | ילד/ה | Child |
 | `tree.noSiblings` | אחים ואחיות לא נרשמים בעץ. רק מי שהשם שלו נחוץ לשמות שלכם. | Siblings aren't recorded. Only people whose names your names need. |
 | `tree.start` / `.startBody` | מתחילים מכם / לחצו על דמות ומלאו את השם העברי. שם האב עובר מעצמו לילדים, וכך נבנה השם לעלייה לתורה. | Start with you / Tap a person and fill in the Hebrew name. A father's name passes to the children, building the aliyah name. |
-| `tree.privacy` | רק אתם ו{partner} רואים את העץ ואת הפרטים. | Only you and {partner} see the tree and details. |
+| `tree.privacy` | את העץ והפרטים רואים אתם, {partner} והגבאים של הקהילה. | You, {partner} and the Kehila's gabbaim see the tree and details. |
 | `tree.rel.*` | אבא של {name} · אמא של {name} · בעלה של {name} · אשתו של {name} · הבת שלנו · הבן שלנו · בן הזוג של {name} · נכד/ה | {name}'s father · mother · husband · wife · our daughter · our son · {name}'s spouse · grandchild |
 | `tree.name.aliyah` / `.mi` / `.memorial` / `.her` | השם לעלייה לתורה / למי שברך: {name} / השם לאזכרה / השם של {name} | Aliyah name / Mi Sheberach: {name} / Memorial name / {name}'s name |
 | `tree.missFather` / `.missMother` | חסר שם האב / חסר שם האם | Father's name missing / Mother's name missing |
 | `tree.f.first` / `.firstHint` / `.surname` | שם פרטי עברי / שם פרטי כמו שקוראים לתורה. שם כפול? כתבו את שניהם. / שם משפחה | Hebrew first name / As called to the Torah. Two names? Write both. / Surname |
 | `tree.f.father` / `.mother` / `.fromTree` / `.fillsParent` | שם האב / שם האם / מהעץ / השם יישמר גם בדמות של {אבא/אמא} בעץ. | Father's name / Mother's name / From the tree / Also saved on the {father/mother} in the tree. |
-| `tree.f.tribe` / `.likeFather` | כהן, לוי או ישראל / כמו האב | Kohen, Levi or Yisrael / Same as father |
+| `tree.f.tribe` / `.fromFather` | כהן, לוי או ישראל / נלקח מהאב כשהדמות נוצרה. אפשר לשנות. | Kohen, Levi or Yisrael / Taken from the father when this person was added. You can change it. |
 | `tree.f.birth` / `.greg` / `.barMitzvah` / `.batMitzvah` | תאריך לידה / לועזי: {date} / בר מצווה: {hdate}, {day} {date} / בת מצווה: … | Date of birth / Gregorian: {date} / Bar mitzvah: … / Bat mitzvah: … |
 | `tree.f.alive` / `.deceased` | בחיים / נפטר/ה | Living / Deceased |
-| `tree.f.death` / `.deathNote` / `.yahrzeit` | תאריך הפטירה (עברי) / היארצייט יופיע אצלכם ב"ימי זיכרון". / יארצייט: {hdate} · השנה ביום {day} {date} | Date of death (Hebrew) / The yahrzeit will appear in Memorial days. / Yahrzeit: … |
-| `tree.f.adar` / `.adarNote` | נפטר/ה באדר, בשנה בלי אדר ב׳. בשנה מעוברת היארצייט ב: אדר א׳ / אדר ב׳ / לפי המנהג שלכם. נשמר לדמות הזו. | Died in Adar of a regular year. In a leap year the yahrzeit is in Adar I / Adar II / Per your custom. Saved for this person. |
+| `tree.f.death` / `.diedOn` | תאריך הפטירה (עברי) / נפטר/ה ב{hdate} | Date of death (Hebrew) / Died on {hdate} |
+| `tree.f.adar` / `.adarNote` | אדר א׳ / אדר ב׳ / בשנה מעוברת יש שני חודשי אדר, ושומרים בדיוק איזה מהם. | Adar I / Adar II / A leap year has two Adars; we keep exactly which one. |
 | `tree.err.deathBeforeBirth` / `.future` | תאריך הפטירה מוקדם מתאריך הלידה. / התאריך לא יכול להיות בעתיד. | Date of death is before date of birth. / The date can't be in the future. |
 | `tree.feedWarn` / `.feedDone` | זה גם שם האב של {n} הילדים. בשמירה השמות שלהם יתעדכנו. / נשמר. השם עודכן אצל {n} הילדים | This is also the father's name of {n} children. Their names will update. / Saved. Updated for {n} children |
 | `tree.spouse` / `.grandkids` / `.addGrandkid` / `.grandkidsNote` | בן הזוג / בת הזוג · הילדים שלהם · {n} / הוספת נכד/ה / נכדים נרשמים כאן בשם, בן/בת ותאריך לידה. העץ לא ממשיך מתחתיהם. | Spouse · Their children · {n} / Add a grandchild / Grandchildren have a name, son/daughter and birth date. The tree stops there. |
@@ -2075,19 +2077,21 @@ candle / empty / selected / path), **`FaceIcon`** (`oldman`, `oldwoman`, `man`, 
 3. Upward navigation re-centres one generation at a time; no zoomed-out full chart, no pinch.
 4. Married children: one level of grandchildren (rows inside the sheet), no deeper; the spouse's parents are free text.
 5. No siblings in the tree (sibling yahrzeits stay in the manual list).
-6. Family-only by default; gabbaim see nothing of the tree until question 1 is decided.
+6. Visible to the family and to the Kehila's gabbaim (owner decision 1); listeners and other members see nothing.
 7. Mi Sheberach uses the mother's name; memorial uses the father's name (+ ז״ל).
+8. Women have no tribe field.
 
-### 17.11 Open questions for the owner
+### 17.11 Owner decisions (2026-10-28)
 
-1. **Gabbai visibility.** The aliyah name is what the gabbai calls out. Default per the owner is family-only. Suggest a
-   family switch "הגבאים יראו את השמות לעלייה ואת ימי היארצייט" (names and dates only, never the tree). On or off by
-   default?
-2. **Women's tribe.** Record "בת כהן / בת לוי" (pidyon haben, some customs), or men only as drawn?
-3. **Kohen/Levi from the father**: lock it to the father's figure (drawn), or allow an override (adoption, conversion,
-   uncertain lineage)?
-4. **Adar yahrzeit in a leap year**: ask per person (drawn) or one Kehila setting set by the gabbai?
-5. **Icon style**: kippah and head covering fit this Kehila. Keep, or make plain faces a Kehila option?
+1. **The gabbai sees the whole tree.** The details are collected for the gabbai. No family switch. Gabbai access is
+   read-only, from the member's card in "חברים" (P11 family block gains "עץ המשפחה ›"). Copy: `tree.privacy`.
+2. **No tribe for women** (no בת כהן / בת לוי).
+3. **Kohen / Levi / Yisrael** defaults from the father when the figure is created; editable by hand.
+4. **Yahrzeit calculation is out of scope** for now (the logic comes later from "Noam"). Collection must be exact: a
+   date in a leap year records אדר א׳ or אדר ב׳.
+5. **Keep the kippah and head-covering style** for the figures; the "without" variants stay available per figure.
+
+Still open: the figure style direction and the figure options (§17.13).
 
 ### 17.12 Verification
 
@@ -2096,3 +2100,58 @@ Checked: the 7-child family fits in three rows at 390, no horizontal scroll, she
 the dot, candle and icons. Not checked: real devices, 360-wide Android, English (LTR), screen readers, web fonts
 (the shots may use fallback fonts if Google Fonts was not reachable). Hebrew dates in the frames were computed with
 `Intl` (hebrew calendar); the copy needs a native editor.
+
+### 17.13 Figure set (P34)
+
+The owner wants this screen to be "very cool": warm, friendly illustrated people, not line icons (his reference is a
+stock "family icon variations" set: smiling upper-body family members, three generations; we keep only its spirit, the
+drawings are original). P34 "סט הדמויות" shows every figure in **two directions to choose from**, each figure at both
+sizes (sheet header and the 390 tree tile) in light and dark:
+
+- **A · דמויות מלאות**: a whole standing person, soft flat shapes, no outlines. Height and proportions tell the age;
+  the tile crops to the figure so a toddler fills its square like an adult.
+- **B · ראש ופלג גוף**: a big round head and shoulders inside a coloured disc ("chibi"). Faces stay readable at 52 px,
+  which matters in the parents row.
+
+**Palette.** Fixed illustration colours built from the app tokens (tekhelet, pomegranate, olive, gold, ash, stone) plus
+three skin tones and five hair colours (brown, black, auburn, blond, grey/white). The art keeps its colours in dark
+mode; only the tile, disc (`--disc`) and "stage" (`--spot`) behind it follow the theme.
+
+**Children grow with age** (from the Hebrew birth date; no date → ילד/ה 4–8):
+
+| Stage | Boys | Girls |
+|---|---|---|
+| תינוק/ת | 0–1, swaddled, tuft of hair | 0–1, swaddled, headband with a bow |
+| פעוט/ה | 1–3, curls, waving | 1–3, curls and a hair band, waving |
+| ילד/ה | 4–8, kippah and tzitzit from here, waving | 4–8, plaits with bows, waving |
+| ילד/ה גדול/ה | 9–12 | 9–11, ponytail |
+| נער/ה | 13–17 (from bar mitzvah) | 12–17 (from bat mitzvah), long hair, long skirt |
+| בחור/ה | 18+, not married | 18+, not married |
+
+**Adults** (our couple) and **older** (parents and up): three options each. Man: knitted kippah and short beard
+(default) · black kippah and glasses · no kippah. Woman: tichel (default for married) · tichel and glasses · no head
+covering. Older man: white beard, glasses, black kippah (default) · grey beard, knitted kippah · no kippah. Older
+woman: tichel and glasses (default) · tichel · grey bun, no covering. The option is stored per person ("איך להציג",
+in the sheet); the default follows the person's generation and gender.
+
+**Married child**: keeps one place among the siblings, as a 2-column tile. Our child stands **in front, slightly
+larger, on a tekhelet "stage"** (an ellipse under the feet, and a 3 px tekhelet bar under our side of the tile); the
+spouse stands one step behind. The name reads ours first ("אליעזר ותהילה"). Shown for a son with his wife and a
+daughter with her husband (she in a tichel, he behind).
+
+**Deceased**: the same figure in greyscale at 62% (no black, no red), the candle badge and "ז״ל". **Empty / add**: a
+dashed outline (body in A, head-and-shoulders in a dashed circle in B) and the tekhelet "+".
+
+**For the owner to choose:**
+1. Direction **A** (full body) or **B** (head and shoulders).
+2. The default options per generation (as listed) — confirm, or change a default.
+3. Default skin tone for a new family (three are drawn; each person can change it).
+4. The children's age bands (bat mitzvah at 12 starts "נערה").
+
+**Build note.** One parametric `FamilyFigure` component (`react-native-svg`): `{ stage, gender, variant, skin, hair,
+deceased, size }` → paths. Stage comes from the birth date and marital status; variant from the person's "איך להציג".
+The frames generate every figure from such parameters, so the component can follow the same shapes.
+
+Verification: P34 rendered with headless Chromium at 390 (light and dark) and 1280; no horizontal scroll at 390. Not
+checked: real devices, the 360 width, and how small A reads in the parents row on a real phone.
+
