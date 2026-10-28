@@ -47,7 +47,7 @@ class AutoLinkTest(sl.SeatLinkTest):
         self.assertEqual(item['expiresAt'] - item['at'], 14 * DAY)
 
     def test_unique_phone_links(self):
-        h = self.holder_named('אחר לגמרי', phone='050-888-8888')
+        h = self.holder_named('משפחת מאזין', phone='050-888-8888')  # phone counts only together with the surname
         self.give(f'holder:{h}', (5, 0))
         fam = self.register()
         self.assertEqual(list(self.asg().values()), [f'family:{fam}'])
@@ -55,7 +55,7 @@ class AutoLinkTest(sl.SeatLinkTest):
 
     def test_two_candidates_stay_suggestions(self):
         a = self.holder_named('מאזין ל.')
-        b = self.holder_named('אחר', phone='0508888888')
+        b = self.holder_named('מאזין', phone='0508888888')
         self.register()
         self.assertEqual({a, b} <= self.holder_ids(), True)
         self.assertEqual(self.autos()[1]['count'], 0)
@@ -112,7 +112,7 @@ class AutoLinkTest(sl.SeatLinkTest):
         h = self.holder_named('מאזין ל.', phone='0507770000')
         self.give(f'holder:{h}', (5, 0), (5, 1))
         self.register()
-        self.assertEqual(self.undo(h), (200, {'holderId': h}))
+        self.assertEqual(self.undo(h), (200, {'holderId': h, 'skipped': 0}))
         self.assertIn(h, self.holder_ids())
         self.assertEqual(sorted(self.asg().values()), [f'holder:{h}'] * 2)
         self.assertEqual(self.autos()[1]['count'], 0)
@@ -126,7 +126,7 @@ class AutoLinkTest(sl.SeatLinkTest):
         fam = self.register()
         self.owned[f'family:{fam}'] = ((5, 0),)
         self.give(f'family:{fam}', (6, 0))  # the gabbai moved the family to another seat
-        self.assertEqual(self.undo(h), (409, {'error': 'autolink_changed'}))
+        self.assertEqual(self.undo(h), (409, {'error': 'autolink_changed'}))  # every moved seat was changed
         self.assertEqual(list(self.asg().values()), [f'family:{fam}'])
         self.assertNotIn(h, self.holder_ids())
 
@@ -144,12 +144,163 @@ class AutoLinkTest(sl.SeatLinkTest):
         self.assertEqual(self.autos(sub='member-sub')[0], 403)
         self.assertEqual(self.undo(h, sub='member-sub')[0], 403)
 
-    def test_invite_accept_as_member_links_too(self):
+    def test_invite_accept_never_auto_links(self):
         h = self.holder_named('מאזין ל.')
-        self.repo.put_membership(self.k, self.listener, 'member')
-        self.repo.ensure_family(self.k, self.listener)
-        routes_seatlink.auto_link_family(self.ctx(), self.k, self.listener)
+        status, inv = self.call('POST', f'{self.base()}/invites', body={'role': 'member'})
+        self.assertEqual(status, 201, inv)
+        status, _ = self.call('POST', f'/v1/invites/{inv["code"]}/accept', sub='listener-sub', body={})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.repo.get_membership(self.k, self.listener)['role'], 'member')
+        self.assertIn(h, self.holder_ids())  # only a gabbai's approval auto-links
+        self.assertEqual(self.autos()[1]['count'], 0)
+
+    def hook(self):
+        return routes_seatlink.auto_link_family(self.ctx(), self.k, self.listener)
+
+    def approved_with_spouse(self, first, last):
+        """The registering family gets a second adult (first, last) = the old quiet user."""
+        self.register()
+        self.profile(self.quiet, first, last)
+        self.call('POST', f'{self.base()}/admin/families/link', body={'userIds': [self.listener, self.quiet]})
+
+    # certainty (C1)
+    def test_cross_adult_alone_never_links(self):
+        self.approved_with_spouse('מיכל', 'לוי')
+        cross = self.holder_named('לוי ל.')
+        self.assertIsNone(self.hook())
+        self.assertIn(cross, self.holder_ids())
+
+    def test_same_adult_links(self):
+        self.approved_with_spouse('מיכל', 'לוי')
+        mine = self.holder_named('לוי מ.')
+        self.assertEqual(self.hook(), mine)
+
+    def test_another_holder_with_the_surname_blocks(self):
+        a = self.holder_named('מאזין ל.')
+        b = self.holder_named('מאזין ש.')  # an unregistered same-surname household
+        self.register()
+        self.assertTrue({a, b} <= self.holder_ids())
+        self.assertEqual(self.autos()[1]['count'], 0)
+
+    def test_spelling_variant_holder_blocks(self):
+        a = self.holder_named('מאזין ל.')
+        b = self.holder_named('מאזן')
+        self.register()
+        self.assertTrue({a, b} <= self.holder_ids())
+
+    def test_a_pending_requester_with_the_surname_and_initial_blocks(self):
+        self.profile(self.add('req2-sub', 'listener', 'Lia Other'), 'לירון', 'מאזין')
+        self.assertEqual(self.call('POST', f'{self.base()}/membership-request', sub='req2-sub')[0], 202)
+        h = self.holder_named('מאזין ל.')
+        self.register()
+        self.assertIn(h, self.holder_ids())
+
+    def test_a_listener_or_member_with_the_surname_and_initial_blocks(self):
+        self.profile(self.add('l2-sub', 'listener', 'Lia Other'), 'לירון', 'מאזין')
+        h = self.holder_named('מאזין ל.')
+        self.register()
+        self.assertIn(h, self.holder_ids())
+
+    def test_other_surname_other_initial_does_not_block(self):
+        self.profile(self.add('l3-sub', 'listener', 'Sam Other'), 'שמעון', 'מאזין')
+        h = self.holder_named('מאזין ל.')
+        self.register()
         self.assertNotIn(h, self.holder_ids())
+
+    def test_phone_alone_is_only_a_suggestion(self):
+        h = self.holder_named('שם אחר לגמרי', phone='050-888-8888')
+        self.register()
+        self.assertIn(h, self.holder_ids())
+
+    def test_phone_shared_with_another_profile_blocks(self):
+        self.profile(self.add('l4-sub', 'listener', 'Sam Other'), 'שמעון', 'שונה', '+972508888888')
+        h = self.holder_named('מאזין', phone='050-888-8888')
+        self.register()
+        self.assertIn(h, self.holder_ids())
+
+    def test_phone_shared_with_another_holder_blocks(self):
+        a = self.holder_named('מאזין', phone='050-888-8888')
+        b = self.holder_named('אחר', phone='050-888-8888')
+        self.register()
+        self.assertTrue({a, b} <= self.holder_ids())
+
+    # resume (I2)
+    def test_partial_move_is_resumed_by_the_next_run(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0), (5, 1))
+        real = self.repo.move_holder_seats
+        with mock.patch.object(self.repo, 'move_holder_seats', side_effect=lambda *a: (_ for _ in ()).throw(Exception('boom'))):
+            fam = self.register()
+        self.assertIn(h, self.holder_ids())
+        (item,) = self.autos()[1]['items']
+        self.assertEqual((item['holderId'], item['state']), (h, 'pending'))
+        routes_seatlink.try_auto_link(self.ctx(), self.k, self.listener)  # the next approval finishes it
+        self.assertNotIn(h, self.holder_ids())
+        self.assertEqual(sorted(self.asg().values()), [f'family:{fam}'] * 2)
+        self.assertEqual(self.autos()[1]['items'][0]['state'], 'done')
+
+    def test_gabbai_can_finish_a_pending_one(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0))
+        with mock.patch.object(self.repo, 'move_holder_seats', side_effect=Exception('boom')):
+            self.register()
+        self.assertEqual(self.call('POST', f'{self.base()}/admin/seating/auto-links/{h}/finish'), (200, {'holderId': h}))
+        self.assertNotIn(h, self.holder_ids())
+        self.assertEqual(self.call('POST', f'{self.base()}/admin/seating/auto-links/{h}/finish')[0], 409)  # nothing pending
+
+    # undo (I1, I3)
+    def test_undo_restores_only_untouched_seats(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0), (5, 1), (5, 3))
+        fam = self.register()
+        self.owned[f'family:{fam}'] = ((5, 1),)
+        self.give(f'family:{fam}')  # a gabbai freed one seat meanwhile
+        status, body = self.undo(h)
+        self.assertEqual((status, body['holderId'], body['skipped']), (200, h, 1))
+        asg = self.asg()
+        self.assertEqual(sorted(asg.values()), [f'holder:{h}'] * 2)
+        self.assertNotIn(self.at[(5, 1)], asg)
+
+    def test_rerun_after_undo_does_nothing(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0))
+        self.register()
+        self.assertEqual(self.undo(h)[0], 200)
+        self.assertIsNone(self.hook())
+        self.assertIn(h, self.holder_ids())
+        self.assertEqual(self.autos()[1]['count'], 0)
+        self.assertEqual(self.undo(h)[0], 404)
+
+    def test_undo_restores_week_records_and_clears_the_card(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (4, 0), (4, 1))
+        self.assertEqual(self.gput({self.at[(4, 1)]: True})[0], 200)
+        self.assertEqual(self.respond([{'household': f'holder:{h}', 'released': 1, 'requests': {'ברחבה': 2}}], 'day')[0], 200)
+        fam = self.register()
+        week = self.admin_week()
+        self.assertEqual(week['prayers']['day']['requests'], {f'family:{fam}': {'ברחבה': 2}})
+        self.assertEqual(self.cards('listener-sub')['seatLink']['seats'], 2)
+        self.assertEqual(self.undo(h)[0], 200)
+        week = self.admin_week()
+        self.assertEqual(week['prayers']['day']['requests'], {f'holder:{h}': {'ברחבה': 2}})
+        erev = self.repo.get_week(self.k, sl.WEEK, 'erev')
+        self.assertTrue(all(v.get('h') == f'holder:{h}' for v in erev['seats'].values()))
+        self.assertIsNone(self.cards('listener-sub')['seatLink'])
+
+    def test_undo_twice_halfway_is_resumable(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0), (5, 1))
+        self.register()
+        with mock.patch.object(routes_seatlink, '_restore_weeks', side_effect=Exception('boom')):
+            self.assertEqual(self.undo(h)[0], 500)
+        self.assertEqual(self.undo(h)[0], 200)
+        self.assertEqual(sorted(self.asg().values()), [f'holder:{h}'] * 2)
+
+    def test_record_has_a_ttl(self):
+        h = self.holder_named('מאזין ל.')
+        self.register()
+        rec = self.repo.get_auto_link(self.k, h)
+        self.assertEqual(int(rec['expiresAt']) - int(rec['at']), 30 * DAY)
 
     def test_no_names_in_logs(self):
         self.holder_named('מאזין ל.')

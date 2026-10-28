@@ -144,6 +144,7 @@
     "autolink_not_found": "The automatic link was not found. It may already be undone.",
     "autolink_expired": "14 days have passed. An automatic link can no longer be undone.",
     "autolink_changed": "The seats changed since the automatic link, so it cannot be undone here.",
+    "autolink_not_pending": "No automatic link stopped half-way.",
     "week_changed": "The week changed in the meantime. Refresh and try again.",
     "layout_not_found": "The map was not found.",
     "invalid_assignments": "The seat assignments are not valid. Check the matches and try again.",
@@ -2352,7 +2353,7 @@
       "union": "{household} already hold {family} seats. After linking they will have {total}. If this is a double entry in the sheet, free a seat afterwards on the map.",
       "confirm": "Link and move the seats",
       "notThem": "Not the same family",
-      "never": "Never automatic, even on an identical phone. \"Not the same family\" hides this suggestion on this device; you can still link by hand.",
+      "never": "Only one unmistakable match is linked by itself, when a member is approved (it then shows above, with an undo). \"Not the same family\" hides this suggestion on this device; you can still link by hand.",
       "changed": "The record changed in the meantime. The list was refreshed; check and try again.",
       "retry": "The link did not complete. The record is kept. Try again.",
       "gone": "The record or the family was not found. The list was refreshed."
@@ -2362,7 +2363,11 @@
       "item": "Linked automatically: the {family} family ← seat holder {holder}",
       "until": "Can be undone until {date}",
       "undo": "Undo the link",
-      "undone": "Link undone. The seat holder is back."
+      "undone": "Link undone. The seat holder is back.",
+      "undonePartly": "Link undone. {n} seats changed meanwhile were left as they are.",
+      "pending": "The link stopped half-way. You can finish it.",
+      "finish": "Finish",
+      "finished": "Link finished."
     },
     "toast": {
       "created": "Seat holder created",

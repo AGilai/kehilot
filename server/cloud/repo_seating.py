@@ -158,9 +158,9 @@ class SeatingRepo:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise
 
-    # auto-link records (gabbai notice + undo data), SEATAUTO#<holderId>
+    # auto-link records (gabbai notice, undo snapshot, tombstone), SEATAUTO#<holderId>; expiresAt is the table TTL
     def put_auto_link(self, k, holder_id, fields):
-        """False when a record for the holder exists already (the auto-link ran or is running)."""
+        """False when a record for the holder exists already (pending, done or undone: all of them gate a re-run)."""
         try:
             self.table.put_item(Item={**self._key(k, f'SEATAUTO#{holder_id}'), **stored(fields), 'holderId': holder_id},
                                 ConditionExpression='attribute_not_exists(sk)')
@@ -170,14 +170,83 @@ class SeatingRepo:
                 raise
             return False
 
+    def update_auto_link(self, k, holder_id, fields):
+        names = {f'#f{i}': key for i, key in enumerate(fields)}
+        values = {f':v{i}': v for i, v in enumerate(stored(fields).values())}
+        self.table.update_item(Key=self._key(k, f'SEATAUTO#{holder_id}'),
+                               UpdateExpression='SET ' + ', '.join(f'#f{i} = :v{i}' for i in range(len(fields))),
+                               ExpressionAttributeNames=names, ExpressionAttributeValues=values,
+                               ConditionExpression='attribute_exists(sk)')
+
     def get_auto_link(self, k, holder_id):
         return self._seat_get(k, f'SEATAUTO#{holder_id}')
 
     def list_auto_links(self, k):
         return [plain(i) for i in self._query_prefix(k, 'SEATAUTO#', consistent=True)]
 
-    def delete_auto_link(self, k, holder_id):
-        self.table.delete_item(Key=self._key(k, f'SEATAUTO#{holder_id}'))
+    def week_snapshots(self, k, old, new):
+        """{'<friday>#<prayer>': {seats: [seat ids whose record names `old`], req, ans, famReq, famAns}} for the weeks that
+        mention `old`: what rename_week_ref(old -> new) is about to merge, so an undo can split it again."""
+        out = {}
+        for raw in self._query_prefix(k, 'SEATWK#', consistent=True):
+            item = plain(raw)
+            seats = sorted(s for s, v in (item.get('seats') or {}).items() if isinstance(v, dict) and v.get('h') == old)
+            reqs, ans = item.get('requests') or {}, item.get('answered') or {}
+            if not seats and old not in reqs and old not in ans:
+                continue
+            out['#'.join(item['sk'].split('#')[1:])] = {'seats': seats, 'req': reqs.get(old), 'ans': ans.get(old),
+                                                        'famReq': reqs.get(new), 'famAns': ans.get(new)}
+        return out
+
+    def restore_week_ref(self, k, old, new, snapshots):
+        """Undo of rename_week_ref for the snapshotted seats/entries only; anything changed since is left alone."""
+        for key, snap in snapshots.items():
+            friday, prayer = key.split('#')
+
+            def restored(item, snap=snap):
+                if not item:
+                    return {}
+                fields = {key: v for key, v in item.items() if key not in ('pk', 'sk', 'updatedAt')}
+                seats = dict(item.get('seats') or {})
+                for s in snap['seats']:
+                    v = seats.get(s)
+                    if isinstance(v, dict) and v.get('h') == new:
+                        seats[s] = {**v, 'h': old}
+                reqs, ans = dict(item.get('requests') or {}), dict(item.get('answered') or {})
+                if snap['req'] is not None:
+                    merged = {**snap['req'], **(snap['famReq'] or {})}
+                    reqs[old] = snap['req']
+                    if reqs.get(new) == merged:
+                        reqs.pop(new, None) if snap['famReq'] is None else reqs.__setitem__(new, snap['famReq'])
+                if snap['ans'] is not None:
+                    ans[old] = snap['ans']
+                    if ans.get(new) == max(snap['ans'], snap['famAns'] or 0):
+                        ans.pop(new, None) if snap['famAns'] is None else ans.__setitem__(new, snap['famAns'])
+                fields.update(seats=seats, requests=reqs)
+                if ans or 'answered' in item:
+                    fields['answered'] = ans
+                return fields
+            current = self.get_week(k, friday, prayer)
+            if current is not None and restored(current) != {key: v for key, v in current.items() if key not in ('pk', 'sk', 'updatedAt')}:
+                self.change_week(k, friday, prayer, restored)
+
+    def drop_seat_link_holder(self, k, user_id, holder_id, seats):
+        """Undo of add_seat_link_notice for one holder: its seats leave the Home card, and the card goes with the last one."""
+        item = self.table.get_item(Key=self._key(k, f'M#{user_id}'), ConsistentRead=True).get('Item')
+        held = set((item or {}).get('seatLinkHolders') or ())
+        if holder_id not in held:
+            return
+        if held == {holder_id}:
+            return self.clear_seat_link_notice(k, user_id)
+        try:
+            self.table.update_item(
+                Key=self._key(k, f'M#{user_id}'), UpdateExpression='DELETE seatLinkHolders :h SET seatLinkSeats = :n',
+                ConditionExpression='attribute_exists(sk) AND contains(seatLinkHolders, :id)',
+                ExpressionAttributeValues={':h': {holder_id}, ':id': holder_id,
+                                           ':n': max(0, int(item.get('seatLinkSeats') or 0) - seats)})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
 
     def holder_ref_left(self, k, holder_id):
         """True while any layout version still assigns a seat to the holder."""

@@ -1,5 +1,7 @@
-"""Routes: suggest and confirm linking a seat holder (no account) to a registered family. Gabbai-only; nothing is
-linked without a confirm (spec ruling 7: a family that already holds seats gets the union)."""
+"""Routes: suggest and confirm linking a seat holder (no account) to a registered family. Gabbai-only. A link is a
+gabbai's confirm (spec ruling 7: a family that already holds seats gets the union), except the one certain case the owner
+allowed: when a gabbai approves a member, auto_link_family links the single holder that unmistakably is that family (below),
+leaves a record the gabbai sees for 14 days and can undo."""
 import logging
 import time
 from datetime import datetime
@@ -13,8 +15,9 @@ from .routes_groups import GABBAI
 from .routes_seating import _holder, _live_family
 
 MEMBER_ROLES = ('member', 'gabbai')
-CERTAIN = ('phone-surname', 'surname-initial', 'phone')  # what may auto-link; everything else stays a suggestion
+CERTAIN = ('phone-surname', 'surname-initial')  # what may auto-link; everything else (a bare phone too) stays a suggestion
 UNDO_SECONDS = 14 * 86400
+KEEP_SECONDS = 30 * 86400  # the record (names, phone) is erased by the table TTL after this
 log = logging.getLogger(__name__)
 
 
@@ -116,13 +119,17 @@ def link_holder(ctx, params):
     adults = ctx.repo.live_adults(k, family) if family else []
     if not adults:
         raise ApiError(404, 'family_not_found')
+    rec = ctx.repo.get_auto_link(k, item['holderId'])
+    if rec and rec.get('state') == 'pending':
+        raise ApiError(409, 'try_again')  # the automatic link is mid-way: finish it first
     seats = _move(ctx, k, item['holderId'], family_id, adults)
     return 200, {'familyId': family_id, 'seats': seats}
 
 
-def _move(ctx, k, holder_id, family_id, adults):
+def _move(ctx, k, holder_id, family_id, adults, seats=None):
     """The confirmed link itself (shared by the gabbai's confirm and the auto-link); returns the seat count."""
-    seats = _seats_of(ctx, k, f'holder:{holder_id}')  # before the move: notices are idempotent per holder
+    if seats is None:
+        seats = _seats_of(ctx, k, f'holder:{holder_id}')  # before the move: notices are idempotent per holder
     if seats:
         for m in adults:
             ctx.repo.add_seat_link_notice(k, m['userId'], holder_id, seats, int(time.time()))
@@ -134,107 +141,223 @@ def _move(ctx, k, holder_id, family_id, adults):
     return seats
 
 
+# ------------------------------------------------------------------------------------------------- auto-link
+def _person(profile):
+    return {'lastName': profile.get('lastName'), 'firstNames': [profile['firstName']] if profile.get('firstName') else [],
+            'phones': [profile['phone']] if profile.get('phone') else []}
+
+
+def _initial(profile):
+    return link.normalize(profile.get('firstName') or '')[:1]
+
+
+def certain_holder(ctx, k, adults):
+    """The one holder that unmistakably is this family, or None. Certain means ALL of:
+    - one candidate only: a holder whose explicit initial + surname are ONE adult's own first initial and surname, or whose
+      phone is the same adult's and who also has that adult's surname (a bare phone is only a suggestion);
+    - surname+initial: no other holder has that surname (spelling variants, any initial or none), and nobody else in the
+      Kehila (members, listeners, requesters) has that surname with that initial (or no first name);
+    - phone: no other holder has that phone and no other profile has it."""
+    holders = ctx.repo.list_holders(k)
+    ids = [m['userId'] for m in adults]
+    profiles = _profiles(ctx, ids)
+    found = {}
+    for h in holders:
+        for uid in ids:
+            m = link.match(h, _person(profiles[uid]))
+            if m and m[0] in CERTAIN:
+                found.setdefault(h['holderId'], (h, m[0], uid))
+    if len(found) != 1:
+        return None
+    holder, why, uid = next(iter(found.values()))
+    others = [o for o in holders if o['holderId'] != holder['holderId']]
+    mine = set(ids)
+    rest = [m['userId'] for m in ctx.repo.list_members(k) if m['userId'] not in mine]
+    rest += [r['sk'][len('REQ#'):] for r in ctx.repo.list_requests(k) if r['sk'][len('REQ#'):] not in mine and r['sk'][len('REQ#'):] not in rest]
+    others_profiles = _profiles(ctx, rest)
+    if why == 'phone-surname':
+        digits = link.digits(holder.get('phone'))
+        if any(link.digits(o.get('phone')) == digits for o in others):
+            return None
+        if any(link.digits(p.get('phone')) == digits for p in others_profiles.values()):
+            return None
+        return holder
+    if any(link.holders_alike(holder['name'], o['name']) for o in others):
+        return None
+    initial = link.split_holder_name(holder['name'])[1]
+    for p in others_profiles.values():
+        if link.surname_alike(holder['name'], p.get('lastName')) and (not _initial(p) or _initial(p) == initial):
+            return None
+    return holder
+
+
+def _finish(ctx, k, rec):
+    """Run (or resume) the recorded link: add the seats put on the holder since, then the confirmed link itself."""
+    holder_id, family_id = rec['holderId'], rec['familyId']
+    family = ctx.repo.get_family(k, family_id)
+    adults = ctx.repo.live_adults(k, family) if family else []
+    if not adults:
+        raise ApiError(404, 'family_not_found')
+    ref = f'holder:{holder_id}'
+    moved = {f: list(v) for f, v in (rec.get('moved') or {}).items()}
+    grown = False
+    for friday, item in ctx.repo.list_assignments(k).items():
+        extra = [s for s, r in item['assignments'].items() if r == ref and s not in moved.get(friday, ())]
+        if extra:
+            moved[friday] = sorted(moved.get(friday, []) + extra)
+            grown = True
+    if grown:
+        ctx.repo.update_auto_link(k, holder_id, {'moved': moved})
+    _move(ctx, k, holder_id, family_id, adults, int(rec['seats']))
+    ctx.repo.update_auto_link(k, holder_id, {'state': 'done'})
+
+
 def auto_link_family(ctx, k, user_id):
-    """Called when `user_id` became an active member (approved, invited as member). Links the ONE holder that
-    certainly is this family (same phone, or surname + first initial of either adult), only when that holder fits no
-    other family and no other holder fits this one. Idempotent; leaves linked and mid-link holders alone. Returns the
-    holder id or None. Never logs names."""
+    """Called when a gabbai approved `user_id` as a member. Links the ONE holder that certainly is this family
+    (certain_holder), after recording a pending snapshot (seats and week records that move) so the run can be resumed and
+    undone. Idempotent; leaves linked, mid-link and un-linked (tombstoned) holders alone. Returns the holder id or None.
+    Never logs names."""
     membership = ctx.repo.get_membership(k, user_id)
     family_id = (membership or {}).get('familyId')
     if not family_id or membership.get('role') not in MEMBER_ROLES:
         return None
-    holders = ctx.repo.list_holders(k)
     family = ctx.repo.get_family(k, family_id)
     adults = ctx.repo.live_adults(k, family) if family else []
-    if not holders or not adults:
+    if not adults or not ctx.repo.list_holders(k):
         return None
-    families = _families(ctx, k)
-    if family_id not in families:
+    holder = certain_holder(ctx, k, adults)
+    if not holder:
         return None
-    fits = {}
-    for h in holders:
-        for fid, fam in families.items():
-            if any((link.match(h, p) or ('',))[0] in CERTAIN for p in fam['people'].values()):
-                fits.setdefault(h['holderId'], set()).add(fid)
-    mine = [h for h in holders if family_id in fits.get(h['holderId'], ())]
-    if len(mine) != 1 or len(fits[mine[0]['holderId']]) != 1:
-        return None
-    holder = mine[0]
     holder_id = holder['holderId']
-    if any(holder_id in (m.get('seatLinkHolders') or ()) for fam in families.values() for m in fam['members']):
+    if any(holder_id in (m.get('seatLinkHolders') or ()) for m in ctx.repo.list_members(k)):
         return None  # a manual link is mid-way
-    today = rules.current_shabbat(_now().date()).isoformat()
     ref = f'holder:{holder_id}'
     moved = {friday: sorted(s for s, r in item['assignments'].items() if r == ref)
              for friday, item in ctx.repo.list_assignments(k).items()}
-    moved = {f: seats for f, seats in moved.items() if seats}
     now = int(time.time())
-    if not ctx.repo.put_auto_link(k, holder_id, {
-            'familyId': family_id, 'holderName': holder['name'], 'holderPhone': holder.get('phone'),
-            'holderCreatedAt': holder['createdAt'], 'familyName': families[family_id]['names'],
-            'seats': _seats_of(ctx, k, ref), 'moved': moved, 'at': now, 'day': today}):
+    rec = {'state': 'pending', 'familyId': family_id, 'holderName': holder['name'], 'holderPhone': holder.get('phone'),
+           'holderCreatedAt': holder['createdAt'], 'familyName': ', '.join(m.get('displayName', '') for m in adults),
+           'seats': _seats_of(ctx, k, ref), 'moved': {f: v for f, v in moved.items() if v},
+           'weeks': ctx.repo.week_snapshots(k, ref, f'family:{family_id}'), 'at': now, 'expiresAt': now + KEEP_SECONDS}
+    if not ctx.repo.put_auto_link(k, holder_id, rec):
         return None
-    _move(ctx, k, holder_id, family_id, adults)
+    _finish(ctx, k, {**rec, 'holderId': holder_id})
     log.info('seat auto-link kehila=%s holder=%s family=%s', k, holder_id, family_id)
     return holder_id
 
 
+def resume_pending(ctx, k):
+    """Finish auto-links that stopped half-way (every later approval retries them)."""
+    for rec in ctx.repo.list_auto_links(k):
+        if rec.get('state') == 'pending':
+            try:
+                _finish(ctx, k, rec)
+            except Exception as error:
+                _warn('seat auto-link resume failed', k, error, rec['holderId'])
+
+
+def _warn(text, k, error, ref):
+    log.warning('%s kehila=%s ref=%s error=%s%s', text, k, ref, type(error).__name__,
+                f' code={error.code}' if isinstance(error, ApiError) else '')
+
+
 def try_auto_link(ctx, k, user_id):
-    """The hook: an auto-link never breaks the approval or the invite."""
+    """The hook: an auto-link never breaks the approval."""
+    try:
+        resume_pending(ctx, k)
+    except Exception as error:
+        _warn('seat auto-link resume failed', k, error, user_id)
     try:
         auto_link_family(ctx, k, user_id)
-    except Exception:
-        log.warning('seat auto-link failed kehila=%s user=%s', k, user_id)
+    except Exception as error:
+        _warn('seat auto-link failed', k, error, user_id)
 
 
 def list_auto_links(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)
     now = int(time.time())
-    items = []
-    for r in ctx.repo.list_auto_links(k):
-        if int(r['at']) + UNDO_SECONDS <= now:
-            continue
-        items.append({'holderId': r['holderId'], 'holderName': r['holderName'], 'familyId': r['familyId'],
-                      'familyName': r['familyName'], 'seats': int(r['seats']), 'at': int(r['at']),
-                      'expiresAt': int(r['at']) + UNDO_SECONDS})
+    items = [{'holderId': r['holderId'], 'holderName': r['holderName'], 'familyId': r['familyId'],
+              'familyName': r['familyName'], 'seats': int(r['seats']), 'state': r['state'], 'at': int(r['at']),
+              'expiresAt': int(r['at']) + UNDO_SECONDS}
+             for r in ctx.repo.list_auto_links(k) if r.get('state') in ('pending', 'done') and int(r['at']) + UNDO_SECONDS > now]
     items.sort(key=lambda i: (-i['at'], i['holderId']))
     return 200, {'count': len(items), 'items': items}
 
 
-def undo_auto_link(ctx, params):
-    """Restores the holder and moves its seats back, only when every moved seat still belongs to the family."""
+def _auto_record(ctx, params, live_states):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)
     holder_id = params['holderId']
-    if not ID_RE.fullmatch(holder_id):
+    rec = ctx.repo.get_auto_link(k, holder_id) if ID_RE.fullmatch(holder_id) else None
+    if not rec or rec.get('state') == 'undone':
         raise ApiError(404, 'autolink_not_found')
-    rec = ctx.repo.get_auto_link(k, holder_id)
-    if not rec:
-        raise ApiError(404, 'autolink_not_found')
+    if rec['state'] not in live_states:
+        raise ApiError(409, 'autolink_not_pending')
+    return k, rec
+
+
+def finish_auto_link(ctx, params):
+    """A gabbai's retry of an auto-link that stopped half-way."""
+    k, rec = _auto_record(ctx, params, ('pending',))
+    _finish(ctx, k, rec)
+    return 200, {'holderId': rec['holderId']}
+
+
+def _restore_weeks(ctx, k, rec):
+    ctx.repo.restore_week_ref(k, f'holder:{rec["holderId"]}', f'family:{rec["familyId"]}', rec.get('weeks') or {})
+
+
+def undo_auto_link(ctx, params):
+    """Restores the holder and moves back every seat that is still the family's (a seat the gabbai changed since is left
+    as it is and counted in `skipped`; 409 `autolink_changed` when none could be restored). Week records follow, the
+    family's Home card loses the holder, and a tombstone keeps the holder from being auto-linked again. Resumable."""
+    k, rec = _auto_record(ctx, params, ('pending', 'done'))
+    holder_id = rec['holderId']
     if int(rec['at']) + UNDO_SECONDS <= int(time.time()):
-        ctx.repo.delete_auto_link(k, holder_id)
         raise ApiError(410, 'autolink_expired')
     family_ref, ref = f'family:{rec["familyId"]}', f'holder:{holder_id}'
     current = ctx.repo.list_assignments(k)
-    for friday, seats in rec['moved'].items():
+    todo = skipped = 0
+    for friday, seats in (rec.get('moved') or {}).items():
         assigned = (current.get(friday) or {}).get('assignments') or {}
-        if any(assigned.get(s) != family_ref for s in seats):
-            raise ApiError(409, 'autolink_changed')
-    if any(ref in a['assignments'].values() for a in current.values()):
+        for sid in seats:
+            if assigned.get(sid) == family_ref:
+                todo += 1
+            elif assigned.get(sid) != ref:
+                skipped += 1
+    if skipped and not todo and not rec.get('undoing'):
         raise ApiError(409, 'autolink_changed')
+    if not rec.get('undoing'):
+        ctx.repo.update_auto_link(k, holder_id, {'undoing': True})  # from here on a retry just carries on
     if not ctx.repo.get_holder(k, holder_id):
         ctx.repo.put_holder(k, holder_id, rec['holderName'], rec.get('holderPhone'), created=int(rec['holderCreatedAt']))
-    for friday, seats in rec['moved'].items():
+    skipped = 0
+    for friday, seats in (rec.get('moved') or {}).items():
         for _ in range(4):
             item = ctx.repo.get_assignments(k, friday)
-            back = {**item['assignments'], **{s: ref for s in seats}}
+            if not item:
+                skipped += len(seats)
+                break
+            back = dict(item['assignments'])
+            skipped_here = 0
+            for sid in seats:  # the guard is applied on the fresh read of every attempt
+                if back.get(sid) == family_ref:
+                    back[sid] = ref
+                elif back.get(sid) != ref:
+                    skipped_here += 1
             try:
-                ctx.repo.put_assignments(k, friday, back, item['updatedAt'])
+                if back != item['assignments']:
+                    ctx.repo.put_assignments(k, friday, back, item['updatedAt'])
+                skipped += skipped_here
                 break
             except ApiError:
                 continue
         else:
             raise ApiError(409, 'try_again')
-    ctx.repo.delete_auto_link(k, holder_id)
-    return 200, {'holderId': holder_id}
+    _restore_weeks(ctx, k, rec)
+    family = ctx.repo.get_family(k, rec['familyId'])
+    for m in (ctx.repo.live_adults(k, family) if family else []):
+        ctx.repo.drop_seat_link_holder(k, m['userId'], holder_id, int(rec['seats']))
+    ctx.repo.update_auto_link(k, holder_id, {'state': 'undone'})  # the tombstone: kept until the TTL
+    return 200, {'holderId': holder_id, 'skipped': skipped}

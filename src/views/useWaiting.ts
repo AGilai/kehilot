@@ -14,12 +14,13 @@ export const waitingStore = createWaitingStore(async kehilaId => {
 });
 
 async function load(api: Api, kehilaId: string, seats: boolean): Promise<WaitingCounts> {
-  const [req, hints, groups] = await Promise.allSettled([api.requests(kehilaId), seats ? api.seatLinkSuggestions(kehilaId) : Promise.resolve({ count: 0 }), api.groups(kehilaId)]);
+  const [req, hints, groups, autos] = await Promise.allSettled([api.requests(kehilaId), seats ? api.seatLinkSuggestions(kehilaId) : Promise.resolve({ count: 0 }), api.groups(kehilaId), seats ? api.seatAutoLinks(kehilaId) : Promise.resolve({ count: 0 })]);
   if (req.status === 'rejected' && hints.status === 'rejected' && groups.status === 'rejected') throw new Error('waiting');
   const prev = waitingStore.get();
   return {
     requests: req.status === 'fulfilled' ? req.value.length : prev.requests,
-    linkHints: hints.status === 'fulfilled' ? hints.value.count : prev.linkHints,
+    // automatic links wait for a look (undo for 14 days) next to the suggestions
+    linkHints: hints.status === 'fulfilled' ? hints.value.count + (autos.status === 'fulfilled' ? autos.value.count : 0) : prev.linkHints,
     groupRequests: groups.status === 'fulfilled' ? groups.value.reduce((n, g) => n + (g.pendingCount ?? 0), 0) : prev.groupRequests,
   };
 }

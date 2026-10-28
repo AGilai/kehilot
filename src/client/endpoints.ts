@@ -14,6 +14,7 @@ import type { Person } from '../tree/types.ts';
 import type { LayoutBody } from '../seats/savePlan.ts';
 import type { MemberWire, OnBehalfBody, WeekWire } from '../seats/wire.ts';
 import type { LinkSuggestions } from '../seats/holders.ts';
+import type { HolderSeats } from '../seats/holderActions.ts';
 import type { ApplyResult, ResponseCall } from '../seats/upload.ts';
 import type { memberPutBody } from '../seats/wire.ts';
 
@@ -21,9 +22,9 @@ const e = encodeURIComponent;
 
 export type SeatLayoutRow = { effectiveFrom: string; updatedAt: number; seats: number; assigned: number; current: boolean };
 export type SeatLayout = LayoutBody & { effectiveFrom: string; seats: { id: string; row: number; col: number }[]; updatedAt: number };
+/** `GET …/admin/seating/auto-links`: holders linked by the server on a certain match, undoable for 14 days (`expiresAt`, seconds); `pending` = stopped half-way, finish it. */
+export type AutoLink = { holderId: string; holderName: string; familyId: string; familyName: string; seats: number; state: 'pending' | 'done'; at: number; expiresAt: number };
 /** A seat holder without an account: personal data, gabbai-only. */
-/** `GET …/admin/seating/auto-links`: holders linked by the server on a certain match, undoable for 14 days (`expiresAt`, seconds). */
-export type AutoLink = { holderId: string; holderName: string; familyId: string; familyName: string; seats: number; at: number; expiresAt: number };
 export type SeatHolder = { holderId: string; name: string; phone: string | null; createdAt: number; updatedAt: number };
 
 export function endpoints(http: Http) {
@@ -132,11 +133,15 @@ export function endpoints(http: Http) {
     seatWeek: (k: string, week: string) => r<WeekWire>('GET', `${A(k)}/seats/week/${e(week)}`),
     putSeatWeek: (k: string, week: string, body: OnBehalfBody) => r<{ updatedAt: number }>('PUT', `${A(k)}/seats/week/${e(week)}`, body),
     deleteSeatHolder: (k: string, id: string) => r<void>('DELETE', `${A(k)}/seating/holders/${e(id)}`),
+    /** Seats a holder holds per layout version (what a delete frees). */
+    seatHolderSeats: (k: string, id: string) => r<HolderSeats>('GET', `${A(k)}/seating/holders/${e(id)}/seats`),
     createSeatHolder: (k: string, body: { name: string; phone?: string }) => r<SeatHolder>('POST', `${A(k)}/seating/holders`, body),
     putSeatHolder: (k: string, id: string, body: { name: string; phone?: string }) => r<SeatHolder>('PUT', `${A(k)}/seating/holders/${e(id)}`, body),
     seatAutoLinks: (k: string) => r<{ count: number; items: AutoLink[] }>('GET', `${A(k)}/seating/auto-links`),
     /** Undo of an auto-link: 404 `autolink_not_found`, 410 `autolink_expired`, 409 `autolink_changed`. */
-    undoSeatAutoLink: (k: string, id: string) => r<{ holderId: string }>('POST', `${A(k)}/seating/auto-links/${e(id)}/undo`),
+    undoSeatAutoLink: (k: string, id: string) => r<{ holderId: string; skipped: number }>('POST', `${A(k)}/seating/auto-links/${e(id)}/undo`),
+    /** A gabbai's retry of an auto-link that stopped half-way (409 `autolink_not_pending` when nothing is pending). */
+    finishSeatAutoLink: (k: string, id: string) => r<{ holderId: string }>('POST', `${A(k)}/seating/auto-links/${e(id)}/finish`),
     seatLinkSuggestions: (k: string) => r<LinkSuggestions>('GET', `${A(k)}/seating/link-suggestions`),
     /** Links one holder to one registered family (a gabbai's explicit confirm); 409 `holder_changed` when `ifUpdatedAt` is stale. */
     linkSeatHolder: (k: string, id: string, body: { familyId: string; ifUpdatedAt: number }) => r<{ familyId: string; seats: number }>('POST', `${A(k)}/seating/holders/${e(id)}/link`, body),

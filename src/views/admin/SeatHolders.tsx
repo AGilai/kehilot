@@ -1,5 +1,5 @@
 // Holders without an account, link suggestions and the confirm (UX-DESIGN §16.7, frame P30). Gabbaim only. A holder is personal data: this
-// screen keeps it in memory only. Nothing is linked without the explicit confirm below, even on an exact phone match.
+// screen keeps it in memory only. A link is the explicit confirm below, except the one unmistakable match the server links on approval (card, undo).
 import React from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
@@ -111,7 +111,13 @@ export function SeatHolders({ onBack, onToast }: { onBack: () => void; onToast: 
   async function doUndo(a: AutoLink) {
     if (busy) return;
     setBusy(true);
-    try { await api.undoSeatAutoLink(kehilaId, a.holderId); onToast(t('seatHolders.auto.undone')); } catch (e) { onToast(errText(e)); } finally { setBusy(false); }
+    try { const r = await api.undoSeatAutoLink(kehilaId, a.holderId); onToast(t(r.skipped ? 'seatHolders.auto.undonePartly' : 'seatHolders.auto.undone', { n: r.skipped })); } catch (e) { onToast(errText(e)); } finally { setBusy(false); }
+    await fetchAll(true);
+  }
+  async function doFinish(a: AutoLink) {
+    if (busy) return;
+    setBusy(true);
+    try { await api.finishSeatAutoLink(kehilaId, a.holderId); onToast(t('seatHolders.auto.finished')); } catch (e) { onToast(errText(e)); } finally { setBusy(false); }
     await fetchAll(true);
   }
   function notThem(s: LinkSuggestion) {
@@ -232,8 +238,9 @@ export function SeatHolders({ onBack, onToast }: { onBack: () => void; onToast: 
                 <View key={a.holderId} style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                   <View style={{ flex: 1, minWidth: 220 }}>
                     <Txt content>{t('seatHolders.auto.item', { family: a.familyName, holder: a.holderName })}</Txt>
-                    <Txt size="small" color={k.muted}>{t('seatHolders.auto.until', { date: date(a.expiresAt) })}</Txt>
+                    <Txt size="small" color={k.muted}>{a.state === 'pending' ? t('seatHolders.auto.pending') : t('seatHolders.auto.until', { date: date(a.expiresAt) })}</Txt>
                   </View>
+                  {a.state === 'pending' ? <Button title={t('seatHolders.auto.finish')} disabled={busy} onPress={() => { void doFinish(a); }} /> : null}
                   <Button kind="secondary" title={t('seatHolders.auto.undo')} disabled={busy} onPress={() => { void doUndo(a); }} />
                 </View>
               ))}

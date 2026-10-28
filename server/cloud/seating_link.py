@@ -1,5 +1,6 @@
 """Suggest which registered person a seat holder (no account) might be. Mirrors the normalization and ranking of
-src/seats/match.ts; nothing is linked here: every result is a suggestion for a gabbai to confirm.
+src/seats/match.ts; nothing is linked here: every result is a suggestion for a gabbai to confirm (the only automatic
+link, routes_seatlink.auto_link_family, applies much stricter rules on top of match()).
 A person is {lastName, firstNames: [..], phones: [..]} read from the profiles of a family's adults (or of one
 membership requester)."""
 import re
@@ -89,6 +90,20 @@ def match(holder, person):
     if same_spelling:
         return 'spelling', 'likely'
     return None
+
+
+def surname_alike(holder_name, last_name):
+    """A holder's surname and a person's surname are the same or spelling variants (the strictest 'could be them')."""
+    p = _variants(last_name or '')
+    if not any(p):
+        return False
+    s = split_holder_name(holder_name)[0]
+    return _same(s, p) or bool(set(k for v in s for k in _spelling_keys(v)) & set(k for v in p for k in _spelling_keys(v)))
+
+
+def holders_alike(a, b):
+    """Two holder names share a surname (spelling variants included), whatever their initials."""
+    return surname_alike(a, split_holder_name(b)[0][-1])
 
 
 def suggest(holders, people):
