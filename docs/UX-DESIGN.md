@@ -2036,7 +2036,7 @@ Replaces the provisional template in §15.6. The file is the Form's **responses 
 - **Link panel:** both cards side by side (no account → registered), a "מה יקרה" Banner (seats move from now, including
   an open Shabbat since the count doesn't change; on-behalf/file answers stay; the holder record closes; history says
   "קושר"; the head gets a Home card), primary **"קישור והעברת המקומות"**, secondary "זו לא אותה משפחה" (hides that
-  suggestion for good). Never automatic, even on an exact phone match.
+  suggestion for good). Automatic only when certain and only on a gabbai's approval of the member (a unique match: the same adult's own surname + first initial, or phone + surname; no other row or person in the Kehila with that surname) — then a card "שובצו אוטומטית" with "ביטול" for 14 days; anything weaker stays a suggestion for the gabbai to confirm.
 - Registered household already holds seats → choose "add (n+m)" or "link and free the holder's seats".
 - After linking: olive Banner with "ביטול" (also from History); the member gets a one-time P7-queue card "המקומות שלכם
   בבית הכנסת" → seat page (no gabbai name).
@@ -3045,7 +3045,7 @@ image, audience line and "פרסום" stay as they are.
 |---|---|---|---|
 | **אירוע** | שם האירוע · יום ותאריך (date picker; shown "ג׳, 3.11", Hebrew date added by the app) · שעה · מקום · למי (chips: לכולם, גברים, נשים, נוער, ילדים; default לכולם) · מארגנים (לא חובה) · פרטים נוספים (לא חובה) | "{שם}" / "{יום}, {תאריך עברי} ({תאריך}), בשעה {שעה} · {מקום} · {למי}." + "מארגנים: …" + details | **{שם}** · {יום קצר} {שעה} · {מקום} |
 | **מזל טוב** | השמחה (chips: הולדת בן, הולדת בת, בר מצווה, בת מצווה, אירוסין, חתונה, אחר → field "איזו שמחה") · המשפחה (P14 picker) · השמחה של (chips: ההורים, הסבים, אחר → free "של מי") · שם בעל/ת השמחה (label follows the occasion: "שם התינוק", "שם הנכדה", "שם החתן"…; לא חובה) · ההורים (only when "הסבים"; לא חובה) · שורת ברכה (prefilled per occasion, editable, can be emptied) | "מזל טוב למשפחת {surname}" / "ל{occasion phrase} {name}, {relation} ל{parents}. {blessing}" | "מזל טוב ל{adults' first names} **{surname}**" + new line "ל{occasion phrase} {name}" (+ ", בת/בן ל{parents}" for grandparents; blessing only if it fits, §19.3) |
-| **השתתפות בצער** | המשפחה (P14 picker) · הנפטר/ת (name, with ז״ל / ע״ה added if missing) · קרבה (free, "אביו של משה") · כתובת השבעה · ניחום אבלים בשעות (free, "10:00–13:00, 17:00–22:00") · השבעה עד (date) · זמני תפילה בבית האבלים (לא חובה) | "משפחת {surname}" / "אנו משתתפים בצערו/ה של … במות …. השבעה ב…, עד …. ניחום אבלים בשעות …. תפילות: …. המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים." | none by default (§19.3) |
+| **השתתפות בצער** | **מה כוללת ההודעה** (first field, chips: פטירה בלבד · שבעה בהמשך · עם פרטי השבעה; default עם פרטי השבעה) · המשפחה (P14 picker) · הנפטר/ת (name, with ז״ל / ע״ה added if missing) · קרבה (free, "אביו של משה") · then **only for "עם פרטי השבעה"**: כתובת השבעה · ניחום אבלים בשעות (free, "10:00–13:00, 17:00–22:00") · השבעה עד (date) · זמני תפילה בבית האבלים (לא חובה) | "משפחת {surname}" / "אנו משתתפים בצערו/ה של … במות …." + by variant: (a) nothing; (b) "פרטי השבעה יימסרו בהמשך."; (c) "השבעה ב…, עד …. ניחום אבלים בשעות …. תפילות: …." — always ending "המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים." | none by default (§19.3) |
 | הודעה, עדכון שבועי | no template (free text) | — | title |
 
 Default blessing lines: birth "שיזכו לגדלו/ה לתורה, לחופה ולמעשים טובים"; bar mitzvah "שיזכה לגדול בתורה
@@ -3061,6 +3061,43 @@ No free-form template editor.
 **A11y:** "איך כותבים" is a `radiogroup`; chip rows are `radiogroup`s labelled by their field; the preview box is a
 `region` labelled "תצוגה מקדימה", **not** a live region (it would read every keystroke); a "הקראת התצוגה" is not
 needed because the fields carry the same data. Error lines are linked to their fields.
+
+### 19.2a Updating a posted message: shiva details (P43 phones 5–7, owner 2026-10-28)
+
+**The three condolence variants** (owner): (a) **פטירה בלבד**, no mention of a shiva at all; (b) **שבעה בהמשך**, the
+line "פרטי השבעה יימסרו בהמשך."; (c) **עם פרטי השבעה**, address, hours, until and prayer times (P43 phone 4). The
+variant is the first chip row of the template; switching hides or shows the shiva fields without clearing them.
+
+**Update instead of a second message.** Families often know the shiva details hours after the first notice. The
+details are added to the same message:
+
+1. **Who:** the message's author and gabbaim. Nobody else sees the action.
+2. **Where:** on the message view (M3), under the card, a small `Card` "רק את/ה והגבאים רואים את זה" with a primary
+   Button **"עדכון פרטי השבעה"** when the variant is (a) or (b), and the same action as "עדכון פרטי השבעה" (secondary)
+   for (c), for corrections. Also in the message's `more` menu in Messages and in management's message list.
+3. **The form:** Compose in update mode, full screen without the tab bar: back "ההודעה", title "עדכון פרטי השבעה", no type cards, no channel, no family
+   picker change (family, deceased and relation stay prefilled and editable), variant preset to **עם פרטי השבעה**, the
+   live preview, a `Toggle` **"להודיע לחברים על העדכון"** (on by default when shiva details are added for the first
+   time, off for later corrections), and the primary Button **"שמירת העדכון"**. Required-field rules are as §19.2.
+4. **The message after an update:** the same message id. The meta line reads "השתתפות בצער · **עודכן {time}**"
+   (bold "עודכן", time; date when not today), and the card ends with one caption line, `Txt caption muted` above a
+   hairline: "עודכן ב־{time}: נוספו פרטי השבעה · פורסם לראשונה ב־{time}". Replies ("משתתף בצער" count) stay with
+   the message. No edit history is shown to members; the server keeps the previous text for gabbaim.
+5. **How members learn of it (my call, respectful and quiet):** when the toggle is on, the message **moves to the top
+   of the feed once** (sorted by its update time) and becomes unread again for those who had read it, and **one quiet
+   push** goes to people who get condolence notifications and have not muted the type or the author: title
+   "עודכנו פרטי השבעה · משפחת {surname}", body the address and "עד {day}". No sound or vibration (Android low-priority
+   channel, iOS `passive`). At most one such push per message per 12 hours; corrections with the toggle off change
+   the text silently and do not move the message. Never a second message in the feed.
+
+**Events: the same mechanism (owner question).** Proposed: "עדכון פרטי האירוע" on an event message (author, gabbai):
+the event template prefilled; a changed time or place shows the old value struck next to the new one in the message
+("בשעה ~~20:30~~ 21:00"), the meta line "שונה {time}", the same quiet push "שינוי ב{event}: {what changed}", and
+the sheet line (§19.3) updates by itself. A cancelled event gets "בוטל" as a Tag on the card and on the sheet line.
+Drawn as a P43 panel only, pending the owner's yes.
+
+**For the developer:** this needs a message update (author or gabbai) that keeps the id, stores `fields`, `updatedAt`
+and the previous text, and takes a `notify` flag for the quiet push and the one-time move up. Not designed here.
 
 ### 19.3 What goes on the weekly sheet and Home (P44)
 
@@ -3234,6 +3271,12 @@ network/server "לא הצלחנו לשמור את הלוגו. הלוגו הקו�
 | `tpl.mazal.blessingHint` | הצעה לפי השמחה. אפשר לשנות או למחוק. | Suggested for this occasion. Change or delete it. |
 | `tpl.mazal.title` | מזל טוב למשפחת {surname} | Mazal tov to the {surname} family |
 | `tpl.condolence.deceased` / `.relation` / `.address` / `.hours` / `.until` / `.prayers` | הנפטר/ת / קרבה / כתובת השבעה / ניחום אבלים בשעות / השבעה עד / זמני תפילה בבית האבלים | The deceased / Relation / Shiva address / Visiting hours / Shiva until / Prayer times at the shiva house |
+| `tpl.condolence.variant` / `.vOnly` / `.vLater` / `.vFull` / `.laterLine` | מה כוללת ההודעה / פטירה בלבד / שבעה בהמשך / עם פרטי השבעה / פרטי השבעה יימסרו בהמשך. | What the notice includes / Passing only / Shiva details later / With shiva details / Shiva details will follow. |
+| `msg.update.only` / `.shiva` / `.event` / `.save` / `.back` | רק את/ה והגבאים רואים את זה / עדכון פרטי השבעה / עדכון פרטי האירוע / שמירת העדכון / ההודעה | Only you and the gabbaim see this / Update shiva details / Update event details / Save the update / The message |
+| `msg.update.notify` / `.notifyHelp` | להודיע לחברים על העדכון / התראה שקטה אחת: "עודכנו פרטי השבעה · משפחת {surname}" | Let members know / One quiet notification: "Shiva details updated · {surname} family" |
+| `msg.updated` / `.changed` / `.updatedLine` | עודכן {time} / שונה {time} / עודכן ב־{time}: נוספו פרטי השבעה · פורסם לראשונה ב־{first} | Updated {time} / Changed {time} / Updated {time}: shiva details added · first posted {first} |
+| `push.shivaUpdated` / `push.eventChanged` | עודכנו פרטי השבעה · משפחת {surname} / שינוי ב{event}: {what} | Shiva details updated · {surname} family / Change to {event}: {what} |
+| `msg.cancelled` | בוטל | Cancelled |
 | `tpl.condolence.closing` | המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים. | May the Almighty comfort you among the mourners of Zion and Jerusalem. |
 | `sheetItems.title` / `.caption` | הגיליון השבועי / שבת פרשת {parasha} · {date} · מה שנכנס מתחת לזמנים | Weekly sheet / Shabbat {parasha} · {date} · what goes under the times |
 | `sheetItems.fits` / `.over` / `.preview` | נכנס בעמוד אחד / {n} פריטים לא נכנסים לגיליון / תצוגה | Fits on one page / {n} items don't fit / Preview |
@@ -3269,16 +3312,19 @@ network/server "לא הצלחנו לשמור את הלוגו. הלוגו הקו�
 - §14.5 **fitting**: the new first step (drop blessing lines) and the "ועוד {n}" line are added before/after it.
 - §17.14 "הוספה למזל טוב בגיליון השבועי" now adds a gabbai item (source "נוסף בידי גבאי"), no separate confirm.
 - §18.3 **לטיפול עכשיו** gains the sheet row; **הגדרות הקהילה** gains "לוגו הקהילה" as its first row.
-- M4 / §12.3 Compose: unchanged apart from "איך כותבים", template fields and the preview.
+- M4 / §12.3 Compose: unchanged apart from "איך כותבים", template fields, the preview and the update mode (§19.2a).
+- M3 message view: gains the author/gabbai update card and the "עודכן" meta and caption line (§19.2a).
 
 ### 19.9 Open questions
 
-1. Approval default: "אחרי אישור של גבאי" (assumed) or "נכנס אוטומטית" as on today's paper? The switch exists either way.
-2. Condolences on the sheet: never automatic (assumed; gabbai can add a free item). Should a condolence posted by a
-   gabbai go on automatically, like mazal tov?
-3. Mazal tov week cut-off: posted after Friday 12:00 goes to next week's sheet (assumed). Is Friday noon right, or
-   should it follow the moment the gabbai prints?
-4. Logo in dark mode always on a white tile (assumed). Or allow a second, dark-mode logo later?
+Owner decisions (2026-10-28): approval default "אחרי אישור של גבאי" (gabbai posts automatic), Friday 12:00 cut-off,
+logo on a white tile, template editor later. Still open:
+
+1. Condolences on the sheet: never automatic (assumed; a gabbai can add a free item). Should a gabbai's condolence go
+   on automatically, like mazal tov?
+2. Shiva update: is "moves to the top once + one quiet push" right, or should an update never move the message (push
+   only)?
+3. Events: adopt the same "עדכון פרטי האירוע" (time/place change, cancel) as proposed in §19.2a?
 
 ### 19.10 Verification
 
@@ -3288,6 +3334,7 @@ in both themes. Checked: no horizontal scroll at 390 (scrollWidth 390 on all thr
 meters and source tags readable in dark mode, and the A4 bottom does not run into the footer. Fixed during the
 check: meter bars took the page header's `.bar` class (renamed), the A4 panel widened the page at 390, the logo
 panel overflowed at 1280, bidi order of "38 / 50" and of the hours placeholder, and the A4 sample now shows 3 mazal
-tov + "ועוד 3" (4 did not fit beside the pinned image). Not checked: real devices, 360-wide Android, English (LTR),
+tov + "ועוד 3" (4 did not fit beside the pinned image). After the owner's second round, P43 phones 4–7 (variants, message view
+with the update card, update form) were rendered the same way, light and dark. Not checked: real devices, 360-wide Android, English (LTR),
 screen readers, web fonts (the shots may use fallback fonts), the Hebrew grammar of the built phrases (needs a
 native editor), and the PNG size loop on real logos.
