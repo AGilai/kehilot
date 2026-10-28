@@ -1910,8 +1910,10 @@ Top to bottom, one column, RTL:
 3. **Our couple**: one wide card, 2 px tekhelet border, radius 18, the family name in serif 17 ("יוסף ומרים ישראלי"),
    two big figures (icon 64). Husband right, wife left; "אני" on whoever is signed in.
 4. A short wire and a pill "הילדים · n", then the **children grid**: 3 columns, gap 8, square tiles (≥ 104 high).
-   A married child is one tile spanning 2 columns with the couple icon and both first names ("נועה ואליהו"). Last
-   tile: dashed "+ ילד/ה". Seven children and one married child = 3 rows; nothing scrolls sideways, nothing shrinks.
+   **A married child takes one tile, the same size as any child** (owner: many families have mostly married children),
+   with the couple figure and both first names ("נועה ואליהו", may wrap to two lines). Last tile: dashed "+ ילד/ה".
+   Seven children = 3 rows; 5 children of whom 4 are married fit in one 390 × 844 screen with the parents and us
+   (P34 test family). Nothing scrolls sideways, nothing shrinks.
 5. Privacy line with a lock: "את העץ והפרטים רואים אתם, {partner} והגבאים של הקהילה." (owner decision 1, §17.11)
 
 On a 390 × 844 screen the first view shows the parents, us and the first children row; the rest is plain vertical
@@ -2140,9 +2142,11 @@ contrasting ribbon and a small flower at the side, hair showing at the forehead 
 tails. The option is stored per person ("איך להציג",
 in the sheet); the default follows the person's generation and gender.
 
-**Married child**: keeps one place among the siblings, as a 2-column tile. Our child stands **in front, slightly
-larger, on a tekhelet "stage"** (an ellipse under the feet, and a 3 px tekhelet bar under our side of the tile); the
-spouse stands one step behind. The name reads ours first ("אליעזר ותהילה"). Shown for a son with his wife and a
+**Married child**: **one tile, the same size as a single child**, in his or her place among the siblings. Our child
+stands **on the right, in front, slightly larger, on a tekhelet "stage"** (an ellipse under the feet, and a 3 px
+tekhelet bar under our side of the figure); the spouse stands one step behind on the left, overlapping a little. In B
+both busts share one disc. P34's compare view adds an older family (5 children, 4 married) in A and B to show it fits
+one 390 screen. The name reads ours first ("אליעזר ותהילה"). Shown for a son with his wife and a
 daughter with her husband (she in a tichel, he behind).
 
 **Deceased**: the same figure in greyscale at 62% (no black, no red), the candle badge and "ז״ל". **Empty / add**: a
