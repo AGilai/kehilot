@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { seatFont, seatingMapHtml } from '../src/seatingMapReport.ts';
+import { seatTextFit, seatingMapHtml, uniformSeatLayout } from '../src/seatingMapReport.ts';
 import { demoSeating } from '../src/seating.ts';
 import type { SeatingMap } from '../src/types.ts';
 
@@ -16,7 +16,7 @@ const report: SeatingMap = { event: demoSeating(new Date('2026-10-27T12:00:00Z')
 
 test('one landscape sheet contains two separate positioned maps and green free seats', () => {
   const html=seatingMapHtml(report);
-  assert.ok(html.includes('@page{size:A4 landscape;margin:15mm}'));
+  assert.ok(html.includes('@page{size:A4 landscape;margin:15mm 10mm}'));
   assert.equal((html.match(/<section>/g)||[]).length,2);
   assert.equal((html.match(/data-cell="D1"/g)||[]).length,2);
   assert.ok(html.includes('ערבית · 1 מקומות פנויים'));
@@ -27,7 +27,7 @@ test('one landscape sheet contains two separate positioned maps and green free s
   assert.ok(html.includes('height:180pt'));
   assert.ok(html.includes('white-space:nowrap'));
   assert.ok(html.includes('27-10-2026'));
-  assert.ok(seatingMapHtml(report,true).includes('landscape;margin:0mm'));
+  assert.ok(seatingMapHtml(report,true).includes('landscape;margin:0mm 0mm'));
 });
 
 test('map print escapes labels, keeps all cells, and refuses incomplete snapshots', () => {
@@ -38,5 +38,21 @@ test('map print escapes labels, keeps all cells, and refuses incomplete snapshot
   assert.equal((html.match(/class="cell"/g)||[]).length,6);
   assert.throws(()=>seatingMapHtml({...report,layout:null}));
   changed.maps[1]!.cells.pop();assert.throws(()=>seatingMapHtml(changed));
-  assert.ok(seatFont('שם משפחה ארוך-4',24,16,7)<7);
+  assert.ok(seatTextFit('שם משפחה ארוך-4',24,6).scaleX<1);
+});
+
+test('equal column widths preserve aisles and merged labels without changing source geometry', () => {
+  const source=structuredClone(report.layout!);
+  source.cells[1]!.width=75;
+  source.cells.push({...source.cells[0]!,id:'E2',x:200,y:20});
+  const before=structuredClone(source);
+  const layout=uniformSeatLayout(source);
+  assert.deepEqual(source,before);
+  assert.equal(layout.cells[0]!.width,layout.cells[1]!.width);
+  assert.ok(layout.cells[2]!.x>layout.cells[1]!.x+layout.cells[1]!.width);
+  assert.equal(layout.cells[2]!.width,layout.cells[0]!.width*2);
+  assert.equal(layout.cells[2]!.y,source.cells[2]!.y);
+  const html=seatingMapHtml(report);
+  assert.equal((html.match(/font-size:6pt/g)||[]).length,4);
+  assert.ok(html.includes('padding:0'));
 });

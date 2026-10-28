@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { api } from '../api';
 import { printHtml } from '../printHtml';
-import { seatBackground, seatFont, seatingMapHtml } from '../seatingMapReport';
+import { seatBackground, seatTextFit, seatingMapHtml, uniformSeatLayout, SEAT_MAP_SIDE_MARGIN_MM } from '../seatingMapReport';
 import { useCommunity } from '../state';
 import type { PrayerSeatMap, SeatMapLayout, SeatingMap } from '../types';
 import { Button, Choice, ErrorText, s } from '../ui';
@@ -14,10 +14,12 @@ function MapCanvas({ layout, map, zoom, freeColor }: { layout: SeatMapLayout; ma
     {layout.cells.map(cell => {
       const state = states.get(cell.id);
       if (!state) return null;
+      const font = 10;
+      const fit = seatTextFit(state.label, cell.width, font);
       return <View key={cell.id} accessible accessibilityLabel={`${cell.id}: ${state.label}`} style={{ position: 'absolute', left: cell.x*zoom, top: cell.y*vertical, width: cell.width*zoom, height: cell.height*vertical,
         backgroundColor: seatBackground(cell, state.available, freeColor), borderColor: '#222', borderTopWidth: cell.borders[0] ? .5 : 0, borderRightWidth: cell.borders[1] ? .5 : 0, borderBottomWidth: cell.borders[2] ? .5 : 0, borderLeftWidth: cell.borders[3] ? .5 : 0,
-        alignItems: 'center', justifyContent: 'center', padding: .5*zoom }}>
-        <Text adjustsFontSizeToFit minimumFontScale={.5} numberOfLines={1} style={{ color: cell.color, fontSize: seatFont(state.label, cell.width, cell.height*.85, Math.min(cell.fontSize, 10))*zoom, fontWeight: cell.bold ? '700' : '400', textAlign: 'center', writingDirection: 'rtl' }}>{state.label}</Text>
+        alignItems: 'center', justifyContent: 'center' }}>
+        <Text numberOfLines={1} style={{ color: cell.color, fontSize: font*zoom, lineHeight: font*zoom*1.05, width: fit.width*zoom, transform: [{ scaleX: fit.scaleX }], includeFontPadding: false, fontWeight: cell.bold ? '700' : '400', textAlign: 'center', writingDirection: 'rtl' }}>{state.label}</Text>
       </View>;
     })}
   </View></ScrollView>;
@@ -48,11 +50,11 @@ export function GabbaiSeatingMap({ onClose }: { onClose: () => void }) {
   async function print() {
     if (!session || printBusy.current) return;
     printBusy.current = true; ++sequence.current; setPrinting(true); setLoading(false); setError(null);
-    try { await printHtml(async native => { const fresh = await api.seatingMap(session.token); if (mounted.current) setReport(fresh); return seatingMapHtml(fresh, native); }, { orientation: 'landscape' }); }
+    try { await printHtml(async native => { const fresh = await api.seatingMap(session.token); if (mounted.current) setReport(fresh); return seatingMapHtml(fresh, native); }, { orientation: 'landscape', horizontalMarginMm: SEAT_MAP_SIDE_MARGIN_MM }); }
     catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : 'לא ניתן להדפיס את המפה.'); }
     finally { printBusy.current = false; if (mounted.current) setPrinting(false); }
   }
-  const layout = report?.layout;
+  const layout = useMemo(() => report?.layout ? uniformSeatLayout(report.layout) : null, [report?.layout]);
   const scale = layout ? zoom === 'fit' ? Math.min(1, (window.width - 44)/layout.width) : Number(zoom) : 1;
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
     <Button title="חזרה לכלי הגבאי" secondary disabled={printing} onPress={onClose} />

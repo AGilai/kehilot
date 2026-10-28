@@ -1,8 +1,18 @@
 # מעבר למחשב אחר — הקהילה שלי
 
-נקודת המשך מעודכנת במחשב הביתי: 27 באוקטובר 2026. המסמך עומד בפני עצמו; אין צורך בהיסטוריית הצ׳אט או בפרויקט Hoshanot כדי להמשיך.
+נקודת המשך מעודכנת במחשב הביתי: 28 באוקטובר 2026. המסמך עומד בפני עצמו; אין צורך בהיסטוריית הצ׳אט או בפרויקט Hoshanot כדי להמשיך.
 
-## Latest change — compact white seating maps with one-line labels (October 27, 2026)
+## Latest change — equal seating columns and uniform fonts (October 28, 2026)
+
+The user identified inconsistent fonts caused by unequal Excel column widths and requested uniform font sizes, full-width cell text and slightly smaller horizontal print margins. `uniformSeatLayout` in `src/seatingMapReport.ts` normalizes rounded physical column edges to equal intervals for display/print while preserving seat order, aisles, rows and merged Bimah spans. Source geometry and all roster/report/map assignments stay unchanged. Both the native screen and HTML share `seatTextFit`: every seat uses the same font size (10 source units on screen, scaled by zoom; 6 pt in print), and longer names compress horizontally without changing font height or wrapping. Text can extend to within 0.3 pt/source units of each cell edge. Occupied/free colors remain white/green.
+
+Printed maps are 784 pt wide by 180 pt high, using 10 mm side margins and 15 mm top/bottom margins. `printHtml` accepts optional `horizontalMarginMm`; other reports keep their existing defaults. Both maps still fit on one landscape A4 sheet. `GabbaiSeatingMap` memoizes normalized geometry and applies the same fitting in native text transforms.
+
+Validation: **82 app tests**, TypeScript and iOS/Android/web export pass (`.expo/seating-map-uniform-{app-tests,typecheck,export}.log`). Added geometry checks verify equal widths, retained aisles/merged spans and immutable source data. Chromium inspected all 452 displayed cells: one common seat width, one seat font size and zero text overflow (`.expo/seating-map-uniform-diagnostics.json`). The user's two example pairs now have equal width/font. Browser and actual Expo iOS renderers produce one landscape A4 page; PDFKit verifies the new 10 mm side/15 mm vertical safe area and matching complete Hebrew/digit text. Private PDFs were visually inspected; no physical print job was sent. Previous backend result remains 199 tests; this change has no server code.
+
+Actual iPhone map/print-preview verification is recorded in `.expo/seating-map-uniform-ios-ui.log` / `.expo/seating-map-uniform-ios.xcresult`; native helper and UI-test apps are removed after checking. Android was refreshed against the same Metro 8082 / API 8011. No seating reports or identities were changed during verification. Workbook, JSON snapshots, PDFs, screenshots and renderer helper apps remain ignored under `.expo/` or private imports.
+
+## Previous change — compact white seating maps with one-line labels (October 27, 2026)
 
 The user requested white occupied-seat backgrounds, slightly shorter maps and smaller text with every seat label on one line. `src/seatingMapReport.ts` now shares `seatBackground` with the native screen: occupied seat cells display white, free/released seats remain green, and non-seat labels retain their source styling. The source workbook and persistent master layout are unchanged. Printed map canvases are 180 pt high (previously 210), while on-screen height is reduced by 15%. Smaller per-cell fonts fit width and height; HTML uses `white-space:nowrap`, React Native uses one line plus font fitting. Rows/aisles/Bimah and the two-maps-on-one-landscape-A4 layout remain intact.
 
