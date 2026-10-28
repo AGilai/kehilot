@@ -167,6 +167,36 @@ class PhoneListTest(test_messages.MessagesTest):
         with self.assertNoLogs('server.cloud', level='DEBUG'):
             self.listing()
 
+    def admin_members(self, sub='gabbai-sub', k=None):
+        return self.call('GET', f'/v1/kehilot/{k or self.k}/admin/members', sub=sub)
+
+    def test_gabbai_sees_phones_even_when_switch_off(self):
+        self.set_phone('member-sub')
+        self.on('quiet-sub', '052-765 4321')
+        status, rows = self.admin_members()
+        self.assertEqual(status, 200)
+        by = {r['userId']: r for r in rows}
+        self.assertEqual((by[self.member]['phone'], by[self.member]['showPhone']), (E164, False))
+        self.assertEqual((by[self.quiet]['phone'], by[self.quiet]['showPhone']), ('+972527654321', True))
+        self.assertEqual((by[self.gabbai]['phone'], by[self.gabbai]['showPhone']), (None, False))
+        self.assertEqual((by[self.listener]['phone'], by[self.listener]['showPhone']), (None, False))
+
+    def test_admin_members_phones_refused_to_others(self):
+        self.on('member-sub')
+        for sub in ('member-sub', 'listener-sub'):
+            status, body = self.admin_members(sub)
+            self.assertEqual((status, body), (403, {'error': 'forbidden'}))
+            self.assertNotIn(E164, str(body))
+
+    def test_admin_members_other_kehila_404(self):
+        other = self.repo.create_kehila('Beit Other', {})
+        self.assertEqual(self.admin_members(k=other), (404, {'error': 'kehila_not_found'}))
+
+    def test_admin_members_not_logged(self):
+        self.on('member-sub')
+        with self.assertNoLogs('server.cloud', level='DEBUG'):
+            self.admin_members()
+
 
 if __name__ == '__main__':
     unittest.main()

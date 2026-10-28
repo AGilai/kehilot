@@ -76,8 +76,13 @@ def list_members(ctx, params):
     require(ctx.repo, ctx.user_id, params['k'], GABBAI)
     existing = {g['sk'][len('G#'):] for g in ctx.repo.list_groups(params['k'])}  # a deleted group's ID is not listed
     members = ctx.repo.list_members(params['k'])
+    adults = [m['userId'] for m in members if m['role'] in ('member', 'gabbai')]
+    keys = [(f'U#{u}', 'PROFILE') for u in adults]
+    profiles = ctx.repo.batch_get(keys) if keys else {}  # gabbaim always see members' phones (owner decision)
     rows = [{'userId': m['userId'], 'displayName': m.get('displayName', ''), 'role': m['role'],
              'classification': m.get('classification', ''), 'canBroadcast': bool(m.get('canBroadcast')),
+             'phone': (profiles.get((f'U#{m["userId"]}', 'PROFILE')) or {}).get('phone') or None,
+             'showPhone': bool(m.get('showPhone')) and m['role'] != 'listener',
              'groups': sorted(set(m.get('groups') or ()) & existing)} for m in members]
     return 200, tags.with_tags(ctx.repo, params['k'], rows, members)
 
