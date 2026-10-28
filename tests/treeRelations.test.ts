@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { childrenOf, fatherOf, generationUp, isComplete, motherOf } from '../src/tree/relations.ts';
+import { childrenOf, fatherNameOf, fatherOf, motherNameOf, generationUp, isComplete, motherOf } from '../src/tree/relations.ts';
 import type { Person } from '../src/tree/types.ts';
 
 const self: Person = { id: 'me', relation: 'self', gender: 'm', hebrewFirst: 'ישראל', tribe: 'yisrael' };
@@ -61,4 +61,15 @@ test('generationUp returns the parent figures and stops at 6', () => {
   assert.deepEqual(generationUp(tree, 'me').map(p => p.id), ['f1', 'm1']);
   assert.deepEqual(generationUp(tree, 'f5').map(p => p.id), ['f6', 'm6']);
   assert.deepEqual(generationUp(tree, 'f6'), []);
+});
+
+test('an empty parent figure name falls back to the typed name, like a missing figure', () => {
+  const tree: Person[] = [
+    { ...self, fatherName: 'ניסיון', motherName: 'דוגמה' },
+    { id: 'f', relation: 'father', of: 'me', gender: 'm', hebrewFirst: '  ' },
+    { id: 'm', relation: 'mother', of: 'me', gender: 'f', hebrewFirst: '' },
+  ];
+  assert.equal(fatherNameOf(tree, 'me'), 'ניסיון');
+  assert.equal(motherNameOf(tree, 'me'), 'דוגמה');
+  assert.equal(isComplete(tree, 'me'), true);
 });

@@ -43,11 +43,13 @@ export function generationUp(tree: Person[], id: string): Person[] {
 
 const filled = (value?: string) => !!value && value.trim() !== '';
 export const fatherNameOf = (tree: Person[], id: string): string | undefined => {
-  const name = fatherOf(tree, id)?.hebrewFirst ?? find(tree, id)?.fatherName;
+  const figure = fatherOf(tree, id)?.hebrewFirst;
+  const name = filled(figure) ? figure : find(tree, id)?.fatherName; // an empty figure counts as no figure
   return filled(name) ? name!.trim() : undefined;
 };
 export const motherNameOf = (tree: Person[], id: string): string | undefined => {
-  const name = motherOf(tree, id)?.hebrewFirst ?? find(tree, id)?.motherName;
+  const figure = motherOf(tree, id)?.hebrewFirst;
+  const name = filled(figure) ? figure : find(tree, id)?.motherName;
   return filled(name) ? name!.trim() : undefined;
 };
 // A man's tribe: his own, else his father figure's. Women have none.

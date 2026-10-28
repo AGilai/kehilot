@@ -3,7 +3,7 @@ import { getSedra } from '@hebcal/core/dist/esm/sedra';
 import type { Lang } from './types.ts';
 
 // Hebcal's Hebrew rendering of a parasha name: maqaf becomes a space, niqqud and cantillation are removed.
-const hebrew = (name: string) => Locale.gettext(name, 'he').replace(/\u05BE/g, ' ').normalize('NFD').replace(/[\u0591-\u05C7]/g, '').normalize('NFC');
+export const hebrew = (name: string) => Locale.gettext(name, 'he').replace(/\u05BE/g, ' ').normalize('NFD').replace(/[\u0591-\u05C7]/g, '').normalize('NFC');
 
 // The parasha read in Israel on a Shabbat date ("YYYY-MM-DD"), by name in `lang` ("תזריע-מצורע" when doubled);
 // null when that Shabbat has no regular reading (a holiday).

@@ -1,5 +1,7 @@
 import { HDate } from '@hebcal/hdate';
-import { parashaOf } from '../schedule/parasha.ts';
+import { HebrewCalendar } from '@hebcal/core/dist/esm/hebcal';
+import { flags } from '@hebcal/core/dist/esm/event';
+import { hebrew, parashaOf } from '../schedule/parasha.ts';
 import type { HebDate, MonthKey } from './types.ts';
 
 // hebcal month numbers (Tishrei = 7). In a leap year 12 is Adar I and 13 is Adar II; in a regular year 12 is Adar.
@@ -38,9 +40,11 @@ export function fromGregorian(iso: string): HebDate {
 // The same Hebrew birthday `years` later. Regular Adar -> Adar II in a leap year; Adar I stays Adar I when possible
 // (Adar in a regular year); Adar II in a regular year -> Adar; a missing day 30 moves to the 1st of the next month
 // (the convention of server/hebrew_calendar.py bar_mitzvah_date).
+// An invalid birth (no year, an Adar that does not exist that year, a day past the month's end) throws, like toGregorian.
 function anniversary(birth: HebDate, years: number): HDate {
-  if (birth.year === undefined) throw new Error('Hebrew birth year is needed');
-  const year = birth.year + years;
+  hdateOf(birth);
+  const birthYear = birth.year!;
+  const year = birthYear + years;
   const leap = HDate.isLeapYear(year);
   const number = birth.month === 'adar' ? (leap ? 13 : 12) : birth.month === 'adar_ii' ? (leap ? 13 : 12) : birth.month === 'adar_i' ? 12 : NUMBERS[birth.month];
   if (birth.day <= HDate.daysInMonth(number, year)) return new HDate(birth.day, number, year);
@@ -49,15 +53,27 @@ function anniversary(birth: HebDate, years: number): HDate {
 
 const SHABBAT = 6;
 const addDays = (iso: string, days: number) => { const d = noon(iso); d.setDate(d.getDate() + days); return isoOf(d); };
-// A Shabbat with no regular reading (a holiday) gets an empty parasha; the UI shows the date alone.
-const shabbat = (date: string) => ({ date, parasha: parashaOf(date, 'he') ?? '' });
+export type ShabbatInfo = { date: string; parasha: string; label: string };
+// Holiday Shabbat: parasha is '' and the label is the holiday ("שבת ראש השנה", "שבת חול המועד סוכות").
+function holidayLabel(date: string): string {
+  const events = HebrewCalendar.getHolidaysOnDate(new HDate(noon(date)), true) ?? [];
+  const event = events.find(e => e.getFlags() & (flags.CHAG | flags.CHOL_HAMOED)) ?? events[0];
+  if (!event) return 'שבת';
+  // render() gives "סוכות א׳", "פסח ג׳ (חוה״מ)", "ראש השנה 5787"; keep the bare holiday name.
+  const name = hebrew(event.render('he')).replace(/ \(חוה״מ\)$/, '').replace(/ \d+$/, '').replace(/ [א-ת]׳$/, '').replace(/^סכות$/, 'סוכות').trim(); // hebcal's pointed text loses the full spelling
+  return event.getFlags() & flags.CHOL_HAMOED ? `שבת חול המועד ${name}` : `שבת ${name}`;
+}
+function shabbat(date: string): ShabbatInfo {
+  const parasha = parashaOf(date, 'he') ?? '';
+  return { date, parasha, label: parasha ? `שבת פרשת ${parasha}` : holidayLabel(date) };
+}
 
-export function barMitzvahSuggestion(birth: HebDate): { date: string; parasha: string } {
+export function barMitzvahSuggestion(birth: HebDate): ShabbatInfo {
   const day = isoOf(anniversary(birth, 13).greg());
   return shabbat(addDays(day, (SHABBAT - noon(day).getDay() + 7) % 7));
 }
 export function batMitzvahDate(birth: HebDate): string { return isoOf(anniversary(birth, 12).greg()); }
 // The Shabbat of the week (Sunday to Saturday) containing `iso`.
-export function shabbatOfWeek(iso: string): { date: string; parasha: string } {
+export function shabbatOfWeek(iso: string): ShabbatInfo {
   return shabbat(addDays(iso, SHABBAT - noon(iso).getDay()));
 }
