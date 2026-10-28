@@ -1448,6 +1448,7 @@ mini legend in the chosen style, and the hint "נשמר במכשיר הזה…".
   "פנוי · לא מוקצה" — then at the end "ירוק = אפשר לשבת" (green), "ירוק = אפשר לשבת · אדום = תפוס" (green / red) or
   "צורות בלבד" (B/W), and "בלי שמות" / "עם שמות". The page title area does not repeat the style.
 - P26 shows the default at 62% and the three styles side by side at 40%, plus a colour table panel. Not checked on paper.
+- **Fourth state, pending (ממתין):** a family seat with no answer yet. It has its own fill and a black corner notch, see §16.12.4.
 
 ## 16. Seating editor
 
@@ -1730,7 +1731,141 @@ them in the editor.
 7. Whether a gabbai may choose an **open Shabbat** as the effective date (frames: allowed, with the warning).
 8. Linking when the registered family **already holds seats** (frames: ask add vs free).
 
-### 16.12 Verification
+### 16.12 Additions after build
+
+Added 2026-10-28. Four seat screens were built before they had a design; this section gives them their look. They use
+kit parts only (`Card`, `Txt`, `Button`, `Chip`, `Field`, `Segmented`, `Tag`, `Banner`, `Sheet`, `Toast`) and the
+existing tokens. Nothing is added to `shared.css`. The only frame change is a new P26 panel for the pending state.
+
+#### 16.12.1 On-behalf panel (`SeatBehalf`, on the print screen; refines §15.6)
+
+- **Placement.** At ≥ 1100 px the print screen has two columns. The start column is 400 wide and holds the options
+  `Card` with this panel under it, and it stays in place (sticky) while the pages scroll beside it. Below 1100 px
+  they stack as built now (options, panel, pages, each up to 680 wide). On the phone, picking a household opens the
+  panel in a `Sheet` titled "עדכון בשם {name}", with Save in the sheet footer.
+- **Nobody picked yet.** `Card` with a `Txt bold heading` title "עדכון בשם משפחה" and a muted small sub line (new copy
+  below). A `Field` "חיפוש משפחה" and a caption hint. Then the households as `Chip`s (regular size, 44 high), labelled
+  "{name} · {count}", sorted by name. When there are more than 30, show "ועוד {n}. חפשו לפי שם." as a caption. An empty
+  search shows "לא נמצאה משפחה בשם הזה.", and an empty hall shows `seats.behalf.none`.
+- **A household picked.** Header row: `Txt bold heading` "עדכון בשם {name}", a plain `Tag` with the count, and at the
+  end a `klink`-style text button "משפחה אחרת", which replaces the "סגירה" `Chip`.
+  - On the map (screen only, never on paper), the household's seats get a **2 px tekhelet `#2A3F94` outline** offset
+    by 1 px. A seat tapped on the map selects its household and scrolls the panel into view.
+  - If past the deadline: an info `Banner`. Then `Segmented` ערבית · ליל שבת / שחרית · שבת בבוקר.
+  - **Source line** (P27's `ksrc`, 12.5 bold muted; tekhelet when it is a gabbai): "עודכן על ידי גבאי" /
+    "באפליקציה" / "לא ענו · כל המקומות שמורים". The third one shows when there is no answer yet, and it is the same
+    family state the print draws as **pending**.
+  - **Seat rows**, one per seat in the family's order. Each row is at least 52 high, with a 1 px `line` divider:
+    `Txt small` "{block} · שורה {row} · מקום {k} מתוך {n}" at the start, and a pair of `Chip`s מגיע / לא מגיע at the
+    end (the `kpair` pattern, 40 high on desktop and 48 on the phone). A released row's text turns muted. This list
+    stands in for P25's frame on purpose: the whole map sits next to it.
+  - Under the rows, the P25 summary in `Txt small bold`: "ערבית: 2 מגיעים · 1 פנוי לאחרים". It updates as chips change.
+  - The caption `seats.behalf.note`, then a full-width primary `Button` "שמירה בשם המשפחה". It is **disabled until
+    something changes**, with `noChange` as its accessibility hint. This replaces the "nothing to save" note.
+- **After saving.** A `success` `Banner` (olive `#44652A` edge) "נשמר בשם {name}.", announced politely. The panel stays
+  on the same household.
+- **409 "changed".** An info `Banner` (tekhelet edge) with the `stale` copy and `accessibilityLiveRegion="polite"`. The
+  rows reload to the new state and focus moves to the banner. Don't use an error tone: nothing failed, someone else
+  answered first. Other failures use an error `Banner` with "נסו שוב".
+
+#### 16.12.2 Print screen, no map yet (`SeatPrint` empty state)
+
+The header stays as built (back link and title). Under it is one `Card edgeColor={k.tekhelet}` (`#2A3F94`; dark
+`#8FA2F0`), up to 680 wide:
+- An `Icon grid` in tekhelet, 28, at the start of the title row, then `Txt bold heading` "עוד אין מפת מקומות".
+- A body `Txt` in muted: "כדי להדפיס, צריך קודם להכין את מפת המקומות: להדביק את הטבלה שכבר יש לכם, או לבנות את
+  האולם מאפס."
+- **Web:** a primary `Button` with `Icon grid`, "למפת המקומות", which opens the editor at its start screen (P28 frame 1).
+- **Phone:** no button, since the editor is web only. Show the caption `seatmap.webOnly` "עריכת המפה באתר בלבד."
+- No print options, no panel and no pages are drawn behind it.
+
+#### 16.12.3 Member Home card after linking (`HomeCards` `seatLink`, per §16.7)
+
+This is the one-time card from the P7 queue, in its built position (after "imported", before "terms").
+- `Card edgeColor={k.tekhelet}`. Built with olive, but olive is P24's "answered/done" colour. This card asks for
+  nothing yet, so it uses the plain P7 colour.
+- Title row: `Icon chair` in tekhelet, 22 (it is not in the kit yet: add it as §16.8 lists, using the path from the frames' `chair` symbol), then `Txt bold heading` "המקומות שלכם בבית הכנסת".
+- Body `Txt`: "הגבאי חיבר לחשבון שלכם {n} מקומות. מעכשיו אפשר לעדכן כאן אם מגיעים בשבת." For one seat: "הגבאי חיבר
+  לחשבון שלכם מקום אחד. …". Never name the gabbai, and never count blocks or rows.
+- A primary `Button` "למקומות שלי" dismisses the card and opens the seat page (P25) in this Kehila. A secondary `Button`
+  "הבנתי" only dismisses. When seat release is off for the Kehila, only "הבנתי" shows, as the primary button.
+- An error shows as an error `Banner` inside the card, as built.
+
+#### 16.12.4 Print: the fourth state **pending / ממתין** (adds to §15.5, §15.9)
+
+A pending seat is a family's seat for a family that hasn't answered this prayer yet. It is still kept for them, but
+nobody has confirmed it. It must not read as taken (which is confirmed), as released, or as free.
+
+**Shape (every style):** the 1 px solid black line, the same as taken, plus a **solid black right-triangle notch** in
+the box's **top-left corner**. The hall is drawn LTR as the room, in both languages, so the notch is always top-left.
+The notch legs are `round(cellH × 0.35)`, kept between 5 and 9 px: 8 px on the real hall's 32×24 cells and 6 px in
+the 26×18 legend swatch. It sits apart from the released diagonal, which runs bottom-left to top-right, and from the
+centred name. Names stay normal, not struck through. In RN, draw it as an absolute `View` at top 0 / left 0 with
+`borderTopWidth: L, borderTopColor: #000, borderRightWidth: L, borderRightColor: transparent`, inside the box's
+`overflow: hidden`. This replaces the built 1.5 px dotted line, which a photocopy loses.
+
+| State | ירוק לפנוי | ירוק ואדום | שחור־לבן | Shape |
+|---|---|---|---|---|
+| תפוס | `#EBEBEB` | `#DB5B56` | `#C8C8C8` | 1 px line |
+| **ממתין** | **`#E9B44C`** mustard | **`#E9B44C`** | **`#FFFFFF`** | 1 px line + black corner notch |
+| שוחרר | `#9ED8AA` | `#9ED8AA` | `#FFFFFF` | 2 px line + diagonal |
+| פנוי | `#57B46C` | `#57B46C` | `#FFFFFF` | 1.2 px dashed line |
+
+- **Why mustard:** it is "waiting" without meaning "can sit" (green) or "taken" (grey or red). One hue in both colour
+  styles. Black names on it have 11.1:1 contrast.
+- **Greyscale L\*** (taken / pending / released / free): green-for-free 93 / 76 / 81 / 66; green/red 55 / 76 / 81 /
+  66; B/W 81 / 100 / 100 / 100. Pending is 17 from taken in the default style and 21 in green/red, but only 5 from
+  released. In B/W it has the same white as released and free. In every one of those cases **the shape separates
+  them**: the solid notch against the heavy line plus diagonal, or against the dashed line. A black triangle survives
+  any photocopy or toner level. In B/W, pending is white rather than grey so that grey always means "confirmed taken".
+  This also avoids the `#e6e6e6` already used for taken in B/W prints with names.
+- **Legend** (order תפוס · ממתין · שוחרר · פנוי, drawn in the style): "ממתין · לא ענו, שמור להם" / "Pending · no
+  answer, kept for them". The style tails stay as they are. The pending colour isn't named in words, because the swatch
+  and the notch carry it. **Count strip:** "תפוס n · ממתין n · שוחרר n · פנוי n". The options card's mini legend shows
+  all four swatches.
+- **Screen only:** each print-preview seat is a button labelled "{household}, {state}" (for example "בדיוני, ממתין").
+- Frame: P26 has a new panel "מצב רביעי: ממתין" with the three legends, real-size cells with names, and these L\* values.
+  The full P26 maps are not redrawn.
+
+#### 16.12.5 Copy corrections (developer strings → kit tone)
+
+Replace these in `he.json` / `en.json`. The keys stay the same unless a row says "new".
+
+| Key | Built (he / en) | Use (he / en) |
+|---|---|---|
+| `seats.print.styleGreen` | ירוק לפנויים | ירוק לפנוי / Green for free |
+| `seats.print.styleGreenRed` | ירוק / אדום · Green / red | ירוק ואדום / Green and red |
+| `seats.print.styleBw` | Black & white | שחור־לבן / Black and white |
+| `seats.print.styleNote` | …הצורות והכיתובים זהים בכל סגנון. | נשמר במכשיר הזה. הצורות נשארות בכל סגנון, גם במדפסת שחור־לבן. / Remembered on this device. The shapes stay in every style, even on a black-and-white printer. |
+| `seats.print.namesNote` | …בלי שמות רואים רק תפוס, שוחרר ופנוי. | ההדפסה נתלית לפעמים בבית הכנסת. בלי שמות רואים רק את מצב המקומות. / Prints are sometimes posted in the hall. Without names it shows only each seat's state. |
+| `seats.print.legendReleased` / `noteGreen` / `noteGreenRed` (en) | can be used | Released · free to sit / Green = free to sit / Green = free to sit · Red = taken |
+| `seats.print.legendPending` | ממתין · עוד לא ענו | ממתין · לא ענו, שמור להם / Pending · no answer, kept for them |
+| `seats.print.emptyTitle` | עוד לא נשמרה מפת אולם | עוד אין מפת מקומות / No seat map yet |
+| `seats.print.emptyBody` | …להדביק או לצייר את מפת האולם בעורך המפה. | כדי להדפיס, צריך קודם להכין את מפת המקומות: להדביק את הטבלה שכבר יש לכם, או לבנות את האולם מאפס. / To print, first set up the seat map: paste the chart you already have, or build the hall from scratch. |
+| `seats.print.emptyGo` | לעורך המפה / To the seating editor | למפת המקומות / Open the seat map |
+| `seats.behalf.sub` | גבאי יכול לעדכן… גם אחרי המועד האחרון. | למשפחה שענתה לגבאי ולא באפליקציה. / For a household that answered a gabbai, not the app. |
+| `seats.behalf.pastDeadline` | המועד האחרון עבר. אפשר לעדכן בכל זאת. | הדיווח נסגר. גבאי יכול לעדכן גם עכשיו. / Updates are closed. A gabbai can still update. |
+| `seats.behalf.note` | …המשפחה תראה שהגבאים עדכנו. | יירשם "עודכן על ידי גבאי". המשפחה תראה "הגבאי עדכן", בלי שם. / Recorded as "updated by a gabbai". The household sees "A gabbai updated", without a name. |
+| `seats.behalf.saved` | נשמר בשם המשפחה. | נשמר בשם {name}. / Saved for {name}. |
+| `seats.behalf.stale` | המצב השתנה בינתיים… | מישהו עדכן את המשפחה הזו בינתיים. זה המצב העדכני, בדקו ושמרו שוב. / Someone updated this household meanwhile. This is the latest state; check and save again. |
+| `seats.behalf.noChange` | אין שינוי לשמור. | אין שינויים לשמור. / No changes to save. (the disabled button's hint) |
+| `seats.behalf.close` | סגירה / Close | משפחה אחרת / Another household |
+| `seats.behalf.none` | אין משפחות עם מקומות. | עוד אין משפחות עם מקומות במפה. / No households have seats on the map yet. |
+| `seats.behalf.noMatch` (new) | — | לא נמצאה משפחה בשם הזה. / No household by that name. |
+| `seats.behalf.more` (new) | — | ועוד {n}. חפשו לפי שם. / {n} more. Search by name. |
+| `seats.behalf.tapHint` | …על מקום תפוס במפה. | אפשר גם ללחוץ על אחד המקומות של המשפחה במפה. / Or tap one of the household's seats on the map. |
+| `seats.behalf.noAnswer` (new) | — | לא ענו · כל המקומות שמורים / No answer · all seats kept |
+| `seats.behalf.seatsCount` | {n} מקומות (also for 1) | one / other: מקום אחד / {n} מקומות · One seat / {n} seats |
+| `cards.seatLink.title` | מקומות בבית הכנסת חוברו אליכם | המקומות שלכם בבית הכנסת / Your seats in the synagogue |
+| `cards.seatLink.bodyOne` / `bodyOther` | …שהגבאי רשם בעבר על שמכם… בכל שבוע. | הגבאי חיבר לחשבון שלכם מקום אחד / {n} מקומות. מעכשיו אפשר לעדכן כאן אם מגיעים בשבת. / A gabbai connected one seat / {n} seats to your account. You can now tell us here if you're coming on Shabbat. |
+| `cards.seatLink.open` (new) | — | למקומות שלי / My seats |
+| `cards.seatLink.ok` | הבנתי / Got it | (keep) |
+
+Unused key: `seats.behalf.pick`. Remove it, or use it as the `Field` placeholder.
+Not copy, but in the same files: the print button "הדפסה / שמירה כ־PDF" uses `Icon send`. Change it to the kit's
+`Icon print`.
+
+### 16.13 Verification
 
 Frames generated by a script from the spec's ASCII shape; the script asserts 225 seats, 80 invented households (1–6
 seats), 27 free; tag balance checked with a parser. Not rendered (no browser on this machine): check P28–P30 at 1440
