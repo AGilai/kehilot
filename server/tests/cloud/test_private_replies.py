@@ -340,11 +340,13 @@ class ReplyFlowTest(test_messages.MessagesTest):
         self.assertEqual((self.inbox('shul-sub')['unread'], self.inbox('yigal-sub')['unread']), (0, 1))
 
     def test_partner_linked_later_sees_family_not_personal(self):
+        self.repo.link(self.k, self.dana, self.quiet)  # two adults, so a personal choice exists
         mid = self.blessing(self.dana)
         self.sent('member-sub', mid, 'לכולם')
         self.sent('rotem-sub', mid, 'לדנה', to=self.dana)
+        self.assertEqual(self.call('POST', f'{self.base()}/family/unlink', sub='quiet-sub')[0], 200)
         self.assertEqual(self.replies('ron-sub', mid), [])
-        self.repo.link(self.k, self.dana, self.ron)
+        self.repo.link(self.k, self.dana, self.ron)  # a new partner, linked after both replies
         self.assertEqual([r['body'] for r in self.replies('ron-sub', mid)], ['לכולם'])
         self.assertEqual(sorted(r['body'] for r in self.replies('dana-sub', mid)), ['לדנה', 'לכולם'])
         self.assertEqual([c['item']['body'] for c in self.feed('ron-sub', 'reply')], ['לכולם'])
@@ -362,7 +364,7 @@ class ReplyFlowTest(test_messages.MessagesTest):
 
     def test_to_validation(self):
         mid = self.blessing()
-        for to in (self.listener, self.rotem, self.dana, self.gabbai, 'nope', 'author', 5, ['x'], None, True):
+        for to in (self.listener, self.rotem, self.dana, self.gabbai, 'nope', 'author', 5, ['x'], True):
             self.assertEqual(self.reply('member-sub', mid, to=to), (400, {'error': 'invalid_to'}), to)
         self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='yigal-sub')[0], 204)
         self.assertEqual(self.reply('member-sub', mid, to=self.yigal), (400, {'error': 'invalid_to'}))  # left
@@ -535,6 +537,73 @@ class ReplyFlowTest(test_messages.MessagesTest):
             self.call('PUT', self.url(mid, f"/{sent['replyId']}"), sub='rotem-sub', body={'body': 'x'})
             self.call('DELETE', self.url(mid, f"/{sent['replyId']}"), sub='rotem-sub')
         enqueue.assert_called_once_with('reply', self.k, f"{mid}/{sent['replyId']}")
+
+    # review round 1
+    def test_to_null_defaults_to_the_route(self):
+        gid, bid = self.general(), self.blessing()
+        self.assertEqual(self.reply('rotem-sub', gid, to=None)[1]['to'], 'author')
+        self.assertEqual(self.reply('member-sub', bid, to=None)[1]['to'], 'family')
+        self.assertEqual([r['body'] for r in self.replies('yigal-sub', bid)], ['ברכה'])
+
+    def test_single_reachable_adult_makes_a_personal_to_family(self):
+        mid = self.blessing(self.dana)
+        self.assertEqual(self.reply('member-sub', mid, to=self.dana)[1]['to'], 'family')
+        self.repo.link(self.k, self.dana, self.ron)
+        self.assertEqual(len(self.replies('ron-sub', mid)), 1)
+
+    def test_writer_can_delete_after_losing_access(self):
+        mid = self.general()
+        sent = self.sent('rotem-sub', mid)
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.rotem}'}, UpdateExpression='SET #r = :r',
+                                    ExpressionAttributeNames={'#r': 'role'}, ExpressionAttributeValues={':r': 'listener'})
+        url = self.url(mid, f"/{sent['replyId']}")
+        self.assertEqual(self.call('DELETE', url, sub='quiet-sub'), (404, {'error': 'reply_not_found'}))
+        self.assertEqual(self.call('DELETE', url, sub='rotem-sub'), (204, None))
+        self.assertEqual(self.card('gabbai-sub', mid)['replierCount'], 0)
+        self.assertEqual(self.partition(f'K#{self.k}#MSG#{mid}', 'R'), [])
+
+    def cancelled(self, code, times):
+        from botocore.exceptions import ClientError
+        real, calls = self.repo._txn, []
+
+        def txn(items):
+            if len(calls) < times:
+                calls.append(1)
+                raise ClientError({'Error': {'Code': 'TransactionCanceledException'},
+                                   'CancellationReasons': [{'Code': code}] * len(items)}, 'TransactWriteItems')
+            return real(items)
+        return mock.patch.object(self.repo, '_txn', side_effect=txn)
+
+    def test_delete_retries_a_cancelled_transaction_and_keeps_count_and_marker_together(self):
+        mid = self.general()
+        sent = self.sent('rotem-sub', mid)
+        with self.cancelled('TransactionConflict', 1):
+            self.assertEqual(self.call('DELETE', self.url(mid, f"/{sent['replyId']}"), sub='rotem-sub'), (204, None))
+        self.assertEqual(self.card('gabbai-sub', mid)['replierCount'], 0)
+        self.assertEqual(self.partition(f'K#{self.k}#MSG#{mid}', 'RP#'), [])
+        self.assertEqual(self.partition(f'K#{self.k}#MSG#{mid}', 'R#'), [])
+
+    def test_delete_that_keeps_conflicting_changes_nothing(self):
+        mid = self.general()
+        sent = self.sent('rotem-sub', mid)
+        with self.cancelled('TransactionConflict', 99):
+            self.assertEqual(self.call('DELETE', self.url(mid, f"/{sent['replyId']}"), sub='rotem-sub'),
+                             (409, {'error': 'try_again'}))
+        self.assertEqual(self.card('gabbai-sub', mid)['replierCount'], 1)
+        self.assertEqual(len(self.partition(f'K#{self.k}#MSG#{mid}', 'RP#')), 1)
+        self.assertEqual(len(self.replies('rotem-sub', mid)), 1)
+
+    def test_second_delete_after_repost_cannot_touch_the_new_marker(self):
+        mid = self.general()
+        first = self.sent('rotem-sub', mid)
+        sk = f"R#{first['replyId']}"
+        self.assertTrue(self.repo.delete_reply(self.k, mid, sk, self.rotem))
+        second = self.sent('rotem-sub', mid)
+        self.assertFalse(self.repo.delete_reply(self.k, mid, sk, self.rotem))  # the stale second delete
+        self.assertEqual(self.card('gabbai-sub', mid)['replierCount'], 1)
+        self.assertEqual(len(self.partition(f'K#{self.k}#MSG#{mid}', 'RP#')), 1)
+        self.assertEqual([r['replyId'] for r in self.replies('rotem-sub', mid)], [second['replyId']])
+        self.assertEqual(self.reply('rotem-sub', mid), (409, {'error': 'already_replied'}))
 
 
 for _name in dir(test_messages.MessagesTest):

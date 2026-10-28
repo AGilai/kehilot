@@ -421,16 +421,28 @@ class MessagesRepo:
         return count
 
     def delete_reply(self, k, message_id, reply_sk, author_id):
-        """Delete one reply. When it is the author's last one on the message, their RP# marker goes too and the
-        message's replierCount drops by 1 (once: the marker's existence is the guard), then a reply_count change.
-        The count is settled before the reply goes, so a retry after a crash in between finds the reply again."""
-        pk = f'K#{k}#MSG#{message_id}'
-        mine = [r for r in self.list_replies(k, message_id, consistent=True)
-                if r['authorId'] == author_id]
-        if [r['sk'] for r in mine] in ([reply_sk], []):
-            name = self.table.name
+        """Delete one reply of the author. Returns True when this call deleted it, False when it was already gone.
+        When it is the author's last reply on the message, the reply, the RP# marker and replierCount - 1 change in
+        ONE transaction (then a reply_count change), so the marker never goes without the count. The reply's own
+        existence is a condition: a stale second delete cannot touch a marker made by a later reply. A cancelled
+        transaction is retried; a conflict that persists is 409 try_again with nothing changed."""
+        pk, name = f'K#{k}#MSG#{message_id}', self.table.name
+        for _ in range(3):
+            mine = [r['sk'] for r in self.list_replies(k, message_id, consistent=True) if r['authorId'] == author_id]
+            if reply_sk not in mine:
+                return False
+            if mine != [reply_sk]:  # an older duplicate reply remains: the marker and the count stay
+                try:
+                    self.table.delete_item(Key={'pk': pk, 'sk': reply_sk}, ConditionExpression='attribute_exists(sk)')
+                except ClientError as error:
+                    if not _failed(error, 'ConditionalCheckFailedException'):
+                        raise
+                    return False
+                return True
             try:
                 self._txn([
+                    {'Delete': {'TableName': name, 'Key': {'pk': pk, 'sk': reply_sk},
+                                'ConditionExpression': 'attribute_exists(sk)'}},
                     {'Delete': {'TableName': name, 'Key': {'pk': pk, 'sk': f'RP#{author_id}'},
                                 'ConditionExpression': 'attribute_exists(sk)'}},
                     {'Update': {'TableName': name, 'Key': {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
@@ -441,9 +453,17 @@ class MessagesRepo:
             except ClientError as error:
                 if not _failed(error, 'TransactionCanceledException'):
                     raise
-                # the marker is already gone (a retry), or the count is 0: just make sure the marker is gone
+                reasons = [r.get('Code') for r in error.response.get('CancellationReasons', [])] + [None] * 3
+                if reasons[0] == 'ConditionalCheckFailed':
+                    return False  # a concurrent delete won
+                if 'TransactionConflict' in reasons or 'ConditionalCheckFailed' not in reasons:
+                    continue  # someone else was writing the same items: look again
+                # the marker is gone or the count is already 0 (old data): drop the reply without moving the count
+                self.table.delete_item(Key={'pk': pk, 'sk': reply_sk})
                 self.table.delete_item(Key={'pk': pk, 'sk': f'RP#{author_id}'})
+                return True
             message = self.get_message(k, message_id)
             if message:
                 self.put_change(k, 'reply_count', message_id, message['channelId'])
-        self.table.delete_item(Key={'pk': pk, 'sk': reply_sk})
+            return True
+        raise ApiError(409, 'try_again')

@@ -355,15 +355,15 @@ def _routed(ctx, k, params, membership):
 
 def _choose_to(d, route, reachable):
     """The stored `to` of a new reply, or 400 invalid_to."""
-    if 'to' not in d:
+    value = d.get('to')
+    if value is None:  # omitted or null: the route's default
         return route
-    value = d['to']
     if not isinstance(value, str):
         raise ApiError(400, 'invalid_to')
     if value == route:
         return route
     if route == 'family' and value in {m['userId'] for m in reachable}:
-        return value
+        return value if len(reachable) > 1 else route  # one adult: nobody to choose between, it is the family's
     raise ApiError(400, 'invalid_to')
 
 
@@ -433,11 +433,17 @@ def put_reply(ctx, params):
 
 
 def delete_reply(ctx, params):
+    """The writer may always withdraw: no role or visibility check beyond being a member, because losing access
+    to the message must not leave a reply nobody can remove. Others get the same 404 as for a missing reply."""
     k = params['k']
-    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
-    message, reply = _own_reply(ctx, k, params, membership)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
+    message = ctx.repo.get_message(k, params['m']) if ID_RE.fullmatch(params['m']) else None
+    reply = ctx.repo.get_reply(k, params['m'], params['r']) if message and ID_RE.fullmatch(params['r']) else None
+    if not reply or reply['authorId'] != ctx.user_id:
+        raise ApiError(404, 'reply_not_found')
     visible_to = [ctx.user_id, *_recipients(ctx, k, message, reply)]
-    ctx.repo.delete_reply(k, params['m'], reply['sk'], ctx.user_id)  # settles the count (and its change) first
+    if not ctx.repo.delete_reply(k, params['m'], reply['sk'], ctx.user_id):  # settles the count (and its change) too
+        raise ApiError(404, 'reply_not_found')
     ctx.repo.put_change(k, 'reply_removed', params['r'], message['channelId'], visible_to, message_id=params['m'])
     return 204, None
 
