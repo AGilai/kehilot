@@ -1687,10 +1687,13 @@ don't get them. For a family without an account, the gabbai answers on its behal
 **Card (Home, Thursday 12:00 → the deadline):** `Card` with a tekhelet edge. The title row has the chair glyph and
 "טופס מקומות לשבת". The question is "יש לכם {n} מקומות השבת. מגיעים?", and the muted line is "ליל שבת ושבת בבוקר · אפשר
 לענות עד יום שישי 12:00". **The buttons are all one family** (owner: the main action must not look like a link):
-- **"לא מגיעים השבת"** is the **primary** `Button`: full width, **56 high**, 17 bold, tekhelet fill. At the start is a
-  **30 × 36 freed chair**: the §15.10.3 synagogue-chair glyph with green upholstery, a dashed outline and a check, and a
-  1 px white halo so the wood reads on tekhelet. It replaces `Icon out` (owner: the "exit" box was unclear), and it is
-  the same picture the member then sees on the map. It is the action most members need each week.
+- **"לא מגיעים השבת"** is the **primary** `Button`: full width, **56 high**, 17 bold, tekhelet fill. At the start is the **"going away"
+  icon**: an original mini illustration in the figure-set palette (§17.13), 50 × 28 (viewBox 60 × 34). It shows a
+  mustard car (`#E2A93B`) in side view with the trunk lid open and a green suitcase (`#5E8A3A`), an adult in teal
+  (`#2E8C86`) with a brown package (`#A85A2A`), and a child in pomegranate (`#C0475F`), all with dark outlines
+  (`#3A2A1A`). It keeps its colours in dark mode, and a 1.2 px white halo separates it from the tekhelet button. It
+  replaces the freed chair and `Icon out` (owner: "a family with bags getting into a car"). Checked at button size in
+  light and dark (`P24-btn-*.png`). It is the action most members need each week.
 - Under it, two **secondary** `Button`s side by side (48 high, outlined tekhelet): **"כולם מגיעים"** (`Icon users`; = 0
   for both prayers, also one tap) and **"חלק מגיעים"** (`Icon seat`; opens P37).
 
