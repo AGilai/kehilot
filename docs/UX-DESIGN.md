@@ -3381,6 +3381,14 @@ native editor), and the PNG size loop on real logos.
 
 ## 20. The "טכני" (Tech) role
 
+> **Owner override (2026-10-28, binding; supersedes §20.1–§20.3, §20.5 rules 1–2 and §20.9):** "a tech is superman, he
+> can do all things". A tech has **every permission a gabbai has**, including granting and changing the gabbai role,
+> accepting the Kehila terms, removing messages and seeing phones, seat names and all personal data a gabbai sees. The
+> only differences are display: the role is labelled "טכני" (Tech) wherever a role or attribution shows (§20.4, §20.6
+> wording, §20.7 copy), and a tech is never shown to members as "גבאי". The last-manager rule becomes "at least one
+> gabbai or tech remains". The hall map, management and every screen are the gabbai's, unchanged. §20.1's ✗ rows and the
+> P46 phones 2–5 no longer apply; phone 1 (the picker, with טכני as a fourth option) and the copy remain.
+
 Added 2026-10-28 from the owner's decision of the same day. Frames: `P46` (`tech-role.html`: phone 1 the role picker as a
 gabbai sees it, 2 as a tech sees it, 3 management as a tech sees it, 4 a gabbai's card as a tech sees it, 5 the hall
 map without names), at 390 × 844, light and
