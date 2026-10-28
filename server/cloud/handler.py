@@ -69,6 +69,8 @@ ROUTES = [
      routes_seatweek.undo_responses),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/link-suggestions$'), routes_seatlink.link_suggestions),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)/link$'), routes_seatlink.link_holder),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/auto-links$'), routes_seatlink.list_auto_links),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/auto-links/(?P<holderId>[^/]+)/undo$'), routes_seatlink.undo_auto_link),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.list_holders),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.create_holder),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)$'), routes_seating.update_holder),

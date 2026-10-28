@@ -1,5 +1,6 @@
 """Routes: suggest and confirm linking a seat holder (no account) to a registered family. Gabbai-only; nothing is
 linked without a confirm (spec ruling 7: a family that already holds seats gets the union)."""
+import logging
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -12,6 +13,9 @@ from .routes_groups import GABBAI
 from .routes_seating import _holder, _live_family
 
 MEMBER_ROLES = ('member', 'gabbai')
+CERTAIN = ('phone-surname', 'surname-initial', 'phone')  # what may auto-link; everything else stays a suggestion
+UNDO_SECONDS = 14 * 86400
+log = logging.getLogger(__name__)
 
 
 def _profiles(ctx, user_ids):
@@ -112,7 +116,12 @@ def link_holder(ctx, params):
     adults = ctx.repo.live_adults(k, family) if family else []
     if not adults:
         raise ApiError(404, 'family_not_found')
-    holder_id = item['holderId']
+    seats = _move(ctx, k, item['holderId'], family_id, adults)
+    return 200, {'familyId': family_id, 'seats': seats}
+
+
+def _move(ctx, k, holder_id, family_id, adults):
+    """The confirmed link itself (shared by the gabbai's confirm and the auto-link); returns the seat count."""
     seats = _seats_of(ctx, k, f'holder:{holder_id}')  # before the move: notices are idempotent per holder
     if seats:
         for m in adults:
@@ -122,4 +131,110 @@ def link_holder(ctx, params):
     if ctx.repo.holder_ref_left(k, holder_id):
         raise ApiError(409, 'try_again')
     ctx.repo.delete_holder_record(k, holder_id)
-    return 200, {'familyId': family_id, 'seats': seats}
+    return seats
+
+
+def auto_link_family(ctx, k, user_id):
+    """Called when `user_id` became an active member (approved, invited as member). Links the ONE holder that
+    certainly is this family (same phone, or surname + first initial of either adult), only when that holder fits no
+    other family and no other holder fits this one. Idempotent; leaves linked and mid-link holders alone. Returns the
+    holder id or None. Never logs names."""
+    membership = ctx.repo.get_membership(k, user_id)
+    family_id = (membership or {}).get('familyId')
+    if not family_id or membership.get('role') not in MEMBER_ROLES:
+        return None
+    holders = ctx.repo.list_holders(k)
+    family = ctx.repo.get_family(k, family_id)
+    adults = ctx.repo.live_adults(k, family) if family else []
+    if not holders or not adults:
+        return None
+    families = _families(ctx, k)
+    if family_id not in families:
+        return None
+    fits = {}
+    for h in holders:
+        for fid, fam in families.items():
+            if any((link.match(h, p) or ('',))[0] in CERTAIN for p in fam['people'].values()):
+                fits.setdefault(h['holderId'], set()).add(fid)
+    mine = [h for h in holders if family_id in fits.get(h['holderId'], ())]
+    if len(mine) != 1 or len(fits[mine[0]['holderId']]) != 1:
+        return None
+    holder = mine[0]
+    holder_id = holder['holderId']
+    if any(holder_id in (m.get('seatLinkHolders') or ()) for fam in families.values() for m in fam['members']):
+        return None  # a manual link is mid-way
+    today = rules.current_shabbat(_now().date()).isoformat()
+    ref = f'holder:{holder_id}'
+    moved = {friday: sorted(s for s, r in item['assignments'].items() if r == ref)
+             for friday, item in ctx.repo.list_assignments(k).items()}
+    moved = {f: seats for f, seats in moved.items() if seats}
+    now = int(time.time())
+    if not ctx.repo.put_auto_link(k, holder_id, {
+            'familyId': family_id, 'holderName': holder['name'], 'holderPhone': holder.get('phone'),
+            'holderCreatedAt': holder['createdAt'], 'familyName': families[family_id]['names'],
+            'seats': _seats_of(ctx, k, ref), 'moved': moved, 'at': now, 'day': today}):
+        return None
+    _move(ctx, k, holder_id, family_id, adults)
+    log.info('seat auto-link kehila=%s holder=%s family=%s', k, holder_id, family_id)
+    return holder_id
+
+
+def try_auto_link(ctx, k, user_id):
+    """The hook: an auto-link never breaks the approval or the invite."""
+    try:
+        auto_link_family(ctx, k, user_id)
+    except Exception:
+        log.warning('seat auto-link failed kehila=%s user=%s', k, user_id)
+
+
+def list_auto_links(ctx, params):
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    now = int(time.time())
+    items = []
+    for r in ctx.repo.list_auto_links(k):
+        if int(r['at']) + UNDO_SECONDS <= now:
+            continue
+        items.append({'holderId': r['holderId'], 'holderName': r['holderName'], 'familyId': r['familyId'],
+                      'familyName': r['familyName'], 'seats': int(r['seats']), 'at': int(r['at']),
+                      'expiresAt': int(r['at']) + UNDO_SECONDS})
+    items.sort(key=lambda i: (-i['at'], i['holderId']))
+    return 200, {'count': len(items), 'items': items}
+
+
+def undo_auto_link(ctx, params):
+    """Restores the holder and moves its seats back, only when every moved seat still belongs to the family."""
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    holder_id = params['holderId']
+    if not ID_RE.fullmatch(holder_id):
+        raise ApiError(404, 'autolink_not_found')
+    rec = ctx.repo.get_auto_link(k, holder_id)
+    if not rec:
+        raise ApiError(404, 'autolink_not_found')
+    if int(rec['at']) + UNDO_SECONDS <= int(time.time()):
+        ctx.repo.delete_auto_link(k, holder_id)
+        raise ApiError(410, 'autolink_expired')
+    family_ref, ref = f'family:{rec["familyId"]}', f'holder:{holder_id}'
+    current = ctx.repo.list_assignments(k)
+    for friday, seats in rec['moved'].items():
+        assigned = (current.get(friday) or {}).get('assignments') or {}
+        if any(assigned.get(s) != family_ref for s in seats):
+            raise ApiError(409, 'autolink_changed')
+    if any(ref in a['assignments'].values() for a in current.values()):
+        raise ApiError(409, 'autolink_changed')
+    if not ctx.repo.get_holder(k, holder_id):
+        ctx.repo.put_holder(k, holder_id, rec['holderName'], rec.get('holderPhone'), created=int(rec['holderCreatedAt']))
+    for friday, seats in rec['moved'].items():
+        for _ in range(4):
+            item = ctx.repo.get_assignments(k, friday)
+            back = {**item['assignments'], **{s: ref for s in seats}}
+            try:
+                ctx.repo.put_assignments(k, friday, back, item['updatedAt'])
+                break
+            except ApiError:
+                continue
+        else:
+            raise ApiError(409, 'try_again')
+    ctx.repo.delete_auto_link(k, holder_id)
+    return 200, {'holderId': holder_id}

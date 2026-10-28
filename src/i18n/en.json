@@ -141,6 +141,9 @@
     "layout_changed": "A newer version of the map was already saved.",
     "assignments_changed": "The seat assignments changed in the meantime.",
     "holder_changed": "The seat holder changed in the meantime. Refresh and try again.",
+    "autolink_not_found": "The automatic link was not found. It may already be undone.",
+    "autolink_expired": "14 days have passed. An automatic link can no longer be undone.",
+    "autolink_changed": "The seats changed since the automatic link, so it cannot be undone here.",
     "week_changed": "The week changed in the meantime. Refresh and try again.",
     "layout_not_found": "The map was not found.",
     "invalid_assignments": "The seat assignments are not valid. Check the matches and try again.",
@@ -2320,6 +2323,13 @@
       "changed": "The record changed in the meantime. The list was refreshed; check and try again.",
       "retry": "The link did not complete. The record is kept. Try again.",
       "gone": "The record or the family was not found. The list was refreshed."
+    },
+    "auto": {
+      "title": "Linked automatically",
+      "item": "Linked automatically: the {family} family ← seat holder {holder}",
+      "until": "Can be undone until {date}",
+      "undo": "Undo the link",
+      "undone": "Link undone. The seat holder is back."
     },
     "toast": {
       "created": "Seat holder created",

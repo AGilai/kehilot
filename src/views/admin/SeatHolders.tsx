@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { config } from '../../config.ts';
 import { fixtureParams } from '../../client/fixtures.ts';
-import type { SeatHolder } from '../../client/endpoints.ts';
+import type { AutoLink, SeatHolder } from '../../client/endpoints.ts';
 import { formatPhone } from '../../client/phone.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { AdminFamily } from '../../client/types.ts';
@@ -19,7 +19,7 @@ import { normalizeName } from '../../seats/match.ts';
 import { useAdminErrText, useShortDate } from './shared.tsx';
 import { Dialog } from './seatMap/Dialog.tsx';
 
-type Load = { status: 'loading' } | { status: 'error'; text: string } | { status: 'ready'; holders: SeatHolder[]; families: AdminFamily[]; suggestions: LinkSuggestion[]; counts: Map<string, number> };
+type Load = { status: 'loading' } | { status: 'error'; text: string } | { status: 'ready'; holders: SeatHolder[]; families: AdminFamily[]; suggestions: LinkSuggestion[]; counts: Map<string, number>; autos: AutoLink[] };
 type Form = { id: string | null; name: string; phone: string };
 type Link = { holder: SeatHolder; suggestion: LinkSuggestion | null; familyId: string | null; query: string };
 
@@ -55,11 +55,11 @@ export function SeatHolders({ onBack, onToast }: { onBack: () => void; onToast: 
     try {
       const [holders, families] = await Promise.all([api.seatHolders(kehilaId), api.adminFamilies(kehilaId)]);
       // best effort: a failed suggestions or seat-count read only loses that hint
-      const [sug, layouts] = await Promise.allSettled([api.seatLinkSuggestions(kehilaId), api.seatLayouts(kehilaId)]);
+      const [sug, layouts, auto] = await Promise.allSettled([api.seatLinkSuggestions(kehilaId), api.seatLayouts(kehilaId), api.seatAutoLinks(kehilaId)]);
       let counts = new Map<string, number>();
       const current = layouts.status === 'fulfilled' ? layouts.value.layouts.find((l) => l.current) : undefined;
       if (current) { try { counts = seatCountsByRef((await api.seatAssignments(kehilaId, current.effectiveFrom)).assignments); } catch { /* ignore */ } }
-      setLoad({ status: 'ready', holders, families, suggestions: sug.status === 'fulfilled' ? sug.value.suggestions : [], counts });
+      setLoad({ status: 'ready', holders, families, suggestions: sug.status === 'fulfilled' ? sug.value.suggestions : [], counts, autos: auto.status === 'fulfilled' ? auto.value.items : [] });
     } catch (e) { setLoad({ status: 'error', text: errText(e) }); }
   }, [api, kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => { void fetchAll(); }, [fetchAll]);
@@ -107,6 +107,12 @@ export function SeatHolders({ onBack, onToast }: { onBack: () => void; onToast: 
       setDlgError(kind === 'changed' ? t('seatHolders.link.changed') : kind === 'retry' ? t('seatHolders.link.retry') : kind === 'gone' ? t('seatHolders.link.gone') : errText(e));
       if (kind === 'changed' || kind === 'gone') await fetchAll(true);
     } finally { setBusy(false); }
+  }
+  async function doUndo(a: AutoLink) {
+    if (busy) return;
+    setBusy(true);
+    try { await api.undoSeatAutoLink(kehilaId, a.holderId); onToast(t('seatHolders.auto.undone')); } catch (e) { onToast(errText(e)); } finally { setBusy(false); }
+    await fetchAll(true);
   }
   function notThem(s: LinkSuggestion) {
     const next = new Set(dismissed).add(dismissKey(s.holderId, s.familyId));
@@ -219,6 +225,20 @@ export function SeatHolders({ onBack, onToast }: { onBack: () => void; onToast: 
       {load.status === 'error' ? <Banner tone="error" text={load.text} action={{ title: t('common.retry'), onPress: () => { void fetchAll(); } }} /> : null}
       {ready ? (
         <>
+          {ready.autos.length ? (
+            <Card edgeColor={k.tekhelet}>
+              <Txt bold accessibilityRole="header">{t('seatHolders.auto.title')}</Txt>
+              {ready.autos.map((a) => (
+                <View key={a.holderId} style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <View style={{ flex: 1, minWidth: 220 }}>
+                    <Txt content>{t('seatHolders.auto.item', { family: a.familyName, holder: a.holderName })}</Txt>
+                    <Txt size="small" color={k.muted}>{t('seatHolders.auto.until', { date: date(a.expiresAt) })}</Txt>
+                  </View>
+                  <Button kind="secondary" title={t('seatHolders.auto.undo')} disabled={busy} onPress={() => { void doUndo(a); }} />
+                </View>
+              ))}
+            </Card>
+          ) : null}
           {visible.length ? (
             <View style={{ gap: 8 }}>
               <Banner text={`${t('seatHolders.suggest.count', { n: visible.length })} ${t('seatHolders.suggest.lead')}`} />

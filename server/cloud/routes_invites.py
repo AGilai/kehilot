@@ -2,7 +2,7 @@
 import logging
 import time
 
-from . import inputs
+from . import inputs, routes_seatlink
 from .authz import require
 from .routes_admin import CLASSIFICATIONS
 from .errors import ApiError
@@ -76,6 +76,7 @@ def accept(ctx, params):
             ctx.repo.ensure_family(k, ctx.user_id)
         except Exception:  # the lazy path (GET .../family) creates it later
             log.warning('ensure_family failed kehila=%s user=%s', k, ctx.user_id)
+        routes_seatlink.try_auto_link(ctx, k, ctx.user_id)
     return 200, {'kehilaId': membership['kehilaId'], 'role': membership['role']}
 
 

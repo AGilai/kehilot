@@ -158,6 +158,27 @@ class SeatingRepo:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise
 
+    # auto-link records (gabbai notice + undo data), SEATAUTO#<holderId>
+    def put_auto_link(self, k, holder_id, fields):
+        """False when a record for the holder exists already (the auto-link ran or is running)."""
+        try:
+            self.table.put_item(Item={**self._key(k, f'SEATAUTO#{holder_id}'), **stored(fields), 'holderId': holder_id},
+                                ConditionExpression='attribute_not_exists(sk)')
+            return True
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            return False
+
+    def get_auto_link(self, k, holder_id):
+        return self._seat_get(k, f'SEATAUTO#{holder_id}')
+
+    def list_auto_links(self, k):
+        return [plain(i) for i in self._query_prefix(k, 'SEATAUTO#', consistent=True)]
+
+    def delete_auto_link(self, k, holder_id):
+        self.table.delete_item(Key=self._key(k, f'SEATAUTO#{holder_id}'))
+
     def holder_ref_left(self, k, holder_id):
         """True while any layout version still assigns a seat to the holder."""
         ref = f'holder:{holder_id}'

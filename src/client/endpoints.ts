@@ -22,6 +22,8 @@ const e = encodeURIComponent;
 export type SeatLayoutRow = { effectiveFrom: string; updatedAt: number; seats: number; assigned: number; current: boolean };
 export type SeatLayout = LayoutBody & { effectiveFrom: string; seats: { id: string; row: number; col: number }[]; updatedAt: number };
 /** A seat holder without an account: personal data, gabbai-only. */
+/** `GET …/admin/seating/auto-links`: holders linked by the server on a certain match, undoable for 14 days (`expiresAt`, seconds). */
+export type AutoLink = { holderId: string; holderName: string; familyId: string; familyName: string; seats: number; at: number; expiresAt: number };
 export type SeatHolder = { holderId: string; name: string; phone: string | null; createdAt: number; updatedAt: number };
 
 export function endpoints(http: Http) {
@@ -132,6 +134,9 @@ export function endpoints(http: Http) {
     deleteSeatHolder: (k: string, id: string) => r<void>('DELETE', `${A(k)}/seating/holders/${e(id)}`),
     createSeatHolder: (k: string, body: { name: string; phone?: string }) => r<SeatHolder>('POST', `${A(k)}/seating/holders`, body),
     putSeatHolder: (k: string, id: string, body: { name: string; phone?: string }) => r<SeatHolder>('PUT', `${A(k)}/seating/holders/${e(id)}`, body),
+    seatAutoLinks: (k: string) => r<{ count: number; items: AutoLink[] }>('GET', `${A(k)}/seating/auto-links`),
+    /** Undo of an auto-link: 404 `autolink_not_found`, 410 `autolink_expired`, 409 `autolink_changed`. */
+    undoSeatAutoLink: (k: string, id: string) => r<{ holderId: string }>('POST', `${A(k)}/seating/auto-links/${e(id)}/undo`),
     seatLinkSuggestions: (k: string) => r<LinkSuggestions>('GET', `${A(k)}/seating/link-suggestions`),
     /** Links one holder to one registered family (a gabbai's explicit confirm); 409 `holder_changed` when `ifUpdatedAt` is stale. */
     linkSeatHolder: (k: string, id: string, body: { familyId: string; ifUpdatedAt: number }) => r<{ familyId: string; seats: number }>('POST', `${A(k)}/seating/holders/${e(id)}/link`, body),
