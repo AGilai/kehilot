@@ -4090,7 +4090,7 @@ replier. The family's own count line adds " · {m} חדשות" with the unread r
 replies plus the ones sent to me personally. Personal ones carry a small pomegranate Tag **"אישית"** with a `lock`
 after the writer's name. The header line counts mine: "ברכות למשפחה שלכם · {n} ברכות · {p} אישיות · {m} חדשות".
 Example: 12 on the card = 9 to the family + 2 to Shulamit + 1 to Yigal. Shulamit sees 11 (2 personal) and Yigal sees 10
-(1 personal). Neither learns that the other got personal ones. The public count says only "12", with no breakdown. On
+(1 personal). Neither sees the other's personal replies (their text, writers or number). Note: since the public count includes every reply, a spouse who subtracts what they can see could infer how many personal replies the other got; the content and writers stay private (review note, accepted). The public count says only "12", with no breakdown. On
 M3 "ברכות שהגיעו" uses the same list and Tag.
 
 **Push.** A personal reply pushes only the chosen adult: "ברכה אישית חדשה" (condolence: "מילה אישית חדשה"), with no
