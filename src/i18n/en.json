@@ -2311,7 +2311,6 @@
     "coupleName": "{a} and {b} {surname}",
     "open": "Open details",
     "loading": "Loading the tree…",
-    "soon": "Editing details is coming soon.",
     "role": {
       "self": "Me",
       "father": "Father",
@@ -2367,6 +2366,168 @@
       "father": "father's name",
       "mother": "mother's name",
       "tribe": "tribe"
+    },
+    "account": {
+      "app": "Name in the app",
+      "phone": "Phone",
+      "none": "Not entered",
+      "edit": "Edit in \"My details\""
+    },
+    "newTitle": "Add {role}",
+    "name": {
+      "aliyah": "Aliyah name",
+      "mi": "Mi Sheberach name",
+      "memorial": "Memorial name",
+      "missFather": "Father's name missing",
+      "missMother": "Mother's name missing",
+      "missFirst": "First name missing",
+      "diedOn": "Died on {hdate}"
+    },
+    "f": {
+      "first": "Hebrew first name",
+      "firstHint": "As called to the Torah. Two names? Write both.",
+      "surname": "Surname",
+      "father": "Father's name",
+      "mother": "Mother's name",
+      "fatherPh": "Dad's Hebrew name",
+      "motherPh": "Mum's Hebrew name",
+      "fromTree": "From the tree",
+      "fillsFather": "Also saved on the father in the tree.",
+      "fillsMother": "Also saved on the mother in the tree.",
+      "tribe": "Kohen, Levi or Yisrael",
+      "kohen": "Kohen",
+      "levi": "Levi",
+      "yisrael": "Yisrael",
+      "fromFather": "Taken from the father when this person was added. You can change it.",
+      "birth": "Date of birth",
+      "greg": "Gregorian (you can type it)",
+      "gregBad": "Not a valid Gregorian date. For example 2.12.2028",
+      "day": "Day",
+      "month": "Month",
+      "year": "Year",
+      "alive": "Living",
+      "deceased": "Deceased",
+      "death": "Date of death (Hebrew)",
+      "adarNote": "A leap year has two Adars; we keep exactly which one."
+    },
+    "err": {
+      "partialDate": "Fill in the day and month, or leave the date empty.",
+      "future": "The date can't be in the future.",
+      "deathBeforeBirth": "Date of death is before date of birth."
+    },
+    "feedWarnFather": "This is also the father's name of {n} children. Their names will update when you save.",
+    "feedWarnFatherOne": "This is also the father's name of the child. Their name will update when you save.",
+    "feedWarnMother": "This is also the mother's name of {n} children. Their names will update when you save.",
+    "feedWarnMotherOne": "This is also the mother's name of the child. Their name will update when you save.",
+    "feedDone": "Saved. Updated for {n} children",
+    "feedDoneOne": "Saved. Updated for the child",
+    "saved": "Saved",
+    "married": "Married? Add a spouse",
+    "marriedAfter": "After saving you can add a spouse and children.",
+    "grandkids": "Their children · {n}",
+    "addGrandkid": "Add a grandchild",
+    "grandkidsNote": "Grandchildren have a name, son/daughter and birth date. The tree stops there.",
+    "details": "Details",
+    "removeAction": "Remove from the tree",
+    "remove": "Remove {name} from the tree? It's removed for {partner} too.",
+    "removeYes": "Yes, remove",
+    "keep": "Keep",
+    "theFamily": "the family",
+    "clear": "Clear details",
+    "clearAsk": "Clear the details of {name}? The figure stays on the tree.",
+    "clearYes": "Yes, clear",
+    "save": "Save",
+    "add": "Add to the tree",
+    "bm": {
+      "title": "Bar mitzvah",
+      "suggested": "Suggested",
+      "manual": "Set by hand",
+      "shabbatOf": "Shabbat",
+      "why": "Suggested: the Shabbat of or after the 13th Hebrew birthday. Families sometimes move it; you can change it.",
+      "change": "Change Shabbat",
+      "pick": "Which Shabbat?",
+      "reset": "Back to the suggestion: {parasha}, {date}",
+      "hebrew": "Hebrew date",
+      "greg": "Gregorian date",
+      "set": "Set this Shabbat",
+      "weekday": "That's a {day} ({hdate}), not Shabbat. That week's Shabbat: {shabbat}. Set it?",
+      "useShabbat": "Yes, {label}",
+      "other": "Pick another date",
+      "afterBirthDate": "After the birth date, a bar mitzvah Shabbat is suggested.",
+      "note": "Pick any date; if it isn't a Shabbat, we offer that week's Shabbat.",
+      "keepAsk": "The birth date changed. Your chosen Shabbat was kept. The new suggestion: {shabbat}.",
+      "takeNew": "Yes, take the new suggestion",
+      "keepMine": "Keep my choice"
+    },
+    "batm": {
+      "title": "Bat mitzvah",
+      "note": "A bat mitzvah has no Shabbat on the tree. The date is information only."
+    },
+    "day": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Shabbat"
+    },
+    "fig": {
+      "link": "Figure",
+      "title": "My figure",
+      "preview": "Preview",
+      "apply": "Save",
+      "reset": "Back to the default",
+      "grows": "The figure grows by itself with the birth date. You can choose skin, hair and glasses.",
+      "cover": "Scarf colour",
+      "skin": "Skin tone",
+      "hair": "Hair colour",
+      "covering": {
+        "title": "Head covering",
+        "tichel": "Scarf",
+        "hat": "Hat",
+        "wig": "Wig",
+        "none": "None"
+      },
+      "kippah": {
+        "title": "Kippah",
+        "knitted": "Large knitted",
+        "small": "Small",
+        "velvet": "Black velvet",
+        "none": "None"
+      },
+      "beard": {
+        "title": "Beard",
+        "none": "None",
+        "short": "Short",
+        "full": "Full"
+      },
+      "glasses": {
+        "title": "Glasses",
+        "yes": "With",
+        "no": "Without"
+      },
+      "coverColor": {
+        "teal": "Teal",
+        "coral": "Coral",
+        "blue": "Blue",
+        "rose": "Rose",
+        "olive": "Olive",
+        "purple": "Purple"
+      },
+      "skinTone": {
+        "light": "Light",
+        "medium": "Medium",
+        "tan": "Dark"
+      },
+      "hairColor": {
+        "brown": "Brown",
+        "black": "Black",
+        "auburn": "Auburn",
+        "blond": "Blond",
+        "grey": "Grey",
+        "white": "White"
+      }
     }
   }
 }

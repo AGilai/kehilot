@@ -296,7 +296,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'tree':
-      body = <TreeRoute onBack={() => setNav({ tab: 'me' })} />;
+      body = <TreeRoute onBack={() => setNav({ tab: 'me' })} onOpenMe={() => setNav({ tab: 'me' })} />;
       break;
     case 'adminTree':
       // Gabbai only (the server enforces it too): anyone else gets the plain Me screen.

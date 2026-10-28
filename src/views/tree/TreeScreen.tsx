@@ -38,7 +38,7 @@ function BackRow({ label, onPress, testID }: { label: string; onPress: () => voi
  * generation up (breadcrumb, back, "חזרה ל…"); the list view is the same people in words. `readOnly` is the gabbai's view
  * of one family: no "+", no empty slots to tap. Tapping a figure calls `onOpenPerson` (the sheet is the caller's).
  */
-export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel, readOnly, familyId, familyName, onPeople }: {
+export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel, readOnly, familyId, familyName, onPeople, onDoc, doc: external }: {
   onBack: () => void;
   onOpenPerson: (id: string) => void;
   /** An empty place or the "+ child" tile was tapped. */
@@ -52,6 +52,10 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
   familyName?: string;
   /** Called with the loaded people (the caller resolves ids to figures). */
   onPeople?: (people: Person[]) => void;
+  /** Called with the loaded document (version included). */
+  onDoc?: (doc: TreeDoc) => void;
+  /** A newer document from the caller (after a save, or after a conflict): shown instead of what was loaded. */
+  doc?: TreeDoc | null;
 }) {
   const { t } = useI18n();
   const { api } = useAuth();
@@ -82,6 +86,8 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
   }, []);
   const chooseMode = (m: Mode) => { setMode(m); void AsyncStorage.setItem(VIEW_KEY, m).catch(() => {}); };
 
+  React.useEffect(() => { if (external) setDoc(external); }, [external]);
+  React.useEffect(() => { if (doc) onDoc?.(doc); }, [doc]); // eslint-disable-line react-hooks/exhaustive-deps
   const people = React.useMemo(() => doc?.people ?? [], [doc]);
   React.useEffect(() => { onPeople?.(people); }, [people]); // eslint-disable-line react-hooks/exhaustive-deps
   const layout = React.useMemo(() => treeLayout(people, centre), [people, centre]);
