@@ -249,6 +249,12 @@ export function placement(model: SheetModel, fit: SheetFit): { note: boolean; ev
 
 const plain = (parts: MazalPart[]) => parts.map(p => p.text).join('');
 
+/** A date range split at its Gregorian part: `heb` is "י״ד–י״ח בחשוון", `greg` "(25.10–29.10)" with the brackets, the numbers isolated left-to-right (the renderers keep it on one line). */
+export function rangeParts(range: string): { heb: string; greg: string } {
+  const i = range.indexOf('(');
+  return i < 0 ? { heb: range, greg: '' } : { heb: range.slice(0, i).trimEnd(), greg: range.slice(i) };
+}
+
 /** The square sheet's one band: "מזל טוב: משפחת א · משפחת ב · … ועוד n" (four families at most; no events). */
 export function squareBand(items: SheetLineItem[]): string {
   return squareBandParts(items).map(p => p.text).join('');

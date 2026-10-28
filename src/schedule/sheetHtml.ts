@@ -1,6 +1,6 @@
 // The sheet as a standalone HTML document for the phone's PDF (expo-print). Same model, fit and layout numbers as Sheet.tsx, so the
 // two look alike. Every piece of text goes through `esc`; images only as data: or https: URLs.
-import { PAPER, SHEET_TEXT, fitSheet, innerBox, placement, sheetLayout, shownItems, squareBandParts } from './sheetModel.ts';
+import { PAPER, SHEET_TEXT, rangeParts, fitSheet, innerBox, placement, sheetLayout, shownItems, squareBandParts } from './sheetModel.ts';
 import type { SheetLineItem, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
 
 export function esc(value: string): string {
@@ -31,7 +31,7 @@ function columnHtml(column: SheetColumn | null): string {
   const b = column.band;
   const band = !b ? '' : b.kind === 'candles'
     ? `<div class="cand">${esc(b.label)} · ${b.cities.map(c => `${c.name ? `${esc(c.name)} ` : ''}<b dir="ltr">${esc(c.time)}</b>`).join(' · ')}</div>`
-    : `<div class="cand">${esc(b.days)} · <b>${esc(b.range)}</b></div>`;
+    : `<div class="cand">${esc(b.days)} · <b>${(r => `${esc(r.heb)} <bdi dir="ltr" style="white-space:nowrap">${esc(r.greg)}</bdi>`)(rangeParts(b.range))}</b></div>`;
   return `<div><h2>${esc(column.title)}</h2>${band}${column.rows.map(rowHtml).join('')}</div>`;
 }
 

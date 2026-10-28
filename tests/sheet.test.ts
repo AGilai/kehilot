@@ -365,3 +365,13 @@ test('print gate: only a loaded item list prints (loading and failed both wait f
   assert.equal(canPrintSheet('error'), false);
   assert.ok(ITEMS_LOAD_ERROR.he && ITEMS_LOAD_ERROR.en);
 });
+
+test('html: the weekday band keeps the Gregorian range in one isolated left-to-right piece', async () => {
+  const { rangeParts } = await import('../src/schedule/sheetModel.ts');
+  const m = build();
+  const band = m.weekday!.band!;
+  assert.equal(band.kind, 'dates');
+  const parts = rangeParts(band.kind === 'dates' ? band.range : '');
+  assert.match(parts.greg, /^\(⁦1\.11–5\.11⁩\)$/);
+  assert.match(sheetBodyHtml(m), /<bdi dir="ltr" style="white-space:nowrap">\(⁦1\.11–5\.11⁩\)<\/bdi>/);
+});

@@ -6,7 +6,7 @@ import { useFonts } from 'expo-font';
 import { Heebo_400Regular, Heebo_700Bold, Heebo_800ExtraBold } from '@expo-google-fonts/heebo';
 import { NotoSerifHebrew_500Medium, NotoSerifHebrew_700Bold, NotoSerifHebrew_800ExtraBold } from '@expo-google-fonts/noto-serif-hebrew';
 import { allowedImage } from './sheetHtml.ts';
-import { PAPER, SHEET_TEXT, fitSheet, innerBox, placement, sheetLayout, shownItems, squareBandParts } from './sheetModel.ts';
+import { PAPER, SHEET_TEXT, rangeParts, fitSheet, innerBox, placement, sheetLayout, shownItems, squareBandParts } from './sheetModel.ts';
 import type { SheetLineItem, SheetBand, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
 
 const F = { ui: 'Heebo_400Regular', bold: 'Heebo_700Bold', heavy: 'Heebo_800ExtraBold', serif: 'NotoSerifHebrew_500Medium', serifBold: 'NotoSerifHebrew_700Bold', serifHeavy: 'NotoSerifHebrew_800ExtraBold' } as const;
@@ -54,7 +54,7 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
         {b.kind === 'candles' ? (
           <Text style={small}>{b.label} · {b.cities.map((c, i) => <Text key={i}>{i > 0 ? ' · ' : ''}{c.name ? `${c.name} ` : ''}<Text style={big}>{ltr(c.time)}</Text></Text>)}</Text>
         ) : (
-          <Text style={small}>{b.days} · <Text style={big}>{b.range}</Text></Text>
+          <Text style={small}>{b.days} · <Text style={big}>{rangeParts(b.range).heb} <Text style={{ writingDirection: 'ltr' }}>{rangeParts(b.range).greg.replace(/([.–])/g, '$1\u2060')}</Text></Text></Text>
         )}
       </View>
     );
