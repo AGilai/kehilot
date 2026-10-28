@@ -1504,9 +1504,9 @@ is more, and collapsing the map brings it all into one screen.
 
 #### 15.10.3 The compact map (the owner's space concern)
 
-- **His row(s) full size, the ±2 rows as thin strips.** Rows with his seats draw seat tiles **56 high**; the other rows
-  in the window are **10 high** strips in `line` grey, with no state, no touch, and hidden from screen readers. They are
-  there to show where you are, not to read. Five rows then take about 130 px instead of P25's 270.
+- **His row(s) full size, the ±2 rows as tiny chairs.** Rows with his seats draw armchairs **56 high**; the other rows
+  in the window show the same chair glyph at **14 high** in `line` grey, with no state, no touch, and hidden from screen
+  readers. They are there to show where you are, not to read. Five rows then take about 150 px instead of P25's 270.
 - **The ark marker** sits at the top: a small pill with `Icon ark` and "ארון הקודש", on a thin line across the width.
   When rows between the ark and the window are hidden, a muted "• • •" shows the gap. The ark is never inside the
   window: the window is still only his block and his rows ±2.
@@ -1516,7 +1516,7 @@ is more, and collapsing the map brings it all into one screen.
 - **Row labels** at the start side, 34 wide: his row bold tekhelet 13, the others muted 11.5. Labels are the gabbai's
   own (קדמית, 1–13; CTO ruling 2).
 - **Card header:** `Icon seat` and "{block} · שורה {r} · {n} מקומות", and at the end a 44-high text button **"הסתרה ⌃"
-  / "הצגת המפה ⌄"**. Collapsed, the card shows **only his seats** as a strip of 44 × 32 tiles (icon only, each with an
+  / "הצגת המפה ⌄"**. Collapsed, the card shows **only his seats** as a strip of 36 × 40 armchairs (icon only, each with an
   accessibility label), in the same left-to-right order, plus the count ("1 פנוי"). The choice is remembered per
   device (`localStorage` `kehilot.seatMapCollapsed`). It is open on the first visit.
 - **Seat size:** on a 5-wide block at 390, a tile is about 50 × 56; at 360 it is 44 × 56. A 2-wide block is capped at 72
@@ -1526,12 +1526,21 @@ is more, and collapsing the map brings it all into one screen.
 
 | State | Fill | Border | Icon + word | Light text / fill | Dark text / fill |
 |---|---|---|---|---|---|
-| **מגיע** (kept) | tekhelet | 2 px solid | `check` · "מגיע" | `#FFFFFF` on `#2A3F94` 9.4:1 | `#10132A` on `#8FA2F0` 7.5:1 |
-| **פנוי** (freed) | `--sf-free-bg` | 2 px **dashed** `--sf-free` | `out` (arrow out of a box) · "פנוי" | `#256B35` on `#E3F3E5` 5.6:1 | `#8FD49C` on `#163323` 7.9:1 |
-| others' | `line` grey | none | none, hidden from screen readers | — | — |
+| **מגיע** (kept) | tekhelet chair (cushion and armrests 82% tekhelet + 18% ink) | 1.6 px surface-coloured seams | `check` · "מגיע" | `#FFFFFF` on `#2A3F94` 9.4:1 | `#10132A` on `#8FA2F0` 7.5:1 |
+| **פנוי** (freed) | `--sf-free-bg` chair | 2 px **dashed** `--sf-free` (dash 4 / gap 3) on every part | `check` · "פנוי" | `#256B35` on `#E3F3E5` 5.6:1 | `#8FD49C` on `#163323` 7.9:1 |
+| others' | `line` grey chair | surface seams | none, hidden from screen readers | — | — |
 | read-only | as above at 72% | as above | `lock` instead of the icon | — | — |
 
-The tiles are seat-shaped: radius 14/14/7/7, with a 3 px "seat edge" bar near the bottom at 35% of the text colour.
+**The seat glyph is a cinema-style armchair** (owner, 2026-10-28: "cooler"). It is one upholstered seat seen from the
+front, in a 50 × 56 viewBox: a backrest (34 × 34, radius 9), two armrests (10 × 29, radius 4) overlapping its sides, a
+cushion (36 × 14, radius 5) and two short legs. It is drawn as one `react-native-svg` component, `SeatChair {state,
+size}`, with the parts as separate rects so each state can fill and stroke them. The word and icon sit centred on the
+backrest (top 9%, 50% of the height), at 11.5 bold. The whole cell is the touch target: at least 44 × 56. The same
+glyph is used everywhere at every size: 56 for his rows, 14 for the ±2 rows, 40 in the folded strip and the sent
+summary, 20 in the legend, and 68 at 1280.
+**Use the same glyph elsewhere (not redrawn yet):** in the P26 print legend, and inside the print's seat boxes if it
+stays readable at 32 × 24 (the line, diagonal, notch and dashed shapes of §15.9 / §16.12.4 stay on top). On the P24
+Home card it would replace `Icon seat` in the title. Both are to be done when P24 and P26 are next redrawn.
 The owner suggested red → green. We keep **tekhelet → green**: in the app, red (pomegranate) means error or delete, and
 the print (§15.9) already uses green to mean "you can sit here", so green for freed reads the same on the phone and on
 paper. Red stays a print style only. The two new colours are frame tokens to add to the kit theme: `seatFree`
