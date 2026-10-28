@@ -326,6 +326,43 @@ class AutoLinkTest(sl.SeatLinkTest):
         self.register()
         self.assertNotIn(a, self.holder_ids())
 
+    def test_short_surname_with_the_definite_article_blocks(self):
+        a = self.holder_named('לוי ל.')
+        b = self.holder_named('הלוי משה')
+        self.profile(self.listener, 'לאה', 'לוי', '+972508888888')
+        self.register()
+        self.assertTrue({a, b} <= self.holder_ids())
+
+    def test_short_surname_spelling_variant_blocks(self):
+        a = self.holder_named('לוי ל.')
+        b = self.holder_named('לווי ש')
+        self.profile(self.listener, 'לאה', 'לוי', '+972508888888')
+        self.register()
+        self.assertTrue({a, b} <= self.holder_ids())
+
+    def test_short_surname_unrelated_row_does_not_block(self):
+        a = self.holder_named('לוי ל.')
+        self.holder_named('הבדיוני שמעון')
+        self.profile(self.listener, 'לאה', 'לוי', '+972508888888')
+        self.register()
+        self.assertNotIn(a, self.holder_ids())
+
+    def test_a_cancel_that_wins_the_race_puts_the_seats_back(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0), (5, 1))
+        real = routes_seatlink._move
+
+        def move_then_cancel(*a, **kw):
+            out = real(*a, **kw)
+            self.repo.update_auto_link(self.k, h, {'state': 'cancelled'})  # the gabbai's cancel landed meanwhile
+            return out
+        with mock.patch.object(routes_seatlink, '_move', side_effect=move_then_cancel):
+            self.register()
+        self.assertIn(h, self.holder_ids())
+        self.assertEqual(sorted(self.asg().values()), [f'holder:{h}'] * 2)
+        self.assertEqual(self.repo.get_auto_link(self.k, h)['state'], 'cancelled')
+        self.assertIsNone(self.cards('listener-sub')['seatLink'])
+
     def pending(self, h):
         """A pending auto-link: the first move fails."""
         with mock.patch.object(self.repo, 'move_holder_seats', side_effect=Exception('boom')):

@@ -222,7 +222,14 @@ def _finish(ctx, k, rec):
     if grown:
         ctx.repo.update_auto_link(k, holder_id, {'moved': moved})
     _move(ctx, k, holder_id, family_id, adults, int(rec['seats']))
-    ctx.repo.update_auto_link(k, holder_id, {'state': 'done'})
+    if not ctx.repo.update_auto_link(k, holder_id, {'state': 'done'}, if_state='pending'):
+        # A cancel landed while we moved: put everything back the way the cancel would have (the cancel itself found
+        # nothing moved yet). Week records were not restored by it either: their snapshot is gone with the scrub.
+        if not ctx.repo.get_holder(k, holder_id):
+            ctx.repo.put_holder(k, holder_id, fresh['holderName'], fresh.get('holderPhone'), created=int(fresh['holderCreatedAt']))
+        _restore_seats(ctx, k, holder_id, family_id, moved)
+        for m in adults:
+            ctx.repo.drop_seat_link_holder(k, m['userId'], holder_id, int(rec['seats']))
 
 
 def auto_link_family(ctx, k, user_id):
@@ -326,6 +333,36 @@ def _restore_weeks(ctx, k, rec):
     ctx.repo.restore_week_ref(k, f'holder:{rec["holderId"]}', f'family:{rec["familyId"]}', rec.get('weeks') or {})
 
 
+def _restore_seats(ctx, k, holder_id, family_id, moved):
+    """Moves each recorded seat that is still the family's back to the holder (the guard is applied on the fresh read of
+    every attempt); returns how many seats were left alone because they changed meanwhile."""
+    family_ref, ref = f'family:{family_id}', f'holder:{holder_id}'
+    skipped = 0
+    for friday, seats in moved.items():
+        for _ in range(4):
+            item = ctx.repo.get_assignments(k, friday)
+            if not item:
+                skipped += len(seats)
+                break
+            back = dict(item['assignments'])
+            skipped_here = 0
+            for sid in seats:  # the guard is applied on the fresh read of every attempt
+                if back.get(sid) == family_ref:
+                    back[sid] = ref
+                elif back.get(sid) != ref:
+                    skipped_here += 1
+            try:
+                if back != item['assignments']:
+                    ctx.repo.put_assignments(k, friday, back, item['updatedAt'])
+                skipped += skipped_here
+                break
+            except ApiError:
+                continue
+        else:
+            raise ApiError(409, 'try_again')
+    return skipped
+
+
 def undo_auto_link(ctx, params):
     """Restores the holder and moves back every seat that is still the family's (a seat the gabbai changed since is left
     as it is and counted in `skipped`; 409 `autolink_changed` when none could be restored). Week records follow, the
@@ -353,29 +390,7 @@ def undo_auto_link(ctx, params):
         ctx.repo.update_auto_link(k, holder_id, {'state': 'cancelled' if rec['state'] == 'pending' else 'undoing'})
     if not ctx.repo.get_holder(k, holder_id):
         ctx.repo.put_holder(k, holder_id, rec['holderName'], rec.get('holderPhone'), created=int(rec['holderCreatedAt']))
-    skipped = 0
-    for friday, seats in (rec.get('moved') or {}).items():
-        for _ in range(4):
-            item = ctx.repo.get_assignments(k, friday)
-            if not item:
-                skipped += len(seats)
-                break
-            back = dict(item['assignments'])
-            skipped_here = 0
-            for sid in seats:  # the guard is applied on the fresh read of every attempt
-                if back.get(sid) == family_ref:
-                    back[sid] = ref
-                elif back.get(sid) != ref:
-                    skipped_here += 1
-            try:
-                if back != item['assignments']:
-                    ctx.repo.put_assignments(k, friday, back, item['updatedAt'])
-                skipped += skipped_here
-                break
-            except ApiError:
-                continue
-        else:
-            raise ApiError(409, 'try_again')
+    skipped = _restore_seats(ctx, k, holder_id, rec['familyId'], rec.get('moved') or {})
     _restore_weeks(ctx, k, rec)
     family = ctx.repo.get_family(k, rec['familyId'])
     for m in (ctx.repo.live_adults(k, family) if family else []):

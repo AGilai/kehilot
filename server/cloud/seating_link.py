@@ -114,7 +114,7 @@ def holder_blocks(candidate_name, other_name):
     two-word surname) of the other row, whatever else it holds (an initial, several, a full first name, either order),
     equals the candidate's surname or is a spelling variant of it. Over-blocking is the safe direction."""
     cands = split_holder_name(candidate_name)[0]
-    ckeys = {k for v in cands for k in _spelling_keys(v)}
+    ckeys = {k for k in (spelling_key(v) for v in cands) if k}  # no length floor: short surnames (לוי / לווי) must match
     tokens = [t for t in normalize(other_name).split(' ') if t]
     while tokens and tokens[0] in _NAME_PREFIXES:
         tokens = tokens[1:]
@@ -122,8 +122,9 @@ def holder_blocks(candidate_name, other_name):
     for a in range(len(tokens)):
         for b in range(a + 1, len(tokens) + 1):
             run = ' '.join(tokens[a:b])
-            if run in cands or any(k in ckeys for k in _spelling_keys(run)):
-                return True
+            for word in (run, run[1:] if run.startswith('ה') and len(run) > 2 else run):  # "הלוי" is "לוי"
+                if word in cands or spelling_key(word) in ckeys:
+                    return True
     return False
 
 

@@ -170,13 +170,22 @@ class SeatingRepo:
                 raise
             return False
 
-    def update_auto_link(self, k, holder_id, fields):
+    def update_auto_link(self, k, holder_id, fields, if_state=None):
+        """False when `if_state` is given and the record is no longer in that state (a cancel won the race)."""
         names = {f'#f{i}': key for i, key in enumerate(fields)}
         values = {f':v{i}': v for i, v in enumerate(stored(fields).values())}
-        self.table.update_item(Key=self._key(k, f'SEATAUTO#{holder_id}'),
-                               UpdateExpression='SET ' + ', '.join(f'#f{i} = :v{i}' for i in range(len(fields))),
-                               ExpressionAttributeNames=names, ExpressionAttributeValues=values,
-                               ConditionExpression='attribute_exists(sk)')
+        if if_state:
+            names['#st'], values[':st'] = 'state', if_state
+        try:
+            self.table.update_item(Key=self._key(k, f'SEATAUTO#{holder_id}'),
+                                   UpdateExpression='SET ' + ', '.join(f'#f{i} = :v{i}' for i in range(len(fields))),
+                                   ExpressionAttributeNames=names, ExpressionAttributeValues=values,
+                                   ConditionExpression='attribute_exists(sk)' + (' AND #st = :st' if if_state else ''))
+            return True
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException' or not if_state:
+                raise
+            return False
 
     def put_auto_tombstone(self, k, holder_id, family_id):
         """The gabbai said 'not them': no names, no TTL, so nothing re-links the holder when the record expires."""
