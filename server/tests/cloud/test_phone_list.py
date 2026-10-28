@@ -53,7 +53,7 @@ class PhoneListTest(test_messages.MessagesTest):
         self.assertEqual(consents.latest(items, 'phoneList', 'a')['value'], 'on')
         self.assertEqual(consents.latest(items, 'phoneList')['value'], 'off')
         self.assertIsNone(consents.latest(items, 'kehilaTerms'))
-        self.assertEqual(consents.VERSIONS['phoneList'], '2026-10-27')
+        self.assertEqual(consents.VERSIONS['phoneList'], '2026-10-28')
 
     def test_phone_roundtrip_and_invalid(self):
         self.assertEqual(self.set_phone('member-sub'), (200, {'phone': E164}))

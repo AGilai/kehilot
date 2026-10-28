@@ -1,6 +1,6 @@
 """Consent wording versions (the one place) and reading consent records."""
 
-VERSIONS = {'age13': '2026-10-27', 'phoneList': '2026-10-27', 'kehilaTerms': '2026-10-27'}
+VERSIONS = {'age13': '2026-10-27', 'phoneList': '2026-10-28', 'kehilaTerms': '2026-10-27'}
 
 
 def latest(items, kind, kehila=None):

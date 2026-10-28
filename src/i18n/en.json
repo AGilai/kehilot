@@ -1141,7 +1141,7 @@
   "cards": {
     "phone": {
       "title": "Appear in the phone list?",
-      "body": "Members of {kehila} could find your number and call you. Only members and gabbaim see the list. You can change this any time in Me.",
+      "body": "The gabbaim of {kehila} always see your number. This switch decides only whether other members see it too: on, members and gabbaim of {kehila} see it; off, only the gabbaim of {kehila} see it. You can change this any time in the family tree.",
       "yes": "Yes, show it",
       "saveShow": "Save and show",
       "notNow": "Not now"

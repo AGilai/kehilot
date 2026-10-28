@@ -111,6 +111,13 @@ class ConsentsTest(test_messages.MessagesTest):
         with mock.patch.dict(consents.VERSIONS, {'phoneList': '2027-01-01'}):
             self.assertTrue(self.kehila(MEMBER_SUB)['cards']['phoneAsk'])
 
+    def test_phone_card_reasked_for_gabbai_phones_version(self):
+        # answered under the previous version (2026-10-27): asked once more under 2026-10-28
+        self.repo.set_phone_asked(self.k, self.member, '2026-10-27')
+        self.assertTrue(self.kehila(MEMBER_SUB)['cards']['phoneAsk'])
+        self.assertEqual(self.dismiss('phone', MEMBER_SUB), (204, None))
+        self.assertFalse(self.kehila(MEMBER_SUB)['cards']['phoneAsk'])
+
     def test_imported_card_dismiss_any_role(self):
         self.assertFalse(self.kehila(LISTENER_SUB)['cards']['imported'])
         self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.listener}'},
