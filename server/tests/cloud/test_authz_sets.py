@@ -21,11 +21,18 @@ from server.tests.cloud.test_handler import Context, event
 CLOUD = pathlib.Path(__file__).resolve().parents[2] / 'cloud'
 K = '01JABCDEFGHJKMNPQRSTVWXYZ0'  # a well-formed Kehila ID
 ALLOWED = {'routes_seatweek.py': 1}  # the wire value 'by': 'gabbai' of a seat-week answer
+ROLE_NAMES = ('LISTENER', 'MEMBER', 'GABBAI', 'TECH')
+# The only references to authz's role constants outside authz.py, per file: input validation, not authorization.
+ALLOWED_ROLE_NAMES = {
+    'importer.py': 3,        # ROLES = (LISTENER, MEMBER, GABBAI): what an import row may name
+    'routes_admin.py': 3,    # ROLES = (LISTENER, MEMBER, GABBAI): what a role change may name
+    'routes_invites.py': 3,  # INVITE_ROLES = (LISTENER, MEMBER) and the default role LISTENER
+}
 
 
 def _modules():
-    for path in sorted(CLOUD.glob('*.py')):
-        yield path.name, ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+    for path in sorted(CLOUD.rglob('*.py')):
+        yield path.relative_to(CLOUD).as_posix(), ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
 
 
 def _call_name(func):
@@ -48,12 +55,22 @@ def _mentions_role(node):
     return False
 
 
+def _role_name(node):
+    """`authz.GABBAI` (or a bare `GABBAI`) and the other role constants."""
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == 'authz':
+        return node.attr in ROLE_NAMES
+    return isinstance(node, ast.Name) and node.id in ROLE_NAMES
+
+
+def _single_role(node):
+    return (isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value in authz.ALL) \
+        or _role_name(node)
+
+
 def _role_literal(node):
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return node.value in authz.ALL
     if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
-        return any(isinstance(e, ast.Constant) and e.value in authz.ALL for e in node.elts)
-    return False
+        return any(_single_role(e) for e in node.elts)
+    return _single_role(node)
 
 
 class RoleSetGuards(unittest.TestCase):
@@ -99,6 +116,28 @@ class RoleSetGuards(unittest.TestCase):
                 counts[name] = n
         self.assertEqual(counts, ALLOWED)
 
+    def test_role_constants_only_in_the_allowlist(self):
+        counts = {}
+        for name, tree in _modules():
+            if name == 'authz.py':
+                continue
+            n = sum(1 for node in ast.walk(tree) if _role_name(node))
+            if n:
+                counts[name] = n
+        self.assertEqual(counts, ALLOWED_ROLE_NAMES)
+
+    def test_guard_catches_authz_constants(self):
+        """The comparison guard sees `authz.GABBAI` as a role literal, alone or in a tuple."""
+        for snippet in ("m['role'] == authz.GABBAI", "m['role'] in (authz.MEMBER, authz.GABBAI)",
+                        "m.get('role') == authz.TECH", "role != GABBAI"):
+            compare = ast.parse(snippet, mode='eval').body
+            operands = [compare.left, *compare.comparators]
+            self.assertTrue(any(_role_literal(o) for o in operands) and any(_mentions_role(o) for o in operands),
+                            snippet)
+
+    def test_scan_includes_subpackages(self):
+        self.assertIn('aliyot/engine.py', {name for name, _ in _modules()})
+
     def test_no_hand_written_role_conditions(self):
         bad = []
         for name, tree in _modules():
@@ -113,8 +152,10 @@ class RoleSetBehaviour(unittest.TestCase):
     def test_require_refuses_an_unnamed_tuple(self):
         repo = mock.Mock()
         repo.get_membership.return_value = {'role': 'gabbai'}
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             authz.require(repo, 'u-yosef', K, ('gabbai',))
+        with self.assertRaises(TypeError):
+            authz.require(repo, 'u-yosef', K, list(authz.MANAGEMENT))  # equal is not enough: the named object
 
     def test_require_accepts_a_named_set(self):
         repo = mock.Mock()
@@ -217,6 +258,24 @@ class TechLikeGabbai(unittest.TestCase):
         self.assertEqual(self.call('DELETE', f'{base}/admin/members/{self.tech}', 'tech-sub'),
                          (409, {'error': 'last_gabbai'}))
         self.assertEqual(self.repo.get_membership(self.k, self.tech)['role'], 'tech')
+
+    def test_gabbai_and_tech_demoting_each_other_leave_one(self):
+        """The tech demotes the gabbai while the gabbai demotes the tech: one of them must stay management."""
+        base = f'/v1/kehilot/{self.k}'
+        real = self.repo._guarded
+        calls = []
+
+        def racing(*args, **kwargs):
+            if not calls:  # after the tech's witness (the gabbai... or the tech) was chosen, before his transaction
+                calls.append(1)
+                self.assertEqual(self.call('PUT', f'{base}/admin/members/{self.tech}', 'gabbai-sub',
+                                           {'role': 'member'})[0], 200)
+            return real(*args, **kwargs)
+        with mock.patch.object(self.repo, '_guarded', side_effect=racing):
+            status, body = self.call('PUT', f'{base}/admin/members/{self.gabbai}', 'tech-sub', {'role': 'member'})
+        self.assertEqual((status, body), (409, {'error': 'last_gabbai'}))
+        self.assertEqual(self.repo.get_membership(self.k, self.gabbai)['role'], 'gabbai')
+        self.assertEqual(self.repo.get_membership(self.k, self.tech)['role'], 'member')
 
     def test_tech_removes_someone_elses_message(self):
         base = f'/v1/kehilot/{self.k}'

@@ -28,7 +28,8 @@ def _named(roles):
 
 
 def require(repo, user_id, k, roles):
-    assert _named(roles), 'require needs a named role set from authz.ROLE_SETS'
+    if not _named(roles):  # a raise, not an assert: `python -O` must not strip it
+        raise TypeError('require needs a named role set from authz.ROLE_SETS')
     if not ID_RE.fullmatch(k):
         raise ApiError(400, 'invalid_kehila_id')
     membership = repo.get_membership(k, user_id)
