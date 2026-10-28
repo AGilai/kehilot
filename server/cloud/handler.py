@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_seatlink, routes_seating, routes_seatweek, routes_tags, routes_tree
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_seatlink, routes_seating, routes_seatweek, routes_sheet, routes_tags, routes_tree
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -52,6 +52,10 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule$'), routes_schedule.put_schedule),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule/weeks/(?P<week>[^/]+)$'), routes_schedule.put_week),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/schedule/weeks/(?P<week>[^/]+)$'), routes_schedule.delete_week),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/sheet/(?P<week>[^/]+)$'), routes_sheet.get_sheet),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/sheet/(?P<week>[^/]+)/items$'), routes_sheet.add_item),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/sheet/(?P<week>[^/]+)/items/(?P<itemId>[^/]+)$'), routes_sheet.set_item),
+    ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/sheet/(?P<week>[^/]+)/items/(?P<itemId>[^/]+)/move$'), routes_sheet.move_item),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts$'), routes_seating.list_layouts),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts/(?P<from>[^/]+)$'), routes_seating.get_layout),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/layouts/(?P<from>[^/]+)$'), routes_seating.put_layout),

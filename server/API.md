@@ -287,6 +287,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 |---|---|---|---|
 | Family | `K#<k>` | `F#<familyId>` | `familyId`, `adults` (1-2 userIds; the keeping adult first), `people` (the family tree, see Family tree below; absent until first saved: the older `children` list `{id, firstName, gender: 'm'\|'f', birthDate?}` is then used and read as `child` entries; saving `people` removes `children`), `version` (int, +1 on every write), `updatedAt` (Unix seconds; set by every write of the tree: tree PUT, link merge, unlink/leave split, child add/edit/delete), `createdAt` |
 | Membership (changed) | `K#<k>` | `M#<user>` | + `familyId` (members and gabbaim only; set when the person becomes one, by approval, member invite, import or `tools/kehila_admin.py backfill-families`) |
+| Weekly sheet item | `K#<k>` | `SHI#<friday>#<itemId>` | `itemId` (= the messageId for a message item), `week` (the Friday, `YYYY-MM-DD`), `kind` (`message`\|`free`), `type` (`celebration`\|`condolence`\|`event`\|`notice`), `group` (`mazal`\|`condolence`\|`events`), `state` (`in`\|`pending`\|`removed`), `source` (`auto`\|`member`\|`approved`\|`free`\|`byGabbai`), `wasPending`, `order` (string sort key), `messageId` (message items), `text`, `bold?` (free items), `authorId` (free items), `approvedBy?` (userId), `line?` `{text, bold}` (gabbai override of a message item), `createdAt`, `expiresAt` (TTL: Friday + 14 days, as for `SCHEDWK#`) |
 
 ### Routes
 
@@ -412,6 +413,24 @@ The push `group_request` (he "בקשת הצטרפות לקבוצה", en "New gro
 | `condolence` | `variant` enum (`only`, `later`, `full`) R, `surname` text 60 R, `deceased` text 80 R, `relation` text 80 R, `address` text 200, `hours` text 120, `until` date, `prayers` text 200 (`address`, `hours`, `until` are R when `full`; shiva fields are kept, not cleared, for other variants) |
 
 Message object: `{messageId, channelId, type, title, body, authorId, authorName, authorKind: "management"\|"member", joinCount, image?: {contentType, bytes}, templateId?, fields?}`. `image` is metadata only (a message with a picture; fetch it with `GET .../messages/{m}/image`): lists, the change feed and `GET` of the message never carry a URL. A chat message may have an empty `body` when it has an image. Images stay with the message when its author deletes the account. `GET .../messages` and `GET .../messages/{m}` add `read: bool` (whether the caller read it; other users' reads never show; feed items carry no `read`, the `read` change kind covers it). When the message has a target it also carries `targetMemberId`, `targetFamilyId` (when set), `targetName` (the family's display name) and `replierCount` (the number of distinct repliers: a count only, never who replied or what they wrote).
+
+#### Weekly sheet items
+
+Every celebration, condolence and event message gets one sheet item when it is posted (item id = message id; see the `SHI#` row under Items). A week is Friday to Thursday, named by its Friday; `week` in a path must be a Friday (`YYYY-MM-DD`), else 400 `invalid_week_start`.
+
+- **Week.** Sunday to Friday 11:59 Israel time: that coming Friday. Friday from 12:00 and Saturday: the next Friday. A templated event: the week its `fields.date` falls in.
+- **Initial state.** A gabbai's post, or a member's post when the Kehila setting `sheetMembers` is `auto`: `in` (`source: auto`). Otherwise `pending` (`source: member`, `wasPending: true`).
+- **Pending expiry.** From Sunday 00:00 Israel time after the week's Shabbat a pending item is no longer returned to gabbaim (the row stays until its TTL).
+- **Cut-off.** Free items can be added only for a week at most 63 days ahead whose `expiresAt` has not passed (else 400 `invalid_week_start`); at most 40 items per week (409 `too_many_items`).
+
+| Route | Role | What |
+|---|---|---|
+| `GET /v1/kehilot/{k}/sheet/{week}` | any | `200 {week, items}` sorted by `(group, order)`. Members and listeners get only `state: in` items whose message they can see (the message rules, as in the feed); a free `celebration` item follows the celebration rule for listeners. Gabbaim get every state. |
+| `POST /v1/kehilot/{k}/admin/sheet/{week}/items` | gabbai | A free line. Body `{type: celebration\|event\|notice, text: 1-300 (at most one newline), bold?: 0-60 (celebration only), source?: free\|byGabbai}`. `201` item (`state: in`; a `notice` goes in the `events` group). |
+| `PUT /v1/kehilot/{k}/admin/sheet/{week}/items/{itemId}` | gabbai | Body `{state?: in\|pending\|removed, line?: {text 1-300, bold 0-60} \| null}`, at least one key. `pending` only when `wasPending` (undo an approval; the source goes back to `member`). Approving a `member` item sets `source: approved`, `approvedBy` and moves it to the end of its group (`order`). `line: null` clears the override; `line` is rejected on a free item. `200` item. |
+| `POST /v1/kehilot/{k}/admin/sheet/{week}/items/{itemId}/move` | gabbai | Body `{direction: up\|down}`: swaps `order` with the neighbouring non-removed item of the same group. `200 {week, items}` as GET; `409 cannot_move` at an edge, `409 try_again` if the order changed meanwhile. |
+
+Item JSON: `{itemId, week, group, kind, type, state, source, postedAt, line?, message?}`. A free item always has `line: {text, bold}`; a message item has `line` only when overridden, and `message` (the message object). Gabbaim also get `wasPending`, `postedBy` (the author's current display name) and `approvedBy` (the approver's current display name, or `""`). Errors: 400 `invalid_week_start`, `invalid_type`, `invalid_text`, `invalid_bold`, `invalid_source`, `invalid_state`, `invalid_line`, `invalid_direction`, `invalid_body`; 403 `forbidden`; 404 `item_not_found`; 409 `cannot_move`, `too_many_items`, `try_again`.
 
 #### Private replies (blessings)
 
@@ -573,7 +592,7 @@ Posting a message, a reply, a membership request, a group join request or a fami
 | 401 | `account_deleted` | the account was deleted with `DELETE /v1/me` and the token is still valid: sign out, do not retry |
 | 403 | `forbidden` | role is too low for this route |
 | 404 | `not_found` | no such route |
-| 404 | `kehila_not_found`, `channel_not_found`, `group_not_found`, `tag_not_found`, `message_not_found`, `member_not_found`, `request_not_found`, `invite_not_found` | missing, or hidden from the caller |
+| 404 | `kehila_not_found`, `item_not_found`, `channel_not_found`, `group_not_found`, `tag_not_found`, `message_not_found`, `member_not_found`, `request_not_found`, `invite_not_found` | missing, or hidden from the caller |
 | 405 | `method_not_allowed` | the path exists with another method |
 | 409 | `try_again` | transaction conflict: retry the same request (also returned as 503 by a batch read that stayed incomplete) |
 | 409 | `already_in_group` | asked to join a group the caller is already in |
@@ -584,6 +603,7 @@ Posting a message, a reply, a membership request, a group join request or a fami
 | 409 | `profile_required` | save a profile before accepting an invite |
 | 409 | `group_name_taken`, `too_many_groups`, `group_in_use` | group rules (see Management) |
 | 409 | `tag_exists`, `too_many_tags` | role tag rules (see Management) |
+| 409 | `cannot_move`, `too_many_items` | weekly sheet items (see Weekly sheet items) |
 | 409 | `last_gabbai` | the action would leave the Kehila with no gabbai |
 | 409 | `role_change_not_allowed` | role changes are only member and gabbai |
 | 409 | `replies_not_allowed`, `cannot_reply_to_own` | reply rules |
