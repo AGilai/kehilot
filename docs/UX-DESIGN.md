@@ -3904,6 +3904,10 @@ its own `button` ("שינוי שעת התזכורת"). Targets 48. Time values a
 - `answeredFile` for uploads (§21.5).
 - Opening is fixed at Thursday 08:00 in this pass; `WindowConfig` keeps it as data so it can become a setting later.
 
+**Owner answers (2026-10-28):** (1) No data change: a responses-file upload does not count as "answered" for
+reminders; families moving to the app stop using the old form. (2) Only the men (or, in a family with no man, its adult
+women) get the Thursday card and the reminders; other adults keep the bottom row only.
+
 ### 21.10 Verification
 
 P47 phone 1 shows Home scrolled to the bottom; a separate panel shows the row in all five states. Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P47 phones 1–4 at 390 × 844 in light and
