@@ -373,7 +373,7 @@ class TreeRoutesTest(test_messages.MessagesTest):
         b_self = 'B' * 26
         b = [{'id': b_self, 'relation': 'self', 'gender': 'f', 'hebrewFirst': 'דוגמה'},
              person(11, 'father', of=b_self, hebrewFirst='אברהם'), person(13, 'child', hebrewFirst='ניסיון'),
-             {'id': 'X' * 26, 'relation': 'spouse', 'of': b_self, 'gender': 'm', 'hebrewFirst': 'לא', 'surname': 'מילוי'},
+             {'id': 'X' * 26, 'relation': 'spouse', 'of': b_self, 'gender': 'm', 'hebrewFirst': 'ישראל', 'surname': 'מילוי'},
              person(21, 'father', of='X' * 26, hebrewFirst='לא-נשמר')]
         self.save_tree('member-sub', self.member, a)
         self.save_tree('quiet-sub', self.quiet, b)
@@ -543,6 +543,78 @@ class MergeTest(test_messages.unittest.TestCase):
         self.assertEqual((out[pid(1)]['hebrewFirst'], out[pid(5)]['of']), ('אביו', self.A))
         self.assertNotIn(pid(3), out)
 
+    def widow_moved(self, **spouse):
+        late = {'id': pid(3), 'relation': 'spouse', 'of': self.B, 'gender': 'm', 'hebrewFirst': 'משה', 'surname': 'כהן',
+                'tribe': 'kohen', 'deceased': True, 'death': {'day': 3, 'month': 'adar_ii', 'year': 5784}, **spouse}
+        return self.side(self.B, late, person(4, 'father', of=pid(3), hebrewFirst='אביו'),
+                         person(5, 'mother', of=pid(3), gender='f', hebrewFirst='אמו'))
+
+    def test_late_partner_of_the_moved_user_does_not_become_the_kept_user(self):
+        keep = self.side(self.A, person(1, 'father', of=self.A, hebrewFirst='יוסף'))
+        keep[0].update(hebrewFirst='ישראל')
+        out = self.merge(keep, self.widow_moved(), 'ka', 'mb')
+        by = self.by_id(out)
+        me = by[self.A]
+        self.assertEqual((me['hebrewFirst'], me.get('deceased'), me.get('death'), me.get('tribe'), me.get('surname')),
+                         ('ישראל', None, None, None, None))
+        self.assertEqual(by[pid(1)]['hebrewFirst'], 'יוסף')
+        self.assertNotIn(pid(4), by)  # no ancestors of a figure that did not match
+        self.assertNotIn(pid(5), by)
+        former = by[pid(3)]
+        self.assertEqual((former['relation'], former['of'], former['deceased'], former['fatherName'], former['motherName']),
+                         ('formerSpouse', self.A, True, 'אביו', 'אמו'))
+        self.assertNotIn('death', former)
+        self.assertIsNone(code(out))
+
+    def test_gender_mismatch_carries_no_lineage_into_the_kept_self(self):
+        keep = self.side(self.A)
+        moved = self.side(self.B, {'id': pid(3), 'relation': 'spouse', 'of': self.B, 'gender': 'f', 'hebrewFirst': 'A'},
+                          person(4, 'father', of=pid(3), hebrewFirst='אביה'),
+                          person(5, 'mother', of=pid(3), gender='f', hebrewFirst='אמה'))
+        by = self.by_id(self.merge(keep, moved))
+        self.assertEqual({p['relation'] for p in by.values() if p.get('of') == self.A}, {'formerSpouse', 'spouse'})
+        self.assertNotIn(pid(4), by)
+        self.assertNotIn(pid(5), by)
+
+    def test_matching_figure_still_merges_when_it_passes_the_test(self):
+        keep = self.side(self.A)
+        moved = self.side(self.B, {'id': pid(3), 'relation': 'spouse', 'of': self.B, 'gender': 'm', 'surname': 'מילוי'},
+                          person(4, 'father', of=pid(3), hebrewFirst='אביו'))
+        by = self.by_id(self.merge(keep, moved))
+        self.assertEqual((by[self.A]['surname'], by[pid(4)]['of']), ('מילוי', self.A))
+
+    def test_failed_figure_is_dropped_when_the_former_slot_is_taken(self):
+        keep = self.side(self.A, {'id': pid(20), 'relation': 'formerSpouse', 'of': self.A, 'gender': 'f',
+                                  'hebrewFirst': 'דינה', 'surname': 'לוי'})
+        by = self.by_id(self.merge(keep, self.widow_moved()))
+        self.assertEqual([p['hebrewFirst'] for p in by.values() if p['relation'] == 'formerSpouse'], ['דינה'])
+        self.assertNotIn(pid(3), by)
+        self.assertNotIn(pid(4), by)
+
+    def test_two_different_former_spouses_are_never_folded(self):
+        keep = self.side(self.A, {'id': pid(20), 'relation': 'formerSpouse', 'of': self.A, 'gender': 'f',
+                                  'hebrewFirst': 'רחל', 'deceased': True},
+                         {'id': pid(9), 'relation': 'spouse', 'of': self.A, 'gender': 'f', 'hebrewFirst': 'דינה', 'surname': 'לוי'})
+        moved = self.side(self.B, person(2, 'mother', of=self.B, gender='f', hebrewFirst='אחרת'))
+        out = self.merge(keep, moved)
+        (former,) = [p for p in out if p['relation'] == 'formerSpouse']
+        self.assertEqual((former['hebrewFirst'], former.get('surname'), former['deceased']), ('רחל', None, True))
+        self.assertNotIn(pid(9), {p['id'] for p in out})
+        self.assertIsNone(code(out))
+
+    def test_moved_former_spouse_is_carried_when_the_slot_is_free(self):
+        keep = self.side(self.A)
+        moved = self.side(self.B, {'id': pid(20), 'relation': 'formerSpouse', 'of': self.B, 'gender': 'm',
+                                   'hebrewFirst': 'אחר', 'birth': {'day': 1, 'month': 'nisan'}})
+        out = self.merge(keep, moved)
+        (former,) = [p for p in out if p['relation'] == 'formerSpouse']
+        self.assertEqual((former['hebrewFirst'], former['of']), ('אחר', self.A))
+        self.assertNotIn('birth', former)
+        self.assertIsNone(code(out))
+        taken = self.side(self.A, {'id': pid(21), 'relation': 'formerSpouse', 'of': self.A, 'gender': 'f', 'hebrewFirst': 'קיימת'})
+        (former,) = [p for p in self.merge(taken, moved) if p['relation'] == 'formerSpouse']
+        self.assertEqual(former['hebrewFirst'], 'קיימת')
+
     def test_colliding_ids_are_replaced(self):
         keep = self.side(self.A, person(1, 'father', of=self.A), person(2, 'child', hebrewFirst='נועם'))
         moved = [{'id': self.A, 'relation': 'self', 'gender': 'f', 'hebrewFirst': 'ב'},
@@ -671,7 +743,7 @@ class PropertyTest(test_messages.unittest.TestCase):
                 p['death'] = {'day': 3, 'month': 'adar_ii', 'year': 5784}
         return p
 
-    def tree(self, rnd, user):
+    def tree(self, rnd, user, widowed=False):
         # ids come from a small shared pool so that two trees collide
         pool = iter(rnd.sample(self.IDS, len(self.IDS)) + [f'z{rnd.random()}'.replace('.', '') for _ in range(80)])
         me = self.entry(rnd, pool, 'self', rnd.choice('mf'))
@@ -687,6 +759,8 @@ class PropertyTest(test_messages.unittest.TestCase):
         lineage(me)
         if rnd.random() < 0.8:
             spouse = self.entry(rnd, pool, 'spouse', rnd.choice('mf'), me['id'])
+            if widowed and rnd.random() < 0.6:
+                spouse.update(deceased=True, gender='m', tribe='kohen', surname='כהן')
             if rnd.random() < 0.6:
                 spouse['userId'] = 'other-' + user
             out.append(spouse)
@@ -711,7 +785,7 @@ class PropertyTest(test_messages.unittest.TestCase):
         import random
         for seed in range(400):
             rnd = random.Random(seed)
-            keep, moved = self.tree(rnd, 'ka'), self.tree(rnd, 'mb')
+            keep, moved = self.tree(rnd, 'ka'), self.tree(rnd, 'mb', widowed=True)
             self.valid(keep)
             self.valid(moved)
             merged = tree_rules.merge_people(keep, moved, 'ka', 'mb')
@@ -728,6 +802,11 @@ class PropertyTest(test_messages.unittest.TestCase):
                 if p.get('hebrewFirst'):
                     self.assertIn(tree_rules.normalize_name(p['hebrewFirst']), names, seed)
             self.assertEqual(sum(1 for p in merged if p['relation'] == 'self'), 1)
+            kept_self = next(p for p in keep if p['relation'] == 'self')
+            me = next(p for p in merged if p['relation'] == 'self')
+            for field in ('deceased', 'death'):  # a late partner of the moved user never becomes the kept user
+                self.assertEqual(me.get(field), kept_self.get(field), seed)
+            self.assertEqual(sum(1 for p in merged if p['relation'] == 'formerSpouse') <= 1, True)
             # now one of them leaves
             for leaver, stays in (('ka', 'mb'), ('mb', 'ka')):
                 left, rest = tree_rules.split_people(merged, leaver, stays)

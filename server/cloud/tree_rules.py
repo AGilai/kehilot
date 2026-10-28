@@ -480,16 +480,27 @@ def _reid(people, taken):
             for p in people]
 
 
+def _add_former(base, entry, people, self_entry):
+    """Carry `entry` as the names-only `formerSpouse` of the self when that slot is free (never folded into
+    another person); returns whether it was carried."""
+    if any(p['relation'] == 'formerSpouse' for p in base):
+        return False
+    base.append(_names_only(entry, people, 'formerSpouse', self_entry['id']))
+    return True
+
+
 def _to_former(base, spouse, self_entry):
-    """The spouse figure becomes the (names-only) former spouse; its parent figures are dropped."""
+    """The spouse figure leaves the spouse slot (its parent figures go): it becomes the former spouse when that
+    slot is free, else it is dropped."""
+    people = list(base)
     gone = {p['id'] for p in _ancestors(base, spouse['id'])} | {spouse['id']}
-    former = _names_only(spouse, base, 'formerSpouse', self_entry['id'])
     base[:] = [p for p in base if p['id'] not in gone]
-    existing = next((p for p in base if p['relation'] == 'formerSpouse'), None)
-    if existing:
-        _replace(base, existing, _merge_entry(existing, {k: v for k, v in former.items() if k not in ('id', 'relation', 'of')}))
-    else:
-        base.append(former)
+    _add_former(base, spouse, people, self_entry)
+
+
+def _matches_kept_self(ks, figure):
+    """Whether the moved tree's spouse figure can be the kept user: same gender, compatible name, not deceased."""
+    return figure['gender'] == ks['gender'] and not figure.get('deceased') and _names_compatible(figure, ks)
 
 
 def _merge_children(keep, moved):
@@ -514,9 +525,11 @@ def merge_people(keep, moved, keep_user=None, moved_user=None):
     """People of a family after the `moved` user's family joins `keep`. Ids of `moved` that collide are replaced.
     The kept `self` stays; the moved self becomes the spouse (its values win for its own figure and parents),
     merged into an existing spouse figure unless that one contradicts it (other name or gender, or deceased),
-    in which case the old figure becomes the names-only `formerSpouse`. The moved tree's figure of the kept user
-    merges into the kept self (kept values win), parents slot by slot. The moved tree's own former spouse and
-    its non-matching spouse parents are the only data not carried. Children, their spouses and grandchildren
+    in which case the old figure becomes the names-only `formerSpouse` when that slot is free, else is dropped (two
+    former spouses are never folded). The moved tree's figure of the kept user merges into the kept self (kept values
+    win), parents slot by slot, only when it matches (same gender, compatible name, not deceased); otherwise it is
+    carried as `formerSpouse` if the slot is free, else dropped. The moved tree's own former spouse is carried the
+    same way. Children, their spouses and grandchildren
     are matched by normalized first name, gender and non-contradicting birth and merged; the rest is kept.
     Limits are not enforced here (the next save asks the family to trim). `userId`s of the two adults are set."""
     keep = [dict(p) for p in keep]
@@ -530,13 +543,6 @@ def merge_people(keep, moved, keep_user=None, moved_user=None):
         if keep_user:
             ks['userId'] = keep_user
         if ms is not None:
-            theirs_of_mine = next((p for p in moved if p['relation'] == 'spouse' and p.get('of') == ms['id']), None)
-            if theirs_of_mine is not None:
-                if theirs_of_mine['gender'] == ks['gender']:
-                    merged = _merge_entry(ks, {k: v for k, v in theirs_of_mine.items() if k not in ('id', 'of', 'relation', 'userId')})
-                    _replace(base, ks, merged)
-                    ks = merged
-                _merge_ancestors(base, ks['id'], moved, theirs_of_mine['id'], other_wins=False)
             spouse = next((p for p in base if p['relation'] == 'spouse'), None)
             fresh = dict(ms)
             if moved_user:
@@ -552,6 +558,18 @@ def merge_people(keep, moved, keep_user=None, moved_user=None):
                     _to_former(base, spouse, ks)
                 base.append(dict(fresh, relation='spouse', of=ks['id']))
                 base.extend(_ancestors(moved, ms['id']))
+            theirs_of_mine = next((p for p in moved if p['relation'] == 'spouse' and p.get('of') == ms['id']), None)
+            if theirs_of_mine is not None:
+                if _matches_kept_self(ks, theirs_of_mine):
+                    merged = _merge_entry(ks, {k: v for k, v in theirs_of_mine.items() if k not in ('id', 'of', 'relation', 'userId')})
+                    _replace(base, ks, merged)
+                    ks = merged
+                    _merge_ancestors(base, ks['id'], moved, theirs_of_mine['id'], other_wins=False)
+                else:  # a late or former partner of the moved user
+                    _add_former(base, theirs_of_mine, moved, ks)
+            moved_former = next((p for p in moved if p['relation'] == 'formerSpouse'), None)
+            if moved_former is not None:
+                _add_former(base, moved_former, moved, ks)
     out = base + _merge_children(keep, moved)
     self_id = self_id_of(out)
     return [dict(p, of=self_id) if p['relation'] == 'child' and 'of' in p and self_id else p for p in out]
