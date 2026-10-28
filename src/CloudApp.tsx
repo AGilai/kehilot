@@ -9,6 +9,7 @@ import { config } from './config.ts';
 import { fixtureParams } from './client/fixtures.ts';
 import { mainKey } from './client/navReset.ts';
 import { rememberOnIntent } from './client/links.ts';
+import type { MenuAction } from './client/meMap.ts';
 import { pendingInvite } from './client/pendingStore.ts';
 import { listenForPush, registerPush, takePushTarget } from './client/push.ts';
 import { SessionProvider, useSession } from './client/SessionProvider.tsx';
@@ -20,7 +21,7 @@ import { Age13Gate } from './views/Age13Gate.tsx';
 import { Join } from './views/Join.tsx';
 import { Main } from './views/Main.tsx';
 import { useIncomingLink } from './views/useIncomingLink.ts';
-import { KehilaSwitcher } from './views/KehilaSwitcher.tsx';
+import { KehilaMenu } from './views/KehilaMenu.tsx';
 import { NoKehila } from './views/NoKehila.tsx';
 import { ProfileSetup } from './views/ProfileSetup.tsx';
 import { TopBar } from './views/TopBar.tsx';
@@ -74,9 +75,9 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   const errText = useErrorText();
   const [switcher, setSwitcher] = React.useState(false);
   const [typed, setTyped] = React.useState<string | null>(null);
-  const [manageSignal, setManageSignal] = React.useState(0);
-  const manageReq = React.useRef<number | null>(null);
-  const takeManage = React.useCallback(() => takePushTarget(manageReq), []);
+  const [menuSignal, setMenuSignal] = React.useState(0);
+  const menuReq = React.useRef<MenuAction | null>(null);
+  const takeMenu = React.useCallback(() => takePushTarget(menuReq), []);
   const code = link.code ?? typed;
   // A link that opens before the profile exists waits as a pending invite (accepted right after ProfileSetup).
   React.useEffect(() => {
@@ -141,16 +142,16 @@ function SessionFlow({ link }: { link: ReturnType<typeof useIncomingLink> }) {
   }
   if (route === 'none') return <NoKehila onCode={setTyped} error={state.joinError ? errText({ code: state.joinError }) : null} onDismissError={dismissJoinError} />;
   const banner = state.joinError ? <Banner tone="error" text={errText({ code: state.joinError })} action={{ title: t('common.close'), onPress: dismissJoinError }} /> : null;
-  const sheet = <KehilaSwitcher visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} onManage={() => { setSwitcher(false); manageReq.current = Date.now(); setManageSignal(n => n + 1); }} />;
+  const sheet = <KehilaMenu visible={switcher || route === 'switcher'} onClose={() => { if (state.kehilaId) setSwitcher(false); }} onAction={a => { menuReq.current = a; setMenuSignal(n => n + 1); }} onJoinCode={setTyped} />;
   // Every role uses Main; what a listener may do is decided by roleFeatures (client/roleView.ts) and the server.
   if (route === 'ready' && state.kehila) {
     // The print page (a new tab, web only): the sheet and nothing else.
     if (printRequest) return <SchedulePrintPage request={printRequest} />;
-    return <><Main key={mainKey(state.kehilaId)} onOpenSwitcher={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} manageSignal={manageSignal} takeManage={takeManage} />{sheet}</>;
+    return <><Main key={mainKey(state.kehilaId)} onOpenMenu={() => setSwitcher(true)} banner={banner} pushSignal={pushSignal} takePush={takePush} menuSignal={menuSignal} takeMenu={takeMenu} />{sheet}</>;
   }
   return (
     <Screen>
-      <TopBar onOpenSwitcher={() => setSwitcher(true)} />
+      <TopBar onOpenMenu={() => setSwitcher(true)} />
       {banner}
       <Button kind="secondary" title={t('auth.profile.signOut')} onPress={() => void signOut()} />
       {sheet}

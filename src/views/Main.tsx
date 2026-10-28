@@ -40,7 +40,12 @@ import { Home } from './Home.tsx';
 import { Schedule } from './Schedule.tsx';
 import { ScheduleEditor } from './admin/ScheduleEditor.tsx';
 import { editorLeaveAsk } from '../schedule/editor.ts';
-import { Me } from './Me.tsx';
+import { BackLink, Me } from './Me.tsx';
+import { InviteListener } from './InviteListener.tsx';
+import { MyGroups } from './MyGroups.tsx';
+import { PadScroll } from '../kit/PadScroll.tsx';
+import { menuTarget } from '../client/meMap.ts';
+import type { MenuAction } from '../client/meMap.ts';
 import { Simchas } from './admin/Simchas.tsx';
 import { TreeRoute } from './tree/TreeRoute.tsx';
 import { NotifyPrefs } from './NotifyPrefs.tsx';
@@ -57,6 +62,8 @@ type Nav =
   | { tab: 'compose' }
   | { tab: 'me' }
   | { tab: 'tree' }
+  | { tab: 'myGroups' }
+  | { tab: 'myInvite' }
   | { tab: 'adminTree'; familyId: string; name: string }
   | { tab: 'phoneList'; from: 'home' | 'me' }
   | { tab: 'overview' }
@@ -75,7 +82,7 @@ type Nav =
   | { tab: 'seatEditor' }
   | { tab: 'seatResponses' }
   | { tab: 'seatHolders' }
-  | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'me' }
+  | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'myGroups' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
 /** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat | overview | approvals | members | invite-member | groups | channels | channel-sheet | group-admin opens that screen (the last four in management mode). */
@@ -90,7 +97,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
-  if (s === 'me' || s === 'me-family' || s === 'me-request' || s === 'me-linked' || s === 'partner-picker' || s === 'child-sheet' || s === 'privacy' || s === 'privacy-ready' || s === 'kehila-info' || s === 'leave-listener' || s === 'delete' || s === 'delete-ticked') return { nav: { tab: 'me' } };
+  if (s === 'me' || s === 'me-family' || s === 'me-request' || s === 'me-linked' || s === 'me-man' || s === 'partner-picker' || s === 'child-sheet' || s === 'privacy' || s === 'privacy-ready' || s === 'kehila-info' || s === 'leave-listener' || s === 'delete' || s === 'delete-ticked') return { nav: { tab: 'me' } };
   if (s === 'tree' || s === 'tree-married' || s === 'tree-solo' || s === 'tree-empty' || s?.startsWith('tree-link')) return { nav: { tab: 'tree' } };
   if (s === 'tree-admin') return { nav: { tab: 'adminTree', familyId: '01FIXTUREFAMILY0000000003', name: 'בדיוני' }, manage: true };
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
@@ -119,7 +126,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
 }
 
 /** The signed-in app for every role (listeners get the reading parts, see roleView.ts): top bar, the open screen, and the bottom tabs. */
-export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSignal, takeManage }: { onOpenSwitcher: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string } | null; /** Changes when the switcher asks for management mode. */ manageSignal?: number; /** Returns the pending request once. */ takeManage?: () => number | null }) {
+export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, takeMenu }: { onOpenMenu: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string } | null; /** Changes when the Kehila menu asks for a screen (management, tree, phone list, invite). */ menuSignal?: number; /** Returns the pending request once. */ takeMenu?: () => MenuAction | null }) {
   const { t } = useI18n();
   const k = useTokens();
   const { state } = useSession();
@@ -154,7 +161,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
         const g = mine.find(x => x.groupId === id);
         if (g) found = { groupId: g.groupId, name: g.name };
       } catch { /* open Me */ }
-      setNav(found ? { tab: 'group', ...found, from: 'me' } : { tab: 'me' });
+      setNav(found ? { tab: 'group', ...found, from: 'myGroups' } : { tab: 'me' });
     })();
   }
   // A tapped push opens the message, Approvals (requests, gabbai only), or Home.
@@ -191,11 +198,16 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     const g = adminGuard(role, nav);
     setManage(g.manage); setNav(g.nav as Nav); if (g.left) showToast(t('admin.left'));
   }, [role, manage]); // eslint-disable-line react-hooks/exhaustive-deps
-  const manageHolder = React.useRef<number | null>(null);
+  // The Kehila menu opens a screen: management only for a gabbai; the others leave management mode first.
   React.useEffect(() => {
-    manageHolder.current = takeManage?.() ?? null;
-    if (takeManageEntry(manageHolder, role)) { setManage(true); setNav({ tab: 'overview' }); }
-  }, [manageSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+    const req = takeMenu?.() ?? null;
+    if (!req) return;
+    const holder = { current: req === 'manage' ? 1 : null };
+    if (req === 'manage') { if (takeManageEntry(holder, role)) { setManage(true); setNav({ tab: 'overview' }); } return; }
+    const to = menuTarget(req, role);
+    if (!to) return;
+    guard(() => { setManage(false); setNav(to === 'phoneList' ? { tab: 'phoneList', from: 'me' } : { tab: to }); });
+  }, [menuSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     if (!manage || !isGabbai || !state.kehilaId) return;
     let live = true;
@@ -218,7 +230,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
   const adminTab = nav.tab === 'overview' || nav.tab === 'simchas' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'seatResponses' || nav.tab === 'seatHolders' || nav.tab === 'scheduleEditor' || nav.tab === 'adminTree' || (nav.tab === 'group' && nav.from === 'groups');
-  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : nav.tab === 'adminTree' ? 'members' : 'overview') : nav.tab === 'me' || nav.tab === 'tree' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
+  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : nav.tab === 'adminTree' ? 'members' : 'overview') : nav.tab === 'me' || nav.tab === 'tree' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || nav.tab === 'myGroups' || nav.tab === 'myInvite' || (nav.tab === 'group' && nav.from === 'myGroups') ? 'me'
     : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
     { key: 'overview' as const, label: t('admin.tabs.overview'), icon: 'grid' as const, badge: 0 },
@@ -260,7 +272,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = seatPrintRole(kehila?.role) ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
       break;
     case 'phoneList':
-      body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'me' })} /> : null;
+      body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'tree' })} /> : null;
       break;
     case 'messages':
       body = <Messages initialFilter={filter} initialQuery={fixtureQuery} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
@@ -309,7 +321,13 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <TreeRoute key={nav.familyId} readOnly familyId={nav.familyId} familyName={nav.name} onBack={() => setNav({ tab: 'members' })} />;
       break;
     case 'me':
-      body = <Me onTree={() => setNav({ tab: 'tree' })} onGroup={g => setNav({ tab: 'group', ...g, from: 'me' })} onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'me' }) : undefined} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
+      body = <Me onTree={() => setNav({ tab: 'tree' })} onGroups={() => setNav({ tab: 'myGroups' })} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
+      break;
+    case 'myGroups':
+      body = <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}><BackLink onPress={() => setNav({ tab: 'me' })} /><MyGroups onManage={g => setNav({ tab: 'group', ...g, from: 'myGroups' })} onToast={showToast} /></PadScroll>;
+      break;
+    case 'myInvite':
+      body = feats.phoneList ? <InviteListener onBack={() => setNav({ tab: 'me' })} onToast={showToast} /> : null;
       break;
     case 'compose':
       body = !feats.compose ? <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} /> : <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
@@ -329,7 +347,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       <View style={{ paddingHorizontal: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        <TopBar onOpenSwitcher={() => guard(onOpenSwitcher)} onBell={() => guard(() => setNav({ tab: 'prefs', from: active === 'home' || active === 'me' ? active : 'messages' }))} />
+        <TopBar onOpenMenu={() => guard(onOpenMenu)} onBell={() => guard(() => setNav({ tab: 'prefs', from: active === 'home' || active === 'me' ? active : 'messages' }))} />
         {banner}
       </View>
       {manage ? (

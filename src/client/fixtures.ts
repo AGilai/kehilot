@@ -25,10 +25,10 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
 /** Screens for the P-frames. `me-linked` is P2's main state and P6's member-with-a-partner check;
  *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
-export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -141,13 +141,13 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const role: Role = screen === 'leave-listener' ? 'listener' : roleIn;
   // Screens for the P1-P14 frames use the frames' Kehila and people (design/mockups/frames).
   const frame = !!screen && FRAME_SCREENS.includes(screen);
-  const meFirst = card === 'request' || screen === 'me-request' ? 'יוסי' : screen === 'leave-listener' ? 'רון' : 'דנה';
+  const meFirst = screen === 'me-man' ? 'דוד' : card === 'request' || screen === 'me-request' ? 'יוסי' : screen === 'leave-listener' ? 'רון' : 'דנה';
   const meLast = screen === 'leave-listener' ? 'אורח' : 'בדיוני';
   const meName = `${meFirst} ${meLast}`;
   const PRIVACY_CONTACT = 'עמית דוגמה, גבאי · pratiyut@example.org';
   const TERMS_AT = Math.floor(Date.parse('2026-10-27T10:00:00+02:00') / 1000);
   // P4 main state: a number on file and the switch on. P1 empty: a number, switch off.
-  const phoneOn = !!screen && ['me', 'me-family', 'me-request', 'me-linked', 'child-sheet', 'partner-picker', 'phone-list', 'tree', 'tree-married', 'tree-solo', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired'].includes(screen);
+  const phoneOn = !!screen && ['me', 'me-family', 'me-request', 'me-linked', 'me-man', 'child-sheet', 'partner-picker', 'phone-list', 'tree', 'tree-married', 'tree-solo', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired'].includes(screen);
   const hasPhone = phoneOn || screen === 'phone-list-empty' || card === 'phone';
   const kehila: Kehila = {
     kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין נווה דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: null,
@@ -182,7 +182,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     age13Required: screen === 'age13' || screen === 'age13-under' || screen === 'profile-age',
     kehilot: [
       { kehilaId: kehila.kehilaId, name: kehila.name, role, logoVersion: null },
-      ...(screen === 'switcher' ? [
+      ...(screen === 'switcher' || screen === 'me-linked' || screen === 'me-man' ? [
         { kehilaId: '01FIXTUREKEHILA0000000002', name: 'בית כנסת הדוגמה', role: 'gabbai' as Role, logoVersion: null },
         { kehilaId: '01FIXTUREKEHILA0000000003', name: 'קהילת הנחל המצויר', role: 'listener' as Role, logoVersion: null },
       ] : []),
@@ -302,7 +302,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const tagNamed = (n: string) => tagList.filter(x => x.name === n);
   const assignTags = (id: string, ...names: string[]) => { const r = memberRows.find(x => x.userId === id); if (r) r.tags = names.flatMap(tagNamed); };
   assignTags(me.userId, 'טכני'); assignTags('m1', 'גבאי', 'ועד שמחות'); assignTags('u7', 'גזבר', 'ועד שמחות'); assignTags('u8', 'רב'); assignTags(U(23), 'חזן');
-  if (screen === 'me' || screen === 'me-family' || screen === 'me-linked') kehila.tags = ['גזבר', 'ועד שמחות'].flatMap(tagNamed);
+  if (screen === 'me' || screen === 'me-family' || screen === 'me-linked' || screen === 'me-man') kehila.tags = ['גזבר', 'ועד שמחות'].flatMap(tagNamed);
   const tagRows = () => tagList.map(x => ({ ...x, memberCount: memberRows.filter(r => r.tags.some(y => y.tagId === x.tagId)).length })).sort((a, b) => a.name.localeCompare(b.name, 'he'));
   routes[`GET ${A}/requests`] = requests;
   routes[`GET ${A}/members`] = memberRows;
@@ -356,7 +356,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { id: '01FIXTURECHILD00000000003', firstName: 'אורי', gender: 'm' },
   ];
   // `me-linked` is P2's main state and also P6's member-with-a-partner check; `child-sheet` has the same family.
-  const linked = screen === 'me-linked' || screen === 'child-sheet' || screen === 'tree' || screen === 'tree-married';
+  const linked = screen === 'me-linked' || screen === 'me-man' || screen === 'child-sheet' || screen === 'tree' || screen === 'tree-married';
   const ended = (state: 'declined' | 'expired') => ({ toUserId: partner.userId, toName: 'אבי מדומה', expiresAt: secs(now + 24 * H), state });
   const familyView: FamilyView = {
     familyId: '01FIXTUREFAMILY0000000001', name: 'בדיוני',

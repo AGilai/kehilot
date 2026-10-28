@@ -43,6 +43,7 @@ export const treeAlone = (): Person[] => [
 export function fixtureTreeFor(screen: string | null): Person[] {
   switch (screen) {
     case 'tree': case 'tree-admin': case 'me-linked': case 'child-sheet': return treeSeven();
+    case 'me-man': return treeSeven().map(p => p.id === 'me' ? { ...p, gender: 'm' as const, hebrewFirst: 'דוד', fatherName: 'אברהם', tribe: 'levi' as const } : p);
     case 'tree-married': return treeFiveMarried();
     case 'tree-solo': return treeSolo();
     case 'tree-link': case 'tree-link-sent': case 'tree-link-received': case 'tree-link-declined': case 'tree-link-expired': return treeAlone();

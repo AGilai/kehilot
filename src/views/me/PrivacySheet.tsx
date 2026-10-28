@@ -7,13 +7,13 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { ExportLink } from '../../client/types.ts';
 import { textStart } from '../../i18n/direction.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Sheet, Txt, useTokens } from '../../kit/components.tsx';
 import { LinkRow, openWebPage } from './KehilaInfo.tsx';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
-/** P5: the Kehila's privacy contact, About, the policy, and "download my data". Every role. */
-export function PrivacyCard({ onAbout }: { onAbout: () => void }) {
+/** §18.2 החשבון › פרטיות ונתונים (a Sheet): a listener's "השם שלי" row, the policy, and "download my data". Every role. The Kehila's contact is in "על הקהילה". */
+export function PrivacySheet({ onClose, onName }: { onClose: () => void; /** Listeners only (they have no tree): opens the name Sheet. */ onName?: () => void }) {
   const { t, lang } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
@@ -54,13 +54,9 @@ export function PrivacyCard({ onAbout }: { onAbout: () => void }) {
   }
 
   if (!kehila) return null;
-  const contact = kehila.privacyContact.trim();
   return (
-    <Card>
-      <Txt serif size="heading" accessibilityRole="header">{t('privacy.title')}</Txt>
-      <Txt size="small" color={k.muted}>{t('privacy.contact', { kehila: kehila.name })}</Txt>
-      {contact ? <Txt bold style={{ textAlign: textStart(lang) }}>{contact}</Txt> : <Txt color={k.muted}>{t('privacy.contactNone')}</Txt>}
-      <LinkRow label={t('privacy.about')} onPress={onAbout} />
+    <Sheet visible title={t('privacy.title')} onClose={onClose}>
+      {onName ? <LinkRow label={t('me.account.name')} onPress={onName} /> : null}
       <LinkRow external label={t('privacy.policy')} onPress={() => openWebPage('privacy')} />
       <View style={{ borderTopWidth: 1, borderTopColor: k.line, paddingTop: 8, gap: 8 }}>
         <Txt bold style={{ textAlign: textStart(lang) }}>{t('export.title')}</Txt>
@@ -87,6 +83,6 @@ export function PrivacyCard({ onAbout }: { onAbout: () => void }) {
           <Button kind="secondary" title={t('export.start')} onPress={() => void prepare()} busy={phase === 'loading'} />
         )}
       </View>
-    </Card>
+    </Sheet>
   );
 }

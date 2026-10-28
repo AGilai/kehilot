@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../kit/components.tsx';
 import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
+import { useWaiting } from './useWaiting.ts';
 
 /** Logo, or the initial-letter tile when the Kehila has none (or it is still loading). */
 export function KehilaLogo({ kehilaId, name, logoVersion, size = 32 }: { kehilaId: string; name: string; logoVersion: string | null; size?: number }) {
@@ -26,22 +27,24 @@ export function KehilaLogo({ kehilaId, name, logoVersion, size = 32 }: { kehilaI
   );
 }
 
-/** Top bar of every signed-in screen: [Kehila chip v] [bell]. The chevron shows only with more than one Kehila. */
-export function TopBar({ onOpenSwitcher, onBell }: { onOpenSwitcher: () => void; onBell?: () => void }) {
+/** Top bar of every signed-in screen: [Kehila chip v] [bell]. The chip always opens the Kehila menu (§18.2a); a pomegranate dot sits on the logo when something waits for a gabbai. */
+export function TopBar({ onOpenMenu, onBell }: { onOpenMenu: () => void; onBell?: () => void }) {
   const { state } = useSession();
   const { t } = useI18n();
   const k = useTokens();
+  const waiting = useWaiting();
   const kehila = state.kehila;
-  const many = (state.me?.kehilot.length ?? 0) > 1;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: TOUCH }}>
       {kehila ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={many ? `${kehila.name}. ${t('topbar.switch')}` : kehila.name}
-          disabled={!many} onPress={onOpenSwitcher}
-          style={{ flex: 1, minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <KehilaLogo kehilaId={kehila.kehilaId} name={kehila.name} logoVersion={kehila.logoVersion} />
+        <Pressable accessibilityRole="button" accessibilityLabel={`${kehila.name}. ${t('topbar.menu')}${waiting.any ? `. ${t('topbar.waiting')}` : ''}`}
+          onPress={onOpenMenu} style={{ flex: 1, minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View>
+            <KehilaLogo kehilaId={kehila.kehilaId} name={kehila.name} logoVersion={kehila.logoVersion} />
+            {waiting.any ? <View testID="kehila-dot" style={{ position: 'absolute', top: -3, end: -3, width: 10, height: 10, borderRadius: 5, backgroundColor: k.pomegranate, borderWidth: 2, borderColor: k.stone }} /> : null}
+          </View>
           <Txt bold content numberOfLines={1} style={{ flexShrink: 1 }}>{kehila.name}</Txt>
-          {many ? <Icon name="chev" size={16} color={k.muted} /> : null}
+          <Icon name="chev" size={16} color={k.muted} />
         </Pressable>
       ) : <View style={{ flex: 1 }} />}
       <Pressable accessibilityRole="button" accessibilityLabel={t('topbar.bell')} onPress={onBell}

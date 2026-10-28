@@ -300,7 +300,9 @@
   "topbar": {
     "switch": "Switch community",
     "bell": "Notifications",
-    "logo": "Community logo"
+    "logo": "Community logo",
+    "menu": "Community menu",
+    "waiting": "Something is waiting"
   },
   "join": {
     "title": "Join a community",
@@ -581,7 +583,11 @@
       "keep": "Stay",
       "requestSent": "Request sent",
       "withdrawn": "Request withdrawn",
-      "left": "You left the group"
+      "left": "You left the group",
+      "mine": "My groups",
+      "status": "Member of {n} groups",
+      "statusNone": "Not in any group",
+      "statusAdmin": "managing {name}"
     },
     "phone": {
       "title": "Phone list",
@@ -616,7 +622,36 @@
       "updated": "Updated {date}",
       "complete": "All filled in",
       "a11y": "My family, open the family tree"
-    }
+    },
+    "details": {
+      "role": {
+        "member": "Community member",
+        "gabbai": "Gabbai",
+        "listener": "Guest listener"
+      },
+      "phone": "Phone",
+      "inList": "In the phone list",
+      "toAll": "Shown to everyone",
+      "gabbaimOnly": "Gabbaim only",
+      "none": "Not added",
+      "aliyah": "Aliyah name",
+      "mi": "Mi Sheberach name",
+      "family": "My family",
+      "toTree": "View and edit the family tree ›"
+    },
+    "mine": {
+      "title": "Mine in the community"
+    },
+    "notify": {
+      "title": "Notifications and language"
+    },
+    "account": {
+      "title": "Account",
+      "privacySub": "Privacy policy, download my data",
+      "name": "My name"
+    },
+    "prefsAll": "Everything is on",
+    "prefsMuted": "{n} muted"
   },
   "deleteAccount": {
     "title": "Delete account",
@@ -782,7 +817,7 @@
       "familyWith": "Family with {name}",
       "familyAlone": "No partner",
       "children": "Children: {n}",
-      "readOnly": "Gabbaim see family details but don't edit them. The family updates them in Me.",
+      "readOnly": "Gabbaim see family details but don't edit them. The family updates them in the family tree.",
       "link": "Link to a partner",
       "tree": "Family tree"
     },
@@ -1054,7 +1089,7 @@
     "noResultsHint": "Search by first or last name. Only people who chose to appear are listed.",
     "loadError": "We couldn't load the list. Check your connection and try again.",
     "privacyNote": "The list is not saved on your phone and cannot be copied or shared.",
-    "mySetting": "To show or hide your number: my settings"
+    "mySetting": "To show or hide your number: in the family tree"
   },
   "family": {
     "title": "My family",
@@ -2631,5 +2666,21 @@
     },
     "mazal": "Mazal tov",
     "suggestedNote": "Suggested date: check with the family"
+  },
+  "kehila": {
+    "menu": {
+      "manage": "Manage the community",
+      "waiting": "{n} join requests waiting",
+      "terms": "The terms are not accepted yet",
+      "none": "Nothing waiting",
+      "tree": "Family tree",
+      "phoneList": "Phone list",
+      "invite": "Invite a listener",
+      "about": "About the community",
+      "aboutSub": "My role, the privacy contact",
+      "mine": "My communities",
+      "open": "open now",
+      "join": "Join another community"
+    }
   }
 }
