@@ -3045,7 +3045,7 @@ image, audience line and "פרסום" stay as they are.
 |---|---|---|---|
 | **אירוע** | שם האירוע · יום ותאריך (date picker; shown "ג׳, 3.11", Hebrew date added by the app) · שעה · מקום · למי (chips: לכולם, גברים, נשים, נוער, ילדים; default לכולם) · מארגנים (לא חובה) · פרטים נוספים (לא חובה) | "{שם}" / "{יום}, {תאריך עברי} ({תאריך}), בשעה {שעה} · {מקום} · {למי}." + "מארגנים: …" + details | **{שם}** · {יום קצר} {שעה} · {מקום} |
 | **מזל טוב** | השמחה (chips: הולדת בן, הולדת בת, בר מצווה, בת מצווה, אירוסין, חתונה, אחר → field "איזו שמחה") · המשפחה (P14 picker) · השמחה של (chips: ההורים, הסבים, אחר → free "של מי") · שם בעל/ת השמחה (label follows the occasion: "שם התינוק", "שם הנכדה", "שם החתן"…; לא חובה) · ההורים (only when "הסבים"; לא חובה) · שורת ברכה (prefilled per occasion, editable, can be emptied) | "מזל טוב למשפחת {surname}" / "ל{occasion phrase} {name}, {relation} ל{parents}. {blessing}" | "מזל טוב ל{adults' first names} **{surname}**" + new line "ל{occasion phrase} {name}" (+ ", בת/בן ל{parents}" for grandparents; blessing only if it fits, §19.3) |
-| **השתתפות בצער** | **מה כוללת ההודעה** (first field, chips: פטירה בלבד · שבעה בהמשך · עם פרטי השבעה; default עם פרטי השבעה) · המשפחה (P14 picker) · הנפטר/ת (name, with ז״ל / ע״ה added if missing) · קרבה (free, "אביו של משה") · then **only for "עם פרטי השבעה"**: כתובת השבעה · ניחום אבלים בשעות (free, "10:00–13:00, 17:00–22:00") · השבעה עד (date) · זמני תפילה בבית האבלים (לא חובה) | "משפחת {surname}" / "אנו משתתפים בצערו/ה של … במות …." + by variant: (a) nothing; (b) "פרטי השבעה יימסרו בהמשך."; (c) "השבעה ב…, עד …. ניחום אבלים בשעות …. תפילות: …." — always ending "המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים." | none by default (§19.3) |
+| **השתתפות בצער** | **מה כוללת ההודעה** (first field, chips: פטירה בלבד · שבעה בהמשך · עם פרטי השבעה; default עם פרטי השבעה) · המשפחה (P14 picker) · הנפטר/ת (name, with ז״ל / ע״ה added if missing) · קרבה (free, "אביו של משה") · then **only for "עם פרטי השבעה"**: כתובת השבעה · ניחום אבלים בשעות (free, "10:00–13:00, 17:00–22:00") · השבעה עד (date) · זמני תפילה בבית האבלים (לא חובה) | "משפחת {surname}" / "אנו משתתפים בצערו/ה של … במות …." + by variant: (a) nothing; (b) "פרטי השבעה יימסרו בהמשך."; (c) "השבעה ב…, עד …. ניחום אבלים בשעות …. תפילות: …." — always ending "המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים." | "משפחת **{surname}** · במות {הנפטר/ת}" + new line by variant: (b) "פרטי השבעה בהמשך"; (c) "השבעה ב{כתובת} עד {יום}" (CTO call, §19.9 item 1) |
 | הודעה, עדכון שבועי | no template (free text) | — | title |
 
 Default blessing lines: birth "שיזכו לגדלו/ה לתורה, לחופה ולמעשים טובים"; bar mitzvah "שיזכה לגדול בתורה
@@ -3071,7 +3071,8 @@ variant is the first chip row of the template; switching hides or shows the shiv
 **Update instead of a second message.** Families often know the shiva details hours after the first notice. The
 details are added to the same message:
 
-1. **Who:** the message's author and gabbaim. Nobody else sees the action.
+1. **Who:** the message's author, gabbaim, and the adults of the bereaved family the message names (owner,
+   §19.9 item 4). Nobody else sees the action.
 2. **Where:** on the message view (M3), under the card, a small `Card` "רק את/ה והגבאים רואים את זה" with a primary
    Button **"עדכון פרטי השבעה"** when the variant is (a) or (b), and the same action as "עדכון פרטי השבעה" (secondary)
    for (c), for corrections. Also in the message's `more` menu in Messages and in management's message list.
@@ -3094,7 +3095,7 @@ details are added to the same message:
 the event template prefilled; a changed time or place shows the old value struck next to the new one in the message
 ("בשעה ~~20:30~~ 21:00"), the meta line "שונה {time}", the same quiet push "שינוי ב{event}: {what changed}", and
 the sheet line (§19.3) updates by itself. A cancelled event gets "בוטל" as a Tag on the card and on the sheet line.
-Drawn as a P43 panel only, pending the owner's yes.
+Drawn as a P43 panel; adopted by the owner (§19.9 item 3).
 
 **For the developer:** this needs a message update (author or gabbai) that keeps the id, stores `fields`, `updatedAt`
 and the previous text, and takes a `notify` flag for the quiet push and the one-time move up. Not designed here.
@@ -3105,8 +3106,8 @@ and the previous text, and takes a `notify` flag for the quiet push and the one-
 
 | Posted by | Mazal tov, event | Condolence | General, weekly |
 |---|---|---|---|
-| Gabbai or management | **On the sheet automatically** | Not on the sheet; a gabbai may add it | Not on the sheet |
-| Member with broadcast permission | **Pending** until a gabbai taps "להוסיף לגיליון" | as above | as above |
+| Gabbai or management | **On the sheet automatically** | **On the sheet automatically** (owner, §19.9) | Not on the sheet |
+| Member with broadcast permission | **Pending** until a gabbai taps "להוסיף לגיליון" | **Pending**, as mazal tov | Not on the sheet |
 
 A Kehila setting, **"מה שחברים מפרסמים"**, switches the second row to "נכנס אוטומטית" (owner's alternative). Default:
 "אחרי אישור של גבאי". Whatever the setting, the gabbai can always remove an item, edit its sheet line, reorder, and
@@ -3318,13 +3319,15 @@ network/server "לא הצלחנו לשמור את הלוגו. הלוגו הקו�
 ### 19.9 Open questions
 
 Owner decisions (2026-10-28): approval default "אחרי אישור של גבאי" (gabbai posts automatic), Friday 12:00 cut-off,
-logo on a white tile, template editor later. Still open:
+logo on a white tile, template editor later. Second round, same day:
 
-1. Condolences on the sheet: never automatic (assumed; a gabbai can add a free item). Should a gabbai's condolence go
-   on automatically, like mazal tov?
-2. Shiva update: is "moves to the top once + one quiet push" right, or should an update never move the message (push
-   only)?
-3. Events: adopt the same "עדכון פרטי האירוע" (time/place change, cancel) as proposed in §19.2a?
+1. Condolences on the sheet: **a gabbai's condolence goes on automatically**, like his mazal tov and events; a
+   member's condolence follows the approval setting like the rest of the second row (§19.3 table updated).
+2. Shiva update: **yes**, the message moves to the top once and one quiet push goes out (as §19.2a).
+3. Events: **yes**, "עדכון פרטי האירוע" (time/place change, cancel) is adopted as proposed in §19.2a.
+4. **The bereaved family may update the shiva details too:** the adults of the family the condolence names
+   (`targetFamilyId`) get the same "עדכון פרטי השבעה" action as the author and gabbaim. A condolence for a family
+   picked without a registered family (free text) can be updated by the author and gabbaim only.
 
 ### 19.10 Verification
 
