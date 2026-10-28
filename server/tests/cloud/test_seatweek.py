@@ -96,7 +96,7 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual([r['label'] for r in frame['rows']], ['3', '4', '5', '6', '7'])
         self.assertEqual(frame['blockName'], 'שמאל בדיוני')
         self.assertEqual(frame['cols'], 2)
-        self.assertEqual(set(body), {'week', 'deadline', 'open', 'seats', 'answered', 'updatedByGabbai', 'updatedByRole', 'updatedAt', 'frames'})
+        self.assertEqual(set(body), {'week', 'deadline', 'open', 'remindable', 'seats', 'answered', 'updatedByGabbai', 'updatedByRole', 'updatedAt', 'frames'})
         raw = json.dumps(body, ensure_ascii=False)
         for secret in list(self.at.values()) + [self.other, self.holder, HOLDER, 'Quinn', 'ימין בדיוני', self.fam, 'holder:', 'family:',
                                                 'assignments']:

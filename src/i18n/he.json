@@ -88,6 +88,7 @@
     "invalid_members_broadcasts": "הגדרת הודעות החברים לא תקינה",
     "invalid_muted_members": "בחירת החברים להשתקה לא תקינה",
     "invalid_chat_channels": "בחירת ערוצי השיחה להתראות לא תקינה",
+    "invalid_seat_reminders_pref": "ההגדרה לא תקינה.",
     "network": "אין חיבור לשרת. בדקו את החיבור ונסו שוב",
     "unknown": "משהו השתבש. נסו שוב",
     "UsernameExistsException": "לכתובת הדוא״ל הזו כבר יש חשבון. השתמשו ב״שכחתי סיסמה״ כדי להגדיר סיסמה",

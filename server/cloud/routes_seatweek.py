@@ -3,9 +3,9 @@ a gabbai sees the whole hall for a week, changes anything any time (marked), app
 undoes the last apply. Per Shabbat (its Friday) and prayer (`erev`, `day`)."""
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from . import inputs, seat_times, seating_rules as rules, seating_week as wk
+from . import inputs, seat_reminders, seat_times, seating_rules as rules, seating_week as wk
 from . import authz
 from .errors import ApiError
 from .ids import ID_RE
@@ -83,42 +83,29 @@ def _is_released(seats, sid):
 
 
 def _held(ctx, k, layout, only_family=None):
-    """seatId -> ref for the layout version's live assignments (a vanished family holds nothing). With
-    `only_family`, liveness is checked for that family alone (a member's call never reads the whole hall)."""
-    item = ctx.repo.get_assignments(k, layout['effectiveFrom'])
-    ids = {s['id'] for s in layout['seats']}
-    live, out, holders = {}, {}, None
-    for seat, ref in (item['assignments'] if item else {}).items():
-        if seat not in ids:
-            continue
-        if ref.startswith('holder:') and only_family is None:  # a deleted holder holds nothing
-            if holders is None:
-                holders = {h['holderId'] for h in ctx.repo.list_holders(k)}
-            if ref[len('holder:'):] not in holders:
-                continue
-        if ref.startswith('family:') and (only_family is None or ref == f'family:{only_family}'):
-            fid = ref[len('family:'):]
-            if fid not in live:
-                family = ctx.repo.get_family(k, fid)
-                live[fid] = bool(family and ctx.repo.live_adults(k, family))
-            if not live[fid]:
-                continue
-        out[seat] = ref
-    return out
+    return ctx.repo.held_seats(k, layout, only_family)
+
+
+def _had_seats(ctx, k, friday, family_id):
+    """His family held a seat in the previous Friday's week (the row's wording after seats were dropped)."""
+    if not family_id:
+        return False
+    before = (datetime.strptime(friday, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
+    layout = ctx.repo.layout_for(k, before)
+    return bool(layout and f'family:{family_id}' in ctx.repo.held_seats(k, layout, family_id).values())
 
 
 def _out_member(ctx, k, friday, family_id):
     layout = ctx.repo.layout_for(k, friday)
     now = _now()
     deadline = _deadline(ctx, k, friday)
-    base = {'week': friday, 'deadline': deadline.isoformat(), 'open': now <= deadline}
-    if not layout or not family_id:
-        return {**base, 'seats': 0}
+    base = {'week': friday, 'deadline': deadline.isoformat(), 'open': now <= deadline,
+            'remindable': seat_reminders.remindable(ctx.repo, k, ctx.repo.family_of(k, ctx.user_id), ctx.user_id)}
     ref = f'family:{family_id}'
-    held = _held(ctx, k, layout, family_id)
+    held = _held(ctx, k, layout, family_id) if layout and family_id else {}
     mine = [s for s, r in held.items() if r == ref]
     if not mine:
-        return {**base, 'seats': 0}
+        return {**base, 'seats': 0, 'hadSeats': _had_seats(ctx, k, friday, family_id)}
     ordered = wk.family_order(layout, mine)
     raw = _states(ctx, k, friday)
     states = {p: _effective(raw[p], held) for p in wk.PRAYERS}

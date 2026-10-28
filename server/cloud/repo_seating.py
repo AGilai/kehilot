@@ -333,3 +333,27 @@ class SeatingRepo:
         """The latest layout version taking effect on or before that Friday, or None."""
         found = [i for i in self.list_layouts(k) if i['effectiveFrom'] <= friday]
         return max(found, key=lambda i: i['effectiveFrom']) if found else None
+
+    def held_seats(self, k, layout, only_family=None):
+        """seatId -> ref for the layout version's live assignments (a vanished family holds nothing). With
+        `only_family`, liveness is checked for that family alone (a member's call never reads the whole hall)."""
+        item = self.get_assignments(k, layout['effectiveFrom'])
+        ids = {s['id'] for s in layout['seats']}
+        live, out, holders = {}, {}, None
+        for seat, ref in (item['assignments'] if item else {}).items():
+            if seat not in ids:
+                continue
+            if ref.startswith('holder:') and only_family is None:  # a deleted holder holds nothing
+                if holders is None:
+                    holders = {h['holderId'] for h in self.list_holders(k)}
+                if ref[len('holder:'):] not in holders:
+                    continue
+            if ref.startswith('family:') and (only_family is None or ref == f'family:{only_family}'):
+                fid = ref[len('family:'):]
+                if fid not in live:
+                    family = self.get_family(k, fid)
+                    live[fid] = bool(family and self.live_adults(k, family))
+                if not live[fid]:
+                    continue
+            out[seat] = ref
+        return out

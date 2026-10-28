@@ -113,7 +113,7 @@ def put_notify(ctx, params):
     k = params['k']
     membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     d = inputs.body_object(ctx)
-    known = ('mutedChannels', 'mutedTypes', 'membersBroadcasts', 'mutedMembers', 'chatChannels')
+    known = ('mutedChannels', 'mutedTypes', 'membersBroadcasts', 'mutedMembers', 'chatChannels', 'seatReminders')
     if not any(f in d for f in known):
         raise ApiError(400, 'invalid_body')
     new = {}
@@ -141,5 +141,9 @@ def put_notify(ctx, params):
             found = ctx.repo.batch_get([(f'K#{k}', f'M#{v}') for v in values])
             return all(authz.role_in(i, authz.ADULTS) for i in found.values()) and len(found) == len(values)
         new['mutedMembers'] = _id_list(d, 'mutedMembers', members_ok)
+    if 'seatReminders' in d:
+        if not isinstance(d['seatReminders'], bool):
+            raise ApiError(400, 'invalid_seat_reminders_pref')
+        new['seatReminders'] = d['seatReminders']
     ctx.repo.set_notify(k, ctx.user_id, {**membership.get('notify', {}), **new})
     return 200, {}
