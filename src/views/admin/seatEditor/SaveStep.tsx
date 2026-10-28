@@ -10,7 +10,7 @@ import { useI18n } from '../../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../../../kit/components.tsx';
 import { dateRange } from '../../../schedule/memberView.ts';
 import { scheduleWeekOf } from '../../../schedule/week.ts';
-import { defaultEffectiveFrom, effectiveOptions, openForAnswers, replaceWarning } from '../../../seats/effectiveFrom.ts';
+import { answersStarted, defaultEffectiveFrom, effectiveOptions, replaceWarning } from '../../../seats/effectiveFrom.ts';
 import { effectiveFamilies } from '../../../seats/decisions.ts';
 import type { MatchState } from '../../../seats/decisions.ts';
 import { runSave } from '../../../seats/runSave.ts';
@@ -51,14 +51,7 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, sessio
   const households = effectiveFamilies(parsed, state.cells).filter((f) => state.decisions[f.familyKey] && state.decisions[f.familyKey]!.kind !== 'skip').length;
   const existing = layouts.find((l) => l.effectiveFrom === from);
   const warn = replaceWarning(layouts, from);
-  const [weekOpen, setWeekOpen] = React.useState<boolean | null>(null);
-  React.useEffect(() => {
-    let live = true;
-    setWeekOpen(null);
-    api.seatWeek(kehilaId, from).then((w) => { if (live) setWeekOpen(w.open); }, () => { if (live) setWeekOpen(null); });
-    return () => { live = false; };
-  }, [api, kehilaId, from]);
-  const isOpen = openForAnswers(now, from, weekOpen);
+  const isOpen = answersStarted(now, from);
   const planKey = React.useMemo(() => (built ? savePlanKey(from, built.layout, holders, refsFor(state, {})) : null), [built, from, holders, state]);
   React.useEffect(() => { if (planKey) dispatch({ type: 'sync', key: planKey }); }, [planKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const locked = !canLeaveSave(session);

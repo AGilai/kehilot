@@ -43,6 +43,14 @@ export function openForAnswers(now: Date, friday: string, weekOpen: boolean | nu
   return weekOpen ?? now < closesAt;
 }
 
+/**
+ * The save dialogs' open-week warning: from the member card's opening (Thursday 12:00) on, through the deadline and Shabbat, members
+ * may have answered, so a save into that Shabbat changes seats they already see (seat-fix review I1).
+ */
+export function answersStarted(now: Date, friday: string): boolean {
+  return now >= cardWindow(friday, DEFAULT_WINDOW).opensAt;
+}
+
 export type ReplaceWarning = { kind: 'same' | 'earlier'; seats: number; assigned: number } | null;
 /** Saving writes the whole map and every assignment for `from`: warn when a version of that date, or the one in effect then, holds anything. */
 export function replaceWarning(layouts: { effectiveFrom: string; seats: number; assigned: number }[], from: string): ReplaceWarning {

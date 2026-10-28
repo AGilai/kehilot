@@ -358,7 +358,7 @@ import { editorLeaveAsk } from '../src/schedule/editor.ts';
 
 // ---- fix round 1 ----
 import { decisionCounts } from '../src/seats/decisions.ts';
-import { openForAnswers, replaceWarning } from '../src/seats/effectiveFrom.ts';
+import { answersStarted, openForAnswers, replaceWarning } from '../src/seats/effectiveFrom.ts';
 import { canLeaveSave, initialSaveSession, saveSessionReducer } from '../src/seats/saveSession.ts';
 import { savePlanKey } from '../src/seats/savePlan.ts';
 
@@ -437,6 +437,14 @@ test('open for answers: not before Thursday 12:00, then the server week state (d
   assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, false), false);
   assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, null), true);
   assert.equal(openForAnswers(new Date('2026-10-30T11:00:00Z'), fri, null), false, 'Friday 13:00 Israel: past the deadline');
+});
+
+test('answers started: the save warning shows from Thursday 12:00 through Shabbat, past the deadline too', () => {
+  const fri = '2026-10-30';
+  assert.equal(answersStarted(new Date('2026-10-28T10:00:00Z'), fri), false, 'Wednesday');
+  assert.equal(answersStarted(new Date('2026-10-29T11:00:00Z'), fri), true, 'Thursday 13:00 Israel');
+  assert.equal(answersStarted(new Date('2026-10-30T11:00:00Z'), fri), true, 'Friday 13:00 Israel: past the deadline, answers are final');
+  assert.equal(answersStarted(new Date('2026-10-31T12:00:00Z'), fri), true, 'during Shabbat');
 });
 
 test('replace warning: a version of that date, or the one in effect then with assignments', () => {

@@ -19,7 +19,7 @@ import {
   initialEdit, isSeat, layoutBodyOf, moveFamily, paintCells, paintLosers, rebaseOnto, removeCol, removeRow, renameBlock, seatCount, seatsOf, setRowLabel, summarize, usedHolders,
 } from '../../../seats/editModel.ts';
 import type { Draft, EditError, Kind, Overlap } from '../../../seats/editModel.ts';
-import { defaultSaveFrom, openForAnswers } from '../../../seats/effectiveFrom.ts';
+import { answersStarted, defaultSaveFrom } from '../../../seats/effectiveFrom.ts';
 import { emptySel, jumpPos, parsePos, selReducer, stepPos } from '../../../seats/grid.ts';
 import type { Pos } from '../../../seats/grid.ts';
 import { households } from '../../../seats/households.ts';
@@ -234,14 +234,6 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   const [session, dispatchSession] = React.useReducer(saveSessionReducer, undefined, initialSaveSession);
   const planKey = React.useMemo(() => savePlanKey(saveFrom, layoutBodyOf(edit.draft), usedHolders(edit.draft), edit.draft.assign), [saveFrom, edit.draft]);
   React.useEffect(() => { dispatchSession({ type: 'sync', key: planKey }); }, [planKey]);
-  const [weekOpen, setWeekOpen] = React.useState<boolean | null>(null);
-  React.useEffect(() => {
-    if (dlg !== 'save') return;
-    let live2 = true;
-    setWeekOpen(null);
-    api.seatWeek(kehilaId, saveFrom).then((w) => { if (live2) setWeekOpen(w.open); }, () => { if (live2) setWeekOpen(null); });
-    return () => { live2 = false; };
-  }, [api, kehilaId, saveFrom, dlg]);
   const issues = React.useMemo(() => draftIssues(edit.draft), [edit.draft]);
 
   const refreshLists = async () => {
@@ -558,7 +550,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
         onView={(f) => { void viewVersion(f); }} onRestore={(f) => { void restore(f); }}
         onOpen={(f) => { askDiscard(() => { setDlg(null); void openVersion(f); }); }} />
 
-      <SaveDialog shifts={!!edit.draft.shifted} visible={dlg === 'save'} cs={cs} issues={issues} layouts={layouts} openedFrom={base?.from ?? null} now={now} from={saveFrom} isOpen={openForAnswers(now, saveFrom, weekOpen)}
+      <SaveDialog shifts={!!edit.draft.shifted} visible={dlg === 'save'} cs={cs} issues={issues} layouts={layouts} openedFrom={base?.from ?? null} now={now} from={saveFrom} isOpen={answersStarted(now, saveFrom)}
         phase={savePhase} newHolders={usedHolders(edit.draft).length} onFrom={(f) => { if (savePhase.name !== 'running') setSaveFrom(f); }} onGo={() => { void doSave(false); }} onClose={() => setDlg(null)} partial={partial} />
 
       {dlg === 'link' && holderDlg ? (
