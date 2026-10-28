@@ -57,7 +57,7 @@ export function TreeRoute({ onBack, readOnly, familyId, familyName, onOpenMe }: 
   const exists = !!target && ('id' in target ? !!docRef.current?.people.some(p => p.id === target.id) : true);
   const title = picked && exists ? sheetTitle(docRef.current?.people ?? [], picked.target, t) : '';
   const content = picked && exists && docRef.current ? (
-    <PersonSheet key={picked.key} people={docRef.current.people} target={picked.target} newId={picked.newId} readOnly={readOnly} account={account} onOpenMe={onOpenMe}
+    <PersonSheet key={picked.key} myId={state.me?.userId ?? null} people={docRef.current.people} target={picked.target} newId={picked.newId} readOnly={readOnly} account={account} onOpenMe={onOpenMe}
       onSave={onSave} onOpen={next => setPicked(open(next))} onClose={() => setPicked(null)} />
   ) : null;
   const selectedId = picked && 'id' in picked.target ? picked.target.id : null;

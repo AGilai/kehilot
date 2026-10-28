@@ -157,7 +157,10 @@
     "invalid_effective_from": "The date is not valid: pick a Shabbat (Friday) from today to about a year ahead.",
     "invalid_holder": "The seat holder details are not valid.",
     "layout_in_past": "A map of a past Shabbat cannot be changed.",
-    "invalid_seat_deadline": "The deadline time is not valid."
+    "invalid_seat_deadline": "The deadline time is not valid.",
+    "generations_limit": "The tree goes up to 6 generations. Remove some distant figures and save again.",
+    "grandchildren_limit": "Up to 20 grandchildren per child. Remove some and save again.",
+    "account_figure": "You can't remove or mark as deceased the figure of someone with an account in this family."
   },
   "app": {
     "name": "Kehilot"

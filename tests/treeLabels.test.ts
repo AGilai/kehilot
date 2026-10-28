@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { israelDayMonth, statusLine, coupleLabel, figureLabel, pairName, relationLabel, stateWords } from '../src/tree/labels.ts';
+import { israelDayMonth, statusLine, coupleLabel, figureLabel, pairName, relationLabel, stateWords, isMe } from '../src/tree/labels.ts';
 import type { Person } from '../src/tree/types.ts';
 
 // A tiny t: "key" or "key|a=1|b=2", so the tests do not depend on the wording.
@@ -65,4 +65,29 @@ test('ill: a state word and the label says so; deceased wins', () => {
   const g: Person = { id: 'i', relation: 'mother', of: 'me', gender: 'f', hebrewFirst: 'שרה', ill: true, motherName: 'לאה', fatherName: 'דוד' };
   assert.deepEqual(stateWords([me, g], g, t), ['tree.ill.a11y']);
   assert.deepEqual(stateWords([me, { ...g, deceased: true }], { ...g, deceased: true }, t), ['tree.state.deceased']);
+});
+
+test('"me" is the figure whose userId is mine; the partner stored as self is not me', () => {
+  const a: Person = { ...me, userId: 'UA' };
+  const b: Person = { ...wife, userId: 'UB' };
+  const dad: Person = { id: 'f', relation: 'father', of: 'w', gender: 'm' };
+  const tree = [a, b, dad];
+  // B opens the tree: B's own figure is "me", A (stored as self) is "the husband of B", B's father is "mine"
+  assert.equal(isMe(tree, b, { myId: 'UB' }), true);
+  assert.equal(isMe(tree, a, { myId: 'UB' }), false);
+  assert.equal(relationLabel(tree, b, t, { myId: 'UB' }), 'tree.rel.self');
+  assert.equal(relationLabel(tree, a, t, { myId: 'UB' }), 'tree.rel.husband|name=דוגמה');
+  assert.equal(relationLabel([a, { ...b, hebrewFirst: '' }, dad], dad, t, { myId: 'UB' }), 'tree.rel.ofMe|kind=tree.role.father');
+  assert.equal(relationLabel([a, { ...b, hebrewFirst: '' }, dad], dad, t, { myId: 'UA' }), 'tree.role.father');
+  // A without any userId in the tree: self is me (a family not linked yet)
+  assert.equal(isMe([me, wife], me, {}), true);
+  assert.equal(isMe([me, wife], wife, {}), false);
+});
+
+test('a gabbai\'s read-only view never says "me"', () => {
+  const tree = [{ ...me, userId: 'UA' }, wife];
+  assert.equal(isMe(tree, tree[0]!, { myId: 'UA', neutral: true }), false);
+  assert.equal(relationLabel(tree, tree[0]!, t, { myId: 'UA', neutral: true }), 'tree.role.spouseM');
+  const dad: Person = { id: 'f', relation: 'father', of: 'me', gender: 'm' };
+  assert.equal(relationLabel([{ ...me, hebrewFirst: '' }, dad], dad, t, { neutral: true }), 'tree.role.father');
 });

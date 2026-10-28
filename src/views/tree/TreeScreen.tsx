@@ -9,7 +9,7 @@ import { Banner, Button, Card, Segmented, Txt, useTokens } from '../../kit/compo
 import { BackIcon, Icon } from '../../kit/Icon.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import { TOUCH } from '../../kit/theme.ts';
-import { coupleLabel, figureLabel, nameOrRole, pairName, relationLabel, roleWord, stateWords } from '../../tree/labels.ts';
+import { coupleLabel, figureLabel, isMe, nameOrRole, pairName, relationLabel, roleWord, stateWords } from '../../tree/labels.ts';
 import type { ChildTile, ParentCard, Slot, Spot } from '../../tree/layout.ts';
 import { levelDown, needsDetails, treeLayout } from '../../tree/layout.ts';
 import type { Person } from '../../tree/types.ts';
@@ -97,11 +97,12 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
   const tileW = gridWidth > 0 ? Math.floor((gridWidth - GAP * (cols - 1)) / cols) : undefined;
 
   const mine = (p: Person) => !!myId && p.userId === myId;
+  const who = { myId, neutral: readOnly };
   const missing = (p: Person) => needsDetails(people, p);
   const person = (p: Person, o: { big?: boolean; box?: boolean; ring?: boolean; partner?: Person; testID?: string } = {}) => {
     const name = o.partner ? pairName(p, o.partner, t) : nameOrRole(p, t);
     const states = [...stateWords(people, p, t), ...(o.partner ? stateWords(people, o.partner, t) : [])];
-    const rel = o.partner ? t('tree.rel.married', { kind: roleWord(p, t) }) : relationLabel(people, p, t);
+    const rel = o.partner ? t('tree.rel.married', { kind: roleWord(p, t) }) : relationLabel(people, p, t, who);
     const label = figureLabel({ relation: o.ring ? `${rel}, ${t('tree.fromHere')}` : rel, name, deceased: !o.partner && p.deceased, states }, t);
     return (
       <FigureTile key={p.id} testID={o.testID ?? `tree-fig-${p.id}`} person={p} partner={o.partner} name={name} label={label} big={o.big} box={o.box} ring={o.ring} size={o.box ? 52 : undefined}
@@ -111,7 +112,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
   };
   const slotTile = (slot: Slot, big?: boolean) => {
     const role = roleWord({ relation: slot.relation, gender: slot.gender }, t);
-    const rel = relationLabel(people, { id: '', relation: slot.relation, of: slot.of, gender: slot.gender } as Person, t);
+    const rel = relationLabel(people, { id: '', relation: slot.relation, of: slot.of, gender: slot.gender } as Person, t, who);
     return <FigureTile key={`${slot.relation}-${slot.of ?? ''}`} testID={`tree-slot-${slot.relation}-${slot.of ?? 'none'}`} name={role} empty readOnly={readOnly} big={big} label={`${rel}: ${t('tree.emptySlotA11y', { role })}. ${t('tree.open')}`} onPress={() => onOpenSlot(slot)} />;
   };
   const spot = (s: Spot, big?: boolean) => (s.person ? person(s.person, { big }) : slotTile(s.slot, big));
@@ -171,7 +172,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
       </>
     ) : <ActivityIndicator accessibilityLabel={t('tree.loading')} color={k.tekhelet} />;
   } else if (mode === 'list' && root) {
-    body = <TreeList people={people} myId={myId} onOpenPerson={onOpenPerson} />;
+    body = <TreeList people={people} myId={myId} readOnly={readOnly} onOpenPerson={onOpenPerson} />;
   } else {
     const justMe = root && people.every(p => p.relation === 'self');
     const solo = layout.parents.length === 1;
@@ -218,7 +219,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
         {root ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
             <View style={{ marginTop: 2 }}><Icon name="lock" size={16} color={k.muted} /></View>
-            <Txt size="caption" color={k.muted} style={{ flex: 1 }}>{readOnly ? t('tree.readOnly') : (() => { const partner = layout.couple.map(s => s.person).find(p => p && !mine(p) && p.relation === 'spouse'); const n = partner?.hebrewFirst?.trim(); return n ? t('tree.privacy', { partner: n }) : t('tree.privacyAlone'); })()}</Txt>
+            <Txt size="caption" color={k.muted} style={{ flex: 1 }}>{readOnly ? t('tree.readOnly') : (() => { const partner = layout.couple.map(s => s.person).find(p => p && (p.relation === 'spouse' || p.relation === 'self') && !isMe(people, p, who)); const n = partner?.hebrewFirst?.trim(); return n ? t('tree.privacy', { partner: n }) : t('tree.privacyAlone'); })()}</Txt>
           </View>
         ) : (
           <Pressable testID="tree-back-root" accessibilityRole="button" onPress={() => setCentre(null)} style={{ minHeight: TOUCH, borderRadius: 12, borderWidth: 1.5, borderColor: k.tekhelet, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>

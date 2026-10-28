@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { endpoints } from '../src/client/endpoints.ts';
 import { ApiCodeError } from '../src/client/errors.ts';
@@ -31,4 +32,18 @@ test('saveTree: ok returns the new version; 409 reloads and says so; other error
   assert.deepEqual(conflict, { ok: false, conflict: true, doc: theirs });
   await assert.rejects(saveTree({ putFamilyTree: async () => { throw new ApiCodeError(400, 'invalid_people'); }, familyTree: async () => theirs }, 'K', [me], 4), /invalid_people/);
   assert.equal(isVersionConflict(new ApiCodeError(409, 'something_else')), false);
+});
+
+test('saveTree adopts the people the server returns (with the userIds it assigned) and its updatedAt', async () => {
+  const served = [{ ...me, userId: 'U1' }];
+  const out = await saveTree({ putFamilyTree: async () => ({ version: 7, people: served, updatedAt: 123 }), familyTree: async () => { throw new Error('no reload'); } }, 'K', [me], 6);
+  assert.equal(out.ok, true);
+  assert.deepEqual([out.doc.people, out.doc.version, out.doc.updatedAt], [served, 7, 123]);
+});
+
+test('he and en have messages for the tree codes the server can answer', () => {
+  for (const file of ['he', 'en']) {
+    const errors = JSON.parse(readFileSync(new URL(`../src/i18n/${file}.json`, import.meta.url), 'utf8')).errors;
+    for (const code of ['generations_limit', 'grandchildren_limit', 'children_limit', 'account_figure', 'invalid_people', 'version_conflict']) assert.ok(errors[code], `${file}: errors.${code}`);
+  }
 });

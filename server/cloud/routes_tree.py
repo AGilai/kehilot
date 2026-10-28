@@ -37,9 +37,10 @@ def put_tree(ctx, params):
     def apply(stored):
         family = ctx.repo.get_family(k, family_id)
         adults = [m['userId'] for m in ctx.repo.live_adults(k, family)] if family else []
-        return tree_rules.assign_user_ids(people, stored, ctx.user_id, adults)
+        tree_rules.check_account_figures(people, stored, adults)
+        return tree_rules.assign_user_ids(tree_rules.without_stale_bar_mitzvah(people, stored), stored, ctx.user_id, adults)
     saved = ctx.repo.update_people(k, family_id, apply, if_version=version)
-    return 200, {'version': int(saved['version'])}
+    return 200, tree_rules.tree_view(saved)
 
 
 def admin_tree(ctx, params):

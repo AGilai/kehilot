@@ -100,7 +100,8 @@ def get_family(ctx, params):
 
 
 def _child_id(params):
-    if not ID_RE.fullmatch(params['childId']):
+    # tree-made children have the tree's own ids (`t...`), not ULIDs
+    if not tree_rules.ID_PATTERN.fullmatch(params['childId']):
         raise ApiError(404, 'child_not_found')
     return params['childId']
 

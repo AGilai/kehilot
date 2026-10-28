@@ -183,7 +183,7 @@ export function endpoints(http: Http) {
     unlink: (k: string) => r<FamilyView>('POST', `${K(k)}/family/unlink`),
     /** The family tree (UX-DESIGN §17). A save with a stale `ifVersion` answers 409 `version_conflict`: reload, nothing was written. */
     familyTree: (k: string) => r<TreeDoc>('GET', `${K(k)}/family/tree`),
-    putFamilyTree: (k: string, body: { people: Person[]; ifVersion: number }) => r<{ version: number }>('PUT', `${K(k)}/family/tree`, body),
+    putFamilyTree: (k: string, body: { people: Person[]; ifVersion: number }) => r<{ version: number; people?: Person[]; updatedAt?: number | null }>('PUT', `${K(k)}/family/tree`, body),
     /** Gabbai, read only: one family's tree. */
     adminFamilyTree: (k: string, familyId: string) => r<TreeDoc>('GET', `${A(k)}/families/${e(familyId)}/tree`),
     /** Gabbai: bar and bat mitzvahs in the next `weeks` weeks (default 8), from the family trees. */

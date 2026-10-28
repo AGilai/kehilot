@@ -7,7 +7,7 @@ import { Figure } from '../../tree/Figure.tsx';
 import { fromGregorian } from '../../tree/dates.ts';
 import type { ShabbatInfo } from '../../tree/dates.ts';
 import { gregOf, gregText, hebrewText } from '../../tree/format.ts';
-import { relationLabel, roleWord, nameOrRole } from '../../tree/labels.ts';
+import { isMe, relationLabel, roleWord, nameOrRole } from '../../tree/labels.ts';
 import { aliyahName, prayerName } from '../../tree/names.ts';
 import { childrenOf, fatherNameOf, motherNameOf } from '../../tree/relations.ts';
 import {
@@ -118,6 +118,8 @@ const TRIBES: Tribe[] = ['kohen', 'levi', 'yisrael'];
 const errKey: Record<SheetError, string> = { yearRange: 'tree.err.yearRange', partialBirth: 'tree.err.partialDate', partialDeath: 'tree.err.partialDate', birthFuture: 'tree.err.future', deathFuture: 'tree.err.future', deathBeforeBirth: 'tree.err.deathBeforeBirth' };
 
 export type SheetProps = {
+  /** My user id: "me" is the figure that carries it. */
+  myId?: string | null;
   /** The tree as saved. */
   people: Person[];
   target: Target;
@@ -139,7 +141,7 @@ export type SheetProps = {
  * The person sheet (UX-DESIGN §17.4, P32): the figure's short form. The draft lives in `sheetReducer`; "שמירה" writes the whole
  * tree through `onSave`. Moving to another figure first saves what was changed here.
  */
-export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe, onSave, onOpen, onClose }: SheetProps) {
+export function PersonSheet({ myId, people, target, newId, readOnly, account, onOpenMe, onSave, onOpen, onClose }: SheetProps) {
   const { t, lang } = useI18n();
   const arrow = lang === 'he' ? '‹' : '›';
   const k = useTokens();
@@ -156,7 +158,7 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
   const errors = sheetErrors(d, today());
   const feed = feedWarning(state);
   const existing = people.find(p => p.id === d.id);
-  const mine = d.relation === 'self';
+  const who = { myId, neutral: readOnly };
   const dark = useColorScheme() === 'dark';
 
   const save = async (then?: () => void) => {
@@ -232,7 +234,7 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
         </Pressable>
         <View style={{ flex: 1, gap: 2 }}>
           <Txt serif size="title" content numberOfLines={2}>{`${me.hebrewFirst ?? ''} ${me.surname ?? ''}`.trim() || roleWord(me, t)}{me.deceased ? ` ${t('tree.zl')}` : ''}{me.ill && !me.deceased ? <Txt size="small" bold color={k.heal}>{` ${t('tree.ill.badge')}`}</Txt> : null}</Txt>
-          <Txt size="small" color={k.muted} content>{relationLabel(preview, me, t)}</Txt>
+          <Txt size="small" color={k.muted} content>{relationLabel(preview, me, t, who)}</Txt>
           <Pressable accessibilityRole="button" onPress={() => setPicker('figure')} style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}>
             <Txt size="small" bold color={k.tekhelet}>{`${t('tree.fig.link')} ${arrow}`}</Txt>
           </Pressable>
@@ -257,7 +259,7 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
         </View>
       ) : null}
 
-      {mine && account ? (
+      {existing && isMe(people, existing, who) && account ? (
         <Card>
           <Txt size="small" bold>{t('tree.account.app')}</Txt>
           <Txt content>{account.name}</Txt>
@@ -412,7 +414,7 @@ function ReadOnly({ tree, p }: { tree: Person[]; p: Person }) {
     <View style={{ gap: SECTION_GAP }} testID="person-sheet-readonly">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Figure person={p} size={84} style="A" />
-        <Txt size="small" color={k.muted} content style={{ flex: 1 }}>{relationLabel(tree, p, t)}</Txt>
+        <Txt size="small" color={k.muted} content style={{ flex: 1 }}>{relationLabel(tree, p, t, { neutral: true })}</Txt>
       </View>
       <NameCard tree={tree} p={p} />
       {rows.filter(r => r[1]).map(([label, value]) => (

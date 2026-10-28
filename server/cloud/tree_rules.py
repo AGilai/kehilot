@@ -319,6 +319,15 @@ def _descendants(people, root_ids):
     return keep
 
 
+def drop_stale_bar_mitzvah(entry, before):
+    """`entry` without its stored bar mitzvah when that was only a suggestion (not `manual`) and the birth date or
+    gender changed since `before`: the suggestion is recomputed from the new date (simchas does it when it is absent)."""
+    bm = entry.get('barMitzvah')
+    if bm and not bm.get('manual') and (entry.get('birth') != before.get('birth') or entry.get('gender') != before.get('gender')):
+        entry = {k: v for k, v in entry.items() if k != 'barMitzvah'}
+    return entry
+
+
 def apply_children(people, children):
     """People after the older children routes changed the children list: matching ids keep their other fields,
     new ids are appended, removed ids take their spouse and grandchildren with them."""
@@ -332,13 +341,17 @@ def apply_children(people, children):
         if entry is None:
             out.append(people_from_children([c])[0])
             continue
+        before = entry
         entry = dict(entry, hebrewFirst=c['firstName'], gender=c['gender'])
         if c.get('birthDate'):
             if c['birthDate'] != iso_from_hebrew(entry.get('birth')):
                 entry['birth'] = hebrew_from_iso(c['birthDate'])
         elif iso_from_hebrew(entry.get('birth')):
             del entry['birth']  # an old client cleared a date it could see; a yearless Hebrew date is kept
-        out[index[c['id']]] = entry
+        if entry['gender'] == 'f':
+            entry.pop('tribe', None)
+            entry.pop('barMitzvah', None)
+        out[index[c['id']]] = drop_stale_bar_mitzvah(entry, before)
     return out
 
 
@@ -612,6 +625,24 @@ def split_people(people, leaver, other):
     if mine is None:
         return child_side(people), list(people)
     return _view(people, mine, theirs), (_view(people, theirs, mine) if theirs is not None else child_side(people))
+
+
+def without_stale_bar_mitzvah(new, stored):
+    """Tree PUT: a suggested bar mitzvah sent unchanged beside a changed birth date is dropped (older clients)."""
+    old = {p['id']: p for p in stored}
+    return [drop_stale_bar_mitzvah(p, old[p['id']]) if p['id'] in old and p.get('barMitzvah') == old[p['id']].get('barMitzvah') else p
+            for p in new]
+
+
+def check_account_figures(new, stored, adults):
+    """400 account_figure when a figure that holds a live adult's `userId` is removed, changes relation or is marked
+    deceased: the server, not the client, protects the accounts' figures."""
+    by_id = {p['id']: p for p in new}
+    for p in stored:
+        if p.get('userId') in adults:
+            now = by_id.get(p['id'])
+            if now is None or now['relation'] != p['relation'] or now.get('deceased'):
+                raise ApiError(400, 'account_figure')
 
 
 def assign_user_ids(new, stored, caller, adults):

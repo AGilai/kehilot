@@ -17,8 +17,9 @@ export type SaveResult = { ok: true; doc: TreeDoc } | { ok: false; conflict: tru
  */
 export async function saveTree(api: Pick<Api, 'putFamilyTree' | 'familyTree'>, kehilaId: string, people: Person[], ifVersion: number): Promise<SaveResult> {
   try {
-    const { version } = await api.putFamilyTree(kehilaId, { people, ifVersion });
-    return { ok: true, doc: { people, version, updatedAt: Math.floor(Date.now() / 1000) } };
+    const saved = await api.putFamilyTree(kehilaId, { people, ifVersion });
+    // The server answers with the tree it stored: the `userId`s it assigned are in it. An older server answers `{version}` only.
+    return { ok: true, doc: { people: saved.people ?? people, version: saved.version, updatedAt: saved.updatedAt ?? Math.floor(Date.now() / 1000) } };
   } catch (e) {
     if (!isVersionConflict(e)) throw e;
     return { ok: false, conflict: true, doc: await api.familyTree(kehilaId) };

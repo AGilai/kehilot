@@ -34,16 +34,32 @@ export function coupleLabel(people: Person[], t: T): string {
   return surname || t('me.family.title');
 }
 
+/** Who is looking: `myId` is my user id; `neutral` is the gabbai's read-only view, where nobody is "me". */
+export type Who = { myId?: string | null; neutral?: boolean };
+/** "Me" is the figure that carries my userId; only a tree where no figure has a userId yet falls back to the `self` figure. */
+export function isMe(tree: Person[], p: Person, who: Who = {}): boolean {
+  if (who.neutral) return false;
+  if (tree.some(x => x.userId)) return !!who.myId && p.userId === who.myId;
+  return p.relation === 'self';
+}
+
 /** How this figure relates to the tree: "אבא של יוסף", "הבת שלנו", "בעלה של דנה". */
-export function relationLabel(tree: Person[], p: Person, t: T): string {
+export function relationLabel(tree: Person[], p: Person, t: T, who: Who = {}): string {
   const of = find(tree, p.of);
   const ofName = of && first(of);
   switch (p.relation) {
-    case 'self': return t('tree.rel.self');
-    case 'spouse': return of && ofName ? t(p.gender === 'm' ? 'tree.rel.husband' : 'tree.rel.wife', { name: ofName }) : roleWord(p, t);
+    case 'self': {
+      if (isMe(tree, p, who)) return t('tree.rel.self');
+      // the other adult stored as `self`: relative to me, or just "spouse" when nobody is me
+      const mine = tree.find(x => isMe(tree, x, who));
+      const name = first(mine);
+      return name ? t(p.gender === 'm' ? 'tree.rel.husband' : 'tree.rel.wife', { name }) : t(p.gender === 'm' ? 'tree.role.spouseM' : 'tree.role.spouseF');
+    }
+    case 'spouse': if (isMe(tree, p, who)) return t('tree.rel.self');
+      return of && ofName ? t(p.gender === 'm' ? 'tree.rel.husband' : 'tree.rel.wife', { name: ofName }) : roleWord(p, t);
     case 'father': case 'mother':
       if (ofName) return t(p.relation === 'father' ? 'tree.rel.father' : 'tree.rel.mother', { name: ofName });
-      return of?.relation === 'self' || of?.relation === 'spouse' ? t('tree.rel.ofMe', { kind: roleWord(p, t) }) : roleWord(p, t);
+      return of && isMe(tree, of, who) ? t('tree.rel.ofMe', { kind: roleWord(p, t) }) : roleWord(p, t);
     case 'child': return t(p.gender === 'm' ? 'tree.rel.son' : 'tree.rel.daughter');
     case 'childSpouse': return ofName ? t('tree.rel.spouseOf', { name: ofName }) : roleWord(p, t);
     case 'grandchild': return t('tree.rel.grandchild');

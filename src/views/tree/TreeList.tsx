@@ -33,7 +33,7 @@ export function groupPeople(tree: Person[], t: (k: string) => string): Group[] {
 }
 
 /** Rows with words (for screen readers and anyone who prefers lists): name (ז״ל), relation · state, "פרטים ‹". */
-export function TreeList({ people, myId, onOpenPerson }: { people: Person[]; myId?: string | null; onOpenPerson: (id: string) => void }) {
+export function TreeList({ people, myId, readOnly, onOpenPerson }: { people: Person[]; myId?: string | null; readOnly?: boolean; onOpenPerson: (id: string) => void }) {
   const { t } = useI18n();
   const k = useTokens();
   const groups = groupPeople(people, t);
@@ -46,7 +46,7 @@ export function TreeList({ people, myId, onOpenPerson }: { people: Person[]; myI
           <View style={{ backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line }}>
             {g.people.map((p, i) => {
               const name = nameOrRole(p, t);
-              const rel = relationLabel(people, p, t);
+              const rel = relationLabel(people, p, t, { myId, neutral: readOnly });
               const states = stateWords(people, p, t);
               const mine = !!myId && p.userId === myId;
               return (

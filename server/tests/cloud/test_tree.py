@@ -352,6 +352,69 @@ class TreeRoutesTest(test_messages.MessagesTest):
         self.assertEqual(left, {S, SP, pid(1), pid(2), child['id']})
         self.assertEqual(self.call('DELETE', f'{self.base()}/family/children/{pid(3)}', sub='member-sub')[0], 404)
 
+    def test_put_returns_the_saved_people_with_server_user_ids(self):
+        self.repo.link(self.k, self.member, self.quiet)
+        _, got = self.call('GET', self.tree(), sub='member-sub')
+        status, saved = self.put(basic(), got['version'])
+        self.assertEqual(status, 200)
+        by_id = {p['id']: p for p in saved['people']}
+        self.assertEqual({by_id[S]['userId'], by_id[SP]['userId']}, {self.member, self.quiet})
+        self.assertEqual(saved['updatedAt'], self.call('GET', self.tree(), sub='member-sub')[1]['updatedAt'])
+        self.assertEqual(saved['people'], self.call('GET', self.tree(), sub='member-sub')[1]['people'])
+
+    def test_account_figures_cannot_be_removed_or_marked_deceased(self):
+        self.repo.link(self.k, self.member, self.quiet)
+        _, got = self.call('GET', self.tree(), sub='member-sub')
+        _, saved = self.put(basic(), got['version'])
+        version = saved['version']
+        without_spouse = [p for p in basic() if p['id'] != SP]
+        self.assertEqual(self.put(without_spouse, version), (400, {'error': 'account_figure'}))
+        dead = basic()
+        dead[1]['deceased'] = True
+        self.assertEqual(self.put(dead, version), (400, {'error': 'account_figure'}))
+        self.assertEqual(self.put([dict(p, relation='formerSpouse') if p['id'] == SP else p for p in basic()], version)[1],
+                         {'error': 'account_figure'})
+        # nothing was written; a figure without an account is still removable
+        self.assertEqual(self.read()[1]['version'], version)
+        self.assertEqual(self.put([p for p in basic() if p['id'] != pid(2)], version)[0], 200)
+
+    def test_child_routes_edit_a_tree_made_child(self):
+        _, got = self.call('GET', self.tree(), sub='member-sub')
+        people = basic() + [{'id': 'tabc123xy', 'relation': 'child', 'gender': 'm', 'hebrewFirst': 'אורי'}]
+        self.put(people, got['version'])
+        url = f'{self.base()}/family/children/tabc123xy'
+        self.assertEqual(self.call('PUT', url, sub='member-sub', body={'firstName': 'אוריאל', 'gender': 'm'})[0], 200)
+        after = {p['id']: p for p in self.repo.get_family(self.k, self.family_id(self.member))['people']}
+        self.assertEqual(after['tabc123xy']['hebrewFirst'], 'אוריאל')
+        self.assertEqual(self.call('DELETE', url, sub='member-sub')[0], 204)
+        self.assertEqual(self.call('DELETE', url, sub='member-sub')[0], 404)
+        self.assertEqual(self.call('PUT', f'{self.base()}/family/children/bad%20id', sub='member-sub',
+                                   body={'firstName': 'x', 'gender': 'm'})[0], 404)
+
+    def test_birth_change_through_child_route_drops_a_suggested_bar_mitzvah_but_keeps_a_manual_one(self):
+        _, got = self.call('GET', self.tree(), sub='member-sub')
+        manual = person(6, 'child', hebrewFirst='דן', birth={'day': 5, 'month': 'sivan', 'year': 5780},
+                        barMitzvah={'date': '2033-06-04', 'parasha': 'נשא', 'manual': True})
+        suggested = person(7, 'child', hebrewFirst='רן', birth={'day': 5, 'month': 'sivan', 'year': 5780},
+                           barMitzvah={'date': '2033-06-04', 'parasha': 'נשא', 'manual': False})
+        self.put(basic() + [manual, suggested], got['version'])
+        for n in (6, 7):
+            self.assertEqual(self.call('PUT', f'{self.base()}/family/children/{pid(n)}', sub='member-sub',
+                                       body={'firstName': 'ילד', 'gender': 'm', 'birthDate': '2015-12-31'})[0], 200)
+        after = {p['id']: p for p in self.repo.get_family(self.k, self.family_id(self.member))['people']}
+        self.assertEqual(after[pid(6)]['barMitzvah']['manual'], True)
+        self.assertNotIn('barMitzvah', after[pid(7)])
+
+    def test_tree_put_drops_a_stale_suggested_bar_mitzvah_when_birth_changes(self):
+        _, got = self.call('GET', self.tree(), sub='member-sub')
+        _, saved = self.put(basic(), got['version'])
+        changed = basic()
+        changed[4]['birth'] = {'day': 1, 'month': 'tishrei', 'year': 5780}  # barMitzvah (not manual) kept as sent
+        status, out = self.put(changed, saved['version'])
+        self.assertEqual(status, 200)
+        child = next(p for p in out['people'] if p['id'] == pid(3))
+        self.assertNotIn('barMitzvah', child)
+
     def test_children_limit_counts_tree_children(self):
         _, got = self.call('GET', self.tree(), sub='member-sub')
         kids = [person(100 + n, 'child') for n in range(20)]
