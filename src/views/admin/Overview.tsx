@@ -24,8 +24,8 @@ export type GoTarget = Exclude<AreaTarget, `sheet:${string}`>;
 
 export const AREA_ICON: Record<AreaId, IconName> = { prayers: 'clock', seats: 'chair', messages: 'msg', simchas: 'cal', people: 'users', settings: 'sliders' };
 const ROW_ICON: Record<string, IconName> = {
-  schedule: 'clock', sheet: 'print', print: 'print', behalf: 'edit', responses: 'up', editor: 'grid', holders: 'users', compose: 'send', channels: 'msg', types: 'sliders', pushTexts: 'bell',
-  simchas: 'cal', aliyot: 'book', approvals: 'check', members: 'users', tags: 'pin', groups: 'users', invite: 'link', import: 'up', cap: 'sliders', privacy: 'shield', terms: 'book',
+  schedule: 'clock', sheet: 'print', print: 'print', behalf: 'edit', responses: 'copy', editor: 'grid', holders: 'users', compose: 'send', channels: 'msg', types: 'sliders', pushTexts: 'bell',
+  simchas: 'cal', aliyot: 'book', approvals: 'check', members: 'users', tags: 'pin', groups: 'users', invite: 'link', import: 'copy', cap: 'sliders', privacy: 'shield', terms: 'book',
 };
 
 type Data = {
