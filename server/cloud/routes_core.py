@@ -4,7 +4,7 @@ import base64
 from . import authz
 from .errors import ApiError
 from .routes_families import notice_of, request_card
-from . import consents, schedule_rules, sheet_rules, tags, type_rules
+from . import consents, schedule_rules, seat_times, sheet_rules, tags, type_rules
 from .routes_invites import DEFAULT_MAX_LISTENERS
 from .routes_privacy import age13_required
 
@@ -39,7 +39,7 @@ def kehila(ctx, params):
         extra['typeRules'] = type_rules.rules(settings)  # members get postableTypes per channel instead
         extra['location'] = schedule_rules.location_of(settings)
         extra['sheet'] = schedule_rules.sheet_of(settings)
-        extra['seatDeadline'] = settings.get('seatDeadline') or '12:00'
+        extra['seatDeadline'] = seat_times.deadline_hm(settings)
         extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
     is_member = authz.role_in(membership, authz.ADULTS)
     if is_member:

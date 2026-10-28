@@ -5,7 +5,7 @@ import re
 import time
 from datetime import datetime
 
-from . import inputs, seating_rules as rules, seating_week as wk
+from . import inputs, seat_times, seating_rules as rules, seating_week as wk
 from . import authz
 from .errors import ApiError
 from .ids import ID_RE
@@ -29,7 +29,7 @@ def _prayer(value):
 
 
 def _deadline(ctx, k, friday):
-    return wk.deadline_of(friday, ctx.repo.get_kehila(k).get('settings', {}).get('seatDeadline'))
+    return wk.deadline_of(friday, seat_times.deadline_hm(ctx.repo.get_kehila(k).get('settings', {})))
 
 
 def _ms():

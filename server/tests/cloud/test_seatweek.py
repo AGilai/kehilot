@@ -212,14 +212,14 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual(self.put_me([1], 'bogus')[0], 400)
         self.assertEqual(self.put_me([1], week='2026-01-01')[0], 400)
 
-    def test_deadline_enforced_and_default_is_friday_noon_in_jerusalem(self):
+    def test_deadline_enforced_and_default_is_friday_14_in_jerusalem(self):
         self.mine((5, 0))
-        with self.now(at(12, 1)):
+        with self.now(at(14, 1)):
             self.assertEqual(self.put_me([1]), (403, {'error': 'deadline_passed'}))
             body = self.me()[1]
             self.assertFalse(body['open'])
-            self.assertTrue(body['deadline'].startswith(f'{WEEK}T12:00:00+0'))
-        with self.now(at(12, 0)):
+            self.assertTrue(body['deadline'].startswith(f'{WEEK}T14:00:00+0'))
+        with self.now(at(14, 0)):
             self.assertEqual(self.put_me([1])[0], 200)
 
     def test_deadline_setting(self):
