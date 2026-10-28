@@ -3109,7 +3109,7 @@ details are added to the same message:
 5. **How members learn of it (my call, respectful and quiet):** when the toggle is on, the message **moves to the top
    of the feed once** (sorted by its update time) and becomes unread again for those who had read it, and **one quiet
    push** goes to people who get condolence notifications and have not muted the type or the author: title
-   "עודכנו פרטי השבעה · משפחת {surname}", body the address and "עד {day}". No sound or vibration (Android low-priority
+   "עודכנו פרטי השבעה · משפחת {surname}", and no body detail: the address and days show only inside the app (owner, 2026-10-28). No sound or vibration (Android low-priority
    channel, iOS `passive`). At most one such push per message per 12 hours; corrections with the toggle off change
    the text silently and do not move the message. Never a second message in the feed.
 
