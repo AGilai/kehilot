@@ -3378,3 +3378,308 @@ tov + "ועוד 3" (4 did not fit beside the pinned image). After the owner's se
 with the update card, update form) were rendered the same way, light and dark. Not checked: real devices, 360-wide Android, English (LTR),
 screen readers, web fonts (the shots may use fallback fonts), the Hebrew grammar of the built phrases (needs a
 native editor), and the PNG size loop on real logos.
+
+## 20. The "טכני" (Tech) role
+
+Added 2026-10-28 from the owner's decision of the same day. Frames: `P46` (`tech-role.html`: phone 1 the role picker as a
+gabbai sees it, 2 as a tech sees it, 3 management as a tech sees it, 4 a gabbai's card as a tech sees it, 5 the hall
+map without names), at 390 × 844, light and
+dark. All names are invented. Like §18, this pass adds a role and moves no feature. Every screen stays where §18 put
+it, and a tech sees the gabbai's screens with some rows hidden.
+
+**Why.** The owner runs the app technically, but today only a gabbai can change anything, and he does not want to
+be a gabbai. Role tags (§12.6) are labels and give no rights. So there is now a fourth role, stored as `tech` and
+shown as **"טכני"**.
+
+**The principle (owner, binding).** A tech gets the community's **configuration and operations**, and **no personal
+data about people**. He sees names and roles, because he approves people and changes roles. He does not see phones
+that are not public to everyone, families, family trees, children, who sits where, healing names, simchas,
+aliyot or private replies. He is never shown to members as a gabbai.
+
+| | גבאי | טכני |
+|---|---|---|
+| Kehila settings, logo, invites, groups, templates | ✓ | ✓ |
+| Prayer times, weekly sheet, seat-map hall layout | ✓ | ✓ |
+| Approve members, change roles | ✓ | ✓, but cannot make anyone a gabbai and cannot change a gabbai's role |
+| Members' phones, who sits where by name, private replies | ✓ | ✗ |
+| Shown to members as | "גבאי" | "טכני", never as gabbai |
+
+**A tech is also a member.** He has a family, a tree, a seat form, Mi Sheberach and the phone list, exactly as a
+member does: he sees only the numbers members chose to show to everyone. Server rule for the developer: every role
+set that means "an adult with a family" (today `('member', 'gabbai')` in `routes_families`, `routes_tree`,
+`routes_privacy`, `routes_seatweek` (`get_mine`/`put_mine`), `routes_messages` (directory, target families, join,
+replies), `routes_invites`, `repo_families`, `push_worker`, `visibility.can_target`) becomes
+`('member', 'gabbai', 'tech')`. `visibility.is_gabbai` stays gabbai-only. It decides reading every channel, being
+an implicit admin of every group, and removing any message, and a tech gets none of these (§20.6).
+
+### 20.1 Inventory: every gabbai-only thing, tech ✓ or ✗
+
+How to read it: **✓** = same as a gabbai. **✓ filtered** = allowed, but the response or the screen drops the fields
+named. **✗** = 403 `forbidden` from the API, and the row or screen is not rendered for a tech. Each line is meant to
+become one test: call the route as a tech and expect the result in the last column.
+
+**Members and joining**
+
+| # | Screen / row (§18.3) | API | Tech | Expect / what tech sees |
+|---|---|---|---|---|
+| 1 | חברים ומשפחות › בקשות הצטרפות; tab אישורים | `GET admin/requests` | ✓ filtered | 200; rows without `seatSuggestions` (holder names) |
+| 2 | Approve with classification (א / קבוע) | `POST admin/requests/{u}/approve` | ✓ | 200. The auto-link (§16.7) still runs on the server, but its notice and undo show to gabbaim only |
+| 3 | Keep as guest / reject | `POST admin/requests/{u}/reject` | ✓ | 200 |
+| 4 | Member list (tab חברים; row "ספר החברים", for tech titled "חברים ותפקידים") | `GET admin/members` | ✓ filtered | 200; each row without `phone` and `showPhone`. Name, role, classification, broadcast, groups, tags remain |
+| 5 | Member card › family block: adults, phones, call / WhatsApp, children, "עץ המשפחה ›" (P11) | `GET admin/families` | ✗ | 403; the block is not rendered |
+| 6 | Family tree, read-only view (§17.11) | `GET admin/families/{f}/tree` | ✗ | 403 |
+| 7 | "קישור לבן/בת זוג" (P11) | `POST admin/families/link` | ✗ | 403 |
+| 8 | Role picker (§20.4) | `PUT admin/members/{u}` `{role}` | ✓ with rules | 200 for member ↔ tech on a member or a tech. 403 `gabbai_only` if the new role is `gabbai` or the target is a gabbai |
+| 9 | Classification, groups, broadcast switch on a member | `PUT admin/members/{u}` (other fields) | ✓ | 200, on any target including a gabbai (these are not his role) |
+| 10 | "הסרה מהקהילה" | `DELETE admin/members/{u}` | ✓ with rule | 204 for a listener, member or tech; 403 `gabbai_only` for a gabbai |
+| 11 | "התר לכולם / חסום לכולם" | `PUT admin/broadcast` | ✓ | 200 |
+| 12 | תגיות תפקיד: list, create, rename, delete, assign | `admin/tags*`, `PUT admin/members/{u}/tags` | ✓ | 200 (tags are labels, set by staff, §12.6) |
+| 13 | קבוצות: list, create, rename, delete, appoint / remove admins | `admin/groups*` | ✓ | 200 |
+| 14 | Group join requests and group members (management › קבוצות) | `groups/{g}/requests*`, `groups/{g}/members*` | ✓ | 200, as if he were the admin of every group **for membership only**. It does not open the group's channels to him (§20.6) |
+| 15 | הזמנות: create (listener / member), list all, revoke any | `invites` | ✓ | as a gabbai: no 3-link cap, every link listed. There is no tech or gabbai invite for anyone (400 `invalid_role`). `accept` must treat a tech inviter like a gabbai inviter for member links |
+| 16 | ייבוא רשימה | `POST admin/import` | ✓ with rule | 200; a row with role גבאי is reported as a row problem `gabbai_only` when a tech imports. Import has no tech role (tech is given only in the app, §20.5) |
+
+**Settings, times, sheet, messages**
+
+| # | Screen / row | API | Tech | Expect |
+|---|---|---|---|---|
+| 17 | הגדרות הקהילה: תקרת מאזינים, איש קשר לפרטיות, מיקום וזמנים, הגיליון, מועד מקומות, מה שחברים מפרסמים | `PUT admin/settings` (every key) | ✓ | 200 |
+| 18 | לוגו הקהילה (§19.4) | logo upload / remove | ✓ | 200 |
+| 19 | התנאים בין הקהילה לבין קהילות: accept | `POST admin/terms` | ✗ | 403. The row shows who accepted and when (read-only). Until a gabbai accepts, the tech sees the gate text without the button (`admin.terms.waitGabbai`) |
+| 20 | עריכת זמני התפילות, weeks | `PUT admin/schedule`, `admin/schedule/weeks/*` | ✓ | 200 |
+| 21 | הגיליון השבועי: approve, remove, edit line, reorder, free item | `admin/sheet/*` | ✓ | 200. Pending items show the poster's name and the line, which were written to be published |
+| 22 | ערוצים, סוגי הודעות | `admin/channels*`, `typeRules` | ✓ | 200 |
+| 23 | נוסח ההתראות | `admin/push-texts` | ✓ | 200 |
+| 24 | תבניות הודעה (future, §19.2) | — | ✓ | — |
+| 25 | הודעה חדשה, as management (always allowed, `post: management` types) | `POST messages` | ✓ | 201; goes on the sheet automatically (§20.6) |
+| 26 | Read every channel (moderation) | `visibility.can_read_channel` | ✗ | reads like a member: only the channels his groups and role open |
+| 27 | Remove someone else's message | `DELETE messages/{m}` | ✗ | 403 for another author's message; 204 for his own |
+| 28 | Management tab "הודעות" (all messages, "member broadcasts" filter, GD6) | — | ✗ | tab not rendered; his own Messages tab and its type filter (P40) are the member's |
+| 29 | Private replies to a family | `messages/{m}/replies` | ✗ | as for anyone outside the family (§6 flow 3) |
+| 30 | Phone list, "לגבאים בלבד" numbers | `GET phone-list` | ✗ filtered | 200 with members who show their number to everyone, exactly as a member |
+
+**Seating, simchas, names**
+
+| # | Screen / row | API | Tech | Expect |
+|---|---|---|---|---|
+| 31 | עריכת מפת המקומות → for tech **"עריכת מבנה האולם"**: versions, open, save | `GET/PUT admin/seating/layouts*` | ✓ with rule | 200. A save that would drop or move an assigned seat → 409 `seat_taken` (§20.3) |
+| 32 | Which seats are taken (for the editor) | `GET admin/seating/layouts/{from}/assignments` | ✓ filtered | 200 `{taken: [seatId…], updatedAt}`; no household refs |
+| 33 | Assign mode: families panel, assign, move, clear | `PUT …/assignments` | ✗ | 403; the "שיבוץ משפחות" segment is not rendered |
+| 34 | מחזיקי מקומות בלי חשבון (list, create, edit, seats, delete) | `admin/seating/holders*` | ✗ | 403 (names, phones) |
+| 35 | Link suggestions, link holder, auto-links (list, undo, finish) | `admin/seating/link-suggestions`, `…/holders/{h}/link`, `…/auto-links*` | ✗ | 403 (they show names); not counted in his "לטיפול עכשיו" |
+| 36 | מפת האולם להדפסה, עדכון בשם משפחה, this week's answers by family | `GET/PUT admin/seats/week/{w}` | ✗ | 403 (names per seat) |
+| 37 | העלאת קובץ תשובות מהטופס, undo | `POST admin/seats/week/{w}/responses*` | ✗ | 403 (the file holds names) |
+| 38 | Seat answers: Kehila-wide totals ("61 מתוך 84 ענו") | — | ✓ in principle | Counts without names are allowed, but not built in v1. The seating group's status line for a tech is the layout ("225 מקומות · בתוקף מ־י״ט באלול (1.9)"; dates follow the §2 rule) |
+| 39 | שמחות קרובות (§17.14) | `GET admin/simchas` | ✗ | 403 (children's names and birthdays from the trees). The whole group **שמחות ועליות** is hidden |
+| 40 | עליות לתורה (reserved) | — | ✗ | names, the name for an aliyah, history per person |
+| 41 | Combined Mi Sheberach / healing names list (§17.15, GD7) | — | ✗ | names of the sick |
+| 42 | Push "family_gabbai", gabbai edits of a family | — | ✗ | — |
+
+**Pushes a tech gets:** join requests (`request`), and group join requests where a group has no admin (with the
+gabbaim). The M5 management toggles apply to him as to a gabbai.
+
+### 20.2 Management as a tech sees it (P46 phone 3)
+
+Same screen, same order and same six groups as §18.3, with rows hidden. **A group with no row left is hidden.**
+Nothing is greyed out or locked: a tech does not see what he cannot open.
+
+| Group | For a tech | Status line for a tech |
+|---|---|---|
+| תפילות וזמנים | both rows | as gabbai |
+| מקומות ישיבה | only **"עריכת מבנה האולם"** (the "השבוע" block and "מחזיקי מקומות" are hidden; there is no summary card) | "{n} מקומות · בתוקף מ־{date}" |
+| הודעות וערוצים | all rows | as gabbai |
+| שמחות ועליות | **hidden** (both rows ✗) | — |
+| חברים ומשפחות | בקשות הצטרפות · **חברים ותפקידים** (the member book without phones and families) · תגיות תפקיד · קבוצות · הזמנות · ייבוא רשימה | "{n} חברים · {n} מאזינים" |
+| הגדרות הקהילה | לוגו הקהילה · תקרת מאזינים · איש קשר לפרטיות · התנאים (read-only: "אושרו ב־{date} · {name}") | as gabbai |
+
+- **Tabs:** סקירה · אישורים · חברים. The management "הודעות" tab (moderation) is not rendered. Compose is reached from
+  הודעות וערוצים › הודעה חדשה and from his own Messages tab.
+- **לטיפול עכשיו** counts only what a tech can act on: join requests · this week's times not published · sheet
+  items waiting · group join requests he receives. It never counts seat link suggestions, holder hints or
+  auto-link notices. When none of these wait, the tech sees "אין משהו שממתין לכם." even if a gabbai has seat items.
+- **The logo dot** in the top bar and the badge on "ניהול הקהילה" in the Kehila menu use the same count.
+- **Wide (1280):** the same sidebar with the same rows hidden.
+- **Member card for a tech** (from "חברים ותפקידים" or the tab): name, role Tag, tags, classification, groups,
+  broadcast switch, the **"תפקיד"** row (§20.4) and "הסרה מהקהילה" (hidden for a gabbai target). No phone, no list
+  state, no family line, no tree link, no partner link.
+
+### 20.3 The hall map for a tech (P46 phone 5)
+
+A tech edits the **shape** of the hall: rows, columns, aisles, bimah, ark, block names and row labels. He never sees
+who sits where.
+
+- **Entry:** מקומות ישיבה › "עריכת מבנה האולם" (status "בתוקף מ־{date} · נוח יותר במחשב", `dualDate`). On the web it opens the
+  §16.4 editor **in Layout mode only**. The "שיבוץ משפחות / מבנה האולם" segment is not rendered. Next to the title,
+  a Tag says **"בלי שמות"**.
+- **Cells:** a **taken** seat is filled (tekhelet tint, solid 1 px line) and reads "תפוס" at 100%. A **free** seat
+  keeps the §16.4 dashed line and "פנוי". No name, initial, pasted text or count per household appears anywhere: not
+  on hover, in a tooltip, in the history diff or in the screen-reader label ("גוש מערבי, שורה 4, מקום תפוס"). Seats
+  are told apart by shape and word, never by colour alone.
+- **Side panel:** no households list, no search, no selected-family card. Instead there are **totals** (מקומות 225 ·
+  תפוסים 198 · פנויים 27 · גושים 6 · שורות 14), the legend, the palette (מושב · מעבר · בימה · ארון · ריק) and "הגדרת
+  גוש…" / "שם לשורה…".
+- **What he may change:** add a row or a column. Turn an empty cell or an aisle into a seat (it starts free). Turn
+  a **free** seat into anything. Move the bimah or the ark onto empty cells. Rename blocks and rows. Delete a row or
+  column only when it holds no taken seat.
+- **What he may not change: a taken seat.** Tapping a taken seat with any palette tool other than "מושב" does
+  nothing to it. The cell gets a gold outline, and a polite live line under the toolbar says "המקום תפוס. רק גבאי
+  משנה מקום תפוס." When a dragged selection includes taken seats, the tool applies to the others and the line says
+  "{n} מקומות תפוסים לא שונו".
+- **Can a tech save a change that would move assignments? No.** Moving or dropping a family's seat without seeing
+  whose it is would change a person's place blindly, and a family's seat is the most sensitive thing the map holds.
+  Because of the rule above, the editor cannot build such a change. The server checks it anyway: `put_layout` from a
+  tech whose new cells would prune any assignment returns 409 `seat_taken`, and nothing is saved. Hall changes that
+  need moving people go to a gabbai, who does them in Assign mode.
+- **Save, effective date, history, conflicts:** as §16.5, but the diff line gives counts only ("3 שינויים: שורה
+  נוספה מאחור, 2 מקומות חדשים"). "שחזור" of an old version is offered only when it drops no taken seat. Otherwise
+  it is disabled, with "השחזור יוריד {n} מקומות תפוסים. רק גבאי יכול לשחזר את הגרסה הזו." The conflict dialog names
+  the other staff member with their role ("רינה ניסיון (גבאית)"). Staff names are fine, as in §16.5.
+- **Phone** (as §16, view only): the whole hall with pinch zoom, taken and free only, **no names at any zoom**, the
+  totals Card, and an info Banner: "עריכת מבנה האולם במחשב. שמות מוצגים לגבאים בלבד." There is no "משפחות" list.
+- **Print:** "מפת האולם להדפסה" is not offered (it prints names).
+
+### 20.4 Where the role shows
+
+**Role picker (P46 phones 1–2).** On a member's card (management › חברים), one `NavRow` **"תפקיד"** with the value
+("חבר/ת קהילה" / "טכני" / "גבאי") replaces today's "מינוי לגבאי" / "החזרה לחבר" buttons. Tapping it opens a Sheet
+**"התפקיד של {name}"**:
+- Rows are radio `Choice`s, 64 high, each with a one-line note under the title saying what the role can do (copy in
+  §20.7). The current role is selected. Order: חבר/ת קהילה · טכני · גבאי.
+- **A gabbai** sees all three.
+- **A tech** sees חבר/ת קהילה · טכני only. The gabbai option is **not offered**: no disabled row. Under the list, one
+  muted line with a `lock` icon says "מינוי לגבאי נעשה בידי גבאי."
+- **A tech looking at a gabbai** (P46 phone 4): the "תפקיד" row shows "גבאי" with a lock and no chevron, status "רק גבאי משנה
+  תפקיד של גבאי", and it does not open. "הסרה מהקהילה" is not rendered.
+- **Listeners** have no role row, as today. A listener becomes a member only through approval (אישורים), and a tech
+  may approve.
+- Footer: one primary button named for the change: "מינוי לטכני" / "מינוי לגבאי" / "החזרה לחבר/ת קהילה". It is
+  disabled while the current role is selected. There is no second confirm: the note above already says what changes.
+  The result is a Toast "התפקיד עודכן".
+- **Myself:** a tech may set himself to member, and a gabbai may set himself to tech or member. Then a warn Banner
+  inside the Sheet says "תצאו ממצב ניהול מיד." When the last gabbai tries this, the `last_gabbai` error appears as a
+  danger Banner inside the Sheet, and nothing changes.
+
+**Members list.** The role Tag next to the name: "גבאי" (`ktag st`, tekhelet) and **"טכני"** (`ktag`, ash outline). A
+member has no Tag. Filter chips: כולם · חברים · **טכני** · גבאים · מתפללים אורחים.
+
+**Invites.** No invite gives tech (or gabbai): a role that sees management is given only to a person already in the
+Kehila, from the picker, and never through a forwardable link. A tech's invite screen is the gabbai's: role מתפלל
+אורח / חבר, uses, days, and all links listed. "של גבאי או חבר אחר" becomes "של מישהו אחר" (the link was not
+necessarily made by a gabbai).
+
+**Me and the Kehila menu.** In the details card the role line reads "טכני". The Kehila menu header shows the role
+under the name. "ניהול הקהילה" is shown to gabbai **and tech**, with his count. On P13 על הקהילה, "התפקיד שלכם" shows
+the Tag "טכני". The switcher row for that Kehila also says "טכני".
+
+**Attribution to members.** A tech is never labelled "גבאי". Where the app names a role, it names his ("טכני").
+Where a sentence would credit "the gabbai" for something a tech can also do, it becomes neutral:
+- Compose caption (§19.2): "נכנס לגיליון מיד (פרסום של צוות הניהול)" for both gabbai and tech.
+- The sheet source Tag "אוטומטי" already covers both. "נוסף בידי גבאי" stays, because only a gabbai adds from
+  simchas.
+- Schedule footer "עודכן בידי הגבאים ב־{date}" becomes "עודכנו ב־{date}".
+- The seat-map conflict dialog shows "{name} ({role})".
+- Texts about things only a gabbai does stay as they are ("המקומות שלכם עודכנו על ידי הגבאים", "רק הגבאים של
+  {kehila} רואים אותו"), because they remain true.
+**"צוות הניהול"** (management team) is the one collective term for gabbaim and techs. It is used only where a
+sentence must cover both.
+
+### 20.5 Rules
+
+1. **At least one gabbai always remains.** The existing `last_gabbai` guard covers every way a gabbai stops being
+   one: becoming tech, becoming member, being removed, leaving.
+2. **A tech cannot appoint a gabbai and cannot change or remove a gabbai.** API: 403 `gabbai_only`.
+3. **A gabbai can make anyone (member or tech) a tech**, and a tech a gabbai or member.
+4. **A tech can make a member a tech, a tech a member** (himself included), approve a listener as a member, or keep
+   them a guest. "Listener" is reached only through approvals, as today. No role is ever demoted to listener (unchanged
+   `role_change_not_allowed`).
+5. There is no limit on the number of techs. A tech can be appointed a group admin, like a member.
+6. A tech's broadcast permission is always on and locked, as a gabbai's.
+7. **Tech is given only in the app** (the picker): never by an invite link or by the list import.
+
+### 20.6 Sheet and messages
+
+**Agreed: a tech's posts go on the weekly sheet automatically, like a gabbai's.** He is staff, and the reason for
+approving a member's post (a typo or a wrong family going out under the Kehila's name, §19.3) is about members, not
+staff. §19.3's first row becomes "Gabbai or tech". `sheet_rules.initial_state` treats `tech` as `gabbai`.
+`type_rules` `post: management` includes tech. A tech also approves, edits and orders sheet items.
+
+**What a tech does not get in Messages:** reading channels outside his groups, removing other people's messages, and
+the management Messages tab (GD6). Moderation is a judgement about people and content, so it stays with the
+gabbaim. A tech who sees something wrong reports it to a gabbai (open question 2).
+
+### 20.7 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `role.tech` (in `switcher.role`, `me.details.role`, `admin.members.role`, `kehilaInfo`) | טכני | Tech |
+| `admin.members.filter.tech` | טכני | Tech |
+| `admin.role.row` / `.title` | תפקיד / התפקיד של {name} | Role / {name}'s role |
+| `admin.role.member` / `.memberNote` | חבר/ת קהילה / משתמש/ת באפליקציה כרגיל, בלי מסכי ניהול. | Member / Uses the app as usual, without management. |
+| `admin.role.tech` / `.techNote` | טכני / מגדיר/ה את הקהילה: זמנים, גיליון, מבנה האולם, ערוצים, קבוצות, הזמנות ואישור חברים. לא רואה טלפונים, משפחות או מי יושב איפה. | Tech / Sets up the Kehila: times, sheet, hall layout, channels, groups, invites and approving members. Doesn't see phones, families or who sits where. |
+| `admin.role.gabbai` / `.gabbaiNote` | גבאי / מנהל/ת את הקהילה ורואה גם את פרטי החברים: טלפונים, משפחות ושמות במפת המקומות. | Gabbai / Runs the Kehila and also sees members' details: phones, families and names on the seat map. |
+| `admin.role.gabbaiOnly` | מינוי לגבאי נעשה בידי גבאי. | Only a gabbai can appoint a gabbai. |
+| `admin.role.locked` | רק גבאי משנה תפקיד של גבאי | Only a gabbai can change a gabbai's role |
+| `admin.role.toTech` / `.toGabbai` / `.toMember` | מינוי לטכני / מינוי לגבאי / החזרה לחבר/ת קהילה | Make tech / Make gabbai / Back to member |
+| `admin.role.self` | תצאו ממצב ניהול מיד. | You'll leave management right away. |
+| `admin.role.saved` | התפקיד עודכן | Role updated |
+| `errors.gabbai_only` | רק גבאי יכול לעשות את זה. | Only a gabbai can do this. |
+| `errors.role_change_not_allowed` | אפשר לשנות תפקיד רק בין חבר, טכני וגבאי | Roles change only between member, tech and gabbai |
+| `errors.seat_taken` | המקום תפוס. רק גבאי משנה מקום תפוס. | This seat is taken. Only a gabbai can change a taken seat. |
+| `admin.row.membersTech` / `.membersTechSub` | חברים ותפקידים / שם, תפקיד, קבוצות ותגיות | Members and roles / Name, role, groups and tags |
+| `admin.row.hallLayout` / `admin.area.seats.techStatus` | עריכת מבנה האולם / {n} מקומות · בתוקף מ־{date} | Edit the hall layout / {n} seats · from {date} |
+| `seatmap.tech.noNames` / `.taken` / `.free` | בלי שמות / תפוס / פנוי | No names / Taken / Free |
+| `seatmap.tech.skipped` | {n} מקומות תפוסים לא שונו | {n} taken seats were not changed |
+| `seatmap.tech.phone` | עריכת מבנה האולם במחשב. שמות מוצגים לגבאים בלבד. | Edit the hall layout on a computer. Names are shown to gabbaim only. |
+| `seatmap.tech.restoreBlocked` | השחזור יוריד {n} מקומות תפוסים. רק גבאי יכול לשחזר את הגרסה הזו. | Restoring would remove {n} taken seats. Only a gabbai can restore this version. |
+| `seatmap.conflict.body` | {name} ({role}) שמר/ה את המפה ב־{time}, אחרי שפתחתם אותה. | {name} ({role}) saved the map at {time}, after you opened it. |
+| `admin.terms.waitGabbai` | גבאי צריך לאשר את התנאים לפני שמסכי הניהול נפתחים. | A gabbai must accept the terms before management opens. |
+| `compose.tpl.sheetAuto` | נכנס לגיליון מיד (פרסום של צוות הניהול) | Goes on the sheet now (posted by the management team) |
+| `admin.members.locked` | צוות הניהול תמיד יכול לשלוח | The management team can always post |
+| `admin.members.bulkAllowConfirm` / `.bulkBlockConfirm` | להתיר שליחה ל־{n} חברים? צוות הניהול לא מושפע. / לחסום שליחה ל־{n} חברים? צוות הניהול לא מושפע. | Allow {n} members to post? The management team isn't affected. / Block {n} members from posting? The management team isn't affected. |
+| `admin.overview.invites.other` | של מישהו אחר | Someone else's |
+| `admin.left` | יצאתם ממצב ניהול: אין לכם עוד הרשאת ניהול | You left management: you no longer have management access |
+| `schedule.updated` | הזמנים מחושבים ל{city}. עודכנו ב־{date}. | Times are for {city}. Updated {date}. |
+| `admin.tags.suggest` | גבאי, רב, חזן, בעל קורא, גזבר, ועד הקהילה, ועד שמחות | Gabbai, rabbi, chazan, Torah reader, treasurer, committee, simchas committee |
+
+The tag suggestion **drops "טכני"**, so that a label is not confused with the role. An existing tag named "טכני"
+stays, and the tags screen shows a one-time info Banner on it: "יש עכשיו תפקיד טכני עם הרשאות. התגית לא נותנת
+הרשאות."
+
+**Privacy page** (`public/privacy/index.html`, "מי רואה מה"), a new item after the gabbai line:
+
+| | |
+|---|---|
+| he | בעלי תפקיד טכני מגדירים את הקהילה: זמנים, גיליון שבועי, ערוצים, קבוצות, מבנה האולם, הזמנות ואישור חברים. הם רואים שמות ותפקידים, אבל לא טלפונים שלא הוצגו לכולם, לא משפחות ועץ משפחה, לא מי יושב איפה ולא ברכות פרטיות, ואינם מוחקים הודעות של אחרים. |
+| en | Members with the tech role set up the Kehila: times, the weekly sheet, channels, groups, the hall layout, invites and approving members. They see names and roles, but not phone numbers that aren't shown to everyone, families or family trees, who sits where, or private blessings, and they don't remove other people's messages. |
+
+The gabbai line there still needs the §18.7 addition ("…ורואים את הטלפונים של החברים"). It should go in with this one.
+
+### 20.8 What this supersedes
+
+- **§3 table:** gains a "Tech" column, described in §20.1. The §1 surfaces B and C ("Gabbai") mean gabbai or tech.
+- **§18.2a:** "ניהול הקהילה (gabbai only)" becomes gabbai and tech.
+- **§18.3:** unchanged for gabbaim. For a tech, the hidden rows and statuses are in §20.2.
+- **P11 / members screen:** "מינוי לגבאי" / "החזרה לחבר" are replaced by the "תפקיד" row and Sheet.
+- **§16 "Gabbaim only":** gabbaim, plus techs in Layout mode under §20.3.
+- **§19.3 table:** "Gabbai or management" means gabbai or tech. §19.2 caption copy is in §20.7.
+- **§12.6:** the tag suggestions lose "טכני".
+
+### 20.9 Open questions for the owner
+
+1. **Terms acceptance.** Accepting the Kehila terms is a legal act for the Kehila as the data controller. Assumed: only
+   a gabbai accepts, and a tech sees the terms read-only. *Recommendation: keep it gabbai-only.*
+2. **Removing a message.** Assumed: a tech cannot remove other people's messages (moderation stays with gabbaim), and
+   he does not read closed channels. *Recommendation: keep it so. If spam becomes a problem, add "remove" for tech on
+   channels he can read, but not reading every channel.*
+3. **Tech is also a member** (family, tree, seat form, phone list as a member). Assumed yes, since the owner prays
+   there. *Recommendation: yes. If a tech must be someone outside the community, that is a separate "service
+   account" design.*
+
+### 20.10 Verification
+
+Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P46 phones 1–5 at 390 × 844, in light and
+dark side by side, and the page at 390 wide. Checked: no horizontal scroll at 390 (scrollWidth 390), no NavRow title
+or status cut off, the radio and lock line readable in dark mode, and taken and free seats told apart by fill and
+dashed line (not by colour only). Not checked: real devices, 360-wide Android, English (LTR), screen readers, web
+fonts (the page uses fallback fonts), the 1024+ editor in Layout mode for a tech (specified here, not drawn), and the
+Hebrew of the role notes (needs a native editor).
