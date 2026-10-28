@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P41 אני, מבנה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* §18 frame helpers. Nothing added to shared.css. Kit equivalents are named in UX-DESIGN §18.5. */
+.phone.xm{width:390px;height:844px}
+.xfig{margin:0;display:flex;flex-direction:column;gap:8px;align-items:center}
+.xfig .cap{text-align:center}
+.xs{gap:12px!important}
+/* NEW kit ListGroup (card of rows) + NavRow */
+.xgh{margin:6px 4px -4px;font-size:14px;font-weight:700;color:var(--k-muted)}
+.xl{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.xl.e{border-inline-start:6px solid var(--e,var(--k-pom))}
+.xl>.hd{margin:0;padding:12px 16px 4px;font:700 17px/1.4 var(--f-serif)}
+.xr{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 16px;padding-inline:16px 10px;border-top:1px solid var(--k-line);color:var(--k-ink);text-decoration:none}
+.xr:first-child,.xl>.hd+.xr{border-top:0}
+.xr>.i{color:var(--k-tek)}
+.xr .g{flex:1;min-width:0;display:flex;flex-direction:column}
+.xr .t{font-weight:700;font-size:16px;line-height:1.4}
+.xr .s{font-size:14px;line-height:1.4;color:var(--k-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xr .s.w{color:var(--k-gold);font-weight:700}
+.xr .s.a{color:var(--k-pom);font-weight:700}
+.xr .cv{color:var(--k-muted);width:20px;height:20px}
+.xr .v{font-size:14px;color:var(--k-muted);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bdg{flex:none;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--k-pom);color:#fff;font-size:12.5px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.xdot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--k-gold)}
+.xdot.a{background:var(--k-pom)}
+.xr.big{min-height:72px}
+.xr.act{min-height:52px}.xr.act .t{font-weight:500}
+.xr.dng .t,.xr.dng>.i{color:var(--k-danger)}
+.xr.soon{opacity:.62}
+.xr.cur{background:var(--k-stone);box-shadow:inset -3px 0 0 var(--k-tek)}
+/* profile header */
+.xp{display:flex;gap:14px;align-items:center}
+.xav{width:56px;height:56px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--k-tek);color:var(--k-on);font:700 21px/1 var(--f-serif)}
+.xp .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.xp .n{margin:0;font:700 21px/1.35 var(--f-serif)}
+.xed{min-height:44px;display:inline-flex;align-items:center;gap:4px;color:var(--k-tek);font-weight:700;font-size:14px;align-self:flex-start;text-decoration:none;white-space:nowrap}
+.xed svg{width:18px;height:18px}
+.xtags{display:flex;gap:6px;flex-wrap:wrap}
+/* gabbai entry to management */
+.xmg{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 10px 10px 16px;padding-inline:16px 10px;border-radius:12px;background:var(--k-band);border:1px solid var(--k-line);color:#fff;text-decoration:none}
+.xmg .g{flex:1;min-width:0;display:flex;flex-direction:column}
+.xmg .t{font-weight:700}
+.xmg .s{font-size:14px;opacity:.85}
+.xmg .cv{width:20px;height:20px;opacity:.8}
+/* inline language switch */
+.xseg{display:flex;gap:4px;padding:3px;border-radius:10px;border:1px solid var(--k-line);background:var(--k-stone)}
+.xseg b{min-height:40px;min-width:62px;padding:0 10px;display:grid;place-items:center;border-radius:8px;font-size:14px;color:var(--k-muted);border:1px solid transparent}
+.xseg b.on{background:var(--k-surface);border-color:var(--k-tek);color:var(--k-tek)}
+.xsum{display:flex;flex-direction:column;gap:4px}
+.xsum .big{font:700 28px/1.2 var(--f-ui);color:var(--k-tek);font-variant-numeric:tabular-nums}
+.xbar{height:8px;border-radius:4px;background:var(--k-line);overflow:hidden}.xbar i{display:block;height:100%;background:var(--k-tek)}
+.xmap{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px}
+.xmap dt{color:var(--k-muted)}.xmap dd{margin:0;font-weight:600}
+/* 1280 glance */
+.xwide{flex:1 1 100%;width:100%;min-width:0;display:flex;flex-direction:column;gap:8px}
+.xwide .hscroll{min-width:0;overflow-x:auto}
+.xweb{width:1280px;height:900px;background:var(--k-stone);color:var(--k-ink);display:flex;flex-direction:column;overflow:hidden}
+.xweb .ktop{border-bottom:1px solid var(--k-line);background:var(--k-surface)}
+.xwb{flex:1;min-height:0;display:grid;grid-template-columns:272px 1fr}
+.xside{border-inline-end:1px solid var(--k-line);background:var(--k-surface);padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.xside a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;text-decoration:none;color:var(--k-ink);font-size:15px}
+.xside a .i{color:var(--k-muted);width:20px;height:20px}
+.xside a.on{background:var(--k-stone);color:var(--k-tek);font-weight:700;box-shadow:inset -3px 0 0 var(--k-tek)}
+.xside a.on .i{color:var(--k-tek)}
+.xside a .bdg{margin-inline-start:auto}
+.xside .lb{margin:10px 12px 2px;font-size:12.5px;font-weight:700;color:var(--k-muted)}
+.xside hr{border:0;border-top:1px solid var(--k-line);margin:8px 4px;width:auto}
+.xmain{padding:20px 28px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.xmain>*{flex:none}
+.xatt{display:grid;grid-template-columns:repeat(3,1fr)}
+.xatt .xr{border-top:0;border-inline-start:1px solid var(--k-line)}
+.xatt .xr:first-child{border-inline-start:0}
+.xgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+.xgc .hd{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}
+.xgc .hd .i{color:var(--k-tek)}
+.xgc .hd .g{display:flex;flex-direction:column;min-width:0}
+.xgc .hd b{font:700 17px/1.35 var(--f-serif)}
+.xgc .hd span{font-size:13px;color:var(--k-muted)}
+.xgc .xr{min-height:44px;padding-block:6px}
+.xgc .xr .t{font-weight:500;font-size:15px}
+.xgc .xr .s{font-size:13px}
+@media (max-width:440px){
+  .stage.xst{padding:0 0 40px;gap:24px}
+  .stage.xst>.xfig{width:100%}
+  .stage.xst .phone.xm{width:100%;margin:0;outline:0;border-radius:0}
+  .stage.xst>.kstates,.stage.xst>.notes,.stage.xst>.xwide{margin:0 16px;width:auto}
+}
+</style>
+</head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="belloff" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M3 12L21 4l-6 16-3-7z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="chair" viewBox="0 0 24 24"><path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/></symbol>
+<symbol id="mega" viewBox="0 0 24 24"><path d="M3 10v4h4l8 4V6L7 10zM18 9a4 4 0 0 1 0 6"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+<symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="scroll" viewBox="0 0 24 24"><path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V6a2 2 0 0 0-2-2zM9 20H6"/><path d="M11 9h4M11 13h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+<symbol id="tree" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="3" y="16" width="6" height="5" rx="1.5"/><rect x="15" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M6 16v-4h12v4"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol>
+<symbol id="out" viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l-4 4 4 4M10 12h10"/></symbol>
+<symbol id="door" viewBox="0 0 24 24"><path d="M6 20V4h9v16M15 20h3M11 12h.01"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 8V4h10v4M6 17H4v-7h16v7h-2M7 14h10v6H7z"/></symbol>
+<symbol id="upload" viewBox="0 0 24 24"><path d="M12 16V5M7 9l5-5 5 5M5 20h14"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5l-5.3 2.9 1.2-6-4.5-4.1 6-.7z"/></symbol>
+<symbol id="tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></symbol>
+<symbol id="lang" viewBox="0 0 24 24"><path d="M4 6h9M8.5 4v2M11 6c-1 4-3.5 7-7 8.5M6 9c1.3 2.4 3.4 4.3 6 5.2M13 20l4-9 4 9M14.5 17h5"/></symbol>
+<symbol id="hand" viewBox="0 0 24 24"><path d="M5 12h3l3 3h3a2 2 0 0 1 0 4H9M5 9h4l3-3h3a2 2 0 0 1 0 4"/></symbol>
+<symbol id="alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+</defs></svg>
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P41 · אני · מבנה המסך</b><span>UX-DESIGN §18: "אני" בקבוצות ברורות; "המשפחה שלי" היא שורה אחת לעץ המשפחה.</span></div><nav class="pn"><a href="P40.html" aria-label="הקודם">הקודם</a><a href="P42.html" aria-label="הבא">הבא</a></nav></header><main class="stage fts xst"><figure class="xfig"><figcaption class="cap">1 · חבר/ה, המסך הראשון</figcaption><div class="phone kit xm" id="me-member"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span></div><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll xs fade"><h1 class="ktitle">אני</h1><section class="kc"><div class="xp"><span class="xav" aria-hidden="true">יד</span><div class="g"><p class="n">יעל דוגמה</p><p class="kt s m">חברת קהילה</p></div><a class="xed" href="#" aria-label="עריכת הפרופיל"><svg class="i" aria-hidden="true"><use href="#edit"/></svg>עריכה</a></div><div class="xtags" aria-label="התפקידים שלי בקהילה"><span class="ktag st">ועד שמחות</span><span class="ktag st">קריאה בתורה</span></div></section><div class="xl"><a class="xr big" href="#" aria-label="המשפחה שלי. חסרים פרטים אצל 3. פתיחת עץ המשפחה"><svg class="i" aria-hidden="true"><use href="#tree"/></svg><span class="g"><span class="t">המשפחה שלי</span><span class="s w">חסרים פרטים אצל 3</span></span><span class="xdot" aria-hidden="true"></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><p class="xgh">בקהילה</p><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#phone"/></svg><span class="g"><span class="t">רשימת הטלפונים</span><span class="s ">84 משפחות ברשימה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">הקבוצות שלי</span><span class="s ">חברה ב־3 קבוצות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#link"/></svg><span class="g"><span class="t">הזמנת מתפלל</span><span class="s ">קישור אחד פעיל</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><p class="xgh">התראות ושפה</p><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#bell"/></svg><span class="g"><span class="t">העדפות התראות</span><span class="s ">ערוץ אחד ומשדר אחד מושתקים</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><div class="xr" role="group" aria-label="שפה"><svg class="i" aria-hidden="true"><use href="#lang"/></svg><span class="g"><span class="t">שפה</span></span><span class="xseg"><b class="on" aria-pressed="true">עברית</b><b aria-pressed="false">English</b></span></div></div></div><nav class="ktabs"><a href="#"><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">2 · חבר/ה, אחרי גלילה</figcaption><div class="phone kit xm" id="me-member-2"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span></div><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll xs"><p class="kt c m" style="text-align:center">… גלילה למטה</p><p class="xgh">התראות ושפה</p><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#bell"/></svg><span class="g"><span class="t">העדפות התראות</span><span class="s ">ערוץ אחד ומשדר אחד מושתקים</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><div class="xr" role="group" aria-label="שפה"><svg class="i" aria-hidden="true"><use href="#lang"/></svg><span class="g"><span class="t">שפה</span></span><span class="xseg"><b class="on" aria-pressed="true">עברית</b><b aria-pressed="false">English</b></span></div></div><p class="xgh">טלפון ופרטיות</p><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#phone"/></svg><span class="g"><span class="t">הטלפון שלי</span><span class="s "><bdi dir="ltr">054-000-1234</bdi> · מוצג ברשימה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#shield"/></svg><span class="g"><span class="t">פרטיות ונתונים</span><span class="s ">איש קשר, מדיניות, הורדת הנתונים</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><p class="xgh">החשבון</p><div class="xl"><a class="xr act" href="#"><svg class="i" aria-hidden="true"><use href="#door"/></svg><span class="g"><span class="t">יציאה מהקהילה</span></span></a><a class="xr act" href="#"><svg class="i" aria-hidden="true"><use href="#out"/></svg><span class="g"><span class="t">יציאה מהחשבון</span></span></a><a class="xr act dng" href="#"><svg class="i" aria-hidden="true"><use href="#trash"/></svg><span class="g"><span class="t">מחיקת החשבון</span></span></a></div></div><nav class="ktabs"><a href="#"><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">3 · גבאי: אותו מסך ועוד כניסה אחת לניהול</figcaption><div class="phone kit xm" id="me-gabbai"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span></div><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll xs fade"><h1 class="ktitle">אני</h1><a class="xmg" href="#" aria-label="ניהול הקהילה. 3 בקשות ממתינות"><svg class="i" aria-hidden="true"><use href="#grid"/></svg><span class="g"><span class="t">ניהול הקהילה</span><span class="s">3 בקשות הצטרפות ממתינות</span></span><span class="bdg">3</span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><section class="kc"><div class="xp"><span class="xav" aria-hidden="true">דב</span><div class="g"><p class="n">דוד בדיוני</p><p class="kt s m">גבאי</p></div><a class="xed" href="#" aria-label="עריכת הפרופיל"><svg class="i" aria-hidden="true"><use href="#edit"/></svg>עריכה</a></div><div class="xtags" aria-label="התפקידים שלי בקהילה"><span class="ktag st">גבאי ראשון</span></div></section><div class="xl"><a class="xr big" href="#"><svg class="i" aria-hidden="true"><use href="#tree"/></svg><span class="g"><span class="t">המשפחה שלי</span><span class="s ">עודכן ב־12.10</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><p class="xgh">בקהילה</p><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#phone"/></svg><span class="g"><span class="t">רשימת הטלפונים</span><span class="s ">84 משפחות ברשימה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">הקבוצות שלי</span><span class="s ">חבר ב־2 קבוצות · מנהל את "נוער"</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#link"/></svg><span class="g"><span class="t">הזמנת מתפלל</span><span class="s ">2 קישורים פעילים</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div></div><nav class="ktabs"><a href="#"><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><div class="kstates"><section class="kpanel"><h3 class="plabel">"המשפחה שלי" · המצבים של השורה</h3><div class="kbody"><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#tree"/></svg><span class="g"><span class="t">המשפחה שלי</span><span class="s a">נועם ביקש לקשר אתכם · לאישור</span></span><span class="xdot a" aria-hidden="true"></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#tree"/></svg><span class="g"><span class="t">המשפחה שלי</span><span class="s ">לא מולא · מתחילים מכם</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#tree"/></svg><span class="g"><span class="t">המשפחה שלי</span><span class="s w">חסרים פרטים אצל 3</span></span><span class="xdot" aria-hidden="true"></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#tree"/></svg><span class="g"><span class="t">המשפחה שלי</span><span class="s ">נשלחה בקשה לנועם</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#tree"/></svg><span class="g"><span class="t">המשפחה שלי</span><span class="s ">עודכן ב־12.10</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><p class="kt c m">סדר העדיפות: בקשה שמחכה לכם (אדום) › חסרים פרטים (זהב) › לא מולא › נשלחה בקשה › עודכן. שורה אחת, מצב אחד.</p></div></section><section class="kpanel"><h3 class="plabel">מה עובר מכרטיס P2 לעץ המשפחה (P31)</h3><div class="kbody"><dl class="xmap"><dt>בן/בת זוג: הוספה</dt><dd>מקום ריק "בן זוג" / "בת זוג" בזוג שלנו בעץ › בורר החברים (P2)</dd><dt>בקשה שנשלחה</dt><dd>הדמות עם תג "נשלחה בקשה"; נגיעה › חלון עם ביטול הבקשה</dd><dt>בקשה שהתקבלה</dt><dd>Banner בראש העץ: אישור / לא עכשיו (הנוסח של P2)</dd><dt>לא אושר / פג תוקף</dt><dd>Banner בראש העץ עם "הבנתי", והמקום חוזר להיות ריק</dd><dt>ביטול קישור</dt><dd>בתחתית חלון הדמות של בן/בת הזוג (P32), עם אישור</dd><dt>ילדים: רשימה, הוספה, עריכה</dt><dd>אריחי הילדים ו"+ ילד/ה" בעץ; החלון של P3 הופך לחלון הדמות (P32)</dd><dt>"הילדים משותפים לשניכם"</dt><dd>שורת הפרטיות בתחתית העץ</dd></dl></div></section><section class="kpanel"><h3 class="plabel">עריכה (חלון תחתון מהפרופיל)</h3><div class="kbody"><div class="kf"><label>שם פרטי</label><div class="kin">יעל</div></div><div class="kf"><label>שם משפחה</label><div class="kin">דוגמה</div></div><p class="kt s b">התפקידים שלי בקהילה</p><div class="xtags"><span class="ktag st">ועד שמחות</span><span class="ktag st">קריאה בתורה</span></div><p class="kt c m">הגבאים מוסיפים ומסירים תפקידים.</p><button class="kb">שמירה</button></div></section><section class="kpanel"><h3 class="plabel">מתפלל אורח</h3><div class="kbody"><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#user"/></svg><span class="g"><span class="t">יוסי אורח</span><span class="s ">מתפלל אורח · עריכה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">קבוצות</span><span class="s ">אפשר לבקש להצטרף</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#bell"/></svg><span class="g"><span class="t">העדפות התראות</span><span class="s ">הכול פעיל</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><div class="xr" role="group" aria-label="שפה"><svg class="i" aria-hidden="true"><use href="#lang"/></svg><span class="g"><span class="t">שפה</span></span><span class="xseg"><b class="on" aria-pressed="true">עברית</b><b aria-pressed="false">English</b></span></div></div><div class="xl"><a class="xr " href="#"><svg class="i" aria-hidden="true"><use href="#shield"/></svg><span class="g"><span class="t">פרטיות ונתונים</span><span class="s ">איש קשר, מדיניות, הורדה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div><div class="xl"><a class="xr act" href="#"><svg class="i" aria-hidden="true"><use href="#door"/></svg><span class="g"><span class="t">יציאה מהקהילה</span></span></a><a class="xr act" href="#"><svg class="i" aria-hidden="true"><use href="#out"/></svg><span class="g"><span class="t">יציאה מהחשבון</span></span></a><a class="xr act dng" href="#"><svg class="i" aria-hidden="true"><use href="#trash"/></svg><span class="g"><span class="t">מחיקת החשבון</span></span></a></div><p class="kt c m">בלי "המשפחה שלי", רשימת הטלפונים, הזמנות והטלפון שלי (§10: לאורח אין משפחה ואין רשימה).</p></div></section></div><aside class="notes"><h2>P41 · אני, מבנה</h2><ul>
+<li>"אני" הוא רק מה ששלי. כל דבר בקבוצה עם כותרת, וכל שורה מובילה למסך אחד. אין יותר כפתור "עריכה" בודד בין כרטיסים.</li>
+<li>הסדר: מי אני (פרופיל) › המשפחה שלי › בקהילה › התראות ושפה › טלפון ופרטיות › החשבון. מה שמשתמשים בו יותר למעלה, מה שהורס למטה.</li>
+<li>"המשפחה שלי" היא שורה אחת לעץ המשפחה (§17, P31). כל מה שהיה בכרטיס P2 עובר לעץ (הלוח "מה עובר לעץ").</li>
+<li>גבאי: אותו מסך בדיוק, ועוד כרטיס כהה אחד בראש: "ניהול הקהילה" עם מספר הבקשות. כל השאר נמצא במצב ניהול (P42).</li>
+<li>שפה: מתג בתוך השורה (שתי אפשרויות, בלי מסך נוסף). יציאה ומחיקה פותחות אישור כמו היום.</li>
+</ul></aside></main>
+</body>
+</html>

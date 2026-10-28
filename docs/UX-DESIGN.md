@@ -2654,3 +2654,224 @@ Overview gets one card ("השבת: …", "ועוד n ב־8 השבועות הבא
 
 Verification (P31–P33 redraw, P36): rendered at 390 light and dark and at 1280. Not checked on devices.
 
+
+## 18. Me and management — structure
+
+Added 2026-10-28 after the owner used the dev build on his phone. Frames: `P41` (Me), `P42` (management), index
+section "ט. אני ומצב ניהול · מבנה". Kit-drawn like §10. The frames carry their own small style block, and nothing was
+added to `shared.css`. All names are invented. This is an information-architecture pass: **no screen loses a
+feature, and no flow changes.** Each existing card or screen gets one home, and the long pages become short lists
+of grouped rows.
+
+**What the owner said.** (1) Me › "המשפחה שלי" should be *one* link to the family tree (§17), with at most a short
+status ("לא מולא" / "חסרים פרטים אצל 3" / "עודכן ב־12.10"), not partner linking and a children list on Me.
+(2) "Management mode is a total mess… it starts with my profile, then edit name on its own, then the phone list,
+then another edit on its own… why?" That sequence is the **gabbai's Me screen** as built (the "מצב ניהול" button, then
+the profile card with a lone "עריכת שם", then the phone card with its own "עריכה"). The management overview has the
+same problem: 14 blocks in build order. Both get fixed here.
+
+### 18.1 Inventory (as built on `redesign`, 2026-10-28)
+
+**Me (`src/views/Me.tsx`)**, top to bottom:
+
+| # | Item today | Where today | Goes to (§18.2) |
+|---|---|---|---|
+| 1 | "מצב ניהול" primary Button (gabbai) | Me, above everything | **Manage entry** card at the top (gabbai only) |
+| 2 | Name + "עריכת שם" (lone Button) | Card "פרופיל" | **Profile header**, with "עריכה" in the card corner opening a sheet |
+| 3 | My role tags + note | Card "פרופיל" | Profile header (chips); the note moves into the edit sheet |
+| 4 | My phone number, edit / remove | Card "רשימת הטלפונים" (P4) | **טלפון ופרטיות › הטלפון שלי** (pushed screen = P4 card content) |
+| 5 | "הצגת הטלפון שלי ברשימה" toggle | same card | same screen as 4 |
+| 6 | "לרשימת הטלפונים" Button | same card | **בקהילה › רשימת הטלפונים** (row → P1) |
+| 7 | Partner: add / sent / withdraw / confirm / decline / unlink | Card "המשפחה שלי" (P2) | **The family tree** (§17, P31). See the mapping below |
+| 8 | Children list, edit, add (P3 sheet), "shared" note | same card | The family tree: child tiles, "+ ילד/ה", person sheet (P32) |
+| 9 | Tree entry button (§17 "Where") | inside the P2 card | **המשפחה שלי** row: the whole family on Me is this one row |
+| 10 | Language chips | Card "שפה" | **התראות ושפה › שפה** (inline two-way switch in the row) |
+| 11 | "הקבוצות שאני מנהל/ת" buttons | MyGroups, top | **בקהילה › הקבוצות שלי** screen (top block) |
+| 12 | Groups list, join / leave / request | MyGroups | same screen as 11 |
+| 13 | "הזמנת מתפלל" + create link | Card | **בקהילה › הזמנת מתפלל** screen |
+| 14 | "הקישורים שלי" (share / revoke) | Card | same screen as 13 |
+| 15 | "העדפות התראות" (lone Button) | between cards | **התראות ושפה › העדפות התראות** (row → M5) |
+| 16 | Privacy contact, "על הקהילה", policy, data download | Card "פרטיות ונתונים" (P5) | **טלפון ופרטיות › פרטיות ונתונים** (pushed screen = P5 card content) |
+| 17 | "יציאה מהקהילה" + confirm | Card | **החשבון** (action row, confirm in a Sheet) |
+| 18 | "יציאה מהחשבון" | lone Button | **החשבון** |
+| 19 | "מחיקת החשבון" | lone danger Button | **החשבון** (danger row → P10) |
+
+**Management (`src/views/Main.tsx` tabs + `src/views/admin/Overview.tsx`).** Entered from Me (#1), from the Kehila
+switcher, from an approvals push, and from the Home terms card. Tabs: סקירה · אישורים · הודעות · חברים. The
+overview today, top to bottom:
+
+| # | Item today | Where today | Goes to (§18.3) |
+|---|---|---|---|
+| 1 | Pending requests count + "לבדיקה" | Overview card | **לטיפול עכשיו** row; and **חברים ומשפחות › בקשות הצטרפות** |
+| 2 | Prayer schedule editor (§14.2) | Overview card | **תפילות וזמנים › עריכת זמני התפילות** |
+| 3 | Seat map editor (§16) | Overview card "סידור מקומות" | **מקומות ישיבה › עריכת מפת המקומות** |
+| 4 | Responses upload (§16.6) | same card, secondary | **מקומות ישיבה › העלאת קובץ תשובות מהטופס** |
+| 5 | Holders without an account (§16.7) + hints Banner | same card | **מקומות ישיבה › מחזיקי מקומות בלי חשבון** (badge); hints also in **לטיפול עכשיו** |
+| 6 | Privacy contact + inline edit (P12) | Overview card | **הגדרות הקהילה › איש קשר לפרטיות** (edit in a Sheet) |
+| 7 | Terms accepted (P12) | Overview card | **הגדרות הקהילה › התנאים…**; unaccepted terms stay a gate (P8) and show in **לטיפול עכשיו** |
+| 8 | Member and listener counts | Overview card | Status line of **חברים ומשפחות** |
+| 9 | Listener cap + lone "שינוי התקרה" | Overview card | **הגדרות הקהילה › תקרת מאזינים** (value in the row, edit in a Sheet) |
+| 10 | "קבוצות" | Button | **חברים ומשפחות › קבוצות** |
+| 11 | "ערוצים" (channels + type rules at the bottom) | Button | **הודעות וערוצים › ערוצים** and **› סוגי הודעות** (two rows; the same screen may scroll to its section) |
+| 12 | "ייבוא רשימה" | Button | **חברים ומשפחות › ייבוא רשימה** (last) |
+| 13 | "טקסטים של התראות" | Button | **הודעות וערוצים › נוסח ההתראות** |
+| 14 | "מפת האולם להדפסה" + behalf updates (§15.5–15.6) | Button | **מקומות ישיבה › מפת האולם להדפסה** and **› עדכון בשם משפחה** (opens the same screen at the behalf panel) |
+| 15 | "הזמנה עם בחירת תפקיד" | primary Button | **חברים ומשפחות › הזמנות** (top of that screen) |
+| 16 | All invite links, share / revoke | Overview list | same screen as 15 |
+| 17 | Role tags management (§12.6) | lone "עריכת תגיות" Button on the Members tab | **חברים ומשפחות › תגיות תפקיד**; assigning stays on each member |
+| 18 | Upcoming simchas (§17.14, designed, not built) | "Overview card" | **שמחות ועליות › שמחות קרובות**; this Shabbat's simcha is that group's status |
+| 19 | Aliyot (future, separate design) | — | **שמחות ועליות › עליות לתורה** (reserved row) |
+| 20 | New message (compose) | Messages tab FAB | stays; also **הודעות וערוצים › הודעה חדשה** |
+| 21 | Bug report pill (§13) | every screen | unchanged. It is global and has no gabbai inbox, so it has no row. If an inbox is added, it goes in **הגדרות הקהילה** |
+
+### 18.2 Me (P41)
+
+One column of **list groups**: each group is a 14 bold muted label above one Card of rows. Every row opens exactly one
+screen or one Sheet. There are no free-standing buttons between cards. Order is personal-first and goes from most
+used to least used, ending with the destructive actions:
+
+1. **Profile header** (Card): avatar disc 56 (initials; later the P35 figure), name serif 21, role line ("חבר/ת קהילה",
+   "גבאי", "מתפלל אורח"), my role tags as Tags. A 44-high "✎ עריכה" link sits in the card's end corner and opens a
+   Sheet with first name, last name and the read-only tags line "הגבאים מוסיפים ומסירים תפקידים." No separate "עריכת שם".
+2. **המשפחה שלי** (members and gabbaim): one 72-high row, `tree` icon, title, **one status line**, chevron. It opens
+   the family tree (§17, P31), which is now the only family screen. The status line shows the first state that applies:
+
+   | State | Status line | Mark |
+   |---|---|---|
+   | A partner request waits for me | "{name} ביקש/ה לקשר אתכם · לאישור" | pomegranate dot, bold pomegranate text |
+   | Some figures miss name details (§17.3 gold dot) | "חסרים פרטים אצל {n}" (n = 1: "חסרים פרטים אצל 1") | gold dot, bold gold text |
+   | Nothing filled except me | "לא מולא · מתחילים מכם" | muted |
+   | My request is pending | "נשלחה בקשה ל{name}" | muted |
+   | Complete | "עודכן ב־{d.m}" (last edit by either partner) | muted |
+
+3. **בקהילה**: רשימת הטלפונים ("{n} משפחות ברשימה") · הקבוצות שלי ("חבר/ה ב־{n} קבוצות", and "· מנהל/ת את {group}"
+   when I administer one) · הזמנת מתפלל ("{n} קישורים פעילים" / "אין קישורים פעילים").
+4. **התראות ושפה**: העדפות התראות ("הכול פעיל" / "{n} מושתקים") · שפה, with a two-option switch inside the row
+   (עברית | English, 40 high, selected = tekhelet border). A switch with two options does not need a screen.
+5. **טלפון ופרטיות**: הטלפון שלי ("{number} · מוצג ברשימה" / "· לא מוצג ברשימה" / "לא הוזן מספר") · פרטיות ונתונים
+   ("איש קשר, מדיניות, הורדת הנתונים").
+6. **החשבון**: יציאה מהקהילה · יציאה מהחשבון · מחיקת החשבון (danger colour). These are action rows: 52 high, weight
+   500, no chevron, each opens its existing confirm.
+
+**Gabbai.** The same screen, plus one **manage entry** above the profile: a band-coloured row (the management band
+colour, white text, `grid` icon) "ניהול הקהילה", status "{n} בקשות הצטרפות ממתינות" or "אין משהו שממתין", a count
+badge, chevron. Me stays personal; everything about the Kehila lives in management.
+
+**Listener (guest).** Profile, קבוצות, התראות ושפה, פרטיות ונתונים, החשבון. There is no family row, phone list,
+invites or phone number (§10).
+
+**Into the tree (P2 → P31).** The tree takes over everything the P2 card did, on the screen that already shows the
+people:
+
+| P2 today | In the tree |
+|---|---|
+| Add partner | The empty "בן זוג" / "בת זוג" slot in our couple card (§17.2) opens the existing member picker |
+| Request sent / withdraw | The slot shows the name with Tag "נשלחה בקשה"; tapping it opens a small Sheet with "ביטול הבקשה" |
+| Request received | Banner at the top of the tree with "אישור" / "לא עכשיו" (P2 copy unchanged) |
+| Declined / expired | Banner at the top with "הבנתי"; the slot is empty again |
+| Unlink | At the bottom of the partner's person sheet (P32), with the P2 confirm |
+| Children list / add / edit | Child tiles and "+ ילד/ה" (already in P31); the P3 fields are part of the P32 sheet |
+| "Children are shared" note | The tree's privacy line |
+
+The developer working in `src/tree/` owns these. Until they ship, the row can open the tree with the P2 card shown
+above it as a stopgap, so no state becomes unreachable.
+
+### 18.3 Management (P42)
+
+**The overview answers two questions only: what is waiting for me, and where things are.** It has no edit fields.
+
+1. **לטיפול עכשיו** (Card, pomegranate start edge, shown only when something is waiting): one row per item, most
+   urgent first: join requests ("{n} בקשות הצטרפות", badge) · terms not accepted · this week's schedule not published
+   ("זמני שבת {parasha} עוד לא פורסמו", from Wednesday) · seat link suggestions ("{n} הצעות קישור למחזיקי מקומות") ·
+   group join requests. When nothing is waiting: one muted line "אין משהו שממתין לכם." in place of the card.
+2. **תחומים**: one Card of six 72-high rows (icon, title, one live status line, chevron). The order follows how often a
+   gabbai uses each one:
+
+| Group | Status line (example) | Rows inside, in order |
+|---|---|---|
+| **תפילות וזמנים** (weekly) | "שבת וירא · טיוטה" / "· פורסם ב־27.10" | עריכת זמני התפילות (§14.2) · הגיליון השבועי (§14.4–14.5) |
+| **מקומות ישיבה** (weekly) | "השבת: 61 מתוך 84 משפחות ענו" | *השבוע:* מפת האולם להדפסה · עדכון בשם משפחה · העלאת קובץ תשובות מהטופס — *הגדרת האולם:* עריכת מפת המקומות · מחזיקי מקומות בלי חשבון (badge) |
+| **הודעות וערוצים** (most weeks) | "4 ערוצים · 2 סוגי הודעות" | הודעה חדשה · ערוצים · סוגי הודעות (§12.2) · נוסח ההתראות |
+| **שמחות ועליות** (by the calendar) | "השבת: בר מצווה · הלל, משפחת דוגמה" | שמחות קרובות (§17.14) · עליות לתורה (reserved, separate design) |
+| **חברים ומשפחות** (when people join) | "142 חברים · 38 מאזינים" | בקשות הצטרפות (badge) · ספר החברים · תגיות תפקיד · קבוצות · הזמנות · ייבוא רשימה |
+| **הגדרות הקהילה** (rare) | "תקרת מאזינים, פרטיות, תנאים" | תקרת מאזינים (value "38 / 50" in the row) · איש קשר לפרטיות · התנאים בין הקהילה לבין קהילות |
+
+**A group screen** (P42 phone 2) is pushed with back "› סקירה". It has an optional summary Card on top (seats: this
+Shabbat's answers with a bar and the deadline), then list groups of rows. The rows open the screens that exist
+today. Settings that were inline edits (cap, privacy contact) show their **value in the row**, and tapping the row
+opens a Sheet with the field and "שמירה", so nothing is edited in the overview.
+
+**Tabs stay** (סקירה · אישורים · הודעות · חברים, §11.4): approvals and the member book are daily tools and already
+have badges. Inside management the Members tab and "חברים ומשפחות › ספר החברים" open the same screen. The Members
+tab loses its lone "עריכת תגיות" button (now a row), and per-member tag assignment stays on the member.
+
+**Wide (≥ 1024, P42 panel 4).** The tab row becomes a 272 start-side sidebar: סקירה, אישורים (badge), הודעות, חברים, a
+divider, "תחומים" with the six groups, and "יציאה ממצב ניהול" at the end. The overview shows "לטיפול עכשיו" as one
+row of up to three items, then the six groups as a 3-column grid of cards, each listing its rows. On a computer every
+tool is one click from the overview. A group in the sidebar opens the same group screen in the content column.
+
+### 18.4 Rules (for any new item)
+
+- **Every new item names its group** in its spec. If it fits none, raise it with the designer. Do not append to
+  the overview or to Me.
+- An item that needs action shows in **לטיפול עכשיו** only while something is waiting, and **also** lives in its
+  group.
+- **No lone edit buttons.** A value is shown in its row, and editing happens in a Sheet or in the item's own screen.
+- One row = one destination. A status line is one line (ellipsis at the end) and shows the live state, never a
+  description of the feature.
+- Personal things go on Me. Things about the whole Kehila go in management. A gabbai's own family, phone and
+  notifications stay on Me.
+
+### 18.5 Components
+
+- **`ListGroup`** (new, `src/kit`): an optional label (`Txt size="small" bold`, muted, 4 start inset) above a Card with
+  padding 0 and radius 12 whose children are rows separated by 1 px `k.line`.
+- **`NavRow`** (new): min height 56 (72 for `big`), padding 8/16, gap 12. Parts: optional `Icon` 24 tekhelet; title 16
+  bold; status `Txt size="small"` muted, one line; tone `warn` (gold, bold, with a 10 px gold dot) or `attention`
+  (pomegranate, bold, dot or count badge); optional end value (14 bold muted); `ForwardIcon` 20 muted. Variant `action`:
+  52 high, weight 500, no chevron. `danger` uses `k.danger`. The whole row is one `Pressable` with
+  `accessibilityRole="button"` and label "{title}. {status}".
+- **Manage entry**: a `NavRow` on a `k.band` background with white text and a count badge (same badge as the tabs).
+- **Inline language switch**: the §11 segmented control, compact (40 high), inside a `NavRow` without a chevron.
+- Existing pieces (PhoneCard, PrivacyCard, MyGroups, the invite card + MyLinks, CapCard, PrivacyContactCard,
+  InviteList) become the bodies of their pushed screens or Sheets without changes to their contents.
+
+### 18.6 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `me.profile.editLink` / `.editTitle` | עריכה / עריכת הפרופיל | Edit / Edit profile |
+| `me.groups.community` / `.notify` / `.privacy` / `.account` | בקהילה / התראות ושפה / טלפון ופרטיות / החשבון | In the community / Notifications and language / Phone and privacy / Account |
+| `me.family.request` / `.missing` / `.empty` / `.sent` / `.updated` | {name} ביקש/ה לקשר אתכם · לאישור / חסרים פרטים אצל {n} / לא מולא · מתחילים מכם / נשלחה בקשה ל{name} / עודכן ב־{date} | {name} asked to link with you · confirm / Details missing for {n} / Not filled in · start with you / Request sent to {name} / Updated {date} |
+| `me.myPhone.title` / `.shown` / `.hidden` / `.none` | הטלפון שלי / {number} · מוצג ברשימה / {number} · לא מוצג ברשימה / לא הוזן מספר | My phone / {number} · shown in the list / {number} · not shown / No number |
+| `me.manage.title` / `.waiting` / `.none` | ניהול הקהילה / {n} בקשות הצטרפות ממתינות / אין משהו שממתין | Manage the community / {n} join requests waiting / Nothing waiting |
+| `admin.todo.title` / `.none` | לטיפול עכשיו / אין משהו שממתין לכם. | Needs attention / Nothing is waiting for you. |
+| `admin.area.*` | תפילות וזמנים / מקומות ישיבה / הודעות וערוצים / שמחות ועליות / חברים ומשפחות / הגדרות הקהילה | Prayers and times / Seating / Messages and channels / Simchas and aliyot / Members and families / Community settings |
+| `admin.area.label` | תחומים | Areas |
+
+### 18.7 What this supersedes
+
+- **M7 and the Me order in §10 (P2, P4, P5)**: the cards keep their contents but move to pushed screens per §18.2.
+  **P2 on Me** is replaced by the single family row. Its states move into the tree (table in §18.2).
+- **§17 "Where"** (a secondary button inside the P2 card, with a missing-details line): replaced by the family row and its status.
+- **GM1 / the built overview, P12's "in the overview"**, the §14.2 editor card, the §16 seating card, and **§17.14's
+  "Overview gets one card"**: replaced by the overview in §18.3. Their screens are unchanged.
+- **§12.6** "עריכת תגיות" at the top of Members: now the row חברים ומשפחות › תגיות תפקיד.
+- **§12.2** type rules at the bottom of Channels: also reachable as their own row.
+- GD1–GD6's sidebar (old desktop sketches): the §18.3 wide sidebar is the current one.
+
+### 18.8 Open points
+
+1. Does "לטיפול עכשיו" flag an unpublished schedule from Wednesday (assumed), or should the gabbai set the day?
+2. Should the seating group show the live answer count when no weekly release is running (the preview flag is off)?
+   Assumed: status "אין שחרור פעיל השבוע", and the rows stay.
+3. Should the gabbai's own "הזמנת מתפלל" on Me stay? It duplicates management › הזמנות. It is kept here so every role
+   reads Me the same way.
+
+### 18.9 Verification
+
+Rendered with headless Chromium (Playwright 1.47.2): P41 phones 1–3 and P42 phones 1–2 at 390 × 844, light and
+dark; P42 panel 4 at 1280. Checked: no horizontal scroll at 390, no row title or status cut off (checked with
+scrollWidth), and the badges, gold and pomegranate statuses in dark mode. Not checked: real devices, 360-wide
+Android, English (LTR), screen readers, web fonts (the shots may use fallback fonts), and the tree-side partner
+flows, which are only specified in the table in §18.2 and not drawn.
