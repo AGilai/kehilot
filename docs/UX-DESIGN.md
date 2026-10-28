@@ -1687,8 +1687,10 @@ don't get them. For a family without an account, the gabbai answers on its behal
 **Card (Home, Thursday 12:00 → the deadline):** `Card` with a tekhelet edge. The title row has the chair glyph and
 "טופס מקומות לשבת". The question is "יש לכם {n} מקומות השבת. מגיעים?", and the muted line is "ליל שבת ושבת בבוקר · אפשר
 לענות עד יום שישי 12:00". **The buttons are all one family** (owner: the main action must not look like a link):
-- **"לא מגיעים השבת"** is the **primary** `Button`: full width, **56 high**, 17 bold, tekhelet fill, `Icon out` at the
-  start. It is the action most members need each week.
+- **"לא מגיעים השבת"** is the **primary** `Button`: full width, **56 high**, 17 bold, tekhelet fill. At the start is a
+  **30 × 36 freed chair**: the §15.10.3 synagogue-chair glyph with green upholstery, a dashed outline and a check, and a
+  1 px white halo so the wood reads on tekhelet. It replaces `Icon out` (owner: the "exit" box was unclear), and it is
+  the same picture the member then sees on the map. It is the action most members need each week.
 - Under it, two **secondary** `Button`s side by side (48 high, outlined tekhelet): **"כולם מגיעים"** (`Icon users`; = 0
   for both prayers, also one tap) and **"חלק מגיעים"** (`Icon seat`; opens P37).
 
