@@ -172,8 +172,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     targetFamilies: async c => { const k = store.getState().kehilaId; return k ? api.targetFamilies(k, c) : []; },
     directory: async c => { const k = store.getState().kehilaId; return k ? api.directory(k, c) : []; },
     search: (q, o) => store.search(q, o),
-    archive: () => store.archive(),
-    cacheStatus: () => store.cacheStatus(),
+    archive: store.archive,
+    cacheStatus: store.cacheStatus,
     loadHit: m => store.loadHit(m),
     imageUrl: async (m, fresh) => { const k = store.getState().kehilaId; return k ? images.get(k, m, { fresh }) : null; },
   }), [state, route, logo, store, images, api]);

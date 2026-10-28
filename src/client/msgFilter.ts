@@ -1,5 +1,7 @@
-import { isMuted } from './messageView.ts';
-import { TYPE_ORDER, filterMessages } from './typesView.ts';
+import type { FeedState } from './feed.ts';
+import { isMuted, visibleList } from './messageView.ts';
+import { TYPE_ORDER, filterMessages, mergeArchive } from './typesView.ts';
+import type { CachedMessage } from '../search/cache.ts';
 import type { Channel, Message, MessageType, NotifyPrefs } from './types.ts';
 
 /** Pure logic of the Messages filter (UX §12.8): the type control, the counts, the muted switch. */
@@ -34,7 +36,7 @@ export function toggleType(selected: readonly MessageType[], x: MessageType, vis
 export function typeCounts(rows: readonly Pick<Message, 'type'>[], visible: readonly MessageType[]): { total: number; byType: Record<string, number> } {
   const byType: Record<string, number> = Object.fromEntries(visible.map(x => [x, 0]));
   for (const m of rows) if (m.type in byType) byType[m.type]!++;
-  return { total: rows.length, byType };
+  return { total: Object.values(byType).reduce((a, b) => a + b, 0), byType };
 }
 
 /** A 0 row is disabled unless already selected, so a selection can always be undone. */
@@ -59,4 +61,13 @@ export function facetRows(rows: readonly Message[], f: Facet): Message[] {
 /** Muted rows that match channel, text and the given types: what the switch would add. */
 export function mutedCount(rows: readonly Message[], f: Facet, types: readonly MessageType[]): number {
   return filterMessages(rows.filter(m => (f.channelId === null || m.channelId === f.channelId) && isMuted(m, f.notify, f.channels)), { text: f.text, types }).length;
+}
+
+/**
+ * Every message the person may see, muted ones included, newest first: the feed (all readable channels) plus archive
+ * rows the feed does not hold. Archive rows are read (older than the feed window) and keep their author, so the mute
+ * rules treat them like feed rows.
+ */
+export function archiveBase(feed: FeedState, archive: readonly CachedMessage[], notify: NotifyPrefs, channels: Channel[]): Message[] {
+  return mergeArchive(visibleList(feed, { mode: 'all', notify, channels }), archive.filter(c => channels.some(x => x.channelId === c.channelId)));
 }

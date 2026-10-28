@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Platform, Pressable, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import type { MessageType } from '../client/types.ts';
 import { rowDisabled, showLabel } from '../client/msgFilter.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
@@ -55,7 +55,7 @@ function List({ p, showHint, firstRef }: { p: Props; showHint: boolean; firstRef
           })}
         </View>
       </Card>
-      {p.loadingN !== null ? <Txt size="small" color={k.muted} accessibilityRole="alert">{t('messages.archiveLoading', { n: p.loadingN })}</Txt> : null}
+      {p.loadingN !== null ? <Txt size="small" color={k.muted} accessibilityLiveRegion="polite">{t('messages.archiveLoading', { n: p.loadingN })}</Txt> : null}
       {p.mutedAny ? (
         <View style={{ borderTopWidth: 1, borderTopColor: k.line, paddingTop: 4, gap: 2 }}>
           <Toggle label={t('messages.mutedToggle')} value={p.showMuted} onChange={p.onShowMuted} />
@@ -70,6 +70,7 @@ function List({ p, showHint, firstRef }: { p: Props; showHint: boolean; firstRef
 export function TypeFilter(p: Props) {
   const { t, dir } = useI18n();
   const k = useTokens();
+  const { height } = useWindowDimensions();
   const [open, setOpen] = React.useState(false);
   const [anchor, setAnchor] = React.useState({ x: 0, y: 0, w: 0, h: 0 });
   const wrap = React.useRef<View>(null);
@@ -98,8 +99,8 @@ export function TypeFilter(p: Props) {
         <Modal visible={open} transparent animationType="none" onRequestClose={close}>
           <Pressable accessibilityLabel={t('common.close')} onPress={close} style={{ flex: 1, direction: dir }}>
             <Pressable role="dialog" accessibilityLabel={t('messages.type.control')} onPress={() => {}}
-              style={{ position: 'absolute', top: anchor.y + anchor.h + 4, left: Math.max(8, dir === 'rtl' ? anchor.x : anchor.x + anchor.w - 340), width: 340, padding: 12, gap: 12, borderRadius: 12, backgroundColor: k.stone, borderWidth: 1, borderColor: k.line, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
-              <List p={p} showHint={false} firstRef={first} />
+              style={{ position: 'absolute', top: anchor.y + anchor.h + 4, left: Math.max(8, dir === 'rtl' ? anchor.x : anchor.x + anchor.w - 340), width: 340, maxHeight: Math.max(240, height - (anchor.y + anchor.h + 4) - 16), padding: 12, borderRadius: 12, backgroundColor: k.stone, borderWidth: 1, borderColor: k.line, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}>
+              <ScrollView contentContainerStyle={{ gap: 12 }}><List p={p} showHint={false} firstRef={first} /></ScrollView>
             </Pressable>
           </Pressable>
         </Modal>

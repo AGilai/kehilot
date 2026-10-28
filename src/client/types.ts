@@ -139,6 +139,8 @@ export type Message = {
   authorId: string;
   authorName: string;
   authorKind: 'management' | 'member';
+  /** Archive rows only: the normalised search text, so filtering does not normalise again. */
+  norm?: string;
   joinCount: number;
   image?: { contentType: ImageType; bytes: number };
   read?: boolean;

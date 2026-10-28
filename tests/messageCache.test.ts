@@ -244,3 +244,21 @@ test('get returns one cached message', async () => {
   assert.equal((await cache.get(a.messageId))?.title, 'שיעור');
   assert.equal(await cache.get(msg(T0, {}, 9).messageId), null);
 });
+
+test('rows keep author id and kind; a v1 cache is wiped once and rebuilt', async () => {
+  const store = memoryStore();
+  await store.set('u1/k1/meta', JSON.stringify({ v: 1, channels: 'c1,c2', complete: true, before: null, count: 1 }));
+  await store.set('u1/k1/months', JSON.stringify(['2026-01']));
+  await store.set('u1/k1/m/2026-01', JSON.stringify({ x: { messageId: 'x' } }));
+  const changes: number[] = [];
+  const cache = createMessageCache(store, 'u1', 'k1', () => changes.push(1));
+  assert.equal(await cache.ensureChannels(['c1', 'c2']), 'wiped');
+  assert.equal((await cache.list()).length, 0);
+  await cache.upsert([msg(T0, { authorId: 'm9', authorKind: 'member' }, 1)]);
+  const [row] = await cache.list();
+  assert.deepEqual([row!.authorId, row!.authorKind], ['m9', 'member']);
+  assert.equal(await cache.ensureChannels(['c1', 'c2']), 'kept');
+  await cache.remove([row!.messageId]);
+  assert.equal((await cache.list()).length, 0);
+  assert.ok(changes.length >= 3);
+});

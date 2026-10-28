@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSession } from '../client/SessionProvider.tsx';
 import { channelLabel } from '../client/channelsView.ts';
 import { groupByDay, isMuted, timeOfDay, visibleList } from '../client/messageView.ts';
-import { clearFilters, facetRows, mutedCount, showMutedFromStored, showMutedKey, showMutedToStored, toggleType as toggleTypeIn, typeCounts, typeSummary } from '../client/msgFilter.ts';
+import { archiveBase, clearFilters, facetRows, mutedCount, showMutedFromStored, showMutedKey, showMutedToStored, toggleType as toggleTypeIn, typeCounts, typeSummary } from '../client/msgFilter.ts';
 import { showCompose } from '../client/roleView.ts';
 import { filterMessages, filterTypeChips, mergeArchive, messageMeta, showChannelChips } from '../client/typesView.ts';
 import type { Message, MessageType } from '../client/types.ts';
@@ -33,6 +33,7 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
   const k = useTokens();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { state, archive: loadArchive, cacheStatus } = useSession();
+  const archiveRev = state.archiveRev;
   const { feed, channels, kehila, me, kehilaId } = state;
   const [showMuted, setShowMuted] = React.useState(initialFilter === 'all');
   const [channelId, setChannelId] = React.useState<string | null>(null);
@@ -68,32 +69,31 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
     let live = true;
     const poll = () => cacheStatus().then(s => { if (live) setStatus(s); }, () => {});
     void poll();
-    const timer = setInterval(() => { if (!status.complete) void poll(); }, 500);
+    const timer = setInterval(() => { if (!status.complete) void poll(); }, 1000);
     return () => { live = false; clearInterval(timer); };
   }, [cacheStatus, status.complete]);
   React.useEffect(() => {
     let live = true;
     loadArchive().then(r => { if (live) setArchive(r); }, () => { if (live) setArchive([]); });
     return () => { live = false; };
-  }, [status.count, loadArchive, kehilaId]);
+  }, [archiveRev, loadArchive, kehilaId]); // read once, then only when the cache changed
 
-  if (!kehila) return null;
-  const notify = kehila.notify;
-  const multiChannel = showChannelChips(channels);
-  const visibleTypes = filterTypeChips(kehila.role, Object.values(feed.messages));
-  const selTypes = types.filter(x => (visibleTypes as MessageType[]).includes(x));
-  const facet = { text: debounced, channelId, showMuted, notify, channels };
+  const notify = kehila?.notify;
+  const role = kehila?.role;
+  const visibleTypes = React.useMemo(() => filterTypeChips(role, Object.values(feed.messages)), [role, feed.messages]);
+  const selTypes = React.useMemo(() => types.filter(x => (visibleTypes as MessageType[]).includes(x)), [types, visibleTypes]);
   // Every message the person may see, muted included: the feed plus the archive's older ones.
-  const base = React.useMemo(
-    () => mergeArchive(visibleList(feed, { mode: 'all', notify, channels }), archive.filter(c => channels.some(x => x.channelId === c.channelId))),
-    [feed, archive, notify, channels]);
-  const faceted = facetRows(base, facet);
-  const counts = typeCounts(faceted, visibleTypes);
-  const list = filterMessages(faceted, { text: '', types: selTypes });
+  const base = React.useMemo(() => (notify ? archiveBase(feed, archive, notify, channels) : []), [feed, archive, notify, channels]);
+  const faceted = React.useMemo(() => (notify ? facetRows(base, { text: debounced, channelId, showMuted, notify, channels }) : []), [base, debounced, channelId, showMuted, notify, channels]);
+  const counts = React.useMemo(() => typeCounts(faceted, visibleTypes), [faceted, visibleTypes]);
+  const list = React.useMemo(() => filterMessages(faceted, { text: '', types: selTypes }), [faceted, selTypes]);
+  const sections = React.useMemo(() => groupByDay(list).map(g => ({ day: g.day, data: g.items })), [list]);
+  if (!kehila || !notify) return null;
+  const multiChannel = showChannelChips(channels);
+  const facet = { text: debounced, channelId, showMuted, notify, channels };
   const active = hasText || selTypes.length > 0 || channelId !== null;
   const mutedHidden = showMuted ? 0 : mutedCount(base, facet, selTypes);
   const mutedAny = mutedCount(base, { ...facet, text: '', channelId: null }, []) > 0;
-  const sections = groupByDay(list).map(g => ({ day: g.day, data: g.items }));
   const today = israelDate();
   const dayLabel = (day: string) => day === today ? t('messages.today')
     : day ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${day}T12:00:00+02:00`)) : '';
@@ -147,7 +147,7 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
           </Pressable>
         ) : null}
       </View>
-      {hasText && !status.complete ? <Txt size="small" color={k.muted} accessibilityRole="alert">{t('messages.archiveLoading', { n: status.count })}</Txt> : null}
+      {hasText && !status.complete ? <Txt size="small" color={k.muted} accessibilityLiveRegion="polite">{t('messages.archiveLoading', { n: status.count })}</Txt> : null}
       {multiChannel ? row(channelChips) : null}
       {typeControl}
       {active ? (

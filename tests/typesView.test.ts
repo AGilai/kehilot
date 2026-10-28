@@ -72,7 +72,7 @@ test('settings form to body: one rule per call, both keys always present', () =>
 });
 
 test('archive hits older than the feed join the list, newest first, without duplicates', () => {
-  const c = (id: string): CachedMessage => ({ messageId: id, channelId: 'c1', type: 'weekly', title: 't' + id, body: '', authorName: 'א', hasImage: false, norm: 't' });
+  const c = (id: string): CachedMessage => ({ messageId: id, channelId: 'c1', type: 'weekly', title: 't' + id, body: '', authorName: 'א', authorId: 'a1', authorKind: 'management', hasImage: false, norm: 't' });
   const merged = mergeArchive(list.slice(0, 2), [c('04'), c('00'), c('03')]);
   assert.deepEqual(ids(merged), ['05', '04', '03', '00']);
   assert.equal(fromCached(c('00')).title, 't00');

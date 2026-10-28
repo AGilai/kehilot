@@ -7,7 +7,7 @@ import { memoryStore } from '../src/search/cache.ts';
 import type { Message } from '../src/client/types.ts';
 
 const full = { messageId: 'M1', channelId: 'c1', type: 'celebration', title: 'מזל טוב', body: '', authorId: 'a', authorName: 'יוסי', authorKind: 'management', joinCount: 2 } as Message;
-const copy = { messageId: 'M1', channelId: 'c1', type: 'celebration', title: 'מזל טוב', body: '', authorName: 'יוסי', hasImage: false, norm: '' } as const;
+const copy = { messageId: 'M1', channelId: 'c1', type: 'celebration', title: 'מזל טוב', body: '', authorName: 'יוסי', authorId: 'a1', authorKind: 'management', hasImage: false, norm: '' } as const;
 
 test('api.message resolves: the full message, not the offline copy', async () => {
   const removed: string[] = [];

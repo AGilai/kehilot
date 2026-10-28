@@ -34,16 +34,25 @@ export function filterTypeChips(role: Role | undefined, seen: Pick<Message, 'typ
  * Text AND types. Text: every word must occur (the cache search's matcher, so niqqud, final letters, quotes
  * and case are ignored); blank text matches all. Types: any of the selected; none selected matches all.
  */
-export function filterMessages<M extends Pick<Message, 'type' | 'title' | 'body' | 'authorName' | 'targetName'>>(list: M[], f: { text: string; types: readonly MessageType[] }): M[] {
-  const words = queryWords(f.text);
-  if (words.length === 0 && f.types.length === 0) return list;
-  return list.filter(m => (f.types.length === 0 || f.types.includes(m.type)) && (words.length === 0 || matchesWords(searchNorm(m), words)));
+const normCache = new WeakMap<object, string>();
+/** The search text of a message: the archive row's stored `norm`, else computed once per message object. */
+function normOf(m: Pick<Message, 'title' | 'body' | 'authorName' | 'targetName'> & { norm?: string }): string {
+  if (m.norm !== undefined) return m.norm;
+  let n = normCache.get(m);
+  if (n === undefined) { n = searchNorm(m); normCache.set(m, n); }
+  return n;
 }
 
-/** A message rebuilt from its archive copy: text only, enough for a list row. */
+export function filterMessages<M extends Pick<Message, 'type' | 'title' | 'body' | 'authorName' | 'targetName' | 'norm'>>(list: M[], f: { text: string; types: readonly MessageType[] }): M[] {
+  const words = queryWords(f.text);
+  if (words.length === 0 && f.types.length === 0) return list;
+  return list.filter(m => (f.types.length === 0 || f.types.includes(m.type)) && (words.length === 0 || matchesWords(normOf(m), words)));
+}
+
+/** A message rebuilt from its archive copy: text only, enough for a list row. Older than the feed window, so it counts as read. */
 export function fromCached(c: CachedMessage): Message {
-  return { messageId: c.messageId, channelId: c.channelId, type: c.type, title: c.title, body: c.body, authorId: '', authorName: c.authorName,
-    authorKind: 'management', joinCount: 0, ...(c.targetName ? { targetName: c.targetName } : {}) };
+  return { messageId: c.messageId, channelId: c.channelId, type: c.type, title: c.title, body: c.body, authorId: c.authorId ?? '', authorName: c.authorName,
+    authorKind: c.authorKind ?? 'management', joinCount: 0, read: true, norm: c.norm, ...(c.targetName ? { targetName: c.targetName } : {}) };
 }
 
 /** The feed's matches plus archive hits the feed does not hold, newest first. */

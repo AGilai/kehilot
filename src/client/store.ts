@@ -23,6 +23,8 @@ export type StoreState = {
   feed: FeedState;
   /** Error code of a pending invite that was dropped at start (shown once). */
   joinError: string | null;
+  /** Bumped (at most once a second) when the on-device archive changed. */
+  archiveRev: number;
 };
 
 /** Where the start sequence ends: profile form, join screen, Kehila picker, or the signed-in app. */
@@ -30,7 +32,7 @@ export type Route = 'setup' | 'none' | 'switcher' | 'ready';
 
 export const lastKehilaKey = (userId: string) => `kehilot.lastKehila.${userId}`;
 
-const empty = (generation: number): StoreState => ({ generation, me: null, kehilaId: null, kehila: null, channels: [], feed: emptyFeed, joinError: null });
+const empty = (generation: number): StoreState => ({ generation, me: null, kehilaId: null, kehila: null, channels: [], feed: emptyFeed, joinError: null, archiveRev: 0 });
 
 export type StoreOptions = { sleep?: Sleep; isActive?: () => boolean; pending?: PendingInvite; /** Where the on-phone message cache lives; without it nothing is cached or searchable. */ cacheStore?: CacheStore };
 
@@ -48,6 +50,14 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   let backfillToken = 0;
   let backfilling = false;
   const readableIds = () => state.channels.map(c => c.channelId);
+
+  // The archive is re-read by the Messages list only when the cache changed; bursts (backfill pages) collapse to one change a second.
+  let archiveTimer: ReturnType<typeof setTimeout> | null = null;
+  function touchArchive(): void {
+    if (archiveTimer) return;
+    archiveTimer = setTimeout(() => { archiveTimer = null; set({ archiveRev: state.archiveRev + 1 }); }, 1000);
+    (archiveTimer as { unref?: () => void }).unref?.();
+  }
 
   /** Fills the cache from the oldest saved cursor; a newer run, a Kehila switch or a reset stops this one. */
   function startBackfill(c: MessageCache, k: string, gen: number, supersede: boolean): void {
@@ -131,7 +141,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     set({ kehilaId: k, kehila, channels, feed: emptyFeed });
     // The cache is set up before the poller starts, so its first operation (ensureChannels) is first in line.
     backfillToken++; backfilling = false;
-    cache = opts.cacheStore && userId ? createMessageCache(opts.cacheStore, userId, k) : null;
+    cache = opts.cacheStore && userId ? createMessageCache(opts.cacheStore, userId, k, touchArchive) : null;
     if (cache) syncCache(cache, k);
     void poller.start(k, kehila.settings?.pollSeconds ?? 30);
     if (userId) { try { await storage.set(lastKehilaKey(userId), k); } catch { /* the choice is only a convenience */ } }
@@ -342,6 +352,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const c = current();
     if (!c) return;
     await api.removeMessage(c.k, m);
+    if (still(c)) void cache?.remove([m]).catch(() => {});
     if (still(c)) set({ feed: applyChanges(state.feed, [{ kind: 'message_removed', id: m, item: { id: m } }]) });
   }
 

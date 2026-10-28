@@ -31,12 +31,16 @@ export type CachedMessage = {
   title: string;
   body: string;
   authorName: string;
+  /** Who wrote it: the mute rules (muted members, management-only broadcasts) apply to archive rows like feed rows. */
+  authorId: string;
+  authorKind: 'management' | 'member';
   targetName?: string;
   hasImage: boolean;
   norm: string;
 };
 
-type Meta = { v: 1; channels: string; complete: boolean; before: string | null; count: number };
+/** v2: rows carry authorId and authorKind. A v1 cache is wiped and rebuilt once. */
+type Meta = { v: 1 | 2; channels: string; complete: boolean; before: string | null; count: number };
 
 const epochs = new WeakMap<CacheStore, number>();
 const epochOf = (s: CacheStore) => epochs.get(s) ?? 0;
@@ -84,7 +88,7 @@ const monthOf = (messageId: string): string => {
 
 function toCached(m: Message): CachedMessage {
   const c: CachedMessage = {
-    messageId: m.messageId, channelId: m.channelId, type: m.type, title: m.title, body: m.body, authorName: m.authorName,
+    messageId: m.messageId, channelId: m.channelId, type: m.type, title: m.title, body: m.body, authorName: m.authorName, authorId: m.authorId, authorKind: m.authorKind,
     hasImage: !!m.image,
     norm: searchNorm(m),
   };
@@ -92,7 +96,7 @@ function toCached(m: Message): CachedMessage {
   return c;
 }
 
-export function createMessageCache(store: CacheStore, userId: string, k: string) {
+export function createMessageCache(store: CacheStore, userId: string, k: string, onChange: () => void = () => {}) {
   const base = `${userId}/${k}`;
   const metaKey = `${base}/meta`;
   const monthsKey = `${base}/months`;
@@ -120,7 +124,7 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
     if (meta !== undefined) return meta;
     try {
       const v = JSON.parse((await store.get(metaKey)) ?? 'null');
-      meta = v && v.v === 1 && typeof v.channels === 'string' ? (v as Meta) : null;
+      meta = v && (v.v === 1 || v.v === 2) && typeof v.channels === 'string' ? (v as Meta) : null;
     } catch { meta = null; }
     return meta;
   }
@@ -151,7 +155,7 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
     });
   }
 
-  return {
+  const methods = {
     /** Stores messages of readable channels; anything else (and anything removed this session) is skipped. */
     upsert(messages: Message[], wipeGen?: number): Promise<void> {
       return run(async () => {
@@ -203,9 +207,9 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
         const channels = [...readableIds].sort().join(',');
         const m = await loadMeta();
         let result: 'kept' | 'wiped' = 'kept';
-        if (m && m.channels === channels) return result;
+        if (m && m.v === 2 && m.channels === channels) return result;
         if (m) { await wipeNow(); result = 'wiped'; }
-        meta = { v: 1, channels, complete: false, before: null, count: 0 };
+        meta = { v: 2, channels, complete: false, before: null, count: 0 };
         await saveMeta(meta);
         await withIndexLock(store, async () => {
           const index = await readIndex(store, userId);
@@ -275,6 +279,9 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
 
     wipe(): Promise<void> { return run(wipeNow); },
   };
+  // Whatever changes the archive tells the owner (the Messages list reloads the archive only then).
+  const tell = <A extends unknown[], R>(f: (...a: A) => Promise<R>) => (...a: A): Promise<R> => f(...a).then(r => { onChange(); return r; });
+  return { ...methods, upsert: tell(methods.upsert), remove: tell(methods.remove), wipe: tell(methods.wipe), ensureChannels: tell(methods.ensureChannels) };
 }
 
 export type MessageCache = ReturnType<typeof createMessageCache>;

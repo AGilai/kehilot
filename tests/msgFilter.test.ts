@@ -51,9 +51,9 @@ test('type selection: fixed order, collapses to "all" when everything is picked,
   assert.deepEqual(toggleType(['general', 'weekly'], 'event', three), []);
 });
 
-test('counts: per type over the given rows, total is every row', () => {
+test('counts: per type over the given rows, total is the sum of the type rows', () => {
   const rows = [msg('5', 'event'), msg('4', 'event'), msg('3', 'weekly'), msg('2', 'chat')];
-  assert.deepEqual(typeCounts(rows, all5), { total: 4, byType: { general: 0, weekly: 1, event: 2, celebration: 0, condolence: 0 } });
+  assert.deepEqual(typeCounts(rows, all5), { total: 3, byType: { general: 0, weekly: 1, event: 2, celebration: 0, condolence: 0 } });
 });
 
 test('rows with 0 are disabled unless already selected', () => {
@@ -101,4 +101,41 @@ test('muted count: muted rows that match channel, text and (optionally) types', 
   assert.equal(mutedCount(rows, f, ['event']), 1);
   assert.equal(mutedCount(rows, { ...f, text: 'כללי' }, []), 1);
   assert.equal(mutedCount(rows, { ...f, channelId: 'c1' }, []), 0);
+});
+
+// Messages merge / visibility path: feed + archive.
+import { archiveBase } from '../src/client/msgFilter.ts';
+import { feedFromMessages, applyChanges } from '../src/client/feed.ts';
+import type { CachedMessage } from '../src/search/cache.ts';
+
+const cached = (id: string, over: Partial<CachedMessage> = {}): CachedMessage =>
+  ({ messageId: id, channelId: 'c1', type: 'weekly', title: 'ישן', body: '', authorName: 'דנה', authorId: 'a1', authorKind: 'management', hasImage: false, norm: 'ישן דנה', ...over });
+
+test('archive rows older than the feed are read (no unread dot) and the feed wins on duplicates', () => {
+  const feed = feedFromMessages([msg('05', 'weekly', { read: false })]);
+  const rows = archiveBase(feed, [cached('05', { title: 'עותק' }), cached('01')], notify(), channels);
+  assert.deepEqual(rows.map(m => m.messageId), ['05', '01']);
+  assert.equal(rows[0]!.read, false);
+  assert.equal(rows[1]!.read, true);
+});
+test('mute rules apply to archive rows: muted member, management-only broadcasts, muted channel and type', () => {
+  const feed = feedFromMessages([]);
+  const a = [cached('04', { authorKind: 'member', authorId: 'm1' }), cached('03', { authorKind: 'member', authorId: 'm2' }), cached('02', { type: 'event' }), cached('01', { channelId: 'c2' })];
+  const f = { text: '', channelId: null, showMuted: false, channels };
+  const ids = (n: NotifyPrefs) => facetRows(archiveBase(feed, a, n, channels), { ...f, notify: n }).map(m => m.messageId);
+  assert.deepEqual(ids(notify()), ['04', '03', '02', '01']);
+  assert.deepEqual(ids(notify({ mutedMembers: ['m1'] })), ['03', '02', '01']);
+  assert.deepEqual(ids(notify({ membersBroadcasts: 'management_only' })), ['02', '01']);
+  assert.deepEqual(ids(notify({ mutedTypes: ['event'], mutedChannels: ['c2'] })), ['04', '03']);
+  const n = notify({ mutedMembers: ['m1'] });
+  assert.equal(mutedCount(archiveBase(feed, a, n, channels), { ...f, notify: n }, []), 1);
+});
+test('archive rows from channels the person can no longer read are left out', () => {
+  assert.deepEqual(archiveBase(feedFromMessages([]), [cached('01', { channelId: 'gone' })], notify(), channels), []);
+});
+test('a deleted message leaves the list once the archive no longer holds it', () => {
+  let feed = feedFromMessages([msg('05', 'weekly')]);
+  feed = applyChanges(feed, [{ kind: 'message_removed', id: '05', item: { id: '05' } }]);
+  assert.deepEqual(archiveBase(feed, [cached('01')], notify(), channels).map(m => m.messageId), ['01']);
+  assert.deepEqual(archiveBase(feed, [cached('01'), cached('05')], notify(), channels).map(m => m.messageId), ['05', '01']); // stale archive: why the cache must drop it
 });
