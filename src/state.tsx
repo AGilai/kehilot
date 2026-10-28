@@ -7,7 +7,7 @@ import { createDemo } from './demo';
 import { validateProfile } from './dates';
 import { CLASSIFICATION_OPTIONS, ClassificationOption, CommunityMessage, MessageCategory, MemberState, Preferences, Profile, PrayerSeats, SeatingStatus, Session, YahrzeitCustom, normalizeMemberState, normalizeProfile } from './types';
 import { demoHealingPrayer, healingPrayerName, refreshDemoHealing, keepDemoHealing } from './healingPrayers';
-import { syncHealingInbox } from './inbox';
+import { syncPersonalInbox } from './inbox';
 import { demoSeating, demoSeatReport, seatReport } from './seating';
 
 const DEMO_KEY = 'shul.demo.v1';
@@ -58,7 +58,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
             if (initial.seating !== previousSeating) await AsyncStorage.setItem(DEMO_KEY, JSON.stringify(initial));
           }
           initial.healingPrayers = refreshDemoHealing(initial.healingPrayers);
-          initial = syncHealingInbox(initial);
+          initial = syncPersonalInbox(initial);
           await AsyncStorage.setItem(DEMO_KEY, JSON.stringify(initial));
           if (mounted) setData(initial);
         } else {
@@ -112,7 +112,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
   async function commit(update: (value: MemberState) => MemberState, current: number) {
     const pending = commits.current.then(async () => {
       if (current !== generation.current || !dataRef.current) return;
-      const next = syncHealingInbox(update(dataRef.current));
+      const next = syncPersonalInbox(update(dataRef.current));
       if (isDemo) await AsyncStorage.setItem(DEMO_KEY, JSON.stringify(next));
       if (current !== generation.current) return;
       dataVersion.current += 1;

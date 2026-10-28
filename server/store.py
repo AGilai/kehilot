@@ -23,6 +23,8 @@ from .documents import DocumentStore, initialize as initialize_documents
 from .healing_import import initialize as initialize_healing
 from .healing import HealingStore, initialize as initialize_healing_cycles, begin_cycle, maintain as maintain_healing, metadata as healing_metadata
 from .healing import MESSAGE_PREFIX as HEALING_MESSAGE_PREFIX, message_id as healing_message_id
+from .seating_reminders import SeatingReminderStore, initialize as initialize_seating_reminders, MESSAGE_PREFIX as SEATING_MESSAGE_PREFIX
+from .seating_map import SeatingMapStore, initialize as initialize_seating_map
 
 
 def now():
@@ -41,7 +43,7 @@ def password_hash(password, salt):
     return hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 600000).hex()
 
 
-class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, GabbaiStore, DocumentStore, ClassificationStore, RecommendationsStore, SettingsStore, HealingStore):
+class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, GabbaiStore, DocumentStore, ClassificationStore, RecommendationsStore, SettingsStore, HealingStore, SeatingReminderStore, SeatingMapStore):
     def __init__(self, path, sms_sender=None):
         self.sms_sender = sms_sender
         self.path = str(path)
@@ -112,6 +114,8 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             initialize_healing(db)
             initialize_healing_cycles(db)
             initialize_seating(db)
+            initialize_seating_reminders(db)
+            initialize_seating_map(db)
             initialize_membership(db)
             initialize_phone(db)
             initialize_documents(db)
@@ -305,7 +309,7 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
         with self.db() as db:
             attachments = {r['message_id']: dict(id=r['id'], name=r['name'], size=r['size'], mimeType='application/pdf') for r in db.execute('SELECT id,message_id,name,size FROM weekly_documents')}
         result = [dict(attachment=attachments.get(row['id']), id=row['id'], category=row['category'], title=row['title'], body=row['body'], author=json.loads(row['profile'])['name'], createdAt=row['created_at'], pinned=bool(row['pinned']), replies=grouped.get(row['id'], [])) for row in messages]
-        return result + self.healing_messages(user) if user is not None else result
+        return result + self.healing_messages(user) + self.seating_messages(user) if user is not None else result
 
     def state(self, user):
         with self.db() as db:
@@ -314,8 +318,11 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
             classification = db.execute('SELECT classification FROM roster_people WHERE id=?', (user['id'],)).fetchone()
             read_ids = [r['message_id'] for r in db.execute('SELECT message_id FROM reads WHERE user_id=?', (user['id'],))]
         prayers = self.healing_prayers(user)
+        seats = self.seating(user)
         read_ids += [healing_message_id(p['reminder']['cycleId']) for p in prayers if p.get('reminder') and p['reminder']['read']]
-        return dict(profile=member_profile, preferences=json.loads(fresh['preferences']), messages=self.list_messages() + self.healing_messages(user, prayers), readIds=read_ids, healingPrayers=prayers, seating=self.seating(user), classification=classification['classification'] if classification else '', role=user['role'], classifications=self.classifications(user) if user['role'] == 'gabbai' else [], verifiedPhone=self.verified_phone(user), communitySettings=self.community_settings(user))
+        if seats.get('reminder') and seats['reminder']['read']:
+            read_ids.append(seats['reminder']['id'])
+        return dict(profile=member_profile, preferences=json.loads(fresh['preferences']), messages=self.list_messages() + self.healing_messages(user, prayers) + self.seating_messages(user, seats), readIds=read_ids, healingPrayers=prayers, seating=seats, classification=classification['classification'] if classification else '', role=user['role'], classifications=self.classifications(user) if user['role'] == 'gabbai' else [], verifiedPhone=self.verified_phone(user), communitySettings=self.community_settings(user))
 
     @staticmethod
     def _healing_value(row):
@@ -406,6 +413,8 @@ class Store(RosterStore, SeatingStore, PhoneAuthStore, MemberImportStore, Gabbai
         return dict(id=identifier, author=json.loads(user['profile'])['name'], body=body, createdAt=created)
 
     def mark_read(self, user, message_id):
+        if message_id.startswith(SEATING_MESSAGE_PREFIX):
+            return self.read_seating_message(user, message_id)
         if message_id.startswith(HEALING_MESSAGE_PREFIX):
             return self.read_healing_message(user, message_id)
         with self.db() as db:

@@ -93,3 +93,42 @@ test('seating API sends the exact event meaning and allocation snapshot with the
   };
   await api.saveSeating('test-token', payload);
 });
+
+test('demo uses the nearest Israeli holiday and one report for consecutive holy days', () => {
+  const rh = demoSeating(new Date('2026-09-11T04:30:00Z'));
+  assert.equal(rh.event.startsOn, '2026-09-12');
+  assert.equal(rh.event.endsOn, '2026-09-13');
+  assert.equal(rh.event.reminderDate, '2026-09-11');
+  assert.equal(rh.event.mode, 'needed');
+  const saved = demoSeatReport(rh, rh, { arvit: 3, shacharit: 2 }, new Date('2026-09-11T04:31:00Z'));
+  const secondDay = demoSeating(new Date('2026-09-13T20:59:59Z'), saved);
+  assert.equal(secondDay.event.id, saved.event.id);
+  assert.equal(secondDay.reported, true);
+  assert.deepEqual(secondDay.value, saved.value);
+  const next = demoSeating(new Date('2026-09-13T21:00:00Z'), secondDay);
+  assert.equal(next.event.date, '2026-09-19');
+  assert.equal(next.reported, false);
+  const yomKippur = demoSeating(new Date('2026-09-20T04:30:00Z'));
+  assert.equal(yomKippur.event.date, '2026-09-21');
+  assert.equal(yomKippur.event.title, 'יום כיפור');
+  const shavuot = demoSeating(new Date('2027-06-10T04:30:00Z'));
+  assert.equal(shavuot.event.date, '2027-06-11');
+  assert.equal(shavuot.event.endsOn, '2027-06-12');
+  assert.equal(shavuot.event.reminderDate, '2027-06-10');
+});
+
+test('demo reminders use 07:30 and noon Israel time and a report cancels the next reminder', () => {
+  const before = demoSeating(new Date('2026-10-30T05:29:59Z'));
+  assert.equal(before.reminder, null);
+  const morning = demoSeating(new Date('2026-10-30T05:30:00Z'), before);
+  assert.equal(morning.reminder?.slot, '07:30');
+  const later = demoSeating(new Date('2026-10-30T09:59:59Z'), morning);
+  assert.equal(later.reminder?.id, morning.reminder?.id);
+  const noon = demoSeating(new Date('2026-10-30T10:00:00Z'), later);
+  assert.equal(noon.reminder?.slot, '12:00');
+  assert.notEqual(noon.reminder?.id, morning.reminder?.id);
+  const saved = demoSeatReport(morning, morning, { arvit: 0, shacharit: 0 }, new Date('2026-10-30T05:31:00Z'));
+  assert.equal(saved.reminder, null);
+  assert.equal(demoSeating(new Date('2026-10-30T10:00:00Z'), saved).reminder, null);
+  assert.equal(demoSeating(new Date('2026-10-30T10:31:00Z')).reminder, null);
+});

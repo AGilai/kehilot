@@ -27,6 +27,10 @@ def main():
     link = commands.add_parser('link-phone', help='Link a trusted existing account before phone sign-in; preserves its permanent identity')
     link.add_argument('--email', required=True)
     link.add_argument('--phone', required=True)
+    seating_link = commands.add_parser('link-seating-account', help='Explicit trusted link to an existing imported household; dry run unless --apply')
+    seating_link.add_argument('--email', required=True)
+    seating_link.add_argument('--person-id', required=True)
+    seating_link.add_argument('--apply', action='store_true')
     members = commands.add_parser('import-members')
     members.add_argument('--author-email', required=True)
     members.add_argument('--file', type=Path, required=True)
@@ -51,6 +55,9 @@ def main():
             print('Excel template created.')
         elif args.command == 'link-phone':
             print('Phone linked to existing account: ' + store.link_phone(args.email, args.phone))
+        elif args.command == 'link-seating-account':
+            result = store.link_seating_account(args.email, args.person_id, args.apply)
+            print(json.dumps(dict(applied=args.apply, **result)))
         elif args.command in ('publish', 'import-members'):
             with store.db() as db:
                 user = db.execute('SELECT * FROM users WHERE email=?', (args.author_email.strip().lower(),)).fetchone()

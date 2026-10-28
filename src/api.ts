@@ -1,5 +1,6 @@
 import type { AliyahRecommendations, RecommendationCalendar, CommunitySettings, YahrzeitCustom } from './types';
 import type { PhoneChallenge, AssociationMember } from './types';
+import type { SeatingMap } from './types';
 import type { Classification, ClassificationOption, AliyahInput, AliyahRecord, AliyahTemplate, PersonDetails, PersonUpdate, RosterPerson, CommunityMessage, HealingPrayer, MemberState, Preferences, Profile, Reply, SeatReport, SeatingStatus, Session, Shabbat, Zmanim } from './types.ts';
 import { upcomingFriday } from './dates.ts';
 import { applyYeshivaRules, candleLighting, timeOnDate, yeshivaReference } from './zmanim.ts';
@@ -27,6 +28,7 @@ export async function request<T>(path: string, token?: string, body?: unknown, m
   } finally { clearTimeout(timeout); }
 }
 export const api = {
+  seatingMap: (token: string) => request<SeatingMap>('/api/admin/seating-map', token),
   communitySettings: (token: string) => request<CommunitySettings>('/api/community-settings', token),
   saveCommunitySettings: (token: string, yahrzeitCustom: YahrzeitCustom) => request<CommunitySettings>('/api/admin/community-settings', token, { yahrzeitCustom }, 'PUT'),
   recommendationCalendar: (token: string, year = '') => request<RecommendationCalendar>(`/api/admin/aliyah-recommendations/calendar?year=${encodeURIComponent(year)}`, token),

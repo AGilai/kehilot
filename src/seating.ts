@@ -1,5 +1,5 @@
 import { HDate } from '@hebcal/hdate';
-import { civilDate, israelDate } from './dates.ts';
+import { civilDate, israelDate, TZ } from './dates.ts';
 import type { PrayerSeats, SeatReport, SeatingStatus } from './types.ts';
 
 export function seatOptions(allocation: number) {
@@ -18,13 +18,42 @@ export function seatReport(status: SeatingStatus, value: PrayerSeats): SeatRepor
   return { eventId: status.event.id, revision: status.event.revision, mode: status.event.mode, allocatedSeats: status.allocatedSeats, allocationRevision: status.allocationRevision, arvit: value.arvit, shacharit: value.shacharit };
 }
 
+function addDay(value: string, days: number): string {
+  const date = civilDate(value); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10);
+}
+function holyDay(value: string): boolean {
+  const hebrew = new HDate(civilDate(value));
+  return civilDate(value).getUTCDay() === 6 || (hebrew.getMonth() === 7 && [1,2,10,15,22].includes(hebrew.getDate())) ||
+    (hebrew.getMonth() === 1 && [15,21].includes(hebrew.getDate())) || (hebrew.getMonth() === 3 && hebrew.getDate() === 6);
+}
+function bounds(value: string) {
+  let start = value, end = value;
+  while (holyDay(addDay(start, -1))) start = addDay(start, -1);
+  while (holyDay(addDay(end, 1))) end = addDay(end, 1);
+  return { start, end };
+}
+function demoReminder(status: SeatingStatus, previous: SeatingStatus | null | undefined, now: Date): SeatingStatus {
+  if (status.reported || !status.event.reportingOpen || !status.eligible) return status.reminder === null ? status : { ...status, reminder: null };
+  let reminder = previous?.event.id === status.event.id ? previous.reminder || null : null;
+  const today = israelDate(now);
+  const clock = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now);
+  if (today === status.event.reminderDate) {
+    const slot = clock >= '07:30' && clock < '08:00' ? '07:30' : clock >= '12:00' && clock < '12:30' ? '12:00' : null;
+    if (slot && reminder?.slot !== slot) reminder = { id: `seating-reminder-${seatContextKey(status)}-${slot}`, slot, scheduledAt: now.toISOString(), read: false };
+  }
+  const existing = status.reminder;
+  if (existing === reminder) return status;
+  return { ...status, reminder };
+}
+
 // Fictional four-seat household for local demo only. Real allocations always
 // come from the authenticated server and cannot be changed through the profile.
 export function demoSeating(now = new Date(), previous?: SeatingStatus | null): SeatingStatus {
   const today = israelDate(now);
-  const saturday = civilDate(today);
-  if (previous?.event.date !== today) saturday.setUTCDate(saturday.getUTCDate() + ((6 - saturday.getUTCDay() + 7) % 7 || 7));
-  const date = saturday.toISOString().slice(0, 10);
+  let date = previous && (previous.event.endsOn || previous.event.date) >= today ? previous.event.date : addDay(today, 1);
+  while (!holyDay(date)) date = addDay(date, 1);
+  const { start, end } = bounds(date);
+  date = start;
   const hebrew = new HDate(new Date(`${date}T12:00:00`));
   const purim = new HDate(14, HDate.isLeapYear(hebrew.getFullYear()) ? 13 : 12, hebrew.getFullYear());
   const highHolidays = hebrew.getMonth() === 7 && [1, 2, 10].includes(hebrew.getDate());
@@ -33,18 +62,22 @@ export function demoSeating(now = new Date(), previous?: SeatingStatus | null): 
   const mode = special ? 'needed' : 'unused';
   const reportingOpen = date > today;
   if (previous?.event.id === `weekly-${date}` && previous.event.mode === mode && previous.allocatedSeats === 4 && previous.allocationRevision === 1) {
-    return previous.event.reportingOpen === reportingOpen ? previous : { ...previous, event: { ...previous.event, reportingOpen } };
+    const status = previous.event.reportingOpen === reportingOpen ? previous : { ...previous, event: { ...previous.event, reportingOpen } };
+    return demoReminder(status, previous, now);
   }
-  return {
-    event: { id: `weekly-${date}`, date, title: highHolidays ? hebrew.getDate() === 10 ? 'יום כיפור' : 'ראש השנה' : zachor ? 'שבת זכור' : 'שבת הקרובה', parasha: null, mode, occasion: highHolidays ? 'high_holidays' : zachor ? 'zachor' : 'shabbat', revision: 1, reportingOpen, configuredOpen: true, closesAt: null, isCurrent: true, automatic: true },
+  const holiday = (hebrew.getMonth() === 7 && [15,22].includes(hebrew.getDate())) ||
+    (hebrew.getMonth() === 1 && [15,21].includes(hebrew.getDate())) || (hebrew.getMonth() === 3 && hebrew.getDate() === 6);
+  const holidayTitle = hebrew.getMonth() === 1 ? 'פסח' : hebrew.getMonth() === 3 ? 'שבועות' : hebrew.getDate() === 15 ? 'סוכות' : 'שמיני עצרת ושמחת תורה';
+  return demoReminder({
+    event: { id: `weekly-${date}`, date, startsOn: start, endsOn: end, reminderDate: addDay(start, -1), title: highHolidays ? hebrew.getDate() === 10 ? 'יום כיפור' : 'ראש השנה' : zachor ? 'שבת זכור' : holiday ? holidayTitle : 'שבת הקרובה', parasha: null, mode, occasion: highHolidays ? 'high_holidays' : zachor ? 'zachor' : holiday ? 'holiday' : 'shabbat', revision: 1, reportingOpen, configuredOpen: true, closesAt: null, isCurrent: true, automatic: true },
     eligible: true, allocatedSeats: 4, allocationRevision: 1, reported: false, value: null,
     neededSeats: { arvit: mode === 'unused' ? 4 : 0, shacharit: mode === 'unused' ? 4 : 0 }, releasedSeats: { arvit: mode === 'unused' ? 0 : 4, shacharit: mode === 'unused' ? 0 : 4 }, reportInvalidated: false, updatedAt: null,
-  };
+  }, previous, now);
 }
 
 export function demoSeatReport(current: SeatingStatus, expected: SeatingStatus, value: PrayerSeats, now = new Date()): SeatingStatus {
   if (seatContextKey(current) !== seatContextKey(expected)) throw new Error('פרטי הדיווח השתנו. יש לרענן ולבחור שוב.');
   const payload = seatReport(current, value);
   const needed = { arvit: payload.mode === 'unused' ? payload.allocatedSeats - value.arvit : value.arvit, shacharit: payload.mode === 'unused' ? payload.allocatedSeats - value.shacharit : value.shacharit };
-  return { ...current, reported: true, value, neededSeats: needed, releasedSeats: { arvit: payload.allocatedSeats - needed.arvit, shacharit: payload.allocatedSeats - needed.shacharit }, reportInvalidated: false, updatedAt: now.toISOString() };
+  return { ...current, reported: true, value, neededSeats: needed, releasedSeats: { arvit: payload.allocatedSeats - needed.arvit, shacharit: payload.allocatedSeats - needed.shacharit }, reportInvalidated: false, updatedAt: now.toISOString(), reminder: null };
 }

@@ -11,6 +11,7 @@ from urllib.parse import urlsplit, parse_qs
 
 from .push import start_worker
 from .healing import start_worker as start_healing_worker
+from .seating_reminders import start_worker as start_seating_worker
 from .store import Store
 from .validation import APIError
 from .roster import start_roster_worker
@@ -129,6 +130,8 @@ def make_handler(store, allowed_origins=None):
                     return 200, store.healing_prayers(user)
                 if path == '/api/admin/healing-prayers':
                     return 200, store.healing_prayers(user, all_members=True)
+                if path == '/api/admin/seating-map':
+                    return 200, store.seating_map(user)
                 if path == '/api/seating':
                     return 200, store.seating(user)
                 if path == '/api/admin/seating/events':
@@ -237,6 +240,7 @@ def main():
     worker = start_worker(store, stop)
     roster_worker = start_roster_worker(store, stop)
     healing_worker = start_healing_worker(store, stop)
+    seating_worker = start_seating_worker(store, stop)
     print(f'Community API: http://{args.host}:{args.port}')
     try:
         server.serve_forever()
@@ -249,6 +253,7 @@ def main():
             worker.join(timeout=16)
         roster_worker.join(timeout=2)
         healing_worker.join(timeout=16)
+        seating_worker.join(timeout=16)
 
 
 if __name__ == '__main__':

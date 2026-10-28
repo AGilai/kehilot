@@ -44,8 +44,9 @@ export type Profile = {
 };
 export type Reply = { id: string; author: string; body: string; createdAt: string };
 export type CommunityMessage = {
-  kind?: 'healing';
+  kind?: 'healing' | 'seating';
   healing?: { prayerId: string; cycleId: string; expiresOn: string };
+  seating?: { eventId: string; revision: number; allocationRevision: number | null };
   id: string;
   category: MessageCategory;
   title: string;
@@ -59,9 +60,14 @@ export type CommunityMessage = {
 export type HealingReminder = { cycleId: string; startedOn: string; dueOn: string; expiresOn: string; confirmedOn: string | null; pending: boolean; createdOn?: string | null; read?: boolean };
 export type HealingPrayer = { id: string; memberId: string | null; rosterPersonId?: string; unmatchedSubmitter?: boolean; memberName: string; name: string; addedOn: string; reminder?: HealingReminder | null };
 export type SeatingMode = 'unused' | 'needed';
-export type SeatingEvent = { id: string; date: string; title: string; parasha: string | null; mode: SeatingMode; occasion: string; revision: number; reportingOpen: boolean; configuredOpen: boolean; closesAt: string | null; isCurrent: boolean; automatic: boolean };
+export type SeatingEvent = { id: string; date: string; startsOn?: string; endsOn?: string; reminderDate?: string; title: string; parasha: string | null; mode: SeatingMode; occasion: string; revision: number; reportingOpen: boolean; configuredOpen: boolean; closesAt: string | null; isCurrent: boolean; automatic: boolean };
 export type PrayerSeats = { arvit: number; shacharit: number };
-export type SeatingStatus = { event: SeatingEvent; eligible: boolean; allocatedSeats: number | null; allocationRevision: number | null; reported: boolean; value: PrayerSeats | null; neededSeats: PrayerSeats | null; releasedSeats: PrayerSeats | null; reportInvalidated: boolean; updatedAt: string | null };
+export type SeatingReminder = { id: string; slot: string; scheduledAt: string; read: boolean };
+export type SeatMapCell = { id: string; x: number; y: number; width: number; height: number; label: string; kind: 'seat' | 'free' | 'label'; background: string; color: string; fontSize: number; bold: boolean; borders: boolean[]; ownerLabel?: string; serial?: number };
+export type SeatMapLayout = { revision: number; width: number; height: number; sourceRange: string; sheet: string; rightToLeft: boolean; cells: SeatMapCell[] };
+export type PrayerSeatMap = { prayer: 'arvit' | 'shacharit'; title: string; freeSeats: number; cells: { cellId: string; label: string; available: boolean }[] };
+export type SeatingMap = { layout: SeatMapLayout | null; event: SeatingEvent; maps: PrayerSeatMap[]; warnings: string[]; generatedAt?: string; freeColor?: string };
+export type SeatingStatus = { event: SeatingEvent; eligible: boolean; allocatedSeats: number | null; allocationRevision: number | null; reported: boolean; value: PrayerSeats | null; neededSeats: PrayerSeats | null; releasedSeats: PrayerSeats | null; reportInvalidated: boolean; updatedAt: string | null; reminder?: SeatingReminder | null };
 export type SeatReport = { eventId: string; revision: number; mode: SeatingMode; allocatedSeats: number; allocationRevision: number; arvit: number; shacharit: number };
 export type MemberState = { profile: Profile; preferences: Preferences; messages: CommunityMessage[]; readIds: string[]; healingPrayers: HealingPrayer[]; seating: SeatingStatus | null; classification?: string; role?: 'member' | 'gabbai'; verifiedPhone?: string | null; communitySettings?: CommunitySettings; classifications?: ClassificationOption[] };
 export type Session = { token: string; user: { id: string; email: string; phone?: string } };

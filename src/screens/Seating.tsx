@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { loadShabbat } from '../api';
-import { civilDate, displayDate, TZ } from '../dates';
+import { civilDate, displayDate, formatCivilDate, israelDate, TZ } from '../dates';
 import type { PrayerSeats } from '../types';
 import { initialSeatValue, seatContextKey, seatOptions } from '../seating';
 import { useCommunity } from '../state';
@@ -19,7 +19,7 @@ export function Seating({ onClose }: { onClose: () => void }) {
   const [notice, setNotice] = useState<string | null>(null);
   useEffect(() => { setNotice(null); }, [key]);
   useEffect(() => {
-    if (!isDemo || !status || status.event.occasion === 'high_holidays') return;
+    if (!isDemo || !status || !['shabbat','zachor'].includes(status.event.occasion)) return;
     let active = true;
     const friday = civilDate(status.event.date);
     friday.setUTCDate(friday.getUTCDate() - 1);
@@ -53,7 +53,7 @@ export function Seating({ onClose }: { onClose: () => void }) {
   const prayers: { key: keyof PrayerSeats; label: string }[] = [{ key: 'arvit', label: 'ערבית' }, { key: 'shacharit', label: 'שחרית' }];
   return <ScrollView style={s.page} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor={C.green} />}>
     <Button title="חזרה לבית" secondary onPress={onClose} />
-    <View style={{ gap: 6 }}><Text style={s.title}>מקומות לשבת ולחג</Text>{status && <><Text style={s.heading}>{title}</Text>{status.event.parasha && !title?.includes(status.event.parasha) && <Text style={s.heading}>{status.event.parasha}</Text>}<Text style={s.muted}>{displayDate(status.event.date)} · עזרת גברים</Text></>}</View>
+    <View style={{ gap: 6 }}><Text style={s.title}>מקומות לשבת ולחג</Text>{status && <><Text style={s.heading}>{title}</Text>{status.event.parasha && !title?.includes(status.event.parasha) && <Text style={s.heading}>{status.event.parasha}</Text>}<Text style={s.muted}>{displayDate(status.event.startsOn || status.event.date)}{status.event.endsOn && status.event.endsOn !== (status.event.startsOn || status.event.date) ? ` – ${displayDate(status.event.endsOn)}` : ''} · עזרת גברים</Text></>}</View>
     {!status ? <View style={s.card}><Text style={s.text}>לא ניתן לטעון את פרטי הדיווח כרגע.</Text><Button title="טעינה מחדש" secondary onPress={() => void reload()} busy={refreshing} /></View>
       : !status.eligible ? <View style={s.card}><Text style={s.text}>דיווח המקומות המשפחתי מתבצע על ידי ראש משפחה חבר עמותה, עבור כל המשפחה.</Text><Text style={s.muted}>אם פרטי החברות שלך אינם מעודכנים, אפשר לפנות לגבאי.</Text></View>
       : allocation === null ? <View style={s.card}><Text style={s.text}>טרם הוגדרה מכסת המקומות למשפחה.</Text><Text style={s.muted}>יש לפנות לגבאי להגדרת מספר המקומות המוקצים בעזרת הגברים.</Text></View>
@@ -61,7 +61,7 @@ export function Seating({ onClose }: { onClose: () => void }) {
         <View style={s.card}>
           <Text style={s.heading}>{allocation === 1 ? 'למשפחה מוקצה מקום אחד' : `למשפחה מוקצים ${allocation} מקומות`}</Text>
           {!unused && <Text style={s.muted}>ללא דיווח לא יישמרו מקומות.</Text>}
-          {status.event.closesAt && <Text style={s.muted}>סיום קבלת הדיווחים: {new Intl.DateTimeFormat('he-IL', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(status.event.closesAt))}</Text>}
+          {status.event.closesAt && <Text style={s.muted}>סיום קבלת הדיווחים: {formatCivilDate(israelDate(new Date(status.event.closesAt)))} · {new Intl.DateTimeFormat('he-IL', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(status.event.closesAt))}</Text>}
           {!status.event.reportingOpen && <Text style={[s.text, { color: C.red }]}>קבלת הדיווחים לאירוע זה נסגרה. לשינוי יש לפנות לגבאי.</Text>}
           {status.reportInvalidated && <Text style={[s.text, { color: C.red }]}>מכסת המקומות או פרטי האירוע השתנו. יש לבחור ולשלוח דיווח חדש.</Text>}
           {prayers.map(prayer => <Choice key={prayer.key} labelSize={19}

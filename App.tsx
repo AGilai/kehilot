@@ -61,7 +61,7 @@ function Shell() {
       <View style={{ flex: 1, display: tab === 'home' ? 'flex' : 'none' }}><Home onGabbai={() => setTab('gabbai')} onMessage={open} onMessages={() => { setSelected(null); setTab('messages'); }} onProfile={() => setTab('profile')} onSeating={() => setTab('seating')} /></View>
       <View style={{ flex: 1, display: tab === 'seating' ? 'flex' : 'none' }}>{tab === 'seating' && data?.seating?.eligible && <Seating onClose={() => setTab('home')} />}</View>
       <View style={{ flex: 1, display: tab === 'gabbai' ? 'flex' : 'none' }}>{tab === 'gabbai' && data.role === 'gabbai' && <Gabbai onClose={() => setTab('home')} onMessage={open} />}</View>
-      <View style={{ flex: 1, display: tab === 'messages' ? 'flex' : 'none' }}>{selected ? <MessageDetail key={selected} id={selected} onClose={() => setSelected(null)} /> : <Messages onMessage={open} />}</View>
+      <View style={{ flex: 1, display: tab === 'messages' ? 'flex' : 'none' }}>{selected ? <MessageDetail key={selected} id={selected} onClose={() => setSelected(null)} onSeating={() => { setSelected(null); setTab('seating'); }} /> : <Messages onMessage={open} />}</View>
       <View style={{ flex: 1, display: tab === 'profile' ? 'flex' : 'none' }}><Profile /></View>
       <View style={{ flex: 1, display: tab === 'healing' ? 'flex' : 'none' }}><HealingPrayers /></View>
       <View style={{ flex: 1, display: tab === 'preferences' ? 'flex' : 'none' }}><Preferences /></View>

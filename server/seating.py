@@ -26,6 +26,10 @@ def initialize(db):
         # A legacy single number cannot be assigned to either prayer by guessing.
         db.execute('DROP TABLE seating_reports')
     db.executescript('''
+        CREATE TABLE IF NOT EXISTS seating_account_links (
+            user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            person_id TEXT UNIQUE NOT NULL REFERENCES roster_people(id),
+            linked_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS seating_events (
             id TEXT PRIMARY KEY, event_date TEXT NOT NULL, title TEXT NOT NULL,
             mode TEXT NOT NULL CHECK(mode IN ('unused','needed')),
@@ -43,6 +47,43 @@ def initialize(db):
             submitted_by TEXT NOT NULL REFERENCES users(id),
             PRIMARY KEY(event_id,person_id));
     ''')
+    if 'end_date' not in {row['name'] for row in db.execute('PRAGMA table_info(seating_events)')}:
+        db.execute('ALTER TABLE seating_events ADD COLUMN end_date TEXT')
+    for row in db.execute('SELECT id,event_date FROM seating_events WHERE end_date IS NULL').fetchall():
+        db.execute('UPDATE seating_events SET end_date=? WHERE id=?', (period_bounds(date.fromisoformat(row['event_date']))[1].isoformat(), row['id']))
+
+
+def seating_day(day):
+    hebrew = dates.HebrewDate.from_pydate(day)
+    return day.weekday() == 5 or (hebrew.month == 7 and hebrew.day == 10) or hebrew.festival(israel=True, include_working_days=False) is not None
+
+
+def period_bounds(day):
+    start = end = day
+    if seating_day(day):
+        while seating_day(start - timedelta(days=1)):
+            start -= timedelta(days=1)
+        while seating_day(end + timedelta(days=1)):
+            end += timedelta(days=1)
+    return start, end
+
+
+def next_period(today):
+    day = today + timedelta(days=1)
+    while not seating_day(day):
+        day += timedelta(days=1)
+    return period_bounds(day)
+
+
+def period_title(start, end):
+    titles = []
+    day = start
+    while day <= end:
+        title = event_title(day)
+        if title not in titles:
+            titles.append(title)
+        day += timedelta(days=1)
+    return ' · '.join(titles)
 
 
 def special_occasion(day):
@@ -62,6 +103,9 @@ def parasha_for(day):
 
 
 def event_title(day):
+    hebrew = dates.HebrewDate.from_pydate(day)
+    if hebrew.month == 7 and hebrew.day == 10:
+        return 'יום כיפור'
     parasha = parasha_for(day)
     festival = dates.HebrewDate.from_pydate(day).festival(israel=True, hebrew=True, prefix_day=True)
     title = parasha or festival or 'מקומות לתפילה'
@@ -82,12 +126,17 @@ def timestamp(value):
 
 def is_open(event, now):
     today = now.astimezone(ISRAEL).date()
-    return bool(event['reporting_open']) and event['event_date'] >= today.isoformat() and (
+    return bool(event['reporting_open']) and (event['end_date'] or event['event_date']) >= today.isoformat() and (
         not event['closes_at'] or now < datetime.fromisoformat(event['closes_at']))
 
 
 def event_value(event, now):
+    start, end = period_bounds(date.fromisoformat(event['event_date']))
+    reminder_day = start if event['occasion'] == 'megillah_evening' else start - timedelta(days=1)
+    while seating_day(reminder_day):
+        reminder_day -= timedelta(days=1)
     return dict(id=event['id'], date=event['event_date'], title=event['title'],
+                startsOn=start.isoformat(), endsOn=(event['end_date'] or end.isoformat()), reminderDate=reminder_day.isoformat(),
                 parasha=parasha_for(date.fromisoformat(event['event_date'])), mode=event['mode'],
                 occasion=event['occasion'], revision=event['revision'], reportingOpen=is_open(event, now),
                 configuredOpen=bool(event['reporting_open']), closesAt=event['closes_at'],
@@ -98,19 +147,19 @@ class SeatingStore:
     @staticmethod
     def _current_seating_event(db, now):
         today = now.astimezone(ISRAEL).date()
-        db.execute('DELETE FROM seating_reports WHERE event_id IN (SELECT id FROM seating_events WHERE event_date<?)', (today.isoformat(),))
-        db.execute('DELETE FROM seating_events WHERE event_date<?', (today.isoformat(),))
+        db.execute('DELETE FROM seating_reports WHERE event_id IN (SELECT id FROM seating_events WHERE COALESCE(end_date,event_date)<?)', (today.isoformat(),))
+        db.execute('DELETE FROM seating_events WHERE COALESCE(end_date,event_date)<?', (today.isoformat(),))
         selected = db.execute('SELECT * FROM seating_events WHERE is_current=1').fetchone()
         if selected:
             db.execute('DELETE FROM seating_reports WHERE event_id!=?', (selected['id'],))
             return selected
-        saturday = today + timedelta(days=(5 - today.weekday()) % 7 or 7)
-        identifier = 'weekly-' + saturday.isoformat()
-        occasion = special_occasion(saturday) or 'shabbat'
-        closes = datetime.combine(saturday, time.min, ISRAEL).astimezone(timezone.utc).isoformat()
+        start, end = next_period(today)
+        identifier = 'weekly-' + start.isoformat()
+        occasion = special_occasion(start) or ('shabbat' if start.weekday() == 5 else 'holiday')
+        closes = datetime.combine(start, time.min, ISRAEL).astimezone(timezone.utc).isoformat()
         db.execute('''INSERT OR IGNORE INTO seating_events
-            (id,event_date,title,mode,occasion,closes_at,automatic) VALUES (?,?,?,?,?,?,1)''',
-            (identifier, saturday.isoformat(), event_title(saturday), 'needed' if occasion != 'shabbat' else 'unused', occasion, closes))
+            (id,event_date,end_date,title,mode,occasion,closes_at,automatic) VALUES (?,?,?,?,?,?,?,1)''',
+            (identifier, start.isoformat(), end.isoformat(), period_title(start, end), 'needed' if occasion in ('zachor','high_holidays') else 'unused', occasion, closes))
         db.execute('UPDATE seating_events SET is_current=1 WHERE id=?', (identifier,))
         db.execute('DELETE FROM seating_reports WHERE event_id!=?', (identifier,))
         return db.execute('SELECT * FROM seating_events WHERE id=?', (identifier,)).fetchone()
@@ -130,13 +179,43 @@ class SeatingStore:
                     reportInvalidated=report is not None and not valid,
                     updatedAt=report['updated_at'] if valid else None)
 
+    @staticmethod
+    def _seating_person(db, user_id):
+        return db.execute('''SELECT r.* FROM users u
+            LEFT JOIN seating_account_links l ON l.user_id=u.id
+            JOIN roster_people r ON r.id=COALESCE(l.person_id,u.id)
+            WHERE u.id=?''', (user_id,)).fetchone()
+
+    def link_seating_account(self, address, person_id, apply=False):
+        """Trusted local administration only; never infer identity from profile data."""
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            user = db.execute('SELECT id FROM users WHERE email=?', (address.strip().lower(),)).fetchone()
+            person = db.execute('SELECT * FROM roster_people WHERE id=?', (person_id,)).fetchone()
+            if not user or not person or not person['active'] or person['classification'] != 'א':
+                raise APIError(400, 'יש לבחור חשבון קיים וראש משפחה פעיל בסיווג א.')
+            existing = db.execute('SELECT * FROM seating_account_links WHERE user_id=? OR person_id=?', (user['id'],person_id)).fetchall()
+            if existing:
+                if len(existing)==1 and existing[0]['user_id']==user['id'] and existing[0]['person_id']==person_id:
+                    return dict(userId=user['id'],personId=person_id,changed=False)
+                raise APIError(409, 'קיים שיוך אחר לחשבון או לראש המשפחה.')
+            own = db.execute('SELECT active FROM roster_people WHERE id=?', (user['id'],)).fetchone()
+            if (own and own['active']) or person['source_person_id'] or db.execute('SELECT 1 FROM users WHERE id=?',(person_id,)).fetchone():
+                raise APIError(409, 'יש להסדיר את הזהות הקיימת לפני שיוך חשבון לרשומה מיובאת.')
+            if apply:
+                db.execute('INSERT INTO seating_account_links VALUES (?,?,?)', (user['id'],person_id,current_time().isoformat()))
+                db.execute('DELETE FROM seating_reminder_outbox WHERE user_id=?',(user['id'],))
+            return dict(userId=user['id'],personId=person_id,changed=True)
+
     def seating(self, user):
         now = current_time()
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             event = self._current_seating_event(db, now)
-            person = db.execute('SELECT * FROM roster_people WHERE id=?', (user['id'],)).fetchone()
-            return self._seating_status(db, event, person, now)
+            person = self._seating_person(db, user['id'])
+            status = self._seating_status(db, event, person, now)
+            status['reminder'] = self.seating_reminder_status(db, event, person, status, now, user['id'])
+            return status
 
     def save_seating_report(self, user, value):
         required = {'eventId', 'revision', 'mode', 'allocatedSeats', 'allocationRevision', 'arvit', 'shacharit'}
@@ -150,7 +229,7 @@ class SeatingStore:
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             event = self._current_seating_event(db, now)
-            person = db.execute('SELECT * FROM roster_people WHERE id=?', (user['id'],)).fetchone()
+            person = self._seating_person(db, user['id'])
             status = self._seating_status(db, event, person, now)
             if not status['eligible']:
                 raise APIError(403, 'דיווח משפחתי מתבצע על ידי ראש משפחה חבר עמותה.')
@@ -172,8 +251,9 @@ class SeatingStore:
                 allocation_snapshot=excluded.allocation_snapshot,arvit_value=excluded.arvit_value,
                 shacharit_value=excluded.shacharit_value,arvit_needed=excluded.arvit_needed,
                 shacharit_needed=excluded.shacharit_needed,updated_at=excluded.updated_at,submitted_by=excluded.submitted_by''',
-                (event['id'], user['id'], event['revision'], status['allocationRevision'], status['allocatedSeats'], value['arvit'], value['shacharit'], needed['arvit'], needed['shacharit'], now.isoformat(), user['id']))
-            return self._seating_status(db, event, person, now)
+                (event['id'], person['id'], event['revision'], status['allocationRevision'], status['allocatedSeats'], value['arvit'], value['shacharit'], needed['arvit'], needed['shacharit'], now.isoformat(), user['id']))
+            db.execute('DELETE FROM seating_reminder_outbox WHERE user_id=?', (user['id'],))
+            return dict(self._seating_status(db, event, person, now), reminder=None)
 
     def save_seating_event(self, user, value, identifier=None):
         self.require_gabbai(user)
@@ -219,11 +299,11 @@ class SeatingStore:
                 db.execute('DELETE FROM seating_reports WHERE event_id!=?', (identifier,))
                 db.execute('UPDATE seating_events SET is_current=0 WHERE is_current=1')
             db.execute('''INSERT INTO seating_events
-                (id,event_date,title,mode,occasion,revision,reporting_open,closes_at,is_current)
-                VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,mode=excluded.mode,
+                (id,event_date,title,mode,occasion,revision,reporting_open,closes_at,is_current,end_date)
+                VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,mode=excluded.mode,
                 occasion=excluded.occasion,revision=excluded.revision,reporting_open=excluded.reporting_open,
-                closes_at=excluded.closes_at,is_current=CASE WHEN ? THEN 1 ELSE seating_events.is_current END''',
-                (identifier, day.isoformat(), title, mode, occasion, revision, int(opened), closes, int(activate), int(activate)))
+                closes_at=excluded.closes_at,end_date=excluded.end_date,is_current=CASE WHEN ? THEN 1 ELSE seating_events.is_current END''',
+                (identifier, day.isoformat(), title, mode, occasion, revision, int(opened), closes, int(activate), period_bounds(day)[1].isoformat(), int(activate)))
             return event_value(db.execute('SELECT * FROM seating_events WHERE id=?', (identifier,)).fetchone(), now)
 
     def seating_events(self, user):
