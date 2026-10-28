@@ -1269,6 +1269,9 @@ Blocks are always listed right to left (ימין → שמאל), as they stand.
 
 ### 15.2 Home reminder card (P24)
 
+*Redrawn 2026-10-28: the card, its one-tap "לא מגיעים השבת", the push actions and the audience (system list "ראשי משפחה · מקומות", male heads of seat-holding families only) are in §15.10.13. Timing and the Home order below still hold.*
+
+
 - **Who / when:** seat holders for the coming Shabbat (א household heads with an allocation), from the gabbai's reminder
   time (default Thursday 12:00) to the deadline (default Friday 12:00). Nobody else ever sees it.
 - **Where (Home order):** greeting → test-build card (P15, owner's test build only) → **seat card** → the one P7
@@ -1668,10 +1671,71 @@ Still open:
 2. For a **middle block with aisles on both sides**, which aisle seat is the head's: the one nearer the bimah, or the
    gabbai's choice?
 
+#### 15.10.13 One tap "לא מגיעים השבת" from Home and the push (P24, redrawn)
+
+Owner, 2026-10-28: a real one-click. **"לא מגיעים השבת" frees all the family's seats for both ליל שבת and שבת בבוקר
+at once.** Every other answer still goes through the form (P37). P24 is redrawn with the new card, the push and the
+audience. It replaces the older P24 card described in §15.2, which keeps its timing and its place in the Home order.
+
+**Who gets it (rule).** The card and the push go **only to the male head of a family that holds seats**: one person per
+family. Women, other adults in the family, guests, and seat holders without an account don't get them (the gabbai
+answers for those, P27). This comes from the distribution lists (groups) feature: a **system list "ראשי משפחה ·
+מקומות"** that the gabbai sees in the groups screen. It is marked "מערכת", shows its count, and is filled automatically
+from the seat map: when the map changes, the list changes. It cannot be edited or deleted by hand, but the gabbai can
+send an ordinary message to it. Members don't see the list. (P24 panel "למי זה הולך".)
+
+**Card (Home, Thursday 12:00 → the deadline):** `Card` with a tekhelet edge. The title row has the chair glyph and
+"טופס מקומות לשבת". The question is "יש לכם {n} מקומות השבת. מגיעים?", and the muted line is "ליל שבת ושבת בבוקר · אפשר
+לענות עד יום שישי 12:00". Then two buttons, half width each: primary **"כולם מגיעים"** (= 0 for both prayers) and
+**"לא מגיעים השבת"** (surface fill, red border and text, `Icon out`). Under them a 44-high text link **"חלק מגיעים?
+למלא את הטופס ‹"** opens P37.
+
+**Confirm or undo → undo, 5 seconds, no extra screen.** Tapping "לא מגיעים השבת" changes the card in place right away:
+the edge turns green, the folded strip shows all chairs green, with the line "פינית את כל {n} המקומות · ליל שבת ושבת
+בבוקר". A dark inline bar says "נשלח בעוד {s} שניות…" with **"ביטול"** (44 high), and a 4 px green progress line runs
+along the bottom of the card. The answer is sent when the 5 seconds end. "ביטול" puts the card back as it was. If the
+app is closed during the 5 seconds, the answer is still sent. A confirm dialog would make it two taps, so undo is
+better here.
+
+**Card after sending** (olive edge, check): green strip and **"פינית את כל {n} המקומות לשבת"** / "ליל שבת ושבת בבוקר ·
+תודה!", then `Button`s **"ביטול"** and **"עריכה ‹"**, and "אפשר לשנות עד …". "ביטול" deletes the answer, which goes
+back to "no answer" = occupied, shows the Toast "התשובה בוטלה. כל המקומות שמורים לכם.", and brings the card back to
+asking. "עריכה" opens P37 with N chosen for both prayers. Other answered states: "תודה. כל {n} המקומות שמורים לכם."
+(red strip), the two-prayer summary, and "הגבאי עדכן…", each with "עריכה ‹". The card disappears at the deadline.
+
+**Push** (to the same list, at the reminder time): title "טופס מקומות לשבת", body "יש לכם {n} מקומות בשבת פרשת X.
+מגיעים? אפשר לענות עד שישי {time}."
+- **Where notification actions exist** (Android, iOS long-press, Chrome web push): two actions, **"לא מגיעים השבת"**
+  (iOS: destructive style, red) and **"למלא את הטופס"**. "לא מגיעים השבת" sends in the background without opening the
+  app, then replaces the notification with **"פינית את כל {n} המקומות לשבת"** / "ליל שבת ושבת בבוקר. תודה! טעות? אפשר
+  לבטל עד שישי {time}." with the actions **"ביטול"** and **"עריכה"**. That notification is the undo.
+- **Where they don't** (for example Safari web push): tapping opens P37 with **N already chosen in both prayers** and an
+  info `Banner` "לא מגיעים השבת? זה מוכן, רק לשלוח. מגיעים? בחרו מספר אחר." Nothing is sent without "שליחה".
+- Tapping the body opens P37 as before. An action used after the deadline is not sent; a notification says "הטופס נסגר.
+  לשינוי פנו לגבאי." The push is generic (counts only, no names) and isn't sent to someone who already answered.
+
+| Key | Hebrew | English |
+|---|---|---|
+| `seats.card.q` | יש לכם {n} מקומות השבת. מגיעים? | You have {n} seats this Shabbat. Coming? |
+| `seats.card.both` | ליל שבת ושבת בבוקר · אפשר לענות עד {day} {time} | Friday night and Shabbat morning · Answer by {day} {time} |
+| `seats.card.allComing` / `notComing` | כולם מגיעים / לא מגיעים השבת | Everyone's coming / Not coming this Shabbat |
+| `seats.card.some` | חלק מגיעים? למלא את הטופס | Some coming? Fill in the form |
+| `seats.card.undoIn` / `undo` | נשלח בעוד {s} שניות… / ביטול | Sending in {s} seconds… / Undo |
+| `seats.card.freedAll` | פינית את כל {n} המקומות לשבת | You freed all {n} seats for Shabbat |
+| `seats.card.undone` | התשובה בוטלה. כל המקומות שמורים לכם. | Answer cancelled. All your seats are kept. |
+| `seats.card.edit` | עריכה | Edit |
+| `seats.push.freedBody` | ליל שבת ושבת בבוקר. תודה! טעות? אפשר לבטל עד {day} {time}. | Friday night and Shabbat morning. Thanks! Mistake? You can undo until {day} {time}. |
+| `seats.push.actNotComing` / `actForm` | לא מגיעים השבת / למלא את הטופס | Not coming this Shabbat / Fill in the form |
+| `seats.form.preNotComing` | לא מגיעים השבת? זה מוכן, רק לשלוח. מגיעים? בחרו מספר אחר. | Not coming this Shabbat? It's ready, just send. Coming? Pick another number. |
+| `groups.system.seatHolders` | ראשי משפחה · מקומות | Heads of family · seats |
+
+Open point: a family that holds seats but **has no male head** (for example a widow). Is she on the list, or does the
+gabbai answer for her? The frames follow the rule as given.
+
 #### 15.10.12 Verification
 
 P37–P39 were generated by a script and rendered with headless Chromium (Playwright 1.47.2): each phone at 390 × 844 in
-light and dark, P37's panels, and P39's 1280 view, saved to `/tmp/claude-1000/kehilot-shots-seats/`. No horizontal
+light and dark, P37's and P24's panels, P24's three phones, and P39's 1280 view, saved to `/tmp/claude-1000/kehilot-shots-seats/`. No horizontal
 scroll at a 390 viewport, and the 8 circles for N = 7 fit on one line. Contrast was computed (table above). Not checked:
 a real device, the 360 width, the flip animation (not drawn), the glyph at print size, English, and screen readers.
 

@@ -3,91 +3,222 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>P24 בית · תזכורת מקומות בשבת</title>
+<title>P24 בית · טופס מקומות לשבת</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@500;700;800&display=swap">
 <link rel="stylesheet" href="../shared.css">
 <style>
-/* §15 seat-release helpers. Kit equivalents are named in UX-DESIGN §15. */
+/* §15.10 seat form, graphic version. Kit equivalents named in UX-DESIGN §15.10. Frame-only helpers, nothing in shared.css. */
 .ktag.pv{border-style:dashed;border-color:var(--k-ink);color:var(--k-ink);background:transparent}
-.khd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.khd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+:root{--sf-free:#256B35;--sf-free-bg:#E3F3E5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--sf-free:#8FD49C;--sf-free-bg:#163323}}
+:root[data-theme="dark"]{--sf-free:#8FD49C;--sf-free-bg:#163323}
+/* screen header for a stack screen (no tabs: the form is opened from the push or the Home card) */
+.sftop{min-height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 4px 0 12px;border-bottom:1px solid var(--k-line)}
+.sftop .kib{color:var(--k-tek)}
+.sftop h1{flex:1;margin:0;font:700 19px/1.3 var(--f-serif)}
+.sftop small{display:block;font:500 12.5px/1.3 var(--f-ui);color:var(--k-muted)}
+.sfs{gap:12px!important;padding-top:12px!important}
+/* prayer segments with a state line */
+.sfseg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--k-stone);border:1px solid var(--k-line)}
+.sfseg b{flex:1;min-height:52px;border-radius:10px;border:1px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--k-muted);line-height:1.25}
+.sfseg b small{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.sfseg b small i{width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;display:inline-block}
+.sfseg b small i.d{background:currentColor}
+.sfseg b.on{background:var(--k-surface);border-color:var(--k-tek);color:var(--k-tek);box-shadow:0 1px 3px rgba(20,30,90,.12)}
+/* the map card */
+.sfmap{background:var(--k-surface);border:1px solid var(--k-line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.sfmap .mh{display:flex;align-items:center;gap:8px;min-height:32px}
+.sfmap .mh b{flex:1;font-size:14.5px}
+.sfmap .mh .tg{color:var(--k-tek);font-size:13px;font-weight:700;display:flex;align-items:center;gap:2px;min-height:44px;padding-inline:6px;margin:-6px -6px -6px 0}
+.sfark{display:flex;align-items:center;gap:8px;color:var(--k-muted);font-size:12px;font-weight:700}
+.sfark::before,.sfark::after{content:"";flex:1;height:0;border-top:1.5px solid var(--k-line)}
+.sfark span{display:flex;align-items:center;gap:4px;padding:2px 10px;border:1.5px solid var(--k-line);border-radius:999px 999px 6px 6px;background:var(--k-stone)}
+.sfgap{text-align:center;color:var(--k-muted);font-size:11px;letter-spacing:4px;line-height:1;margin:-2px 0}
+.sfblk{direction:ltr;display:flex;gap:6px;align-items:stretch}
+.sfln{width:18px;flex:none;border-radius:6px;background:repeating-linear-gradient(to bottom,var(--k-line) 0 6px,transparent 6px 11px) center/2px 100% no-repeat;display:grid;place-items:center}
+.sfln span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:700;color:var(--k-muted);background:var(--k-surface);padding:4px 0}
+.sfgrid{flex:1;display:grid;gap:5px 5px;align-items:center}
+.sfgrid .rn{font-size:11.5px;color:var(--k-muted);text-align:center;font-variant-numeric:tabular-nums;direction:rtl;line-height:1}
+.sfgrid .rn.me{color:var(--k-tek);font-weight:800;font-size:13px}
+:root{--wood:#B87A43;--wood-dk:#8C5A2E;--wood-ln:#6B4321;--kept:#B8322E;--kept-ico:#FFFFFF;--free-up:#9ED8AA;--free-ico:#1B4D27}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--wood:#A86E3B;--wood-dk:#7A4D27;--wood-ln:#4A2E14;--kept:#F0857F;--kept-ico:#10132A;--free-up:#6FC283;--free-ico:#0C2414}}
+:root[data-theme="dark"]{--wood:#A86E3B;--wood-dk:#7A4D27;--wood-ln:#4A2E14;--kept:#F0857F;--kept-ico:#10132A;--free-up:#6FC283;--free-ico:#0C2414}
+.ch .w{fill:var(--wood);stroke:var(--wood-ln);stroke-width:.8}
+.ch .w.dk{fill:var(--wood-dk)}
+.ch .ico{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.sfgrid .cx{height:16px;display:grid;place-items:center}
+.sfgrid .cx svg{height:16px;width:auto}
+.sfgrid .cx .ch *,.ot .ch *,.sflg .ot .ch *{fill:var(--k-line);stroke:var(--k-surface);stroke-width:1}
+.sfgrid .cx .ch .u{fill:color-mix(in srgb,var(--k-line) 70%,var(--k-muted))}
+.sfgrid .cx.n{background:transparent}
+.sfgrid .ot{height:74px;display:flex;align-items:flex-start;justify-content:center}
+.ot .ch{height:56px;width:100%}
+.ot .ch .u{fill:color-mix(in srgb,var(--k-line) 75%,var(--k-muted))}
+.sft{height:74px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:800;direction:rtl;position:relative;line-height:1.1}
+.sft .ch{width:100%;height:56px;flex:none;overflow:visible}
+.sft .lb{display:flex;align-items:center;gap:2px}
+/* kept / occupied: red upholstery, person icon, word "מגיע" */
+.sft.k{color:var(--kept)}
+.sft.k .ch .u{fill:var(--kept);stroke:var(--wood-ln);stroke-width:.8}
+.sft.k .ch .ico{stroke:var(--kept-ico)}
+/* freed: green upholstery with a dashed outline, check, word "פנוי" */
+.sft.f{color:var(--sf-free)}
+.sft.f .ch .u{fill:var(--free-up);stroke:var(--sf-free);stroke-width:1.8;stroke-dasharray:3 2}
+.sft.f .ch .ico{stroke:var(--free-ico)}
+.sft.f .lb{border:1.5px dashed var(--sf-free);border-radius:6px;padding:0 5px}
+.sft.lk{opacity:.72}
+.sft .hd{position:absolute;top:-7px;inset-inline-end:-5px;width:18px;height:18px;border-radius:50%;background:var(--k-surface);color:var(--k-tek);border:1.5px solid var(--k-tek);font-size:10px;display:grid;place-items:center}
+.sft.foc{outline:3px solid var(--k-gold);outline-offset:2px}
+.sflg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--k-muted)}
+.sflg span{display:inline-flex;align-items:center;gap:5px}
+.sflg i{width:20px;height:24px;display:inline-block;position:relative}
+.sflg i .ch{position:absolute;inset:0;width:100%;height:100%}
+.sflg i.sft,.sflg i.ot{height:24px}
+/* collapsed strip */
+.sfstrip{direction:ltr;display:flex;gap:5px;align-items:center}
+.sfstrip .sft{height:44px;width:38px;flex:none}
+.sfstrip .sft .ch{height:44px}
+.sfstrip .w{direction:rtl;margin-left:auto;font-size:13px;color:var(--k-muted)}
+/* answers */
+.sfq{margin:0;font:700 17px/1.4 var(--f-serif)}
+.sfopts{display:flex;flex-direction:column;gap:8px}
+.sfo{border:1.5px solid var(--k-line);background:var(--k-surface);border-radius:14px;min-height:56px;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.sfo .r{display:flex;align-items:center;gap:12px}
+.sfo .r>i{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--k-muted);display:grid;place-items:center}
+.sfo .r>span{flex:1;display:flex;flex-direction:column;line-height:1.3}
+.sfo .r>span b{font-size:15.5px}
+.sfo .r>span small{font-size:12.5px;color:var(--k-muted)}
+.sfo .r>svg{color:var(--k-muted)}
+.sfo.on{border:2px solid var(--k-tek);background:color-mix(in srgb,var(--k-tek) 6%,var(--k-surface))}
+.sfo.on .r>i{border-color:var(--k-tek)}
+.sfo.on .r>i::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--k-tek)}
+.sfo.on .r>svg{color:var(--k-tek)}
+.sfo.ro{border-style:solid;background:var(--k-stone)}
+.sfo.ro .r>i{display:none}
+/* stepper (inside the chosen answer) */
+.sfstep{display:flex;align-items:center;gap:10px;border-top:1px solid var(--k-line);padding-top:10px}
+.sfstep .l{flex:1;font-size:14px;font-weight:700;line-height:1.3}
+.sfstep .l small{display:block;font-weight:500;font-size:12px;color:var(--k-muted)}
+.sfstep .bx{display:flex;align-items:center;gap:0;border:1.5px solid var(--k-line);border-radius:12px;background:var(--k-surface);overflow:hidden}
+.sfstep .bx b{width:48px;height:48px;display:grid;place-items:center;color:var(--k-tek)}
+.sfstep .bx b.off{color:var(--k-line)}
+.sfstep .bx span{min-width:44px;text-align:center;font:800 22px/1 var(--f-ui);font-variant-numeric:tabular-nums;border-inline:1.5px solid var(--k-line);height:48px;display:grid;place-items:center}
+.sfcnt{display:flex;flex-direction:column;gap:6px}
+.sfcnt .row{display:grid;grid-template-columns:repeat(var(--n),minmax(44px,56px));justify-content:space-between;gap:0}
+.sfcnt .row.few{grid-template-columns:repeat(var(--n),52px);justify-content:start;gap:12px}
+.sfcnt .row.few .cc{width:52px;height:52px;font-size:20px}
+.sfcnt .cc{width:44px;height:44px;justify-self:center;border-radius:50%;border:1.5px solid var(--k-line);background:var(--k-surface);display:grid;place-items:center;font:800 18px/1 var(--f-ui);color:var(--k-ink)}
+.sfcnt .cc.all{border:1.5px dashed var(--sf-free);color:var(--sf-free)}
+.sfcnt .cc.on{background:var(--k-tek);border:2px solid var(--k-tek);color:var(--k-on);box-shadow:0 0 0 3px color-mix(in srgb,var(--k-tek) 22%,transparent)}
+.sfcnt .cc.all.on{background:var(--sf-free);border-color:var(--sf-free);color:var(--k-surface);box-shadow:0 0 0 3px color-mix(in srgb,var(--sf-free) 25%,transparent)}
+.sfcnt .ends{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--k-muted)}
+.sfcnt .sfh{display:flex;align-items:center;gap:4px}
+.sfcnt.ro .ccc{opacity:.6}.sfcnt.ro .ccc.on{opacity:.85}
+.sfsame{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:24px;border:1.5px solid var(--k-tek);color:var(--k-tek);font-weight:700;font-size:14.5px;align-self:flex-start;background:var(--k-surface)}
+.sfsame.on{background:var(--k-tek);color:var(--k-on)}
+/* footer */
+.sffoot{flex:none;border-top:1px solid var(--k-line);background:var(--k-surface);padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px}
+.sffoot .sum{display:flex;gap:6px;flex-wrap:wrap;font-size:12.5px}
+.sffoot .sum span{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 10px;background:var(--k-stone);border:1px solid var(--k-line);font-weight:700}
+.sffoot .sum span.t{border-color:var(--k-tek);color:var(--k-tek)}
+.sffoot .dl{font-size:12px;color:var(--k-muted);text-align:center}
+/* done screen */
+.sfdone{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:8px 0 4px}
+.sfdone .ck{width:76px;height:76px;border-radius:50%;background:color-mix(in srgb,var(--k-olive) 16%,var(--k-surface));color:var(--k-olive);display:grid;place-items:center;border:2px solid var(--k-olive)}
+.sfdone .ck svg{width:40px;height:40px;stroke-width:2.4}
+.sfrow{display:flex;align-items:center;gap:10px;min-height:52px;border-top:1px solid var(--k-line);padding-top:8px}
+.sfrow:first-of-type{border-top:0;padding-top:0}
+.sfrow .g{flex:1;display:flex;flex-direction:column;line-height:1.35}
+.sfrow .g b{font-size:14.5px}.sfrow .g small{font-size:12.5px;color:var(--k-muted)}
+/* push, card, wizard */
 .kpush{background:var(--k-surface);border:1px solid var(--k-line);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
 .kpush .ap{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--k-muted)}
 .kpush .ap .klogo{width:18px;height:18px;border-radius:5px;font-size:11px}
 .kpush b{font-size:15px}.kpush p{margin:0;font-size:14px;line-height:1.45}
-.klock{background:linear-gradient(160deg,#20264f,#0c0f26);border-radius:16px;padding:20px 12px;display:flex;flex-direction:column;gap:10px}
-.klock .clk{color:#fff;text-align:center;font:300 44px/1 var(--f-ui)}
-/* member frame: the person's block, ±2 rows */
-.kfrm{background:var(--k-stone);border:1px solid var(--k-line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;touch-action:pinch-zoom}
-.kfrm .to{font-size:12.5px;color:var(--k-muted);text-align:center;font-weight:700}
-.kgrid{direction:ltr;display:grid;gap:6px;align-items:stretch}
-.kgrid .rn{font-size:12.5px;color:var(--k-muted);display:grid;place-items:center;font-variant-numeric:tabular-nums;direction:rtl}
-.kgrid .rn.me{color:var(--k-tek);font-weight:700}
-.st{min-height:48px;border-radius:10px 10px 6px 6px;display:grid;place-items:center;align-content:center;gap:0;font-size:12.5px;line-height:1.25;direction:rtl;text-align:center}
-.st.o{background:var(--k-line)}
-.st.g{background:transparent}
-.st.n{background:var(--k-tek);color:var(--k-on);font-weight:700;border:2px solid var(--k-tek)}
-.st.f{background:var(--k-surface);color:var(--k-tek);font-weight:700;border:2px dashed var(--k-tek)}
-.st small{font-weight:500;font-size:11.5px;opacity:.9}
-.st.bm{background:repeating-linear-gradient(135deg,var(--k-line) 0 4px,transparent 4px 9px);color:var(--k-muted);font-weight:700}
-.st.lock{opacity:.75}
-.klg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--k-muted)}
-.klg span{display:inline-flex;align-items:center;gap:6px}
-.klg i{width:16px;height:14px;border-radius:4px 4px 3px 3px;display:inline-block}
-.klg i.n{background:var(--k-tek)}.klg i.f{border:2px dashed var(--k-tek)}.klg i.o{background:var(--k-line)}
-.kmini{direction:ltr;display:grid;grid-template-columns:repeat(26,7px);grid-auto-rows:7px;gap:1px;justify-content:center;position:relative;padding:4px 0}
-.kmini i{border-radius:2px;display:block}
-.kmini i.s{background:var(--k-line)}.kmini i.m{background:var(--k-tek)}.kmini i.b{background:var(--k-muted);opacity:.35}
-.kmini .w{position:absolute;border:2px solid var(--k-tek);border-radius:3px}
-.kmini .ark{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--k-muted);white-space:nowrap}
-.kfoot{flex:none;border-top:1px solid var(--k-line);background:var(--k-stone);padding:10px 16px;display:flex;flex-direction:column;gap:6px}
-/* gabbai print (A4 landscape, black and white; fixed paper colours, never dark) */
-.a4{width:1123px;height:794px;background:#fff;color:#000;padding:34px 40px;display:flex;flex-direction:column;gap:12px;font-family:var(--f-ui);box-shadow:0 2px 12px rgba(0,0,0,.18);direction:rtl}
-.a4 h1{margin:0;font:700 24px/1.3 var(--f-serif)}
-.a4 .meta{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000;padding-bottom:8px}
-.a4 .meta p{margin:0;font-size:13px}
-.a4 .pr{font:800 30px/1 var(--f-serif)}
-.hall{direction:ltr;display:grid;grid-template-columns:20px repeat(26,34px) 20px;grid-auto-rows:24px;gap:4px 4px;justify-content:center;position:relative}
-.hall .rn{font-size:11px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
-.hall .ps{border-radius:5px 5px 3px 3px}
-.hall .ps.taken{background:#c8c8c8;border:1px solid #000}
-.hall .ps.rel{background:#fff;border:2px solid #000;background-image:linear-gradient(to top right,transparent calc(50% - 1px),#000 calc(50% - 1px),#000 calc(50% + 1px),transparent calc(50% + 1px))}
-.hall .ps.free{background:#fff;border:1.2px dashed #444}
-.hall .bim{border:2px solid #000;display:grid;place-items:center;font:700 14px var(--f-serif);background:repeating-linear-gradient(135deg,#eee 0 4px,#fff 4px 9px)}
-.hall .bh{font-size:12px;font-weight:700;text-align:center;align-self:end;direction:rtl}
-.ark4{align-self:center;border:2px solid #000;border-radius:6px 6px 0 0;padding:4px 26px;font:700 14px var(--f-serif)}
-.cnt{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #000;font-size:12px}
-.cnt div{padding:4px 8px;border-inline-start:1px solid #000;font-variant-numeric:tabular-nums}
-.cnt div:first-child{border:0}
-.cnt b{display:block;font-size:12.5px}
-.lg4{display:flex;gap:22px;font-size:12.5px;align-items:center}
-.lg4 i{display:inline-block;width:26px;height:18px;vertical-align:-4px;margin-inline-end:6px}
-.nm .ps{font-size:9.5px;display:grid;place-items:center;overflow:hidden;white-space:nowrap;direction:rtl}
-.nm .ps.taken{background:#e6e6e6}
-.nm .ps.rel{text-decoration:line-through}
-.sheetwrap{zoom:.62}
-/* gabbai desktop (kit tokens) */
-.kdesk{width:1280px;height:820px;display:flex;background:var(--k-stone);color:var(--k-ink);font-family:var(--f-ui)}
-.kdesk .sd{width:232px;flex:none;background:var(--k-band);color:#fff;padding:16px 12px;display:flex;flex-direction:column;gap:4px}
-.kdesk .sd a{color:#dfe3f5;text-decoration:none;min-height:40px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:10px;font-size:15px}
-.kdesk .sd a.on{background:rgba(255,255,255,.14);color:#fff;font-weight:700}
-.kdesk .mn{flex:1;min-width:0;padding:20px 24px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
-.kdesk .pn2{width:400px;flex:none;border-inline-start:1px solid var(--k-line);background:var(--k-surface);padding:20px;display:flex;flex-direction:column;gap:12px}
-.ktbl{width:100%;border-collapse:collapse;font-size:14.5px;background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;overflow:hidden}
-.ktbl th{text-align:start;font-size:12.5px;color:var(--k-muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--k-line)}
-.ktbl td{padding:10px 12px;border-bottom:1px solid var(--k-line);vertical-align:middle}
-.ktbl tr.sel td{background:color-mix(in srgb,var(--k-tek) 8%,var(--k-surface))}
-.ksrc{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;color:var(--k-muted)}
-.ksrc.g{color:var(--k-tek)}
-.kstep{display:flex;gap:8px;font-size:12.5px;font-weight:700;color:var(--k-muted)}
-.kstep b{padding:4px 10px;border-radius:12px;border:1px solid var(--k-line)}
-.kstep b.on{border-color:var(--k-tek);color:var(--k-tek)}
-.kcsv{direction:rtl;font:12.5px/1.6 ui-monospace,Menlo,monospace;background:var(--k-surface);border:1px solid var(--k-line);border-radius:10px;padding:8px 10px;white-space:pre;overflow:hidden}
-.kpair{display:flex;gap:6px}.kpair .kcp{min-height:40px;padding:0 12px}
+.wz{display:flex;gap:8px;direction:rtl}
+.wz>div{flex:1;border:1px solid var(--k-line);border-radius:12px;background:var(--k-surface);padding:8px;display:flex;flex-direction:column;gap:5px;font-size:11.5px;min-height:150px}
+.wz>div b{font-size:12px}
+.wz .bar{height:8px;border-radius:4px;background:var(--k-line)}
+.wz .bar.t{background:var(--k-tek)}
+.wz .bar.f{background:var(--sf-free-bg);border:1px dashed var(--sf-free)}
+.wz .dots{display:flex;gap:3px;justify-content:center;margin-top:auto}
+.wz .dots i{width:6px;height:6px;border-radius:50%;background:var(--k-line)}.wz .dots i.on{background:var(--k-tek)}
+.anno{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.anno li{display:flex;gap:8px;align-items:flex-start}
+.anno li b.n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--k-gold);color:#fff;font-size:11.5px;display:grid;place-items:center}
+.pin{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--k-gold);color:#fff;font:700 11.5px/20px var(--f-ui);text-align:center;z-index:2;box-shadow:0 0 0 2px var(--k-surface)}
+.rel{position:relative}
+table.sync{border-collapse:collapse;font-size:12.5px;width:100%}
+table.sync td,table.sync th{border-bottom:1px solid var(--k-line);padding:6px 4px;text-align:start;vertical-align:top}
+table.sync th{color:var(--k-muted);font-weight:700}
+/* 1280 web glance */
+.web{width:1280px;height:820px;background:var(--k-stone);color:var(--k-ink);display:flex;flex-direction:column;font-family:var(--f-ui)}
+.web .wt{height:60px;flex:none;display:flex;align-items:center;gap:12px;padding:0 24px;background:var(--k-surface);border-bottom:1px solid var(--k-line)}
+.web .wt nav{display:flex;gap:4px;margin-inline-start:24px}
+.web .wt nav a{padding:8px 14px;border-radius:10px;text-decoration:none;font-weight:700;color:var(--k-muted)}
+.web .wt nav a.on{color:var(--k-tek);background:color-mix(in srgb,var(--k-tek) 10%,transparent)}
+.web .wb{flex:1;min-height:0;display:flex;justify-content:center;padding:24px}
+.web .wc{width:1040px;display:flex;flex-direction:column;gap:16px}
+.web .cols{display:flex;gap:24px;align-items:flex-start}
+.web .cols>*{flex:1}
+.web .sft,.web .sfgrid .ot{height:94px}
+.web .sft .ch,.web .ot .ch{height:74px}
+.web .sft{font-size:13px}
+.web .sfgrid .cx,.web .sfgrid .cx svg{height:20px}
+@media (max-width:440px){.stage.fts>.hscroll{margin:0 16px}.stage.fts>.pf{width:100%}.stage.fts>.pf>.cap{margin:0 16px;width:auto}.stage.fts>.pf>.phone.ft{width:100%;margin:0;outline:0;border-radius:0}}
 </style>
-</head>
-<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<style>
+.ktop{min-height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px}
+.hc{background:var(--k-surface);border:1px solid var(--k-line);border-inline-start:6px solid var(--e,var(--k-tek));border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.hc .t{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px}
+.hc .t svg.ch{width:26px;height:32px;flex:none}
+.hc .t .sp{flex:1}
+.hc .q{margin:0;font-size:15px}
+.hc .dl{margin:0;font-size:12.5px;color:var(--k-muted)}
+.hc .two{display:flex;gap:8px}
+.hc .two .kb{flex:1;padding:0 8px;font-size:15px}
+.kb.nc{background:var(--k-surface);color:var(--kept);border:1.5px solid var(--kept)}
+.hc .lnk{min-height:44px;display:flex;align-items:center;justify-content:center;gap:4px;color:var(--k-tek);font-weight:700;font-size:14.5px}
+.hc .row{display:flex;align-items:center;gap:10px}
+.hc .row .g{flex:1;display:flex;flex-direction:column;font-size:14.5px;line-height:1.4}
+.hc .row .g small{font-size:12.5px;color:var(--k-muted)}
+.hc .acts{display:flex;gap:6px}
+.hc .acts b{min-height:44px;display:grid;place-items:center;padding:0 12px;border-radius:10px;border:1.5px solid var(--k-line);color:var(--k-tek);font-size:14px}
+.hc .undo{display:flex;align-items:center;gap:10px;background:var(--k-band);color:#fff;border-radius:10px;padding:8px 8px 8px 12px}
+.hc .undo span{flex:1;font-size:14px}
+.hc .undo b{min-height:44px;display:grid;place-items:center;padding:0 14px;border-radius:8px;background:rgba(255,255,255,.14);font-size:14.5px}
+.hc .prog{position:absolute;bottom:0;inset-inline:0;height:4px;background:var(--k-line)}
+.hc .prog i{display:block;height:100%;width:60%;background:var(--sf-free)}
+.hc .strip{direction:ltr;display:flex;gap:4px}
+.hc .strip .sft{width:30px;height:36px}.hc .strip .sft .ch{height:36px}
+.lock2{background:linear-gradient(160deg,#20264f,#0c0f26);border-radius:22px;padding:18px 12px;display:flex;flex-direction:column;gap:10px}
+.lock2 .clk{color:#fff;text-align:center;font:300 46px/1 var(--f-ui)}
+.lock2 .dt{color:#cfd5f5;text-align:center;font-size:13px;margin-top:-4px}
+.np{background:rgba(246,247,242,.94);color:#151A33;border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.np .ap{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#555B75}
+.np .ap .klogo{width:18px;height:18px;border-radius:5px;font-size:11px;background:#2A3F94;color:#fff}
+.np b{font-size:15px}.np p{margin:0;font-size:14px;line-height:1.45}
+.np .ac{display:flex;border-top:1px solid #DDE0D4;margin:6px -14px -12px}
+.np .ac span{flex:1;min-height:46px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#2A3F94}
+.np .ac span+span{border-inline-start:1px solid #DDE0D4}
+.np .ac span.r{color:#B8322E}
+.np.ios{border-radius:20px}
+.np .menu{display:flex;flex-direction:column;margin:8px -14px -12px;border-top:1px solid #DDE0D4}
+.np .menu span{min-height:46px;display:flex;align-items:center;padding:0 16px;font-size:15px;border-bottom:1px solid #DDE0D4}
+.np .menu span:last-child{border:0}
+.np .menu span.r{color:#B8322E}
+.grp{display:flex;flex-direction:column;gap:0;background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;overflow:hidden}
+.grp .li{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 12px;border-top:1px solid var(--k-line)}
+.grp .li:first-child{border-top:0}
+.grp .li .g{flex:1;display:flex;flex-direction:column;line-height:1.35}
+.grp .li .g small{font-size:12.5px;color:var(--k-muted)}
+.grp .li.sys{background:color-mix(in srgb,var(--k-tek) 6%,var(--k-surface))}
+.rule{font-size:13px;display:flex;flex-direction:column;gap:6px;margin:0;padding-inline-start:18px}
+</style></head>
+<body><svg width="0" height="0" style="position:absolute;top:0;left:0;overflow:hidden" aria-hidden="true"><defs>
 <symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
 <symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
 <symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
@@ -122,8 +253,42 @@
 <symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
 <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
-<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol></defs></svg>
-<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P24 · בית · תזכורת מקומות בשבת</b><span>כרטיס בבית מיום חמישי 12:00 עד שישי 12:00, רק למי שיש לו מקומות. "כן, כולם מגיעים" בלחיצה אחת, או "עדכון מקומות" לדף המקומות (P25). אותה תזכורת בהתראה.</span></div><nav class="pn"><a href="P23.html" aria-label="הקודם: גיליון שבועי">הקודם</a><a href="P25.html" aria-label="הבא: מקומות בשבת · חלק מהגוש">הבא</a></nav></header>
-<main class="stage"><div class="phone kit"><div class="sb"><span class="num">12:05</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><span style="color:var(--k-muted)">⌄</span></div><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade"><div style="display:flex;flex-direction:column;gap:4px"><p class="kt s m">יום חמישי · י״ח בחשוון תשפ״ז</p><h1 class="kdisp">שלום, יוסי</h1></div><section class="kc e" style="--e:var(--k-tek);"><div class="khd"><p class="kt b hd">מקומות בשבת</p><span class="ktag pv">תצוגה מקדימה</span></div><p class="kt ">השבת יש לכם <span class="knum">3</span> מקומות. כולם מגיעים?</p><p class="kt s m">מקום שלא צריך אפשר לפנות לאחרים. אפשר לעדכן עד יום שישי <span class="knum">12:00</span>.</p><button class="kb">כן, כולם מגיעים</button><button class="kb s">עדכון מקומות</button></section><section class="kc e" style="--e:var(--k-tek);"><p class="kt b hd">להופיע ברשימת הטלפונים?</p><p class="kt ">חברי קהילת אור הדוגמה יוכלו למצוא את המספר שלכם ולהתקשר.</p><button class="kb">כן, להציג</button><button class="kb s">לא עכשיו</button></section><section class="kc e" style="--e:var(--k-gold);opacity:.7"><p class="kt s m">זמני התפילות (P21)</p><p class="kh">שבת פרשת וירא</p><p class="kt c m">כרטיס של מסמך אחר; מוצג כאן רק כדי להראות את הסדר.</p></section></div><nav class="ktabs"><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div><div class="kstates"><section class="kpanel"><h3 class="plabel">הכרטיס · עברית</h3><div class="kbody"><section class="kc e" style="--e:var(--k-tek);"><div class="khd"><p class="kt b hd">מקומות בשבת</p></div><p class="kt ">השבת יש לכם <span class="knum">3</span> מקומות. כולם מגיעים?</p><p class="kt s m">מקום שלא צריך אפשר לפנות לאחרים. אפשר לעדכן עד יום שישי <span class="knum">12:00</span>.</p><button class="kb">כן, כולם מגיעים</button><button class="kb s">עדכון מקומות</button></section></div></section><section class="kpanel"><h3 class="plabel">מקום אחד</h3><div class="kbody"><section class="kc e" style="--e:var(--k-tek);"><div class="khd"><p class="kt b hd">מקומות בשבת</p></div><p class="kt ">השבת יש לכם מקום אחד. אתם מגיעים?</p><p class="kt s m">מקום שלא צריך אפשר לפנות לאחרים. אפשר לעדכן עד יום שישי <span class="knum">12:00</span>.</p><button class="kb">כן, מגיעים</button><button class="kb s">עדכון מקומות</button></section></div></section><section class="kpanel"><h3 class="plabel">English (LTR)</h3><div class="kbody"><section class="kc e" dir="ltr" lang="en" style="--e:var(--k-tek);text-align:left"><div class="khd"><p class="kt b hd">Shabbat seats</p><span class="ktag pv">Preview</span></div><p class="kt ">This Shabbat you have <span class="knum">3</span> seats. Is everyone coming?</p><p class="kt s m">A seat you don't need can go to someone else. You can update until Friday <span class="knum">12:00</span>.</p><button class="kb">Yes, everyone's coming</button><button class="kb s">Update seats</button></section></div></section><section class="kpanel"><h3 class="plabel">אחרי "כן, כולם מגיעים" · עד שישי 12:00</h3><div class="kbody"><section class="kc e" style="--e:var(--k-olive);gap:4px"><div class="khd"><p class="kt b" style="display:flex;align-items:center;gap:6px;color:var(--k-olive)"><svg class="i s" aria-hidden="true"><use href="#check"/></svg><span style="color:var(--k-ink)">מקומות בשבת</span></p><span class="klink">שינוי</span></div><p class="kt s">תודה. כל <span class="knum">3</span> המקומות שמורים לכם השבת.</p></section><p class="kt c m">"שינוי" פותח את P25. הכרטיס נעלם במועד האחרון.</p></div></section><section class="kpanel"><h3 class="plabel">אחרי עדכון בדף המקומות</h3><div class="kbody"><section class="kc e" style="--e:var(--k-olive);gap:4px"><div class="khd"><p class="kt b" style="display:flex;align-items:center;gap:6px;color:var(--k-olive)"><svg class="i s" aria-hidden="true"><use href="#check"/></svg><span style="color:var(--k-ink)">מקומות בשבת</span></p><span class="klink">שינוי</span></div><p class="kt s">תודה. ערבית: <span class="knum">2</span> מגיעים, <span class="knum">1</span> פנוי לאחרים. שחרית: כולם מגיעים.</p></section></div></section><section class="kpanel"><h3 class="plabel">עודכן על ידי גבאי (מהאפליקציה או מהקובץ)</h3><div class="kbody"><section class="kc e" style="--e:var(--k-olive);gap:4px"><div class="khd"><p class="kt b" style="display:flex;align-items:center;gap:6px;color:var(--k-olive)"><svg class="i s" aria-hidden="true"><use href="#check"/></svg><span style="color:var(--k-ink)">מקומות בשבת</span></p><span class="klink">שינוי</span></div><p class="kt s">הגבאי עדכן את המקומות שלכם. ערבית: <span class="knum">2</span> מגיעים, <span class="knum">1</span> פנוי לאחרים.</p></section></div></section><section class="kpanel"><h3 class="plabel">Answered · English</h3><div class="kbody"><div dir="ltr" lang="en" style="text-align:left"><section class="kc e" style="--e:var(--k-olive);gap:4px"><div class="khd"><p class="kt b" style="display:flex;align-items:center;gap:6px;color:var(--k-olive)"><svg class="i s" aria-hidden="true"><use href="#check"/></svg><span style="color:var(--k-ink)">Shabbat seats</span></p><span class="klink">Change</span></div><p class="kt s">Thanks. All <span class="knum">3</span> seats are kept for you this Shabbat.</p></section></div></div></section><section class="kpanel"><h3 class="plabel">הסדר בבית (כשיש הכול)</h3><div class="kbody"><section class="kc e" style="--e:var(--k-tek);"><p class="kt b hd">גרסת בדיקה חדשה</p><p class="kt s">גרסה <span class="knum">0.1.3</span> מוכנה… (P15)</p></section><section class="kc e" style="--e:var(--k-tek);"><div class="khd"><p class="kt b hd">מקומות בשבת</p></div><p class="kt ">השבת יש לכם <span class="knum">3</span> מקומות. כולם מגיעים?</p><p class="kt s m">מקום שלא צריך אפשר לפנות לאחרים. אפשר לעדכן עד יום שישי <span class="knum">12:00</span>.</p><button class="kb">כן, כולם מגיעים</button><button class="kb s">עדכון מקומות</button></section><section class="kc e" style="--e:var(--k-tek);"><p class="kt b hd">להופיע ברשימת הטלפונים?</p><p class="kt ">חברי קהילת אור הדוגמה יוכלו למצוא את המספר שלכם ולהתקשר.</p><button class="kb">כן, להציג</button><button class="kb s">לא עכשיו</button></section><section class="kc e" style="--e:var(--k-gold);opacity:.7"><p class="kt s m">זמני התפילות (P21)</p><p class="kh">שבת פרשת וירא</p><p class="kt c m">כרטיס של מסמך אחר; מוצג כאן רק כדי להראות את הסדר.</p></section><p class="kt c m">ברכה ← גרסת בדיקה (P15, רק בעלים) ← תזכורת המקומות ← כרטיס חד־פעמי של P7 ← זמני התפילות (P21) ← זמני היום.</p></div></section><section class="kpanel"><h3 class="plabel">התראה · חמישי 12:00</h3><div class="kbody"><div class="klock"><div class="clk knum">12:00</div><div class="kpush"><div class="ap"><span class="klogo">א</span><span>הקהילה שלי · עכשיו</span></div><b>מקומות בשבת</b><p>השבת יש לכם 3 מקומות. כולם מגיעים? אפשר לעדכן עד שישי 12:00.</p></div><div class="kpush" dir="ltr" lang="en" style="text-align:left"><div class="ap"><span class="klogo">א</span><span>My Kehila · now</span></div><b>Shabbat seats</b><p>You have 3 seats this Shabbat. Is everyone coming? You can update until Friday 12:00.</p></div></div><p class="kt c m">לחיצה פותחת את דף המקומות (P25) בקהילה הנכונה: <span class="knum">data: {kehila, screen: 'seats'}</span>. בלי שמות. אחרי המועד האחרון הלחיצה פותחת את הדף במצב "נסגר".</p></div></section><section class="kpanel"><h3 class="plabel">תצוגה מקדימה · לחיצה על "כן, כולם מגיעים"</h3><div class="kbody"><div style="position:relative;min-height:70px"><section class="kc e" style="--e:var(--k-tek);"><div class="khd"><p class="kt b hd">מקומות בשבת</p><span class="ktag pv">תצוגה מקדימה</span></div><p class="kt ">השבת יש לכם <span class="knum">3</span> מקומות. כולם מגיעים?</p><p class="kt s m">מקום שלא צריך אפשר לפנות לאחרים. אפשר לעדכן עד יום שישי <span class="knum">12:00</span>.</p><button class="kb">כן, כולם מגיעים</button><button class="kb s">עדכון מקומות</button></section></div><div style="display:flex;justify-content:center"><span style="background:var(--k-band);color:#fff;border-radius:12px;padding:12px 16px;font-size:14px">בקרוב. זו תצוגה מקדימה.</span></div><p class="kt c m">בתצוגה המקדימה הכרטיס מוצג תמיד, עם נתונים לדוגמה. "עדכון מקומות" פותח את P25 באמת; "כן, כולם מגיעים" מציג רק את ההודעה הקצרה.</p></div></section><section class="kpanel"><h3 class="plabel">אין כרטיס</h3><div class="kbody"><p class="kt ">מי שאין לו מקומות (לא ראש משק בית א, אורח, או בלי הקצאה), לפני חמישי 12:00 ואחרי שישי 12:00: אין כרטיס ואין התראה.</p></div></section></div><aside class="notes"><h2>P24 · בית · תזכורת מקומות בשבת</h2><div>כרטיס בבית מיום חמישי 12:00 עד שישי 12:00, רק למי שיש לו מקומות. "כן, כולם מגיעים" בלחיצה אחת, או "עדכון מקומות" לדף המקומות (P25). אותה תזכורת בהתראה.</div><ul><li>מקום: מתחת לברכה. אחרי כרטיס גרסת הבדיקה (P15) ולפני כרטיס P7, כי יש לו מועד אחרון. לא חלק מהתור של P7. זמני התפילות (P21) מתחת ל־P7.</li><li>רכיב: Card עם edgeColor תכלת, כמו P7: כותרת, שאלה, שורת מועד, Button ראשי ("כן, כולם מגיעים") ומשני ("עדכון מקומות"). התשובה החיובית ראשית, כמו ב־P7.</li><li>מתי: מזמן התזכורת של הגבאי (ברירת מחדל חמישי 12:00) ועד המועד האחרון (שישי 12:00). רק למי שמחזיק מקומות השבת.</li><li>אחרי תשובה: כרטיס מכווץ עם פס זית, סמל ✓ ו"תודה", וקישור "שינוי". נשאר עד המועד האחרון ונעלם.</li><li>התראה: אותו נוסח, בלי שמות, לוחצים ומגיעים לדף המקומות. מי שכבר ענה לפני זמן התזכורת לא מקבל התראה.</li><li>תצוגה מקדימה: תג "תצוגה מקדימה" בקו מקווקו בשורת הכותרת. הכפתורים שעדיין לא מחוברים מציגים Toast "בקרוב. זו תצוגה מקדימה."</li></ul></aside></main>
+
+<symbol id="up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+
+<symbol id="ark" viewBox="0 0 24 24"><path d="M5 21V9a7 7 0 0 1 14 0v12zM12 4v17M9 13h.01M15 13h.01"/></symbol>
+<symbol id="out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol>
+<symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></symbol>
+<symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="seat" viewBox="0 0 24 24"><path d="M7 4h10a1 1 0 0 1 1 1v7H6V5a1 1 0 0 1 1-1zM4 12h16v3H4zM7 15v5M17 15v5"/></symbol>
+</defs></svg>
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P24 · בית · טופס מקומות לשבת</b><span>כרטיס בבית והתראה רק לראשי משפחה שמחזיקים מקומות: "כולם מגיעים", "לא מגיעים השבת" בנגיעה אחת עם 5 שניות לביטול, או הטופס (P37).</span></div><nav class="pn"><a href="P23.html">הקודם</a><a href="P25.html">הבא</a></nav></header>
+<main class="stage fts"><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">1 · חמישי 12:00: הכרטיס, שלוש תשובות</p><div class="phone kit ft"><div class="sb"><span class="num">12:05</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><span style="color:var(--k-muted)">⌄</span></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade sfs"><p class="kt s m" style="margin:0">יום חמישי · י״ח בחשוון</p><h1 class="ktitle" style="margin-top:-10px">שלום, ישראל</h1><section class="hc" aria-label="טופס מקומות לשבת"><div class="t"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/></svg><span>טופס מקומות לשבת</span><span class="sp"></span></div>
+<p class="q">יש לכם <span class="knum">3</span> מקומות השבת. מגיעים?</p><p class="dl">ליל שבת ושבת בבוקר · אפשר לענות עד יום שישי <span class="knum">12:00</span></p>
+<div class="two"><button class="kb">כולם מגיעים</button><button class="kb nc"><svg class="i s" aria-hidden="true"><use href="#out"/></svg>לא מגיעים השבת</button></div>
+<span class="lnk">חלק מגיעים? למלא את הטופס ‹</span></section><section class="kc"><p class="kt b">זמני התפילות (P21)</p><p class="kt s m">שבת פרשת וירא · כרטיס של מסמך אחר, רק להראות את הסדר.</p></section></div><nav class="ktabs"><a href="#" class="on"><b><svg class="i " aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#"><b><svg class="i " aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#"><b><svg class="i " aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">2 · נגעו ב"לא מגיעים השבת": 5 שניות לביטול</p><div class="phone kit ft"><div class="sb"><span class="num">12:06</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><span style="color:var(--k-muted)">⌄</span></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade sfs"><p class="kt s m" style="margin:0">יום חמישי · י״ח בחשוון</p><h1 class="ktitle" style="margin-top:-10px">שלום, ישראל</h1><section class="hc" style="--e:var(--sf-free)"><div class="t"><svg class="ch" style="color:var(--sf-free)" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#check" x="15.5" y="13" width="19" height="19"/></svg><span>טופס מקומות לשבת</span><span class="sp"></span></div>
+<div class="row"><div class="strip"><span class="sft f" role="img" aria-label="פנוי"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#check" x="15.5" y="13" width="19" height="19"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#check" x="15.5" y="13" width="19" height="19"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#check" x="15.5" y="13" width="19" height="19"/></svg></span></div><div class="g"><b>פינית את כל <span class="knum">3</span> המקומות</b><small>ליל שבת ושבת בבוקר</small></div></div>
+<div class="undo" role="status" aria-live="polite"><span>נשלח בעוד <span class="knum">3</span> שניות…</span><b>ביטול</b></div><div class="prog" aria-hidden="true"><i></i></div></section><section class="kc"><p class="kt b">זמני התפילות (P21)</p><p class="kt s m">שבת פרשת וירא · כרטיס של מסמך אחר, רק להראות את הסדר.</p></section></div><nav class="ktabs"><a href="#" class="on"><b><svg class="i " aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#"><b><svg class="i " aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#"><b><svg class="i " aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">3 · אחרי 5 שניות: נשלח, עם ביטול ועריכה</p><div class="phone kit ft"><div class="sb"><span class="num">12:07</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><span style="color:var(--k-muted)">⌄</span></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade sfs"><p class="kt s m" style="margin:0">יום חמישי · י״ח בחשוון</p><h1 class="ktitle" style="margin-top:-10px">שלום, ישראל</h1><section class="hc" style="--e:var(--k-olive)"><div class="t"><svg class="i " aria-hidden="true"><use href="#check"/></svg><span>טופס מקומות לשבת</span><span class="sp"></span></div>
+<div class="row"><div class="strip"><span class="sft f" role="img" aria-label="פנוי"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#check" x="15.5" y="13" width="19" height="19"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#check" x="15.5" y="13" width="19" height="19"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#check" x="15.5" y="13" width="19" height="19"/></svg></span></div><div class="g"><b>פינית את כל <span class="knum">3</span> המקומות לשבת</b><small>ליל שבת ושבת בבוקר · תודה!</small></div></div>
+<div class="acts"><b>ביטול</b><b>עריכה ‹</b></div><p class="dl">אפשר לשנות עד יום שישי <span class="knum">12:00</span>.</p></section><section class="kc"><p class="kt b">זמני התפילות (P21)</p><p class="kt s m">שבת פרשת וירא · כרטיס של מסמך אחר, רק להראות את הסדר.</p></section></div><nav class="ktabs"><a href="#" class="on"><b><svg class="i " aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#"><b><svg class="i " aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#"><b><svg class="i " aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><div class="kstates"><div class="kpanel"><p class="plabel">התראה · חמישי 12:00 · רק לרשימה "בעלי מקומות"</p><div class="kbody">
+<div class="lock2"><div class="clk">12:00</div><div class="dt">יום חמישי, 5 בנובמבר</div>
+<div class="np"><div class="ap"><span class="klogo">א</span>קהילות · עכשיו</div><b>טופס מקומות לשבת</b><p>יש לכם 3 מקומות בשבת פרשת וירא. מגיעים? אפשר לענות עד שישי 12:00.</p><div class="ac"><span class="r">לא מגיעים השבת</span><span>למלא את הטופס</span></div></div></div>
+<p class="kt c m"><b>אנדרואיד:</b> שני כפתורי פעולה בהתראה. "לא מגיעים השבת" שולח ברקע, בלי לפתוח את האפליקציה, ומחליף את ההתראה בזו:</p>
+<div class="np"><div class="ap"><span class="klogo">א</span>קהילות · עכשיו</div><b>פינית את כל 3 המקומות לשבת</b><p>ליל שבת ושבת בבוקר. תודה! טעות? אפשר לבטל עד שישי 12:00.</p><div class="ac"><span>ביטול</span><span>עריכה</span></div></div>
+<p class="kt c m"><b>iOS:</b> לחיצה ארוכה פותחת את אותן פעולות:</p>
+<div class="np ios"><div class="ap"><span class="klogo">א</span>קהילות</div><b>טופס מקומות לשבת</b><p>יש לכם 3 מקומות בשבת פרשת וירא. מגיעים?</p><div class="menu"><span class="r">לא מגיעים השבת</span><span>למלא את הטופס</span></div></div>
+<p class="kt c m"><b>בלי כפתורי פעולה</b> (למשל Safari באתר): לחיצה על ההתראה פותחת את הטופס (P37) עם "לא מגיעים" (3) כבר בחור בשתי התפילות, ובאנר "לא מגיעים השבת? זה מוכן, רק לשלוח. מגיעים? בחרו מספר אחר." שום דבר לא נשלח בלי "שליחה".</p>
+<p class="kt c m">פעולה בהתראה אחרי המועד: לא נשלחת. מופיעה התראה "הטופס נסגר. לשינוי פנו לגבאי."</p></div></div></div><div class="kstates"><div class="kpanel"><p class="plabel">למי זה הולך · רשימות תפוצה (גבאי)</p><div class="kbody">
+<div class="khd"><p class="kt b">רשימות תפוצה</p><span class="ktag">גבאי</span></div>
+<div class="grp"><div class="li sys"><svg class="i s" aria-hidden="true"><use href="#seat"/></svg><div class="g"><b>ראשי משפחה · מקומות</b><small>רשימת מערכת · מתעדכנת לבד ממפת המקומות</small></div><span class="ktag st"><span class="knum">74</span></span></div>
+<div class="li"><svg class="i s" aria-hidden="true"><use href="#users"/></svg><div class="g"><b>ועד שמחות</b><small>נבנתה על ידי גבאי</small></div><span class="ktag"><span class="knum">9</span></span></div>
+<div class="li"><svg class="i s" aria-hidden="true"><use href="#users"/></svg><div class="g"><b>מתנדבי קידוש</b><small>נבנתה על ידי גבאי</small></div><span class="ktag"><span class="knum">15</span></span></div></div>
+<section class="kc"><div class="khd"><p class="kt b">ראשי משפחה · מקומות</p><span class="ktag">מערכת</span></div>
+<ul class="rule"><li>בפנים: <b>ראש המשפחה (גבר) של משפחה שמחזיקה מקומות</b> במפה. אחד לכל משפחה.</li><li>לא בפנים: נשים, מבוגרים אחרים במשפחה, אורחים, ומחזיקי מקומות בלי חשבון (<span class="knum">6</span>, הגבאי מעדכן בשמם, P27).</li><li>מתעדכנת לבד כשהמפה משתנה. אי אפשר למחוק או לערוך ידנית, רק לראות.</li><li>משמשת לתזכורת המקומות, להתראה ולכרטיס בבית. אפשר גם לשלוח אליה הודעה רגילה.</li></ul>
+<div class="kli" style="border-top:1px solid var(--k-line)"><div class="g"><b>ישראלי ישראל</b><p class="kt c m">ימין · 3 מקומות</p></div></div>
+<div class="kli"><div class="g"><b>דוגמה משה</b><p class="kt c m">מרכז ימין · 2 מקומות</p></div></div>
+<p class="kt c m">ועוד <span class="knum">72</span>. החבר עצמו לא רואה את הרשימה.</p></section></div></div><div class="kpanel"><p class="plabel">עוד מצבי הכרטיס</p><div class="kbody"><section class="hc" style="--e:var(--k-olive)"><div class="t"><svg class="i " aria-hidden="true"><use href="#check"/></svg><span>טופס מקומות לשבת</span></div><div class="row"><div class="strip"><span class="sft k" role="img" aria-label="מגיע"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#user" x="15.5" y="13" width="19" height="19"/></svg></span><span class="sft k" role="img" aria-label="מגיע"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#user" x="15.5" y="13" width="19" height="19"/></svg></span><span class="sft k" role="img" aria-label="מגיע"><svg class="ch" viewBox="0 0 50 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true"><rect class="u bp" x="13" y="0.8" width="24" height="4.6" rx="2.3"/><path class="w dk" d="M11.5 6h27v33h-27z"/><path class="w" d="M4 3.5h7.5v51H2.4z"/><path class="w" d="M46 3.5h-7.5v51h9.1z"/><rect class="w" x="10" y="4.6" width="30" height="3.2" rx="1"/><rect class="u bk" x="14.2" y="9.6" width="21.6" height="26" rx="4"/><rect class="w" x="0.6" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="w" x="36" y="27" width="13.4" height="3.4" rx="1.4"/><rect class="u cu" x="9.6" y="37.4" width="30.8" height="8.2" rx="3"/><rect class="w dk" x="12" y="48" width="26" height="2.4"/><rect class="w" x="0" y="55" width="17" height="4.6" rx="2"/><rect class="w" x="33" y="55" width="17" height="4.6" rx="2"/><use class="ico" href="#user" x="15.5" y="13" width="19" height="19"/></svg></span></div><div class="g"><b>תודה. כל <span class="knum">3</span> המקומות שמורים לכם.</b><small>ליל שבת ושבת בבוקר</small></div></div><div class="acts"><b>עריכה ‹</b></div></section><section class="hc" style="--e:var(--k-olive)"><div class="t"><svg class="i " aria-hidden="true"><use href="#check"/></svg><span>טופס מקומות לשבת</span></div><div class="row"><div class="g"><b>ליל שבת: <span class="knum">2</span> מגיעים · <span class="knum">1</span> פנוי</b><small>שבת בבוקר: לא מגיעים · <span class="knum">3</span> פנויים</small></div></div><div class="acts"><b>עריכה ‹</b></div></section><section class="hc" style="--e:var(--k-tek)"><div class="t"><svg class="i " aria-hidden="true"><use href="#info"/></svg><span>טופס מקומות לשבת</span></div><p class="q">הגבאי עדכן את המקומות שלכם.</p><div class="acts"><b>עריכה ‹</b></div></section><p class="kt c m">"ביטול" במצב 3 מוחק את התשובה (חזרה ל"לא ענו" = תפוס), עם הודעה קצרה "התשובה בוטלה. כל המקומות שמורים לכם." והכרטיס חוזר למצב 1. אחרי המועד הכרטיס נעלם.</p></div></div></div></main>
 </body>
 </html>
