@@ -205,25 +205,59 @@ def _iso(value):
     return value.isoformat() if isinstance(value, date) else value
 
 
-def project_people(people, selected, today=None):
-    """Pure part of upstream's `_refresh_roster(db, selected)`: eligibility at the selected date.
+def project_people(people, selected):
+    """Pure port of `_refresh_roster(db, selected)` (roster.py:95-161): who is active, and derived fields, at `selected`.
 
-    Returns copies of `people` with `active` projected, never touching the inputs. A person whose bar-mitzvah
-    eligibility date is known (`eligible_from`, ISO text, or derived from `hebrew_birth_date` when the key is absent,
-    as `save_roster_person` does) is active exactly when `eligible_from <= selected`; this also surfaces a boy who turns
-    13 before the selected date. A person with no known eligibility keeps the caller's `active` flag (default True).
-    The caller supplies already-derived roster people (family/son/son-in-law derivation and classification inheritance
-    stay in the caller's data layer); archived or ineligible-source people must be passed with `active=False` and an
-    explicit `eligible_from=None`.
+    Returns copies; inputs are never modified. Each person has a `kind`:
+    - 'manual' (default): a gabbai-entered roster row. `active` is the caller's flag unless an eligibility date is known.
+    - 'self': a member's own row; 'son': a son from the family tree. Both are active only if `source_active` (default True)
+      and not yet-ineligible; a son with no computable bar-mitzvah date is never active.
+    - 'son_in_law': active only if `daughter_active` and `daughter_married` (both default False), `display_name` (his name)
+      is non-empty, AND he is eligible.
+    Eligibility: `eligible_from` (ISO text or date) when the key is present, otherwise derived from `hebrew_birth_date`
+    with `bar_mitzvah_date(..., selected)`. A known `eligible_from` OVERRIDES the `active` flag for manual and son-in-law
+    rows (`active = eligible_from <= selected`); None means unknown.
+    Derived fields, applied only when the input key is present: son `tribe` = `father_tribe`; son `classification` =
+    `classification_override` if not None, else 'דור ב-נשוי'/'דור ב' (married or not) when `father_classification` is 'א',
+    'קבוע' when it is another non-empty value, else ''; son `wife_prayer_name` = `spouse_prayer_name` if `married` else '';
+    son-in-law `classification` = `classification_override` if truthy, else 'חתן'/'קבוע'/(kept) from `household_classification`
+    ('א' / other non-empty / empty). A self row with `is_gabbai` and empty classification gets 'א'.
     """
+    sel = selected.isoformat()
     result = []
     for person in people:
         row = dict(person)
+        kind = row.get('kind', 'manual')
         if 'eligible_from' not in row:
-            eligible = _bar_mitzvah_date(row.get('hebrew_birth_date'), today or selected)
+            eligible = _bar_mitzvah_date(row.get('hebrew_birth_date'), selected)
             row['eligible_from'] = eligible.isoformat() if eligible else None
-        if row['eligible_from']:
-            row['active'] = row['eligible_from'] <= selected.isoformat()
+        row['eligible_from'] = _iso(row['eligible_from'])
+        eligible = row['eligible_from']
+        if kind in ('self', 'son'):
+            row['active'] = bool(row.get('source_active', True)) and not (eligible and eligible > sel) and not (kind == 'son' and not eligible)
+        elif kind == 'son_in_law':
+            row['active'] = bool(row.get('daughter_active') and row.get('daughter_married') and row.get('display_name')
+                                 and (not eligible or eligible <= sel))
+        elif eligible:
+            row['active'] = eligible <= sel
+        if kind == 'son':
+            if 'father_tribe' in row:
+                row['tribe'] = row['father_tribe'] or ''
+            if row.get('classification_override') is not None:
+                row['classification'] = row['classification_override']
+            elif 'father_classification' in row:
+                father = row['father_classification']
+                row['classification'] = (('דור ב-נשוי' if row.get('married') else 'דור ב') if father == 'א' else 'קבוע' if father else '')
+            if 'married' in row:
+                row['wife_prayer_name'] = row.get('spouse_prayer_name', '') if row['married'] else ''
+        elif kind == 'son_in_law':
+            household = row.get('household_classification')
+            if row.get('classification_override'):
+                row['classification'] = row['classification_override']
+            elif household is not None:
+                row['classification'] = 'חתן' if household == 'א' else 'קבוע' if household else row.get('classification', '')
+        elif kind == 'self' and row.get('is_gabbai') and not row.get('classification'):
+            row['classification'] = 'א'
         result.append(row)
     return result
 
@@ -260,11 +294,8 @@ def service_statistics(services, selected, prayer='shacharit'):
 
 def _validate_selected(selected, prayer, today):
     hebrew = dates.HebrewDate.from_pydate(selected)
-    if today is not None:
-        current = dates.HebrewDate.from_pydate(today).year
-        if not 5700 <= hebrew.year <= current + 10:
-            raise APIError(400, 'יש לבחור שבת או חג בטווח שנות הדוח.')
-    if not service_day(selected):
+    current = dates.HebrewDate.from_pydate(today).year
+    if not 5700 <= hebrew.year <= current + 10 or not service_day(selected):
         raise APIError(400, 'יש לבחור שבת או חג בטווח שנות הדוח.')
     if prayer not in ('shacharit', 'mincha') or (prayer == 'mincha' and not (hebrew.month == 7 and hebrew.day == 10)):
         raise APIError(400, 'בחירת מנחה בדוח זמינה ליום כיפור בלבד.')
@@ -296,8 +327,10 @@ def calendar(year, today):
                 services=options)
 
 
-def recommendations(people, services, *, selected, prayer='shacharit', yahrzeit_custom=None, today=None):
-    """Upstream `aliyah_recommendations` minus auth, DB and clock. `today` (optional) only enables the year-range check."""
+def recommendations(people, services, *, selected, today, prayer='shacharit', yahrzeit_custom=None):
+    """Upstream `aliyah_recommendations` minus auth, DB and clock. `today` is required (year-range check).
+
+    Upstream's default date (no date given) is `next_service(today)`; the caller computes it and passes it as `selected`."""
     if yahrzeit_custom is not None and yahrzeit_custom not in YAHRZEIT_CUSTOMS:
         raise APIError(400, 'יש לבחור מנהג אשכנז או עדות המזרח.')
     custom = yahrzeit_custom
@@ -307,7 +340,7 @@ def recommendations(people, services, *, selected, prayer='shacharit', yahrzeit_
     upcoming_end = selected + timedelta(days=30)
     recent_start = (selected - timedelta(days=30)).isoformat()
     statistics = service_statistics(services, selected, prayer)
-    for row in (_row(person) for person in project_people(people, selected, today)):
+    for row in (_row(person) for person in project_people(people, selected)):
         if not row['active']:
             continue
         birthday = row['hebrew_birth_date']

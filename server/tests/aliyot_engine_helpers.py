@@ -45,7 +45,7 @@ class EngineCase(unittest.TestCase):
                             cancelled=cancelled)
 
     def report(self, day='2026-10-31', prayer='shacharit'):
-        return recommendations(self.people, self.services, selected=date.fromisoformat(day), prayer=prayer,
+        return recommendations(self.people, self.services, selected=date.fromisoformat(day), today=date(2026, 10, 26), prayer=prayer,
                                yahrzeit_custom=self.custom)
 
     def section(self, identifier, day='2026-10-31'):
