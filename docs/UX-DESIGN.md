@@ -3386,7 +3386,7 @@ native editor), and the PNG size loop on real logos.
 
 ## 20. The "טכני" (Tech) role
 
-> **Owner override (2026-10-28, binding; supersedes §20.1–§20.3, §20.5 rules 1–2 and §20.9):** "a tech is superman, he
+> **Owner override (2026-10-28, binding; supersedes §20.1–§20.3, §20.5 rules 1–2 and 7 (tech may be given by invite and import; invites still never give gabbai), and §20.9):** "a tech is superman, he
 > can do all things". A tech has **every permission a gabbai has**, including granting and changing the gabbai role,
 > accepting the Kehila terms, removing messages and seeing phones, seat names and all personal data a gabbai sees. The
 > only differences are display: the role is labelled "טכני" (Tech) wherever a role or attribution shows (§20.4, §20.6
