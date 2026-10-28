@@ -72,6 +72,14 @@ export function barMitzvahSuggestion(birth: HebDate): ShabbatInfo {
   const day = isoOf(anniversary(birth, 13).greg());
   return shabbat(addDays(day, (SHABBAT - noon(day).getDay() + 7) % 7));
 }
+// Completed Hebrew years of age on `todayIso` (the Hebrew birthday counts, Adar rules as in anniversary()).
+export function hebrewAge(birth: HebDate, todayIso: string): number {
+  const now = new HDate(noon(todayIso));
+  hdateOf(birth);
+  let years = Math.max(0, now.getFullYear() - birth.year!);
+  while (years > 0 && anniversary(birth, years).abs() > now.abs()) years--;
+  return years;
+}
 export function batMitzvahDate(birth: HebDate): string { return isoOf(anniversary(birth, 12).greg()); }
 // The Shabbat of the week (Sunday to Saturday) containing `iso`.
 export function shabbatOfWeek(iso: string): ShabbatInfo {

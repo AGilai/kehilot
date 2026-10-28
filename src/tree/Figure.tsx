@@ -1,0 +1,24 @@
+import React from 'react';
+import { useColorScheme } from 'react-native';
+import { Image } from 'expo-image';
+import { aspectOf, coupleSvg, figureSvg, ghostSvg, resolveFigure, stageOf } from './figures/figure.ts';
+import type { Person } from './types.ts';
+
+const today = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
+const seedOf = (id: string) => { let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h; };
+const member = (p: Person) => { const stage = stageOf(p.birth, p.relation, today(), p.gender); return { stage, gender: p.gender, options: resolveFigure(p.relation, p.gender, stage, p.figure), seed: seedOf(p.id) }; };
+
+/** A family-tree figure drawn as SVG through expo-image (like kit/Icon.tsx). `style` B (head and shoulders in a disc) for
+ *  tiles, A (whole body) for the sheet header. With `partner`, a married child: one tile, `person` in front. No person: the empty slot.
+ *  `size` is the height (A) or the side (B). The "ז״ל" label and the name are drawn by the caller, outside the image. */
+export function Figure({ person, partner, size = 64, style = 'B' }: { person?: Person; partner?: Person; size?: number; style?: 'A' | 'B' }) {
+  const dark = useColorScheme() === 'dark';
+  const svg = React.useMemo(() => {
+    if (!person) return ghostSvg(style, dark);
+    if (partner) return coupleSvg({ style, dark, deceased: !!person.deceased, child: member(person), spouse: member(partner) });
+    return figureSvg({ style, dark, deceased: !!person.deceased, ...member(person) });
+  }, [person, partner, style, dark]);
+  const uri = React.useMemo(() => 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), [svg]);
+  const width = Math.round(size * aspectOf(svg));
+  return <Image source={{ uri }} style={{ width, height: size }} contentFit="contain" accessible={false} importantForAccessibility="no" accessibilityElementsHidden />;
+}
