@@ -76,6 +76,13 @@ class SeatLinkTest(sw.SeatWeekTest):
         order = [x['holderId'] for x in self.suggestions()[1]['suggestions']]
         self.assertEqual(order[0], same)  # the strongest first
 
+    def test_a_deleted_holder_leaves_the_suggestions(self):
+        h = self.holder_named('בדיוני מ.')
+        self.assertEqual(len(self.of(h)), 1)
+        self.assertEqual(self.call('DELETE', f'{self.base()}/admin/seating/holders/{h}'), (204, None))
+        self.assertEqual(self.of(h), [])
+        self.assertNotIn(h, [x['holderId'] for x in self.holders()])
+
     def test_initial_with_or_without_a_dot_and_prefix(self):
         for name in ('בדיוני מ', 'בדיוני מ.', "בדיוני מ'", 'משפחת בדיוני מ.', 'בית בדיוני מ.'):
             h = self.holder_named(name)

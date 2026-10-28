@@ -164,6 +164,25 @@ def update_holder(ctx, params):
     return 200, _holder_out(ctx.repo.put_holder(k, item['holderId'], name, phone, item['createdAt'], item['updatedAt']))
 
 
+def holder_seats(ctx, params):
+    """Seats the holder holds per layout version (only versions where it holds any, oldest first; `past` = before the
+    current Shabbat). The delete confirm shows these: a delete frees them in every version."""
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, GABBAI)
+    item = _holder(ctx, params)
+    ref = f'holder:{item["holderId"]}'
+    current = rules.current_shabbat(_today()).isoformat()
+    assigned = ctx.repo.list_assignments(k)
+    versions = []
+    for layout in sorted(ctx.repo.list_layouts(k), key=lambda i: i['effectiveFrom']):
+        frm = layout['effectiveFrom']
+        ids = {s['id'] for s in layout['seats']}
+        n = sum(1 for s, r in assigned.get(frm, {}).get('assignments', {}).items() if r == ref and s in ids)
+        if n:
+            versions.append({'effectiveFrom': frm, 'seats': n, 'past': frm < current})
+    return 200, {'total': sum(v['seats'] for v in versions), 'versions': versions}
+
+
 def delete_holder(ctx, params):
     k = params['k']
     require(ctx.repo, ctx.user_id, k, GABBAI)

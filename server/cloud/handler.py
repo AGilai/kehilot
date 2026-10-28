@@ -75,6 +75,8 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.list_holders),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders$'), routes_seating.create_holder),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)$'), routes_seating.update_holder),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)/seats$'),
+     routes_seating.holder_seats),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/seating/holders/(?P<holderId>[^/]+)$'),
      routes_seating.delete_holder),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/push-texts$'), routes_admin.get_push_texts),

@@ -295,6 +295,36 @@ class SeatingTest(test_messages.MessagesTest):
             self.assertEqual(self.call('GET', self.lay(frm, '/assignments'))[1]['assignments'],
                              {s[1]: f'holder:{h2}', s[2]: f'family:{fam}'})
 
+    def test_holder_seats_per_version(self):
+        """What a delete would free, per version (the confirm shows it): versions where the holder holds nothing are left out."""
+        a = self.saved(friday())
+        self.saved(friday(1))
+        self.saved(friday(2))
+        past_from = friday(-1)
+        self.repo.put_layout(self.k, past_from, {**LAYOUT}, a['seats'], None)
+        h1, h2 = self.holder('א'), self.holder('ב')
+        s = [x['id'] for x in a['seats']]
+        self.repo.put_assignments(self.k, past_from, {s[0]: f'holder:{h1}'}, None)
+        self.asg(friday(), {'assignments': {s[0]: f'holder:{h1}', s[1]: f'holder:{h1}', s[2]: f'holder:{h2}'},
+                            'ifUpdatedAt': None})
+        self.asg(friday(2), {'assignments': {s[3]: f'holder:{h1}'}, 'ifUpdatedAt': None})
+        status, body = self.call('GET', self.holders(f'{h1}/seats'))
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body, {'total': 4, 'versions': [
+            {'effectiveFrom': past_from, 'seats': 1, 'past': True},
+            {'effectiveFrom': friday(), 'seats': 2, 'past': False},
+            {'effectiveFrom': friday(2), 'seats': 1, 'past': False}]})
+        # a seat the layout no longer has does not count
+        self.repo.put_assignments(self.k, friday(1), {'ffffffffffff': f'holder:{h1}'}, None)
+        self.assertEqual(self.call('GET', self.holders(f'{h1}/seats'))[1]['total'], 4)
+        self.call('DELETE', self.holders(h1))
+        self.assertEqual(self.call('GET', self.holders(f'{h1}/seats')), (404, {'error': 'holder_not_found'}))
+        self.assertEqual(self.call('GET', self.holders(f'{h2}/seats'))[1],
+                         {'total': 1, 'versions': [{'effectiveFrom': friday(), 'seats': 1, 'past': False}]})
+        self.assertEqual(self.call('GET', self.holders('bad id/seats'))[0], 404)
+        for sub in ('member-sub', 'listener-sub', 'quiet-sub'):
+            self.assertEqual(self.call('GET', self.holders(f'{h2}/seats'), sub=sub), (403, {'error': 'forbidden'}))
+
     # privacy
     def test_no_names_or_phones_in_logs(self):
         with self.assertLogs('server', level='DEBUG') as logs:
