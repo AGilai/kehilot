@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 
-from . import media, tags
+from . import media, tags, tree_rules
 from .posts import _split
 from .repo_families import MEMBER_ROLES
 
@@ -25,8 +25,9 @@ def _family(repo, k, membership):
         return None
     partner = next((m for m in repo.live_adults(k, family) if m['userId'] != membership['userId']), None)
     children = [{key: c[key] for key in ('firstName', 'gender', 'birthDate') if c.get(key)}
-                for c in family.get('children', [])]
-    return {'partnerName': (partner or {}).get('displayName') or None, 'children': children}
+                for c in tree_rules.children_of(family)]
+    return {'partnerName': (partner or {}).get('displayName') or None, 'children': children,
+            'tree': tree_rules.people_of(family)}
 
 
 def _own_notify(notify):

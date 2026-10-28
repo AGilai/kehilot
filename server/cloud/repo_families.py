@@ -6,6 +6,7 @@ from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
 from .errors import ApiError
+from . import tree_rules
 from .ids import new_id
 
 log = logging.getLogger(__name__)
@@ -139,23 +140,51 @@ class FamiliesRepo:
 
     def update_children(self, k, family_id, change):
         """Read the family, apply change(children) -> children, write with a version check. A lost race re-reads
-        and re-applies (3 tries, then 409 try_again). `change` may raise ApiError. Returns the new item."""
+        and re-applies (3 tries, then 409 try_again). `change` may raise ApiError. Returns the new item.
+        Once the family has `people` the children are its `child` entries and are edited there."""
         for _ in range(3):
             family = self.get_family(k, family_id)
             if not family:
                 raise ApiError(404, 'family_not_found')
             version = int(family['version'])
-            children = change(list(family.get('children') or []))
+            if family.get('people') is not None:
+                people = tree_rules.apply_children(tree_rules.people_of(family),
+                                                   change(tree_rules.children_of(family)))
+                expression, values = 'SET people = :c, version = :v1', {':c': people}
+            else:
+                expression, values = 'SET children = :c, version = :v1', {':c': change(list(family.get('children') or []))}
             try:
                 return self.table.update_item(
-                    Key=self._key(k, f'F#{family_id}'), UpdateExpression='SET children = :c, version = :v1',
-                    ConditionExpression='version = :v',
-                    ExpressionAttributeValues={':c': children, ':v': version, ':v1': version + 1},
+                    Key=self._key(k, f'F#{family_id}'), UpdateExpression=expression,
+                    ConditionExpression='version = :v', ExpressionAttributeValues={**values, ':v': version, ':v1': version + 1},
                     ReturnValues='ALL_NEW')['Attributes']
             except ClientError as error:
                 if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                     raise
         raise ApiError(409, 'try_again')
+
+    def update_people(self, k, family_id, change, if_version=None):
+        """Like update_children for the family tree: change(people) -> people (derived from `children` when the
+        family has no `people` yet). With `if_version` a different stored version is 409 version_conflict and a
+        lost race is not retried. `people` replaces `children` (one source). Returns the new item."""
+        for _ in range(1 if if_version is not None else 3):
+            family = self.get_family(k, family_id)
+            if not family:
+                raise ApiError(404, 'family_not_found')
+            version = int(family['version'])
+            if if_version is not None and version != if_version:
+                raise ApiError(409, 'version_conflict')
+            people = change(tree_rules.people_of(family))
+            try:
+                return self.table.update_item(
+                    Key=self._key(k, f'F#{family_id}'), UpdateExpression='SET people = :p, version = :v1 REMOVE children',
+                    ConditionExpression='version = :v',
+                    ExpressionAttributeValues={':p': people, ':v': version, ':v1': version + 1},
+                    ReturnValues='ALL_NEW')['Attributes']
+            except ClientError as error:
+                if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                    raise
+        raise ApiError(409, 'version_conflict' if if_version is not None else 'try_again')
 
     # link requests (PR# at the target, PS# at the sender, PD# decline cooldown)
     def put_link_request(self, k, from_user, to_user, now):
@@ -349,13 +378,18 @@ class FamiliesRepo:
                 raise ApiError(409, 'partner_taken')
             table = self.table.name
             member_roles = {':member': 'member', ':gabbai': 'gabbai'}
+            kp, mp = tree_rules.people_of(keep), tree_rules.people_of(moved)
+            if keep.get('people') is not None or moved.get('people') is not None:
+                merged = ('people', tree_rules.merge_people(kp, mp, tree_rules.self_id_of(kp), tree_rules.self_id_of(mp)))
+            else:
+                merged = ('children', list(keep.get('children') or []) + list(moved.get('children') or []))
             items = [
                 {'Update': {'TableName': table, 'Key': self._key(k, f'F#{keep_id}'),
-                            'UpdateExpression': 'SET adults = :both, children = :merged, version = :v1',
+                            'UpdateExpression': f'SET adults = :both, {merged[0]} = :merged, version = :v1'
+                                                + (' REMOVE children' if merged[0] == 'people' else ''),
                             'ConditionExpression': 'version = :v',
                             'ExpressionAttributeValues': {
-                                ':both': list(keep['adults']) + list(moved['adults']),
-                                ':merged': list(keep.get('children') or []) + list(moved.get('children') or []),
+                                ':both': list(keep['adults']) + list(moved['adults']), ':merged': merged[1],
                                 ':v': int(keep['version']), ':v1': int(keep['version']) + 1}}},
                 {'Delete': {'TableName': table, 'Key': self._key(k, f'F#{move_id}'),
                             'ConditionExpression': 'version = :v',
@@ -405,11 +439,13 @@ class FamiliesRepo:
             other = next(a for a in family['adults'] if a != user_id)
             old_id, new_id_ = family['familyId'], new_id()
             table = self.table.name
+            copied = ({'people': tree_rules.child_side(tree_rules.people_of(family))} if family.get('people') is not None
+                      else {'children': list(family.get('children') or [])})
             try:
                 self._txn([
                     {'Put': {'TableName': table, 'ConditionExpression': 'attribute_not_exists(sk)',
                              'Item': {'pk': f'K#{k}', 'sk': f'F#{new_id_}', 'familyId': new_id_,
-                                      'adults': [user_id], 'children': list(family.get('children') or []),
+                                      'adults': [user_id], **copied,
                                       'version': 1, 'createdAt': int(time.time())}}},
                     {'Update': {'TableName': table, 'Key': self._key(k, f'F#{old_id}'),
                                 'UpdateExpression': 'SET adults = :other, version = :v1',

@@ -185,6 +185,15 @@ class DeleteAccountTest(unittest.TestCase):
             if item['pk'] != 'U#sub-dana':
                 self.assertNotIn(self.dana, json.dumps(item, default=str), item)
 
+    def test_deletion_takes_the_tree_with_the_last_adult(self):
+        fid = self.repo.ensure_family(self.k1, self.dana)
+        self.repo.update_people(self.k1, fid, lambda _: [{'id': 'S' * 26, 'relation': 'self', 'gender': 'f',
+                                                          'hebrewFirst': 'דוגמה', 'surname': 'ניסיון'}])
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana'), (204, None))
+        self.assertEqual(self.repo._query_prefix(self.k1, 'F#'), [])
+        for item in self.repo.table.scan()['Items']:
+            self.assertNotIn('ניסיון', str(item))
+
     def test_deletion_of_last_adult_removes_family(self):
         self.repo.ensure_family(self.k1, self.dana)
         self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana'), (204, None))

@@ -285,7 +285,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 
 | Item | PK | SK | Attributes |
 |---|---|---|---|
-| Family | `K#<k>` | `F#<familyId>` | `familyId`, `adults` (1-2 userIds; the keeping adult first), `children` (list of `{id, firstName, gender: 'm'\|'f', birthDate?}`), `version` (int, +1 on every write), `createdAt` |
+| Family | `K#<k>` | `F#<familyId>` | `familyId`, `adults` (1-2 userIds; the keeping adult first), `people` (the family tree, see Family tree below; absent until first saved: the older `children` list `{id, firstName, gender: 'm'\|'f', birthDate?}` is then used and read as `child` entries; saving `people` removes `children`), `version` (int, +1 on every write), `createdAt` |
 | Membership (changed) | `K#<k>` | `M#<user>` | + `familyId` (members and gabbaim only; set when the person becomes one, by approval, member invite, import or `tools/kehila_admin.py backfill-families`) |
 
 ### Routes
@@ -425,6 +425,9 @@ Member or gabbai only (listener 403 `forbidden`). A family is created on first u
 | POST | `/v1/kehilot/{k}/family/children` | member, gabbai | `{firstName (1-60), gender: "m"\|"f", birthDate?: "YYYY-MM-DD"}`; absent or `""` omits the birth date, otherwise a real date from 1900-01-01 to today (Israel) | 201 child `{id, firstName, gender, birthDate?}` | 400 `invalid_first_name`, `invalid_gender`, `invalid_birth_date`; 409 `children_limit` (20), `try_again` |
 | PUT | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | same body (replaces the child) | 200 child | as above; 404 `child_not_found` |
 | DELETE | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | - | 204 | 404 `child_not_found`; 409 `try_again` |
+| GET | `/v1/kehilot/{k}/family/tree` | member, gabbai (own family) | - | 200 `{people, version}`; a family with only the older `children` list returns them as `child` entries (same ids; `firstName` -> `hebrewFirst`, `birthDate` -> Hebrew `birth`) | 403 `forbidden`, 404 |
+| PUT | `/v1/kehilot/{k}/family/tree` | member, gabbai (own family) | `{people, ifVersion}` (body up to 256 KB). `people` is validated strictly (see Family tree) | 200 `{version}` (new version; `people` replaces `children`) | 400 `invalid_if_version`, `invalid_people`, `invalid_relation`, `invalid_gender`, `invalid_name`, `invalid_tribe`, `invalid_hebrew_date`, `invalid_adar`, `invalid_birth`, `invalid_death`, `invalid_bar_mitzvah`, `invalid_figure`, `children_limit`, `grandchildren_limit`, `generations_limit`; 403; 409 `version_conflict` (stale `ifVersion`: reload, nothing is written) |
+| GET | `/v1/kehilot/{k}/admin/families/{familyId}/tree` | gabbai (same Kehila) | - | 200 `{people, version}`. Read-only: other methods are 405 | 403 `forbidden`, 404 `family_not_found` / `kehila_not_found` |
 
 Both adults may edit the children at once: writes are version-checked and retried, and `try_again` is returned only after 3 lost races.
 
@@ -580,3 +583,14 @@ Posting a message, a reply, a membership request, a group join request or a fami
 | 500 | `internal` | unexpected failure; nothing is leaked, retry later |
 
 `witness_changed` is internal (retried by the server) and never reaches clients.
+
+
+### Family tree
+
+`people` on the family item is the single source for the tree and for the children. `GET /v1/kehilot/{k}/family` still returns `children` (derived from the `child` entries, for older clients), and the children routes edit those entries once `people` exists (editing keeps the entry's other fields; deleting a child also removes its `childSpouse` and `grandchild` entries; an older client that omits the birth date does not erase a year-less Hebrew birthday).
+
+Person: `{id (1-40 chars A-Za-z0-9_-), relation: self|spouse|father|mother|child|childSpouse|grandchild, of?, gender: m|f, hebrewFirst?, surname?, fatherName?, motherName? (each up to 40), tribe? (kohen|levi|yisrael, men only), birth?, deceased?, death? (only with deceased true), barMitzvah? ({date YYYY-MM-DD, parasha, manual}, boys only), figure?}`. `HebDate` is `{day, month, year?}` with month in nisan..elul, tishrei..shevat, adar, adar_i, adar_ii; with a year (5000-6000) `adar_i`/`adar_ii` only in leap years and `adar` only in regular years (400 `invalid_adar`, never remapped), and the day must exist in that month. Birth in the future, death in the future, or death before birth is rejected. `figure` allows only headCovering (tichel|hat|wig|none), coverColor and hair (`#rrggbb`), kippah (knitted|small|velvet|none), beard (none|short|full), glasses (bool), skin (0|1|2). Unknown keys are rejected.
+
+Graph: a non-empty list has exactly one `self`; at most one `spouse` (`of` = self); `father`/`mother` have `of` = an existing person, at most one of each per person, gender m/f, at most 6 generations; `child` (`of` absent or the self id), at most 20; `childSpouse` (at most one) and `grandchild` (at most 20) have `of` = a `child`.
+
+Linking two families (`link`, gabbai link or confirmed request) merges the trees best effort: the kept adult's `self` stays; the other adult's `self` becomes the `spouse` with their parents (or is merged into an existing spouse figure); children are matched by normalized Hebrew first name, gender and non-contradicting birth date and merged field by field (a dated value over an undated one, a manual bar mitzvah over a suggestion, otherwise the kept adult's value); spouses and grandchildren of matched children are deduplicated the same way; the rest is kept, and limits never fail the link. `unlink` copies only children, their spouses and grandchildren to the new family. The tree is deleted with the family (last adult leaving or deleting the account) and is in the member's export (`kehilot[].family.tree`).

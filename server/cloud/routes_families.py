@@ -2,7 +2,7 @@
 import logging
 import time
 
-from . import inputs, push, repo_messages
+from . import inputs, push, repo_messages, tree_rules
 from .authz import require
 from .errors import ApiError
 from .families import clean_child, family_name
@@ -79,7 +79,7 @@ def family_view(ctx, k, membership):
     return {'familyId': family['familyId'],
             'name': family_name([found.get((f'U#{u}', 'PROFILE')) for u in adults]),
             'adults': [{'userId': u, 'displayName': names.get(u, ''), 'me': u == ctx.user_id} for u in adults],
-            'children': family.get('children') or [], 'sent': sent,
+            'children': tree_rules.children_of(family), 'sent': sent,
             'received': [{'fromUserId': r['fromUserId'], 'fromName': m.get('displayName', ''),
                           'expiresAt': int(r['expiresAt'])} for r, m in received],
             'notice': notice_of(repo, k, me) if len(live) > 1 else None}
@@ -252,7 +252,7 @@ def admin_families(ctx, params):
         if not live:
             continue
         children = []
-        for child in family.get('children') or []:
+        for child in tree_rules.children_of(family):
             row = {'firstName': child['firstName'], 'gender': child['gender']}
             if child.get('birthDate'):
                 row['birthYear'] = int(child['birthDate'][:4])

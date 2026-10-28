@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_seatlink, routes_seating, routes_seatweek, routes_tags
+from . import routes_admin, routes_changes, routes_core, routes_export, routes_families, routes_groups, routes_invites, routes_me, routes_media, routes_messages, routes_privacy, routes_reports, routes_schedule, routes_seatlink, routes_seating, routes_seatweek, routes_tags, routes_tree
 from .errors import ApiError
 from .identity import Caller, caller_from_event, resolve_user_id
 from .repo import Repo
@@ -127,6 +127,9 @@ ROUTES = [
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/children/(?P<childId>[^/]+)$'), routes_families.edit_child),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/children/(?P<childId>[^/]+)$'),
      routes_families.delete_child),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/tree$'), routes_tree.get_tree),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/tree$'), routes_tree.put_tree),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/families/(?P<familyId>[^/]+)/tree$'), routes_tree.admin_tree),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/candidates$'), routes_families.candidates),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests$'), routes_families.create_request),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests/mine$'), routes_families.withdraw_request),
