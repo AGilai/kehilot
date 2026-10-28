@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PUSH_TOKEN_KEY, chatPrefRows, mutedMemberRows, pushDestination, registerPush, routeFromPush, takePushTarget, toggleId } from '../src/client/push.ts';
+import { PUSH_TOKEN_KEY, chatPrefRows, mutedMemberRows, pushDestination, registerPush, seatReminderPrefShown, routeFromPush, takePushTarget, toggleId } from '../src/client/push.ts';
 import { createStore } from '../src/client/store.ts';
 import { localSignOut } from '../src/auth/signout.ts';
+import type { MemberSeats } from '../src/seats/wire.ts';
 import type { Channel, Kehila, NotifyPrefs } from '../src/client/types.ts';
 
 const notify = (over: Partial<NotifyPrefs> = {}): NotifyPrefs => ({ mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], seatReminders: true, ...over });
@@ -164,4 +165,13 @@ test('pushDestination: seats opens for every adult (no preview flag needed); a l
     assert.equal(pushDestination({ screen: 'seats' }, role), 'seats');
   }
   assert.equal(pushDestination({ screen: 'seats' }, 'listener'), 'home');
+});
+
+test('seatReminderPrefShown: only for a remindable family that has or had seats', () => {
+  const m = (over: Partial<MemberSeats> = {}) => ({ remindable: true, seatCount: 0, hadSeats: false, ...over }) as MemberSeats;
+  assert.equal(seatReminderPrefShown(null), false);
+  assert.equal(seatReminderPrefShown(m({ remindable: false, seatCount: 3, hadSeats: true })), false);
+  assert.equal(seatReminderPrefShown(m()), false);
+  assert.equal(seatReminderPrefShown(m({ seatCount: 2 })), true);
+  assert.equal(seatReminderPrefShown(m({ hadSeats: true })), true);
 });

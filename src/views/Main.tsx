@@ -91,7 +91,6 @@ type Nav =
   | { tab: 'seatResponses' }
   | { tab: 'seatHolders' }
   | { tab: 'seatTimes' }
-  | { tab: 'seatTimes' }
   | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'myGroups' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
@@ -130,7 +129,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'seat-holders' || s === 'seat-link') return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatHolders' }, manage: true } : null;
   if (s === 'schedule') return { nav: { tab: 'schedule' } };
   if (s === 'schedule-editor' || s === 'schedule-editor-none') return scheduleEditorAllowed(state.kehila?.role) ? { nav: { tab: 'scheduleEditor' }, manage: true } : null;
-  if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
+  if (s === 'm5' || s === 'prefs-seats') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003' } };
   if (s === 'compose-family') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003', query: 'ב' } };
   if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };

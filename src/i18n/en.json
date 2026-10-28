@@ -294,6 +294,8 @@
     "codeInvalid": "The code or link is not valid"
   },
   "prefs": {
+    "seatReminders": "Seats form reminders",
+    "seatRemindersOff": "You won't get reminders. The form is still on Home.",
     "title": "Notification preferences",
     "back": "Back",
     "banner": "Muting affects notifications only",

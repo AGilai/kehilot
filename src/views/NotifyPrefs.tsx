@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppState, Linking, Pressable, ScrollView, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
-import { MAX_CHAT_CHANNELS, chatPrefRows, mutedMemberRows, pushPermission, toggleId } from '../client/push.ts';
+import { MAX_CHAT_CHANNELS, chatPrefRows, mutedMemberRows, pushPermission, seatReminderPrefShown, toggleId } from '../client/push.ts';
 import type { DirectoryEntry, MessageType, NotifyPrefs as Prefs } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Card, Toggle, Txt, useTokens } from '../kit/components.tsx';
@@ -11,6 +11,8 @@ import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
 import { BackIcon } from '../kit/Icon.tsx';
 import { Icon } from '../kit/Icon.tsx';
+import { useMemberSeats } from '../seats/useMemberSeats.ts';
+import { isAdult } from '../client/roles.ts';
 import { channelLabel } from '../client/channelsView.ts';
 
 const TYPES: Exclude<MessageType, 'chat'>[] = ['weekly', 'celebration', 'condolence', 'event'];
@@ -46,6 +48,9 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
     directory().then(d => { if (live) setDir(d); }, () => {});
     return () => { live = false; };
   }, [canDirectory, hasMuted]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The seats switch shows only when the member API says this person gets the reminders; while it loads, or on any error, it is simply absent.
+  const seats = useMemberSeats(isAdult(kehila?.role));
 
   if (!kehila) return null;
   const n: Prefs = kehila.notify;
@@ -85,6 +90,11 @@ export function NotifyPrefs({ onBack, onToast }: { onBack: () => void; onToast: 
         <Toggle key={x} label={t(`compose.types.${x}`)} value={!n.mutedTypes.includes(x)} offNote={t('prefs.typeOff')}
           onChange={on => change({ mutedTypes: toggleId(n.mutedTypes, x, !on) })} />
       )))}
+
+      {seatReminderPrefShown(seats.state.status === 'ready' ? seats.state.data : null) ? group(t('seats.title'), (
+        <Toggle label={t('prefs.seatReminders')} value={n.seatReminders} offNote={t('prefs.seatRemindersOff')}
+          onChange={on => change({ seatReminders: on })} />
+      )) : null}
 
       {group(t('prefs.members'), (
         <>

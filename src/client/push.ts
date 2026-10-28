@@ -4,6 +4,7 @@ import type { endpoints } from './endpoints.ts';
 import type { Channel, NotifyPrefs } from './types.ts';
 import { dayOfWeek } from '../dates.ts';
 import { isAdult, isManagement } from './roles.ts';
+import type { MemberSeats } from '../seats/wire.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -74,6 +75,11 @@ export type ChatPrefRow = { channelId: string; name: string; on: boolean };
 export function chatPrefRows(channels: Channel[], notify: NotifyPrefs): ChatPrefRow[] {
   return channels.filter(c => c.conversation && c.inAudience)
     .map(c => ({ channelId: c.channelId, name: c.name, on: notify.chatChannels.includes(c.channelId) }));
+}
+
+/** The seat-form reminders switch in the preferences: only for someone the reminders go to, whose family has seats (or had them last week). */
+export function seatReminderPrefShown(m: MemberSeats | null): boolean {
+  return !!m && m.remindable && (m.seatCount > 0 || m.hadSeats);
 }
 
 /** `list` with `id` present (on) or absent (off), without duplicates. */
