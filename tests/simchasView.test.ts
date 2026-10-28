@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { counts, filterWeeks, mazalDraft, needsCheck, nextSimcha, quietNames, simchaSub, simchaTag, simchaTitle, weekHeader } from '../src/client/simchasView.ts';
+import { counts, filterWeeks, mazalDraft, needsCheck, nextSimcha, quietNames, sheetItemsFor, sheetWeekOf, simchaSub, simchaTag, simchaTitle, weekHeader } from '../src/client/simchasView.ts';
 import type { SimchaWeek } from '../src/client/types.ts';
 
 // All names are invented.
@@ -55,4 +55,14 @@ test('mazal tov draft is for one simcha and one family only', () => {
   assert.equal(mazalDraft({ ...noga, familyId: 'F2' }, t).note, undefined);
   assert.equal(needsCheck(hillel), true);
   assert.equal(needsCheck(noga), false);
+});
+
+test('sheetItemsFor: one gabbai celebration per simcha, surname bold, in the Friday before the Shabbat', () => {
+  const w = week(0, '2026-10-31', 'וירא', [hillel, { ...noga, date: '2026-10-29' }]);
+  assert.deepEqual(sheetItemsFor(w), [
+    { type: 'celebration', text: 'מזל טוב למשפחת דוגמה\nלבר המצווה של הלל', bold: 'דוגמה', source: 'byGabbai' },
+    { type: 'celebration', text: 'מזל טוב למשפחת ניסיון\nלבת המצווה של נגה', bold: 'ניסיון', source: 'byGabbai' },
+  ]);
+  assert.deepEqual(sheetItemsFor(week(1, '2026-11-07', 'חיי שרה')), []);
+  assert.equal(sheetWeekOf(w), '2026-10-30');
 });

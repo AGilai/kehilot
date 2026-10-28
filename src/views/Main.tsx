@@ -337,7 +337,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = !isManagement(kehila?.role) ? null : <Overview area={nav.tab === 'area' ? nav.id : null} onArea={id => { setBackNav({ tab: 'overview' }); setNav({ tab: 'area', id }); }} onGo={goTool} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'simchas':
-      body = !isManagement(kehila?.role) ? <Me onToast={showToast} /> : <Simchas onBack={toolBack} onMazalTov={({ familyId, ...draft }) => { setComposeInitial({ type: 'celebration', ...draft, ...(familyId ? { targetFamilyId: familyId } : {}) }); setNav({ tab: 'compose' }); }} />;
+      body = !isManagement(kehila?.role) ? <Me onToast={showToast} /> : <Simchas onBack={toolBack} onToast={showToast} onMazalTov={({ familyId, ...draft }) => { setComposeInitial({ type: 'celebration', ...draft, ...(familyId ? { targetFamilyId: familyId } : {}) }); setNav({ tab: 'compose' }); }} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} onHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} />;

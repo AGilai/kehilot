@@ -1,3 +1,6 @@
+import he from '../i18n/he.json' with { type: 'json' };
+import { translate } from '../i18n/translate.ts';
+import { addDays } from '../schedule/week.ts';
 import { fromGregorian } from '../tree/dates.ts';
 import { gregText, hebrewText } from '../tree/format.ts';
 import type { SimchaItem, SimchaWeek } from './types.ts';
@@ -67,4 +70,15 @@ export const needsCheck = (i: SimchaItem): boolean => i.kind === 'bar' && !i.man
 /** The mazal tov message for ONE simcha, for that child's family only (the weekly sheet lists the week's celebration messages). */
 export function mazalDraft(i: SimchaItem, t: T): { title: string; body: string; familyId?: string; note?: string } {
   return { title: `${t('simchas.draftTitle')} · ${simchaTitle(i, t)}`, body: '', ...(i.familyId ? { familyId: i.familyId } : {}), ...(needsCheck(i) ? { note: t('simchas.suggestedNote') } : {}) };
+}
+
+/** The sheet week (named by its Friday) a Shabbat's simchas go to: the Friday before that Shabbat. */
+export const sheetWeekOf = (w: SimchaWeek): string => addDays(w.shabbat, -1);
+
+/** The weekly sheet's lines for a week's simchas (added by a gabbai, §19.8): always Hebrew, the surname bold; the second line is the template phrase. */
+export function sheetItemsFor(week: SimchaWeek): Array<{ type: 'celebration'; text: string; bold: string; source: 'byGabbai' }> {
+  return week.items.map(i => {
+    const phrase = translate(he, he, `tpl.mazal.phrase.${i.kind === 'bar' ? 'barMitzvah' : 'batMitzvah'}.parents.name`).replace('{name}', () => i.firstName);
+    return { type: 'celebration' as const, text: `מזל טוב למשפחת ${i.surname}\n${phrase}`, bold: i.surname, source: 'byGabbai' as const };
+  });
 }

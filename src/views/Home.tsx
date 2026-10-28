@@ -29,8 +29,10 @@ import { Stripe } from './MessageRow.tsx';
 import { ForwardIcon, Icon } from '../kit/Icon.tsx';
 import { homeCardModel, zmanimOpen, zmanimOpenKey } from '../schedule/memberView.ts';
 import { israelNow } from '../schedule/week.ts';
+import { scheduleWeekOf } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
 import { ScheduleCard, ScheduleSkeleton } from './ScheduleCard.tsx';
+import { WeekCard } from './WeekCard.tsx';
 import { isAdult } from '../client/roles.ts';
 
 const TIMES = ['sunrise', 'sofZmanShma', 'sofZmanTfilla', 'minchaGedola', 'plagHaMincha', 'sunset', 'nightfall'] as const;
@@ -155,6 +157,8 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
       {schedule.state.status === 'loading' ? <ScheduleSkeleton /> : null}
       {schedule.state.status === 'error' ? <Card edgeColor={k.tekhelet}><Banner tone="error" text={t('schedule.error')} action={{ title: t('common.retry'), onPress: schedule.retry }} /></Card> : null}
       {doc && cardModel ? <ScheduleCard model={cardModel} doc={doc} cachedAt={schedule.state.status === 'ready' ? schedule.state.cachedAt : null} onFull={onSchedule ?? (() => {})} /> : null}
+
+      <WeekCard week={cardModel?.week ?? scheduleWeekOf(date)} doc={doc} onOpen={onOpen} onToast={onToast} />
 
       {schedule.state.status !== 'loading' ? (
       <CollapsibleCard title={t('home.zmanimTitle')} open={zmanimIsOpen} onToggle={toggleZmanim}

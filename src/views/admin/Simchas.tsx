@@ -2,11 +2,11 @@ import React from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
-import { counts, filterWeeks, mazalDraft, needsCheck, quietNames, simchaSub, simchaTag, simchaTitle, weekHeader } from '../../client/simchasView.ts';
+import { counts, filterWeeks, mazalDraft, needsCheck, quietNames, sheetItemsFor, sheetWeekOf, simchaSub, simchaTag, simchaTitle, weekHeader } from '../../client/simchasView.ts';
 import type { SimchaFilter } from '../../client/simchasView.ts';
 import type { SimchaItem, SimchaWeek } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Chip, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Button, Chip, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { ForwardIcon } from '../../kit/Icon.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import { Figure } from '../../tree/Figure.tsx';
@@ -47,7 +47,7 @@ function Row({ item, id, onMazalTov }: { item: SimchaItem; id: string; onMazalTo
 }
 
 /** P36 (UX §17.14): the next 8 weeks of bar and bat mitzvahs from the family trees; gabbaim only. Minimal data: first name, surname, date. */
-export function Simchas({ onBack, onMazalTov }: { onBack: () => void; /** Starts a mazal tov message for ONE simcha, for that family only (the weekly sheet lists the week's celebration messages). */ onMazalTov: (draft: Draft) => void }) {
+export function Simchas({ onBack, onMazalTov, onToast }: { onBack: () => void; onToast?: (text: string) => void; /** Starts a mazal tov message for ONE simcha, for that family only (the weekly sheet lists the week's celebration messages). */ onMazalTov: (draft: Draft) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -57,6 +57,16 @@ export function Simchas({ onBack, onMazalTov }: { onBack: () => void; /** Starts
   const [weeks, setWeeks] = React.useState<SimchaWeek[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState<SimchaFilter>('all');
+  const [sending, setSending] = React.useState<string | null>(null);
+  /** Each simcha becomes a gabbai item in that week's sheet, at once (§19.8); the first failure stops and is told. */
+  async function toSheet(w: SimchaWeek) {
+    if (sending) return;
+    setSending(w.week);
+    try {
+      for (const body of sheetItemsFor(w)) await api.addSheetItem(kehilaId, sheetWeekOf(w), body);
+      onToast?.(t('simchas.toSheetNote'));
+    } catch (e) { onToast?.(errText(e)); } finally { setSending(null); }
+  }
   React.useEffect(() => {
     let live = true;
     api.simchas(kehilaId, 8).then(r => { if (live) setWeeks(r.weeks); }, e => { if (live) { setError(errText(e)); setWeeks([]); } });
@@ -88,6 +98,7 @@ export function Simchas({ onBack, onMazalTov }: { onBack: () => void; /** Starts
               <Txt size="small" color={k.muted}>{head.greg}</Txt>
             </View>
             {w.items.map((item, i) => <Row key={`${item.kind}-${item.firstName}-${item.date}-${i}`} item={item} id={`${w.week}-${i}`} onMazalTov={onMazalTov} />)}
+            <Button kind="secondary" title={t('simchas.toSheet')} busy={sending === w.week} disabled={!!sending} onPress={() => { void toSheet(w); }} />
           </View>
         );
       })}

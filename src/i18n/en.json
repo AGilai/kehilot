@@ -2870,6 +2870,7 @@
     "privacy": "Only first name, surname and date. Gabbaim and techs only.",
     "card": {
       "this": "This Shabbat: {text}",
+    "toSheet": "Add to mazal tov in the weekly sheet",
       "later": "Next: {text}"
     },
     "mazal": "Mazal tov",
