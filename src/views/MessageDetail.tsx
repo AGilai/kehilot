@@ -14,6 +14,8 @@ import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
 import { BackIcon } from '../kit/Icon.tsx';
 import { messageMeta } from '../client/typesView.ts';
+import {  } from '../client/roles.ts';
+import { isManagement } from '../client/roles.ts';
 
 /** Reply errors that end the chance to reply to this message. */
 const HIDES_BOX = ['cannot_reply_to_own', 'replies_not_allowed', 'target_left'];
@@ -92,7 +94,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   // Mute (or unmute) notifications from the member who broadcast this; it never hides the message.
   const canMute = roleFeatures(role).directory && message.authorKind === 'member' && message.type !== 'chat' && message.authorId !== me.userId;
   const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);
-  const canDelete = message.authorId === me.userId || role === 'gabbai';
+  const canDelete = message.authorId === me.userId || isManagement(role);
   const familyName = message.targetName?.trim() || t('chip.formerMember');
 
   async function doJoin() {

@@ -58,6 +58,7 @@ import { MessageDetail } from './MessageDetail.tsx';
 import { Messages } from './Messages.tsx';
 import type { Filter } from './Messages.tsx';
 import { TopBar } from './TopBar.tsx';
+import { isManagement, isAdult } from '../client/roles.ts';
 
 type Nav =
   | { tab: 'home' }
@@ -200,7 +201,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       if (dest === 'seats') setNav({ tab: 'seats' });
       else if (dest === 'approvals') { setManage(true); setNav({ tab: 'approvals' }); }
       else if (dest === 'group_requests') {
-        if (state.kehila?.role === 'gabbai') { setManage(true); setNav({ tab: 'groups' }); }
+        if (isManagement(state.kehila?.role)) { setManage(true); setNav({ tab: 'groups' }); }
         else openGroupRequests();
       }
       else setNav(dest === 'message' && target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
@@ -212,7 +213,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { guard(() => toolBack()); return true; });
     return () => sub.remove();
   }, [nav.tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  const isGabbai = state.kehila?.role === 'gabbai';
+  const managing = isManagement(state.kehila?.role);
   // Management mode is for gabbaim only, and ends when the role or the Kehila changes.
   const role = state.kehila?.role;
   // Left management (role taken away, or an admin call answered 403): back to Home with a toast.
@@ -221,7 +222,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     setManage(false); setNav(g.nav as Nav); showToast(t('admin.left'));
   }, [showToast, t]);
   React.useEffect(() => {
-    if (!manage || role === 'gabbai') return;
+    if (!manage || isManagement(role)) return;
     const g = adminGuard(role, nav);
     setManage(g.manage); setNav(g.nav as Nav); if (g.left) showToast(t('admin.left'));
   }, [role, manage]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -270,7 +271,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
   switch (nav.tab) {
     case 'home':
       body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'home' }) : undefined}
-        onTerms={() => { setManage(true); setNav({ tab: 'overview' }); }} onToast={showToast} onSeats={feats.tabs.includes('home') && (kehila?.role === 'member' || kehila?.role === 'gabbai') ? () => setNav({ tab: 'seats' }) : undefined} onSchedule={() => setNav({ tab: 'schedule' })} />;
+        onTerms={() => { setManage(true); setNav({ tab: 'overview' }); }} onToast={showToast} onSeats={feats.tabs.includes('home') && (isAdult(kehila?.role)) ? () => setNav({ tab: 'seats' }) : undefined} onSchedule={() => setNav({ tab: 'schedule' })} />;
       break;
     case 'schedule':
       body = <Schedule onBack={() => setNav({ tab: 'home' })} onToast={showToast} />;
@@ -279,7 +280,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
     case 'seats':
-      body = kehila?.role === 'member' || kehila?.role === 'gabbai' ? <SeatPage onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
+      body = isAdult(kehila?.role) ? <SeatPage onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
     case 'seatEditor':
       body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
@@ -307,10 +308,10 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       break;
     case 'overview':
     case 'area':
-      body = kehila?.role !== 'gabbai' ? null : <Overview area={nav.tab === 'area' ? nav.id : null} onArea={id => { setBackNav({ tab: 'overview' }); setNav({ tab: 'area', id }); }} onGo={goTool} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
+      body = !isManagement(kehila?.role) ? null : <Overview area={nav.tab === 'area' ? nav.id : null} onArea={id => { setBackNav({ tab: 'overview' }); setNav({ tab: 'area', id }); }} onGo={goTool} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'simchas':
-      body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <Simchas onBack={toolBack} onMazalTov={({ familyId, ...draft }) => { setComposeInitial({ type: 'celebration', ...draft, ...(familyId ? { targetFamilyId: familyId } : {}) }); setNav({ tab: 'compose' }); }} />;
+      body = !isManagement(kehila?.role) ? <Me onToast={showToast} /> : <Simchas onBack={toolBack} onMazalTov={({ familyId, ...draft }) => { setComposeInitial({ type: 'celebration', ...draft, ...(familyId ? { targetFamilyId: familyId } : {}) }); setNav({ tab: 'compose' }); }} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} onHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} />;
@@ -341,7 +342,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       break;
     case 'adminTree':
       // Gabbai only (the server enforces it too): anyone else gets the plain Me screen.
-      body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <TreeRoute key={nav.familyId} readOnly familyId={nav.familyId} familyName={nav.name} onBack={() => setNav({ tab: 'members' })} />;
+      body = !isManagement(kehila?.role) ? <Me onToast={showToast} /> : <TreeRoute key={nav.familyId} readOnly familyId={nav.familyId} familyName={nav.name} onBack={() => setNav({ tab: 'members' })} />;
       break;
     case 'me':
       body = <Me onTree={() => setNav({ tab: 'tree' })} onGroups={() => setNav({ tab: 'myGroups' })} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;

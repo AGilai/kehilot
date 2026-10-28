@@ -1,3 +1,4 @@
+import { isManagement } from './roles.ts';
 import type { Channel, ChannelFields, Role } from './types.ts';
 
 const DEFAULT_KEYS = ['announcements', 'simchas', 'condolences'];
@@ -60,9 +61,9 @@ type Person = { role: Role; isAdmin: boolean };
 
 /** Removing another admin from a group is for gabbaim only; a listener cannot administer. */
 export function canRemoveFromGroup(caller: Role | undefined, target: Person): boolean {
-  if (caller === 'gabbai') return true;
+  if (isManagement(caller)) return true;
   if (caller !== 'member') return false;
-  return !(target.isAdmin || target.role === 'gabbai');
+  return !(target.isAdmin || isManagement(target.role));
 }
 
 /** Only a member who is not yet an admin can be appointed (a gabbai already administers every group). */

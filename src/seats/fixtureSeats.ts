@@ -46,7 +46,7 @@ export function fixtureSeatHall(hall: Hall = HALL): { hall: Hall; allocations: A
   return { hall, allocations, released };
 }
 
-export type FixtureMemberSeats = MemberSeats & { closed: boolean; source: 'member' | 'gabbai'; answers: Record<Prayer, string[]> };
+export type FixtureMemberSeats = MemberSeats & { closed: boolean; source: 'member' | 'gabbai' | 'tech'; answers: Record<Prayer, string[]> };
 /** What the member page receives in the preview: his frames cut from the gabbai-side hall, and his current answers. */
 export function fixtureMemberSeats(variant: SeatVariant = 'default'): FixtureMemberSeats {
   const h = fixtureSeatHall();
@@ -81,7 +81,7 @@ export function hallLayout(hall: Hall = HALL, effectiveFrom = '2026-09-04'): Wir
   return { effectiveFrom, rows: hall.rows, cols: hall.cols, cells, blocks, rowLabels: Array.from({ length: hall.rows }, (_, r) => rowLabel(r)), seats };
 }
 
-type Rec = { by: 'member' | 'gabbai'; at: number };
+type Rec = { by: 'member' | 'gabbai' | 'tech'; at: number };
 
 export function createSeatsFixture(variant: SeatVariant, card: string | null, friday: string) {
   const h = fixtureSeatHall();

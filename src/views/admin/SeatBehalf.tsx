@@ -4,6 +4,7 @@ import React from 'react';
 import { Pressable, View } from 'react-native';
 import { Banner, Button, Card, Chip, Field, Segmented, Sheet, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
+import { useSession } from '../../client/SessionProvider.tsx';
 import type { Prayer } from '../../seats/release.ts';
 import { householdsOf, isPending, lastBy, onBehalfBody, releasedNow } from '../../seats/wire.ts';
 import type { Household, WeekWire } from '../../seats/wire.ts';
@@ -16,8 +17,12 @@ export type BehalfSave = (bodies: Array<{ prayer: Prayer; body: NonNullable<Retu
 type Note = { tone: 'info' | 'error' | 'success'; text: string; stale?: boolean };
 
 /** §16.12.1. `phone`: a picked household opens in a Sheet, Save in its footer. */
+/** The `seats.behalf.by…` key of who last changed a household's seats: a tech's edit reads "טכני", a gabbai's "גבאי". */
+const BY_KEY = { member: 'Member', gabbai: 'Gabbai', tech: 'Tech' } as const;
+
 export function SeatBehalf({ week, selected, onSelect, save, phone }: { week: WeekWire; selected: string | null; onSelect: (ref: string | null) => void; save: BehalfSave; phone?: boolean }) {
   const { t } = useI18n();
+  const role = useSession().state.kehila?.role;
   const k = useTokens();
   const households = React.useMemo(() => householdsOf(week), [week]);
   const [query, setQuery] = React.useState('');
@@ -55,7 +60,7 @@ export function SeatBehalf({ week, selected, onSelect, save, phone }: { week: We
 
   const count = (n: number) => (n === 1 ? t('seats.behalf.seatsCountOne') : t('seats.behalf.seatsCount', { n }));
   const by = household ? lastBy(week, prayer, household) : null;
-  const sourceText = !household ? '' : by === 'gabbai' ? t('seats.behalf.byGabbai') : by === 'member' ? t('seats.behalf.byMember') : isPending(week, prayer, household) ? t('seats.behalf.noAnswer') : '';
+  const sourceText = !household ? '' : by ? t(`seats.behalf.by${BY_KEY[by]}`) : isPending(week, prayer, household) ? t('seats.behalf.noAnswer') : '';
   const free = household ? draft[prayer].size : 0;
   const saveTitle = t('seats.behalf.save');
   const saveButton = (
@@ -79,7 +84,7 @@ export function SeatBehalf({ week, selected, onSelect, save, phone }: { week: We
       )}
       {!week.open ? <Banner tone="info" text={t('seats.behalf.pastDeadline')} /> : null}
       <Segmented<Prayer> options={PRAYERS.map(p => ({ key: p, label: t(`seats.${p}`) }))} value={prayer} onChange={setPrayer} />
-      {sourceText ? <Txt size="caption" bold color={by === 'gabbai' ? k.tekhelet : k.muted}>{sourceText}</Txt> : null}
+      {sourceText ? <Txt size="caption" bold color={by && by !== 'member' ? k.tekhelet : k.muted}>{sourceText}</Txt> : null}
       <View>
         {household.seats.map(s => {
           const out = draft[prayer].has(s.id);
@@ -96,7 +101,7 @@ export function SeatBehalf({ week, selected, onSelect, save, phone }: { week: We
         })}
       </View>
       <Txt size="small" bold>{t('seats.summary', { prayer: t(`seats.${prayer}Short`), need: household.seats.length - free, free })}</Txt>
-      <Txt size="caption" color={k.muted}>{t('seats.behalf.note')}</Txt>
+      <Txt size="caption" color={k.muted}>{t(role === 'tech' ? 'seats.behalf.noteTech' : 'seats.behalf.note')}</Txt>
       {note ? (
         <View ref={noteRef} accessibilityLiveRegion="polite" {...({ tabIndex: -1 } as object)}><Banner tone={note.tone} text={note.text} /></View>
       ) : null}

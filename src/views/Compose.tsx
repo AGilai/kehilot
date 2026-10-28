@@ -20,6 +20,7 @@ import { ApiCodeError } from '../client/errors.ts';
 import { BackIcon } from '../kit/Icon.tsx';
 import { channelLabel } from '../client/channelsView.ts';
 import { composeTypes, refusalBanner } from '../client/typesView.ts';
+import { isManagement } from '../client/roles.ts';
 
 export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked; /** A draft to start from (the gabbai's mazal tov from P36). */ title?: string; body?: string; /** Shown above the form (a suggested bar mitzvah date: check it with the family). */ note?: string };
 
@@ -77,7 +78,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   const ok = canPublish(draft) && types.length > 0 && !busy;
   const found = channels.find(c => c.channelId === channelId);
   const channelName = found ? channelLabel(found, t) : '';
-  const gabbai = state.kehila?.role === 'gabbai';
+  const gabbai = isManagement(state.kehila?.role);
   const shown = Array.isArray(people) ? familyRows(filterFamilies(people, q), t) : [];
 
   latest.current = publish;

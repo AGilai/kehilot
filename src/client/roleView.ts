@@ -1,4 +1,5 @@
 import { postableChannels } from './messageView.ts';
+import { isAdult, isManagement } from './roles.ts';
 import type { Channel, Role } from './types.ts';
 
 export type MainTab = 'home' | 'messages' | 'me';
@@ -31,8 +32,8 @@ export type RoleFeatures = {
  */
 export function roleFeatures(role: Role | undefined): RoleFeatures {
   const tabs: MainTab[] = ['home', 'messages', 'me'];
-  if (role === 'member' || role === 'gabbai') {
-    return { tabs, compose: true, directory: true, management: role === 'gabbai', blessingReply: true, join: true, membershipCard: false, phoneList: true, family: true };
+  if (isAdult(role)) {
+    return { tabs, compose: true, directory: true, management: isManagement(role), blessingReply: true, join: true, membershipCard: false, phoneList: true, family: true };
   }
   return { tabs, compose: false, directory: false, management: false, blessingReply: false, join: false, membershipCard: true, phoneList: false, family: false };
 }
@@ -50,5 +51,5 @@ export function canPostInChat(role: Role | undefined, channel: Pick<Channel, 'ca
   return channel.canPost;
 }
 
-/** The prayer-schedule editor is for gabbaim only (the server refuses anyone else; this keeps the screen out of reach). */
-export const scheduleEditorAllowed = (role: Role | undefined): boolean => role === 'gabbai';
+/** The prayer-schedule editor is for the management team (gabbai or tech; the server refuses anyone else; this keeps the screen out of reach). */
+export const scheduleEditorAllowed = (role: Role | string | undefined): boolean => isManagement(role);

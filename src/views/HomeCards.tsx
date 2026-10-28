@@ -52,7 +52,7 @@ export function HomeCards({ onTerms, onToast, onSeats }: { onTerms: () => void; 
     }
     return (
       <Card edgeColor={k.tekhelet}>
-        {title(t('cards.gabbai.title'))}
+        {title(t(g.gabbaiRole === 'tech' ? 'cards.tech.title' : 'cards.gabbai.title'))}
         <Txt>{t('cards.gabbai.body', { gabbai: g.gabbaiName, name: g.partnerName, kehila: kehila.name })}</Txt>
         <Button title={t('cards.gabbai.ok')} busy={busy} onPress={() => void run(() => api.dismissCard(kid, 'gabbai_link'))} />
         <Button kind="secondary" title={t('family.unlink')} disabled={busy} onPress={() => { setUnlinking(true); setError(null); }} />

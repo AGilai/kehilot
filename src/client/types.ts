@@ -1,5 +1,5 @@
 // v2 shapes from server/API.md.
-export type Role = 'listener' | 'member' | 'gabbai';
+export type Role = 'listener' | 'member' | 'gabbai' | 'tech';
 export type Classification = '' | 'א' | 'קבוע';
 export type Lang = 'he' | 'en';
 export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'general' | 'chat';
@@ -53,7 +53,7 @@ export type Kehila = {
 };
 
 export type HomeCards = {
-  gabbaiLink: { gabbaiName: string; partnerName: string } | null;
+  gabbaiLink: { gabbaiName: string; /** `gabbai` or `tech`; absent on an old server answer. */ gabbaiRole?: 'gabbai' | 'tech'; partnerName: string } | null;
   request: { fromUserId: string; fromName: string } | null;
   imported: boolean;
   phoneAsk: boolean;
@@ -73,7 +73,7 @@ export type FamilyView = {
   children: Child[];
   sent: { toUserId: string; toName: string; expiresAt: number; state: 'pending' | 'declined' | 'expired' } | null;
   received: Array<{ fromUserId: string; fromName: string; expiresAt: number }>;
-  notice: { gabbaiName: string; partnerName: string } | null;
+  notice: { gabbaiName: string; gabbaiRole?: 'gabbai' | 'tech'; partnerName: string } | null;
 };
 
 export type Candidate = { userId: string; displayName: string; cooldownUntil?: number };
@@ -172,7 +172,7 @@ export type ChangesPage = { cursor: string; more: boolean; changes: Change[] } |
 
 export type InvitePreview = { kehilaName: string; role: Role; expiresAt: number };
 export type InviteRow = { code: string; role: Role; usesLeft: number; expiresAt: number; mine: boolean };
-export type InviteOptions = { uses?: number; days?: number; role?: 'listener' | 'member'; classification?: Classification };
+export type InviteOptions = { uses?: number; days?: number; role?: 'listener' | 'member' | 'tech'; classification?: Classification };
 
 export type DirectoryEntry = { userId: string; displayName: string };
 

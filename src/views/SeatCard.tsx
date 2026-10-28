@@ -10,7 +10,7 @@ export type SeatCardState = 'ask' | 'done' | 'byGabbai';
 export type SeatCardFree = { arvit: number; shacharit: number };
 
 /** P24: the Home reminder card (UX-DESIGN §15.2). `ask` is the question; `done`/`byGabbai` is the collapsed answer until the deadline. */
-export function SeatCard({ count, state, deadline, free = { arvit: 0, shacharit: 0 }, preview = false, busy = false, onYes, onUpdate }: { count: number; state: SeatCardState; deadline: { day: string; time: string }; free?: SeatCardFree; preview?: boolean; busy?: boolean; onYes: () => void; onUpdate: () => void }) {
+export function SeatCard({ byRole = 'gabbai', count, state, deadline, free = { arvit: 0, shacharit: 0 }, preview = false, busy = false, onYes, onUpdate }: { byRole?: 'gabbai' | 'tech'; count: number; state: SeatCardState; deadline: { day: string; time: string }; free?: SeatCardFree; preview?: boolean; busy?: boolean; onYes: () => void; onUpdate: () => void }) {
   const { t } = useI18n();
   const k = useTokens();
   if (state !== 'ask') {
@@ -28,7 +28,7 @@ export function SeatCard({ count, state, deadline, free = { arvit: 0, shacharit:
             </Pressable>
           </View>
         </View>
-        {state === 'byGabbai' ? <Txt size="small">{t('seats.card.byGabbai')}</Txt>
+        {state === 'byGabbai' ? <Txt size="small">{t(byRole === 'tech' ? 'seats.card.byTech' : 'seats.card.byGabbai')}</Txt>
           : free.arvit + free.shacharit === 0 ? <Txt size="small">{t('seats.card.doneAll', { n: count })}</Txt>
           : (['arvit', 'shacharit'] as const).filter(p => free[p] > 0).map(p => <Txt key={p} size="small">{t('seats.card.doneSome', { prayer: t(`seats.${p}Short`), need: count - free[p], free: free[p] })}</Txt>)}
       </Card>

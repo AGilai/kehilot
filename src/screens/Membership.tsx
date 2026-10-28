@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { api } from '../api';
 import { useCommunity } from '../state';
 import { Button, Choice, ErrorText, s } from '../ui';
+import { isManagement } from '../client/roles.ts';
 
 export function Membership({ onClose }: { onClose: () => void }) {
   const { data, session, refresh } = useCommunity();
@@ -23,7 +24,7 @@ export function Membership({ onClose }: { onClose: () => void }) {
     catch (e) { setError(e instanceof Error ? e.message : 'שמירת הסיווג נכשלה.'); }
     finally { setBusy(null); }
   }
-  if (data?.role !== 'gabbai') return null;
+  if (!data || !isManagement(data.role)) return null;
   return <ScrollView style={s.page} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} />}>
     <Button title="חזרה לבית" secondary onPress={onClose} />
     <Text style={s.title}>מתפללים חדשים לסיווג</Text>

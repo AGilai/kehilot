@@ -12,6 +12,7 @@ import { PadScroll } from '../../kit/PadScroll.tsx';
 import { BackLink } from '../Me.tsx';
 import { useErrorText } from '../auth/Frame.tsx';
 import { useShortDate } from './shared.tsx';
+import { isManagement, roleTone } from '../../client/roles.ts';
 
 /** One group: its members (remove, appoint), and the pending join requests (approve, reject). For gabbaim and for the group's admins. */
 export function GroupAdmin({ group, onBack, onGone, onToast }: { group: { groupId: string; name: string }; onBack: () => void; /** The admin rights ended (403): leave to Me. */ onGone: () => void; onToast: (text: string) => void }) {
@@ -92,14 +93,14 @@ export function GroupAdmin({ group, onBack, onGone, onToast }: { group: { groupI
           <Card key={m.userId}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Txt bold size="heading" style={{ flexShrink: 1 }}>{m.displayName}</Txt>
-              <Tag label={t(`admin.members.role.${m.role}`)} tone={m.role === 'gabbai' ? 'strong' : 'plain'} />
-              {m.isAdmin && m.role !== 'gabbai' ? <Tag tone="strong" label={t('admin.groupAdmin.adminBadge')} /> : null}
+              <Tag label={t(`admin.members.role.${m.role}`)} tone={roleTone(m.role)} />
+              {m.isAdmin && !isManagement(m.role) ? <Tag tone="strong" label={t('admin.groupAdmin.adminBadge')} /> : null}
             </View>
             {rowError?.id === m.userId ? <Banner tone="error" text={rowError.text} /> : null}
-            {role === 'gabbai' && canAppoint(m) ? (
+            {isManagement(role) && canAppoint(m) ? (
               <Button kind="secondary" title={t('admin.groupAdmin.appoint')} busy={busy === m.userId} onPress={() => void act(m.userId, () => api.appointGroupAdmin(kehilaId, g, m.userId), t('admin.groupAdmin.appointed'))} />
             ) : null}
-            {role === 'gabbai' && m.role === 'member' && m.isAdmin ? (
+            {isManagement(role) && m.role === 'member' && m.isAdmin ? (
               <Button kind="secondary" title={t('admin.groupAdmin.unappoint')} busy={busy === m.userId} onPress={() => void act(m.userId, () => api.unappointGroupAdmin(kehilaId, g, m.userId), t('admin.groupAdmin.unappointed'))} />
             ) : null}
             {m.userId === state.me?.userId ? null : !mayRemove ? <Txt size="small" color={k.muted}>{t('admin.groupAdmin.onlyGabbai')}</Txt> : asking === m.userId ? (

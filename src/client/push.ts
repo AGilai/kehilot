@@ -3,6 +3,7 @@
 import type { endpoints } from './endpoints.ts';
 import type { Channel, NotifyPrefs } from './types.ts';
 import { config } from '../config.ts';
+import { isAdult, isManagement } from './roles.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -59,8 +60,8 @@ export function takePushTarget<T>(holder: { current: T | null }): T | null {
 /** Where a tapped push goes. `requests` is the approvals queue (gabbai only); `group_requests` is the requests of a group the user administers (the screen finds which). */
 export function pushDestination(t: { messageId?: string; screen?: string }, role: string | undefined, seatsPreview: boolean = config.seatsPreview): 'approvals' | 'group_requests' | 'message' | 'seats' | 'home' {
   if (t.screen === 'seats' && seatsPreview) return 'seats';
-  if (t.screen === 'requests' && role === 'gabbai') return 'approvals';
-  if (t.screen === 'group_requests' && (role === 'gabbai' || role === 'member')) return 'group_requests';
+  if (t.screen === 'requests' && isManagement(role)) return 'approvals';
+  if (t.screen === 'group_requests' && isAdult(role)) return 'group_requests';
   if (t.screen) return 'home';
   return t.messageId ? 'message' : 'home';
 }

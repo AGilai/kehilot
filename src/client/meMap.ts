@@ -1,3 +1,4 @@
+import { isAdult } from './roles.ts';
 import { roleFeatures } from './roleView.ts';
 import type { Role } from './types.ts';
 
@@ -34,7 +35,7 @@ export function menuRows(role: Role | undefined): MenuRowId[] {
   if (f.management) rows.push('manage');
   if (f.family) rows.push('tree');
   if (f.phoneList) rows.push('phoneList');
-  if (role === 'member' || role === 'gabbai') rows.push('invite');
+  if (isAdult(role)) rows.push('invite');
   rows.push('prefs'); // notification settings (was the bell in the top bar): every role
   rows.push('about');
   return rows;

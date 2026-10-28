@@ -19,7 +19,7 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
   const { state } = useSession();
   const k = useTokens();
   const errText = useAdminErrText();
-  const [role, setRole] = React.useState<'listener' | 'member'>(initialRole);
+  const [role, setRole] = React.useState<'listener' | 'member' | 'tech'>(initialRole);
   const [classification, setClassification] = React.useState<Classification>('');
   const [uses, setUses] = React.useState('10');
   const [days, setDays] = React.useState('7');
@@ -54,6 +54,7 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
         <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
           <Choice label={t('admin.invite.listener')} note={t('admin.invite.listenerNote')} selected={role === 'listener'} onPress={() => { setRole('listener'); setCode(null); }} />
           <Choice label={t('admin.invite.member')} note={t('admin.invite.memberNote')} selected={role === 'member'} onPress={() => { setRole('member'); setCode(null); }} />
+          <Choice label={t('admin.invite.tech')} note={t('admin.invite.techNote')} selected={role === 'tech'} onPress={() => { setRole('tech'); setCode(null); }} />
         </View>
         {role === 'member' ? (
           <>

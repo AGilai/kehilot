@@ -108,7 +108,7 @@ function SeatPageReady({ data, save, onBack, onToast }: { data: MemberSeats; sav
     <View style={{ flex: 1 }}>
       <PadScroll contentContainerStyle={{ padding: 16, gap: 14, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {head}
-        {locked ? <Banner tone="info" text={t('seats.closed', deadline)} /> : stale ? <Banner tone="info" text={t('seats.updatedNow')} /> : data.updatedByGabbai ? <Banner tone="info" text={t('seats.byGabbai')} /> : null}
+        {locked ? <Banner tone="info" text={t('seats.closed', deadline)} /> : stale ? <Banner tone="info" text={t('seats.updatedNow')} /> : data.updatedByGabbai ? <Banner tone="info" text={t(data.updatedByRole === 'tech' ? 'seats.byTech' : 'seats.byGabbai')} /> : null}
         {error ? <Banner tone="error" text={error} /> : null}
         <Segmented<Prayer> options={[{ key: 'arvit', label: label('arvit') }, { key: 'shacharit', label: label('shacharit') }]} value={prayer} onChange={setPrayer} />
         <Txt size="small">{t('seats.summary', { prayer: t(`seats.${prayer}Short`), need: counts.need, free: counts.free })}</Txt>

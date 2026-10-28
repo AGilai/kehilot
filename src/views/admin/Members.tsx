@@ -17,10 +17,15 @@ import { WIDE, useAdminErrText } from './shared.tsx';
 import { FamilyBlock } from './FamilyBlock.tsx';
 import { LinkSheet } from './LinkSheet.tsx';
 import { Icon } from '../../kit/Icon.tsx';
+import { NavRow } from '../../kit/NavRows.tsx';
+import { RoleSheet } from './RoleSheet.tsx';
+import { roleTone } from '../../client/roles.ts';
 import { TagChips } from '../TagChips.tsx';
 import { AssignTagsSheet, ManageTagsSheet, TextLink } from './Tags.tsx';
 import { assignmentBody } from '../../client/tagsView.ts';
 
+/** Filter chips after "all": members, tech, gabbaim, guests (UX-DESIGN §20.4). */
+const FILTER_ROLES: Role[] = ['member', 'tech', 'gabbai', 'listener'];
 const CLASS_KEY: Record<string, string> = { '': 'none', 'א': 'a', 'קבוע': 'kavua' };
 
 /** The groups sheet of one person: toggle chips, save → updateMember({groups}). */
@@ -45,13 +50,12 @@ function GroupsSheet({ row, groups, onClose, onSave }: { row: MemberRow | null; 
 }
 
 /** Actions of one person: role, classification, groups, remove (confirmed). */
-function Actions({ row, error, busy, family, phones, alone, onFields, onGroups, onLink, onRemove, onTree }: {
-  row: MemberRow; error: string | null; busy: boolean; family: AdminFamily | undefined; phones: ReturnType<typeof adultPhones> | undefined; alone: boolean;
+function Actions({ row, error, busy, family, phones, alone, onRole, onFields, onGroups, onLink, onRemove, onTree }: {
+  row: MemberRow; error: string | null; busy: boolean; family: AdminFamily | undefined; phones: ReturnType<typeof adultPhones> | undefined; alone: boolean; onRole: () => void;
   onFields: (f: MemberFields) => void; onGroups: () => void; onLink: () => void; onRemove: () => Promise<void>; onTree?: () => void;
 }) {
   const { t } = useI18n();
   const [asking, setAsking] = React.useState(false);
-  const flip: Role = row.role === 'gabbai' ? 'member' : 'gabbai';
   return (
     <View style={{ gap: 8, paddingTop: 8 }}>
       {error ? <Banner tone="error" text={error} /> : null}
@@ -59,7 +63,7 @@ function Actions({ row, error, busy, family, phones, alone, onFields, onGroups, 
         <>
           <FamilyBlock family={family} phones={phones} onTree={onTree} />
           {alone ? <Button kind="secondary" title={t('admin.members.link')} onPress={onLink} /> : null}
-          <Button kind="secondary" title={row.role === 'gabbai' ? t('admin.members.makeMember') : t('admin.members.makeGabbai')} busy={busy} onPress={() => onFields({ role: flip })} />
+          <NavRow title={t('admin.role.row')} icon="user" value={t(`admin.members.role.${row.role}`)} onPress={onRole} />
           <Txt size="small" bold>{t('admin.members.class.label')}</Txt>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             {(['', 'א', 'קבוע'] as Classification[]).map(c => (
@@ -102,6 +106,7 @@ export function Members({ onToast, onTree, openTags }: { onToast: (text: string)
   const [rowError, setRowError] = React.useState<{ id: string; text: string } | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [bulk, setBulk] = React.useState<boolean | null>(null);
+  const [roleFor, setRoleFor] = React.useState<string | null>(null);
   const [groupsFor, setGroupsFor] = React.useState<string | null>(null);
   const [families, setFamilies] = React.useState<AdminFamily[]>([]);
   const [linkFor, setLinkFor] = React.useState<string | null>(fxScreen === 'admin-link' ? '01FIXTUREUSER00000000023' : null);
@@ -198,7 +203,7 @@ export function Members({ onToast, onTree, openTags }: { onToast: (text: string)
   };
   const actions = (r: MemberRow) => open === r.userId ? (
     <Actions row={r} family={familyOf(r.userId) ?? (r.role === 'listener' ? undefined : alone1(r))} phones={adultPhones(familyOf(r.userId) ?? alone1(r), all)} alone={(familyOf(r.userId)?.adults.length ?? 1) < 2} onLink={() => setLinkFor(r.userId)} busy={busy === r.userId} error={rowError?.id === r.userId ? rowError.text : null}
-      onFields={f => void update(r.userId, f)} onGroups={() => setGroupsFor(r.userId)} onRemove={() => remove(r.userId)}
+      onRole={() => setRoleFor(r.userId)} onFields={f => void update(r.userId, f)} onGroups={() => setGroupsFor(r.userId)} onRemove={() => remove(r.userId)}
       onTree={onTree && familyOf(r.userId) ? () => onTree(familyOf(r.userId)!.familyId, familyOf(r.userId)!.name) : undefined} />
   ) : null;
   const toggleOpen = (r: MemberRow) => { setOpen(o => (o === r.userId ? null : r.userId)); setRowError(null); };
@@ -209,9 +214,7 @@ export function Members({ onToast, onTree, openTags }: { onToast: (text: string)
         style={{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: dir, textAlign: textStart(lang) }} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         <Chip size="filter" label={t('admin.members.filter.all')} selected={role === undefined} onPress={() => setRole(undefined)} />
-        <Chip size="filter" label={t('admin.members.filter.member')} selected={role === 'member'} onPress={() => setRole('member')} />
-        <Chip size="filter" label={t('admin.members.filter.gabbai')} selected={role === 'gabbai'} onPress={() => setRole('gabbai')} />
-        <Chip size="filter" label={t('admin.members.filter.listener')} selected={role === 'listener'} onPress={() => setRole('listener')} />
+        {FILTER_ROLES.map(r => <Chip size="filter" key={r} label={t(`admin.members.filter.${r}`)} selected={role === r} onPress={() => setRole(r)} />)}
       </ScrollView>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         <Chip size="filter" label={t('admin.members.filter.can')} selected={send === true} onPress={() => setSend(s => (s === true ? undefined : true))} />
@@ -259,7 +262,7 @@ export function Members({ onToast, onTree, openTags }: { onToast: (text: string)
         <View key={r.userId} style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: k.line }}>
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
             <Txt bold style={{ flex: 3 }}>{r.displayName}</Txt>
-            <View style={{ flex: 1.2, alignItems: 'flex-start' }}><Tag label={t(`admin.members.role.${r.role}`)} tone={r.role === 'gabbai' ? 'strong' : 'plain'} /></View>
+            <View style={{ flex: 1.2, alignItems: 'flex-start' }}><Tag label={t(`admin.members.role.${r.role}`)} tone={roleTone(r.role)} /></View>
             <Txt style={{ flex: 1.2 }}>{r.classification ? t(`admin.members.class.${CLASS_KEY[r.classification]}`) : '–'}</Txt>
             <Txt size="small" style={{ flex: 3 }}>{famText(r) ?? '–'}</Txt>
             <View style={{ flex: 3 }}>{r.groups.length ? chips(r) : <Txt size="small" color={k.muted}>{t('admin.members.noGroups')}</Txt>}</View>
@@ -278,7 +281,7 @@ export function Members({ onToast, onTree, openTags }: { onToast: (text: string)
           <Pressable accessibilityRole="button" accessibilityState={{ expanded: open === r.userId }} onPress={() => toggleOpen(r)} style={{ minHeight: TOUCH, justifyContent: 'center', gap: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <Txt bold size="heading" style={{ flexShrink: 1 }}>{r.displayName}</Txt>
-              <Tag label={t(`admin.members.role.${r.role}`)} tone={r.role === 'gabbai' ? 'strong' : 'plain'} />
+              <Tag label={t(`admin.members.role.${r.role}`)} tone={roleTone(r.role)} />
               {r.classification ? <Tag label={t(`admin.members.class.${CLASS_KEY[r.classification]}`)} /> : null}
             </View>
             {famText(r) ? <Txt size="small" color={k.muted}>{famText(r)}</Txt> : null}
@@ -303,6 +306,8 @@ export function Members({ onToast, onTree, openTags }: { onToast: (text: string)
       {bulkBar}
       {rows === null ? <ActivityIndicator color={k.tekhelet} /> : <Txt size="small" color={k.muted}>{t('admin.members.count', { n: shown.length })}</Txt>}
       {rows && shown.length === 0 ? <Txt color={k.muted}>{t('admin.members.empty')}</Txt> : body}
+      <RoleSheet row={all.find(r => r.userId === roleFor) ?? null} self={roleFor === state.me?.userId} onClose={() => setRoleFor(null)}
+        onSave={async role => { const e = await update(roleFor!, { role }, t('admin.role.saved')); if (!e) setRoleFor(null); return e; }} />
       <GroupsSheet row={editing} groups={groups} onClose={() => setGroupsFor(null)}
         onSave={async ids => { const e = await update(groupsFor!, { groups: ids }, t('admin.members.groupsSaved')); if (!e) setGroupsFor(null); return e; }} />
       <ManageTagsSheet visible={manageTags} kehilaId={kehilaId} onClose={() => setManageTags(false)} onChanged={() => void load()} onToast={onToast} />

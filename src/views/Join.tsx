@@ -8,6 +8,7 @@ import type { InvitePreview } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
 import { AuthFrame, useErrorText } from './auth/Frame.tsx';
+import { isManagement } from '../client/roles.ts';
 
 type Load = { s: 'loading' } | { s: 'ok'; preview: InvitePreview } | { s: 'expired' } | { s: 'error'; error: string };
 
@@ -73,7 +74,7 @@ export function Join({ code, onRegister, onSignIn, onAccept, onClose }: {
           <Card edgeColor={k.tekhelet}>
             <Txt size="small" color={k.muted}>{t('join.invited')}</Txt>
             <Txt serif size="title">{load.preview.kehilaName}</Txt>
-            <Txt>{load.preview.role === 'member' ? t('join.asMember') : t('join.asListener')}</Txt>
+            <Txt>{t(load.preview.role === 'member' ? 'join.asMember' : isManagement(load.preview.role) ? 'join.asTech' : 'join.asListener')}</Txt>
             <Txt size="small" color={k.muted}>{t('join.expires', { date: date(load.preview.expiresAt) })}</Txt>
           </Card>
           {onAccept ? (

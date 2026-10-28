@@ -1,4 +1,5 @@
 import { seatEditorAllowed, seatPrintRole } from '../seats/access.ts';
+import { isManagement } from './roles.ts';
 import { scheduleEditorAllowed } from './roleView.ts';
 import type { Role } from './types.ts';
 
@@ -21,7 +22,7 @@ export type AreaRow = { id: string; target: AreaTarget | null; badge?: BadgeKind
 export type Area = { id: AreaId; rows: AreaRow[] };
 
 export function areas(role: Role | string | undefined): Area[] {
-  if (role !== 'gabbai') return [];
+  if (!isManagement(role)) return [];
   const rows = (list: Array<AreaRow & { when?: boolean }>) => list.filter(r => r.when !== false).map(({ when: _w, ...r }) => r);
   return [
     { id: 'prayers', rows: rows([{ id: 'schedule', target: 'scheduleEditor', when: scheduleEditorAllowed(role) }, { id: 'sheet', target: 'scheduleEditor', when: scheduleEditorAllowed(role) }]) },
@@ -55,7 +56,7 @@ export type TodoItem = { id: TodoId; count: number; target: 'approvals' | 'overv
 
 /** "לטיפול עכשיו": one item per thing that waits, most urgent first. Empty (the card is hidden) when nothing waits, and for non-gabbaim. */
 export function todoItems(role: Role | string | undefined, w: Waiting): TodoItem[] {
-  if (role !== 'gabbai') return [];
+  if (!isManagement(role)) return [];
   const out: TodoItem[] = [];
   if (w.requests > 0) out.push({ id: 'requests', count: w.requests, target: 'approvals' });
   if (w.terms) out.push({ id: 'terms', count: 0, target: 'overview' });

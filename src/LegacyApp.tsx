@@ -12,6 +12,7 @@ import { Membership } from './screens/Membership';
 import { Seating } from './screens/Seating';
 import { Button, C, ErrorText, Field, s } from './ui';
 import { listenForNotifications } from './notifications';
+import { isManagement } from './client/roles.ts';
 
 // The root uses direction:ltr; explicit reversed rows and RTL text are stable
 // on both Hebrew-language and English-language devices, without a restart.
@@ -59,7 +60,7 @@ function Shell() {
   useEffect(() => { if (!session && !isDemo) { setSelected(null); setTab('home'); } }, [session, isDemo]);
   useEffect(() => { if (session && data && !data.profile.tribe) setTab('profile'); }, [session?.user.id, data?.profile.tribe]);
   useEffect(() => { if (tab === 'seating' && data && !data.seating?.eligible) setTab('home'); }, [tab, data?.seating?.eligible]);
-  useEffect(() => { if (tab === 'membership' && data && data.role !== 'gabbai') setTab('home'); }, [tab, data?.role]);
+  useEffect(() => { if (tab === 'membership' && data && !isManagement(data.role)) setTab('home'); }, [tab, data?.role]);
   function open(id: string) { setSelected(id); setReadError(null); setTab('messages'); }
   const unread = data?.messages.filter(m => !data.readIds.includes(m.id)).length || 0;
   if (loading) return <View style={[s.page, { alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={C.green} /><Text style={s.muted}>פותחים את הקהילה…</Text></View>;
@@ -71,7 +72,7 @@ function Shell() {
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, display: tab === 'home' ? 'flex' : 'none' }}><Home onMembership={() => setTab('membership')} onMessage={open} onMessages={() => { setSelected(null); setTab('messages'); }} onProfile={() => setTab('profile')} onSeating={() => setTab('seating')} /></View>
       <View style={{ flex: 1, display: tab === 'seating' ? 'flex' : 'none' }}>{tab === 'seating' && data?.seating?.eligible && <Seating onClose={() => setTab('home')} />}</View>
-      <View style={{ flex: 1, display: tab === 'membership' ? 'flex' : 'none' }}>{tab === 'membership' && data?.role === 'gabbai' && <Membership onClose={() => setTab('home')} />}</View>
+      <View style={{ flex: 1, display: tab === 'membership' ? 'flex' : 'none' }}>{tab === 'membership' && isManagement(data?.role) && <Membership onClose={() => setTab('home')} />}</View>
       <View style={{ flex: 1, display: tab === 'messages' ? 'flex' : 'none' }}>{selected ? <MessageDetail key={selected} id={selected} onClose={() => setSelected(null)} /> : <Messages onMessage={open} />}</View>
       <View style={{ flex: 1, display: tab === 'profile' ? 'flex' : 'none' }}><Profile /></View>
       <View style={{ flex: 1, display: tab === 'healing' ? 'flex' : 'none' }}><HealingPrayers /></View>

@@ -48,8 +48,8 @@
     "group_name_taken": "A group with this name already exists",
     "too_many_groups": "No more groups can be added (the maximum is 20)",
     "group_in_use": "A group that is used by a channel cannot be deleted",
-    "last_gabbai": "The community must keep at least one gabbai. Hand over the role first",
-    "role_change_not_allowed": "A role can only be changed between member and gabbai",
+    "last_gabbai": "At least one gabbai or tech must remain.",
+    "role_change_not_allowed": "Roles change only between member, tech and gabbai",
     "replies_not_allowed": "Replies are not allowed on this message",
     "cannot_reply_to_own": "You cannot send a private blessing to your own family",
     "target_left": "The family is no longer in the community, so a blessing cannot be sent",
@@ -278,7 +278,8 @@
     "role": {
       "listener": "Listener",
       "member": "Member",
-      "gabbai": "Gabbai"
+      "gabbai": "Gabbai",
+      "tech": "Tech"
     }
   },
   "noKehila": {
@@ -333,7 +334,8 @@
     "later": "Not now",
     "back": "Back",
     "celebration": "Joining the blessings ({n})",
-    "condolence": "Sharing in the grief"
+    "condolence": "Sharing in the grief",
+    "asTech": "as a tech (with every gabbai permission)"
   },
   "guest": {
     "requestTitle": "Request membership",
@@ -622,7 +624,8 @@
       "role": {
         "member": "Community member",
         "gabbai": "Gabbai",
-        "listener": "Guest listener"
+        "listener": "Guest listener",
+        "tech": "Tech"
       },
       "phone": "Phone",
       "inList": "In the phone list",
@@ -700,11 +703,12 @@
         "title": "Invite links",
         "empty": "No active invite links.",
         "mine": "Mine",
-        "other": "By another gabbai or member",
+        "other": "Someone else's",
         "role": {
           "listener": "Guest worshipper",
           "member": "Member",
-          "gabbai": "Gabbai"
+          "gabbai": "Gabbai",
+          "tech": "Tech"
         }
       },
       "privacy": {
@@ -751,15 +755,17 @@
         "can": "Can send",
         "cannot": "Cannot send",
         "anyGroup": "All groups",
-        "group": "Group"
+        "group": "Group",
+        "tech": "Tech"
       },
       "empty": "No members found.",
       "broadcast": "Can send messages",
-      "locked": "A gabbai can always send",
+      "locked": "The management team can always post",
       "role": {
         "member": "Member",
         "gabbai": "Gabbai",
-        "listener": "Listener"
+        "listener": "Listener",
+        "tech": "Tech"
       },
       "class": {
         "none": "No classification",
@@ -767,8 +773,6 @@
         "kavua": "Regular",
         "label": "Classification"
       },
-      "makeGabbai": "Make gabbai",
-      "makeMember": "Back to member",
       "remove": "Remove from the community",
       "removeConfirm": "Remove {name} from the community? Their invite links will be revoked.",
       "removeYes": "Yes, remove",
@@ -777,8 +781,8 @@
       "saved": "Change saved",
       "bulkAllow": "Allow all",
       "bulkBlock": "Block all",
-      "bulkAllowConfirm": "Allow {n} members to send? Gabbaim are not affected.",
-      "bulkBlockConfirm": "Block {n} members from sending? Gabbaim are not affected.",
+      "bulkAllowConfirm": "Allow {n} members to post? The management team isn't affected.",
+      "bulkBlockConfirm": "Block {n} members from posting? The management team isn't affected.",
       "bulkYes": "Confirm",
       "bulkNone": "No members would change.",
       "bulkDone": "Permissions updated",
@@ -819,9 +823,11 @@
       "days": "Valid for days (1 to 30)",
       "create": "Create link",
       "ready": "The link is ready. You can share it.",
-      "invalid": "Enter values within the allowed range"
+      "invalid": "Enter values within the allowed range",
+      "tech": "Tech",
+      "techNote": "Sets up the Kehila and has every gabbai permission. Use this link only for someone you trust."
     },
-    "left": "You left management mode: you no longer have the gabbai role",
+    "left": "You left management: you no longer have management access",
     "groups": {
       "title": "Groups",
       "empty": "No groups yet.",
@@ -948,7 +954,8 @@
       "role": {
         "listener": "Guest",
         "member": "Member",
-        "gabbai": "Gabbai"
+        "gabbai": "Gabbai",
+        "tech": "Tech"
       },
       "problems": "Rows that will not be imported ({n})",
       "problem": "Line {line}: {why}",
@@ -1018,7 +1025,7 @@
       "count": "{n} of 20",
       "people": "{n} people",
       "emptyStart": "No tags yet. You can start with these:",
-      "suggest": "Gabbai, Rabbi, Chazan, Torah reader, Treasurer, Committee, Simchas committee, Tech",
+      "suggest": "Gabbai, Rabbi, Chazan, Torah reader, Treasurer, Committee, Simchas committee",
       "suggestA11y": "Add the tag {name}",
       "newField": "New tag (up to 24 characters)",
       "add": "Add",
@@ -1136,6 +1143,21 @@
     },
     "sidebar": {
       "label": "Management"
+    },
+    "role": {
+      "row": "Role",
+      "title": "{name}'s role",
+      "member": "Member",
+      "memberNote": "Uses the app as usual, without management.",
+      "tech": "Tech",
+      "techNote": "Sets up the Kehila: times, sheet, hall layout, channels, groups, invites and approving members. Doesn't see phones, families or who sits where.",
+      "gabbai": "Gabbai",
+      "gabbaiNote": "Runs the Kehila and also sees members' details: phones, families and names on the seat map.",
+      "toTech": "Make tech",
+      "toGabbai": "Make gabbai",
+      "toMember": "Back to member",
+      "self": "You'll leave management right away.",
+      "saved": "Role updated"
     }
   },
   "phoneList": {
@@ -1271,6 +1293,9 @@
       "bodyOther": "A gabbai connected {n} seats to your account. You can now tell us here if you're coming on Shabbat.",
       "ok": "Got it",
       "open": "My seats"
+    },
+    "tech": {
+      "title": "The tech linked you as a family"
     }
   },
   "age13": {
@@ -1302,7 +1327,7 @@
   },
   "push": {
     "familyRequest": "New family link request",
-    "familyGabbai": "The gabbai updated your family details"
+    "familyGabbai": "Your family details were updated by the management team"
   },
   "testBuild": {
     "title": "New test version",
@@ -1383,7 +1408,8 @@
       "doneAll": "Thanks. All {n} seats are kept for you this Shabbat.",
       "doneSome": "Thanks. {prayer}: {need} coming, {free} free for others.",
       "byGabbai": "Your seats were updated by the gabbaim.",
-      "change": "Change"
+      "change": "Change",
+      "byTech": "Your seats were updated by the tech."
     },
     "push": {
       "title": "Shabbat seats",
@@ -1485,8 +1511,11 @@
       "noMatch": "No household by that name.",
       "more": "{n} more. Search by name.",
       "noAnswer": "No answer · all seats kept",
-      "seatsCountOne": "One seat"
-    }
+      "seatsCountOne": "One seat",
+      "byTech": "Updated by a tech",
+      "noteTech": "It will read \"Updated by a tech\". The family will see \"The tech updated\", with no name."
+    },
+    "byTech": "Your seats were updated by the tech."
   },
   "schedule": {
     "title": "Prayer times",

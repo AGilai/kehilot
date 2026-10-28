@@ -1,3 +1,4 @@
+import { isAdult, isManagement } from './roles.ts';
 import type { HomeCards, Role } from './types.ts';
 
 export type HomeCardKind = 'gabbaiLink' | 'request' | 'imported' | 'seatLink' | 'terms' | 'phone';
@@ -11,8 +12,8 @@ export function pickHomeCard(cards: HomeCards, role: Role | undefined): HomeCard
   if (cards.gabbaiLink) return 'gabbaiLink';
   if (cards.request) return 'request';
   if (cards.imported) return 'imported';
-  if (cards.seatLink && cards.seatLink.seats > 0 && (role === 'member' || role === 'gabbai')) return 'seatLink';
-  if (cards.terms && role === 'gabbai') return 'terms';
-  if (cards.phoneAsk && (role === 'member' || role === 'gabbai')) return 'phone';
+  if (cards.seatLink && cards.seatLink.seats > 0 && isAdult(role)) return 'seatLink';
+  if (cards.terms && isManagement(role)) return 'terms';
+  if (cards.phoneAsk && isAdult(role)) return 'phone';
   return null;
 }

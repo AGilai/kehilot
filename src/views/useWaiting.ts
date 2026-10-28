@@ -5,6 +5,7 @@ import { waitingAny } from '../client/adminAreas.ts';
 import { createWaitingStore } from '../client/waitingStore.ts';
 import type { WaitingCounts } from '../client/waitingStore.ts';
 import { useSession } from '../client/SessionProvider.tsx';
+import { isManagement } from '../client/roles.ts';
 
 /** One store for the whole app: the logo dot (TopBar), the Kehila menu and the management overview read the same numbers. */
 let loader: ((kehilaId: string) => Promise<WaitingCounts>) | null = null;
@@ -33,7 +34,7 @@ export function useWaiting(): { requests: number; terms: boolean; linkHints: num
   const { api } = useAuth();
   const { state } = useSession();
   const kehilaId = state.kehilaId;
-  const gabbai = state.kehila?.role === 'gabbai';
+  const gabbai = isManagement(state.kehila?.role);
   loader = id => load(api, id, true);
   const snap = React.useSyncExternalStore(waitingStore.subscribe, waitingStore.get, waitingStore.get);
   const refresh = React.useCallback(() => { if (kehilaId && gabbai) void waitingStore.refresh(kehilaId); }, [kehilaId, gabbai]);

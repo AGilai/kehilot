@@ -2,6 +2,7 @@
 // the member's cut, the 409 re-apply rule, the Home card rules, the gabbai's print model (bimah and ark from the
 // server's cells) and the on-behalf payload. Nothing here touches the network or React.
 import type { Prayer } from './release.ts';
+import { staffRole } from '../client/roles.ts';
 
 export type WirePrayer = 'erev' | 'day';
 /** The client says arvit/shacharit, the server erev/day. */
@@ -18,7 +19,7 @@ export type WireFrame = { blockName: string; cols: number; rowFrom: string | nul
 /** `GET/PUT …/seats/me`. A family with no seats gets `seats: 0` and nothing else. */
 export type MemberWire = {
   week: string; deadline: string; open: boolean; seats: number;
-  updatedByGabbai?: boolean; updatedAt?: Record<WirePrayer, number | null>; /** His family has answered that prayer (any successful save, even with no seat change, or a gabbai's on-behalf save). */ answered?: Record<WirePrayer, boolean>; frames?: WireFrame[];
+  updatedByGabbai?: boolean; /** The role of the latest staff edit: `gabbai` or `tech`. */ updatedByRole?: 'gabbai' | 'tech' | null; updatedAt?: Record<WirePrayer, number | null>; /** His family has answered that prayer (any successful save, even with no seat change, or a gabbai's on-behalf save). */ answered?: Record<WirePrayer, boolean>; frames?: WireFrame[];
 };
 
 /** `mine` is the only cell that carries an identity: its order k, which is also the key the page toggles by. */
@@ -31,6 +32,8 @@ export type MemberSeats = {
   open: boolean;
   seatCount: number;
   updatedByGabbai: boolean;
+  /** Who made the latest staff edit; null when none. */
+  updatedByRole: 'gabbai' | 'tech' | null;
   updatedAt: Record<Prayer, number | null>;
   answered: Record<Prayer, boolean>;
   frames: SeatFrame[];
@@ -63,6 +66,7 @@ export function memberFromWire(w: MemberWire): MemberSeats {
     open: w.open,
     seatCount: w.seats,
     updatedByGabbai: !!w.updatedByGabbai,
+    updatedByRole: w.updatedByGabbai ? staffRole(w.updatedByRole) : null,
     updatedAt: { arvit: w.updatedAt?.erev ?? null, shacharit: w.updatedAt?.day ?? null },
     answered: { arvit: !!w.answered?.erev, shacharit: !!w.answered?.day },
     frames,
@@ -118,7 +122,7 @@ export async function saveRelease(deps: SaveDeps, base: MemberSeats, prayer: Pra
 
 // ---------------------------------------------------------------- Home card
 
-export type CardModel = { state: 'ask' | 'done' | 'byGabbai'; count: number; deadline: Date; free: Record<Prayer, number> };
+export type CardModel = { state: 'ask' | 'done' | 'byGabbai'; /** For `byGabbai`: who edited. */ byRole: 'gabbai' | 'tech'; count: number; deadline: Date; free: Record<Prayer, number> };
 const DAY_MS = 86_400_000;
 
 /**
@@ -132,7 +136,7 @@ export function cardModel(m: MemberSeats | null, now: Date, always = false): Car
   if (!always && !(m.open && t < m.deadline.getTime() && t >= m.deadline.getTime() - DAY_MS)) return null;
   const free = { arvit: m.released.arvit.size, shacharit: m.released.shacharit.size };
   const state = m.updatedByGabbai ? 'byGabbai' : m.answered.arvit && m.answered.shacharit ? 'done' : 'ask';
-  return { state, count: m.seatCount, deadline: m.deadline, free };
+  return { state, byRole: m.updatedByRole ?? 'gabbai', count: m.seatCount, deadline: m.deadline, free };
 }
 
 /** "Yes, everyone's coming": the current released set for both prayers, saved as the answer (usually nothing is released). */
@@ -146,7 +150,7 @@ export type WireLayout = {
   blocks: { name: string; colStart: number; colEnd: number }[];
   rowLabels: (string | null)[]; seats: { id: string; row: number; col: number }[];
 };
-export type WirePrayerState = { /** Households holding seats that answered, ref to ms. */ answered?: Record<string, number>; seats: Record<string, { released: boolean; by: 'member' | 'gabbai'; at: number | null }>; requests: unknown; canUndo: boolean; updatedAt: number | null };
+export type WirePrayerState = { /** Households holding seats that answered, ref to ms. */ answered?: Record<string, number>; seats: Record<string, { released: boolean; by: 'member' | 'gabbai' | 'tech'; at: number | null }>; requests: unknown; canUndo: boolean; updatedAt: number | null };
 /** `GET …/admin/seats/week/{week}`. */
 export type WeekWire = {
   week: string; deadline: string; open: boolean; layout: WireLayout;
@@ -263,9 +267,9 @@ export function onBehalfBody(w: WeekWire, prayer: Prayer, h: Household, released
 }
 
 /** Who last changed the household's seats for this prayer (gabbaim see it; the member only sees "a gabbai updated"). */
-export function lastBy(w: WeekWire, prayer: Prayer, h: Household): 'member' | 'gabbai' | null {
+export function lastBy(w: WeekWire, prayer: Prayer, h: Household): 'member' | 'gabbai' | 'tech' | null {
   const st = w.prayers[toWire(prayer)]?.seats ?? {};
-  let best: { at: number; by: 'member' | 'gabbai' } | null = null;
+  let best: { at: number; by: 'member' | 'gabbai' | 'tech' } | null = null;
   for (const s of h.seats) { const r = st[s.id]; if (r && (!best || (r.at ?? 0) >= best.at)) best = { at: r.at ?? 0, by: r.by }; }
   return best?.by ?? null;
 }

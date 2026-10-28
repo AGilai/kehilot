@@ -42,7 +42,7 @@ export function fixtureResponsesCsv(friday: string): string {
   return '﻿' + [head, ...rows].map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 
-type Rec = { released: boolean; by: 'member' | 'gabbai'; at: number };
+type Rec = { released: boolean; by: 'member' | 'gabbai' | 'tech'; at: number };
 type Undo = { at: number; seats: Record<string, Rec | null> };
 
 export function createUploadFixture(friday: string) {

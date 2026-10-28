@@ -29,6 +29,7 @@ import { homeCardModel, zmanimOpen, zmanimOpenKey } from '../schedule/memberView
 import { israelNow } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
 import { ScheduleCard, ScheduleSkeleton } from './ScheduleCard.tsx';
+import { isAdult } from '../client/roles.ts';
 
 const TIMES = ['sunrise', 'sofZmanShma', 'sofZmanTfilla', 'minchaGedola', 'plagHaMincha', 'sunset', 'nightfall'] as const;
 
@@ -102,7 +103,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
   };
 
   // The seat card (UX §15.2): from the member API only; a family with no seats (or a Kehila with no hall map) gets nothing, and any error hides it.
-  const seatRole = state.kehila?.role === 'member' || state.kehila?.role === 'gabbai';
+  const seatRole = isAdult(state.kehila?.role);
   const seats = useMemberSeats(seatRole);
   const [seatBusy, setSeatBusy] = React.useState(false);
   const seatCard = seats.state.status === 'ready' ? seatCardModel(seats.state.data, now, config.seatsPreview) : null;
@@ -127,7 +128,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
       <TestBuildCard />
 
       {seatCard && onSeats ? (
-        <SeatCard count={seatCard.count} state={seatCard.state} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
+        <SeatCard byRole={seatCard.byRole} count={seatCard.count} state={seatCard.state} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
           busy={seatBusy}
           onYes={() => {
             // "Yes, everyone's coming" is an answer: his current released set (usually none) is saved for both prayers.

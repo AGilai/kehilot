@@ -125,7 +125,7 @@ export function readXlsx(bytes: Uint8Array): Table {
   return withLines(out, lineNos);
 }
 
-const ROLES: Record<string, Role> = { 'אורח': 'listener', listener: 'listener', 'חבר': 'member', member: 'member', 'גבאי': 'gabbai', gabbai: 'gabbai' };
+const ROLES: Record<string, Role> = { 'אורח': 'listener', listener: 'listener', 'חבר': 'member', member: 'member', 'גבאי': 'gabbai', gabbai: 'gabbai', 'טכני': 'tech', tech: 'tech' };
 const CLASSES: Record<string, Classification> = { 'א': 'א', 'קבוע': 'קבוע', '': '' };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

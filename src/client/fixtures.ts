@@ -14,6 +14,7 @@ import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
 import { fixtureMap, fixtureMapFamilies, fixtureSeatFamilies } from '../seats/fixturePaste.ts';
 import { createUploadFixture, fixtureHolderFamilies, fixtureHolderLayout, fixtureHolders, fixtureLinkSuggestions } from '../seats/fixtureUpload.ts';
 import type { Channel, Child, SimchaWeek, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
+import { ROLES, isManagement } from './roles.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
 
@@ -116,7 +117,7 @@ export function parseFixtureParams(search: string): FixtureParams {
   const role = q.get('role');
   const lang = q.get('lang');
   return {
-    role: role === 'listener' || role === 'gabbai' ? role : 'member',
+    role: (ROLES as readonly (string | null)[]).includes(role) ? (role as Role) : 'member',
     lang: lang === 'he' || lang === 'en' ? lang : null,
     screen: q.get('screen'),
     card: q.get('card'),
@@ -151,7 +152,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const hasPhone = phoneOn || screen === 'phone-list-empty' || card === 'phone';
   const kehila: Kehila = {
     kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין נווה דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: null,
-    canBroadcast: role === 'gabbai', pendingRequest: false,
+    canBroadcast: isManagement(role), pendingRequest: false,
     // ?screen=m5 shows M5 with some choices already made (one muted channel, type and member).
     notify: screen === 'm5'
       ? { mutedChannels: ['01FIXTURECHANNEL00000002'], mutedTypes: ['event'], membersBroadcasts: 'management_only', mutedMembers: ['m1'], chatChannels: [] }
@@ -161,15 +162,15 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     privacyContact: screen === 'kehila-info' || screen === 'overview-privacy' || screen === 'privacy' || screen === 'privacy-ready' ? PRIVACY_CONTACT : '',
     showPhone: phoneOn,
     cards: {
-      gabbaiLink: card === 'gabbai' ? { gabbaiName: 'עמית דוגמה', partnerName: 'דנה בדיוני' } : null,
+      gabbaiLink: card === 'gabbai' ? { gabbaiName: 'עמית דוגמה', gabbaiRole: 'gabbai' as const, partnerName: 'דנה בדיוני' } : card === 'tech' ? { gabbaiName: 'אורן מערכת', gabbaiRole: 'tech' as const, partnerName: 'דנה בדיוני' } : null,
       request: card === 'request' ? { fromUserId: '01FIXTUREUSER00000000005', fromName: 'דנה בדיוני' } : null,
       imported: card === 'imported',
       phoneAsk: card === 'phone' || card === 'phone-nonumber',
-      terms: role === 'gabbai' && (screen === 'terms' || card === 'terms'),
+      terms: isManagement(role) && (screen === 'terms' || card === 'terms'),
       seatLink: card === 'seat-link' ? { seats: 2, at: 1_790_000_000 } : null,
     },
-    ...(role === 'gabbai' ? { typeRules: { celebration: { post: 'broadcasters' as const, listeners: false }, condolence: { post: 'management' as const, listeners: true } } } : {}),
-    ...(role === 'gabbai' ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'עמית דוגמה', at: TERMS_AT } } : {}),
+    ...(isManagement(role) ? { typeRules: { celebration: { post: 'broadcasters' as const, listeners: false }, condolence: { post: 'management' as const, listeners: true } } } : {}),
+    ...(isManagement(role) ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'עמית דוגמה', at: TERMS_AT } } : {}),
   };
   const me = {
     userId: '01FIXTUREUSER00000000001', email: 'dana@example.invalid',
@@ -189,21 +190,21 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     ],
   };
   // The Compose screens show a member who may broadcast (a plain member has no Compose at all).
-  const broadcaster = role === 'gabbai' || (role === 'member' && !!screen && screen.startsWith('compose'));
+  const broadcaster = isManagement(role) || (role === 'member' && !!screen && screen.startsWith('compose'));
   // What the server computes per channel: all five for a gabbai, general + the two configurable types for a broadcaster.
-  const postable = (): MessageType[] => (role === 'gabbai' ? ['general', 'weekly', 'event', 'celebration', 'condolence'] : broadcaster ? ['general', 'celebration', 'condolence'] : []);
+  const postable = (): MessageType[] => (isManagement(role) ? ['general', 'weekly', 'event', 'celebration', 'condolence'] : broadcaster ? ['general', 'celebration', 'condolence'] : []);
   const ch = (channelId: string, name: string, over: Partial<Channel> = {}) => ({
-    channelId, name, listenersCanRead: true, postPolicy: 'management' as const, canPost: role === 'gabbai', inAudience: true,
-    conversation: false, chatHourlyLimit: 0, isAdmin: role === 'gabbai', postableTypes: [] as MessageType[], ...over,
+    channelId, name, listenersCanRead: true, postPolicy: 'management' as const, canPost: isManagement(role), inAudience: true,
+    conversation: false, chatHourlyLimit: 0, isAdmin: isManagement(role), postableTypes: [] as MessageType[], ...over,
   });
   const allChannels = [
     // The one main channel (stored name `announcements`, shown through channelLabel()); members with broadcast permission post here.
     ch('01FIXTURECHANNEL00000001', 'announcements', { postPolicy: 'broadcasters', canPost: broadcaster, postableTypes: postable() }),
     // A group's channel: listeners do not read it.
-    ch('01FIXTURECHANNEL00000002', 'שיעור הדף', { listenersCanRead: false, inAudience: role !== 'listener', ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000002'], postableTypes: postable() } : {}) }),
+    ch('01FIXTURECHANNEL00000002', 'שיעור הדף', { listenersCanRead: false, inAudience: role !== 'listener', ...(isManagement(role) ? { groups: ['01FIXTUREGROUP00000000002'], postableTypes: postable() } : {}) }),
     // The server never returns the whole-Kehila chat to a listener; the one it returns is the admitted group's chat.
-    ch('01FIXTURECHANNEL00000003', role === 'listener' ? 'שיחת קבוצת הנוער' : 'שיחת הקהילה', { conversation: true, listenersCanRead: role === 'listener' ? false : true, canPost: true, chatHourlyLimit: 30, ...(role === 'gabbai' ? { groups: ['01FIXTUREGROUP00000000001'] } : {}) }),
-    ...(role === 'gabbai' ? [ch('01FIXTURECHANNEL00000004', 'קבוצת הנוער', { inAudience: false, postableTypes: postable() })] : []),
+    ch('01FIXTURECHANNEL00000003', role === 'listener' ? 'שיחת קבוצת הנוער' : 'שיחת הקהילה', { conversation: true, listenersCanRead: role === 'listener' ? false : true, canPost: true, chatHourlyLimit: 30, ...(isManagement(role) ? { groups: ['01FIXTUREGROUP00000000001'] } : {}) }),
+    ...(isManagement(role) ? [ch('01FIXTURECHANNEL00000004', 'קבוצת הנוער', { inAudience: false, postableTypes: postable() })] : []),
   ];
   const [cAnn, cGroup, cChat, cYouth] = [allChannels[0]!.channelId, allChannels[1]!.channelId, allChannels[2]!.channelId, allChannels[3]?.channelId ?? allChannels[0]!.channelId];
   // The server never returns a group's channel to a listener who is not in the group.
@@ -229,7 +230,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     mk(6 * H, 9, { type: 'general', authorKind: 'member', authorId: 'u7', authorName: 'רון לדוגמה', title: 'מי יכול להביא כיסאות?', body: 'חסרים כמה כיסאות באולם לשבת.' }),
     mk(27 * H, 10, { type: 'celebration', title: 'מזל טוב להולדת הבת', body: 'משפחת דוגמה מודיעה בשמחה על הולדת בת.', targetMemberId: '01FIXTUREUSER00000000003', targetName: 'דוגמה', joinCount: 4 }),
     ...(role === 'listener' ? [] : [mk(30 * H, 11, { channelId: cGroup, type: 'weekly', title: 'שיעור הדף השבועי', body: 'הדף היומי ימשיך כרגיל, ללא שינוי.' })]),
-    ...(role === 'gabbai' ? [mk(4 * H, 8, { channelId: cYouth, type: 'weekly', title: 'מפגש נוער בשבת', body: 'הודעה בקבוצה שאינה בקהל שלי.' })] : []),
+    ...(isManagement(role) ? [mk(4 * H, 8, { channelId: cYouth, type: 'weekly', title: 'מפגש נוער בשבת', body: 'הודעה בקבוצה שאינה בקהל שלי.' })] : []),
   ];
   // ?screen=search-loading: a full first page and then a failing second page, so the archive stays "still loading".
   if (screen === 'search-loading') {
@@ -240,7 +241,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const someReply = (n: number, authorId: string, authorName: string, body: string): Reply =>
     ({ replyId: fixtureUlid(now - n * H, n), authorId, authorName, body, createdAt: secs(now - n * H) });
   const repliesFor = (m: Message): Reply[] => {
-    if (role === 'gabbai' && m.targetMemberId !== me.userId) return [];
+    if (isManagement(role) && m.targetMemberId !== me.userId) return [];
     if (m.targetMemberId === me.userId) return [someReply(1, 'u7', 'רון לדוגמה', 'מזל טוב ושמחה גדולה!'), someReply(2, 'u8', 'מיכל בדויה', 'מברכים מכל הלב, שתזכו לנחת.')];
     return m.messageId === celebration.messageId ? [someReply(1, me.userId, 'דנה בדויה', 'מזל טוב! נשמח לחגוג איתכם.')] : [];
   };
@@ -290,8 +291,9 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { userId: U(24), displayName: 'אבי ניסיון', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[], phone: '+972500000014', showPhone: false },
     { userId: U(25), displayName: 'אברהם אלמוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[], phone: null, showPhone: false },
   ] : [
-    { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'], tags: [] as RoleTag[] },
+    { userId: me.userId, displayName: 'דנה בדויה', role: role === 'tech' ? 'tech' : 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'], tags: [] as RoleTag[] },
     { userId: 'm1', displayName: 'יוסי לדוגמה', role: 'gabbai', classification: 'א', canBroadcast: true, groups: [], tags: [] as RoleTag[] },
+    { userId: 'm2', displayName: 'אורן מערכת', role: 'tech', classification: '', canBroadcast: true, groups: [], tags: [] as RoleTag[] },
     { userId: 'u7', displayName: 'רון לדוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001', '01FIXTUREGROUP00000000002'], tags: [] as RoleTag[] },
     { userId: 'u8', displayName: 'מיכל בדויה', role: 'member', classification: 'א', canBroadcast: false, groups: ['01FIXTUREGROUP00000000002'], tags: [] as RoleTag[] },
     { userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
@@ -609,7 +611,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       if (method === 'GET' && key.endsWith('/members') && !key.includes('/admin/') && !key.includes('/groups/')) return [{ userId: '01FIXTUREUSER00000000002', displayName: 'משפחת בדיוני' }, { userId: '01FIXTUREUSER00000000003', displayName: 'משפחת לדוגמה' }, { userId: '01FIXTUREUSER00000000004', displayName: 'משפחת הנחל' }] as any;
       if (method === 'POST' && key.endsWith('/messages')) {
         const b = (body ?? {}) as Partial<Message>;
-        return { messageId: fixtureUlid(Date.now(), 30), channelId: b.channelId ?? cAnn, type: b.type ?? 'chat', title: b.title ?? '', body: b.body ?? '', authorId: me.userId, authorName: 'דנה בדויה', authorKind: role === 'gabbai' ? 'management' : 'member', joinCount: 0 } as any;
+        return { messageId: fixtureUlid(Date.now(), 30), channelId: b.channelId ?? cAnn, type: b.type ?? 'chat', title: b.title ?? '', body: b.body ?? '', authorId: me.userId, authorName: 'דנה בדויה', authorKind: isManagement(role) ? 'management' : 'member', joinCount: 0 } as any;
       }
       if (method === 'POST' && key.endsWith('/replies')) {
         const text = String((body as { body?: unknown } | undefined)?.body ?? '');

@@ -32,6 +32,7 @@ import type { PreviewMode } from './scheduleEditor/Preview.tsx';
 import { SectionCard, itemKey } from './scheduleEditor/Sections.tsx';
 import { WeekPicker } from './scheduleEditor/WeekPicker.tsx';
 import { WIDE, useAdminErrText } from './shared.tsx';
+import { isManagement } from '../../client/roles.ts';
 
 type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; doc: ScheduleDoc };
 type Shown = { week?: string; sectionId: string | null; rowId: string | null; extraId: string | null; control: IssueControl; message: string };
@@ -48,7 +49,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
   const kehilaId = session.state.kehilaId;
-  const isGabbai = session.state.kehila?.role === 'gabbai';
+  const managing = isManagement(session.state.kehila?.role);
   const logo = useLogoUri();
 
   const today = React.useMemo(() => israelNow(fixtureNow() ?? new Date()).date, []);
@@ -469,7 +470,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
     </View>
   );
 
-  if (!isGabbai || !kehilaId) return null;
+  if (!managing || !kehilaId) return null;
 
   const back = (
     <Pressable accessibilityRole="button" accessibilityLabel={t('editor.back')} onPress={onBack} style={{ minHeight: 48, justifyContent: 'center', alignSelf: 'flex-start' }}>
