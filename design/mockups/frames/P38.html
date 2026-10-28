@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P38 טופס מקומות · מצבים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* §15.10 seat form, graphic version. Kit equivalents named in UX-DESIGN §15.10. Frame-only helpers, nothing in shared.css. */
+.ktag.pv{border-style:dashed;border-color:var(--k-ink);color:var(--k-ink);background:transparent}
+.khd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+:root{--sf-free:#256B35;--sf-free-bg:#E3F3E5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--sf-free:#8FD49C;--sf-free-bg:#163323}}
+:root[data-theme="dark"]{--sf-free:#8FD49C;--sf-free-bg:#163323}
+/* screen header for a stack screen (no tabs: the form is opened from the push or the Home card) */
+.sftop{min-height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 4px 0 12px;border-bottom:1px solid var(--k-line)}
+.sftop .kib{color:var(--k-tek)}
+.sftop h1{flex:1;margin:0;font:700 19px/1.3 var(--f-serif)}
+.sftop small{display:block;font:500 12.5px/1.3 var(--f-ui);color:var(--k-muted)}
+.sfs{gap:12px!important;padding-top:12px!important}
+/* prayer segments with a state line */
+.sfseg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--k-stone);border:1px solid var(--k-line)}
+.sfseg b{flex:1;min-height:52px;border-radius:10px;border:1px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--k-muted);line-height:1.25}
+.sfseg b small{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.sfseg b small i{width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;display:inline-block}
+.sfseg b small i.d{background:currentColor}
+.sfseg b.on{background:var(--k-surface);border-color:var(--k-tek);color:var(--k-tek);box-shadow:0 1px 3px rgba(20,30,90,.12)}
+/* the map card */
+.sfmap{background:var(--k-surface);border:1px solid var(--k-line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.sfmap .mh{display:flex;align-items:center;gap:8px;min-height:32px}
+.sfmap .mh b{flex:1;font-size:14.5px}
+.sfmap .mh .tg{color:var(--k-tek);font-size:13px;font-weight:700;display:flex;align-items:center;gap:2px;min-height:44px;padding-inline:6px;margin:-6px -6px -6px 0}
+.sfark{display:flex;align-items:center;gap:8px;color:var(--k-muted);font-size:12px;font-weight:700}
+.sfark::before,.sfark::after{content:"";flex:1;height:0;border-top:1.5px solid var(--k-line)}
+.sfark span{display:flex;align-items:center;gap:4px;padding:2px 10px;border:1.5px solid var(--k-line);border-radius:999px 999px 6px 6px;background:var(--k-stone)}
+.sfgap{text-align:center;color:var(--k-muted);font-size:11px;letter-spacing:4px;line-height:1;margin:-2px 0}
+.sfblk{direction:ltr;display:flex;gap:6px;align-items:stretch}
+.sfln{width:18px;flex:none;border-radius:6px;background:repeating-linear-gradient(to bottom,var(--k-line) 0 6px,transparent 6px 11px) center/2px 100% no-repeat;display:grid;place-items:center}
+.sfln span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:700;color:var(--k-muted);background:var(--k-surface);padding:4px 0}
+.sfgrid{flex:1;display:grid;gap:5px 5px;align-items:center}
+.sfgrid .rn{font-size:11.5px;color:var(--k-muted);text-align:center;font-variant-numeric:tabular-nums;direction:rtl;line-height:1}
+.sfgrid .rn.me{color:var(--k-tek);font-weight:800;font-size:13px}
+.sfgrid .cx{height:10px;border-radius:4px 4px 3px 3px;background:var(--k-line)}
+.sfgrid .cx.n{background:transparent}
+.sfgrid .ot{height:52px;border-radius:12px 12px 6px 6px;background:var(--k-line);opacity:.8}
+.sfgrid .nn{height:52px}
+.sft{height:56px;border-radius:14px 14px 7px 7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px;font-weight:700;direction:rtl;position:relative;line-height:1.2}
+.sft::after{content:"";position:absolute;left:18%;right:18%;bottom:7px;height:3px;border-radius:2px;background:currentColor;opacity:.35}
+.sft svg.i{width:18px;height:18px;stroke-width:2.4}
+.sft.k{background:var(--k-tek);color:var(--k-on);border:2px solid var(--k-tek)}
+.sft.f{background:var(--sf-free-bg);color:var(--sf-free);border:2px dashed var(--sf-free)}
+.sft.lk{opacity:.72}
+.sft .hd{position:absolute;top:-7px;inset-inline-end:-5px;width:18px;height:18px;border-radius:50%;background:var(--k-surface);color:var(--k-tek);border:1.5px solid var(--k-tek);font-size:10px;display:grid;place-items:center}
+.sft.foc{outline:3px solid var(--k-gold);outline-offset:2px}
+.sflg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--k-muted)}
+.sflg span{display:inline-flex;align-items:center;gap:5px}
+.sflg i{width:14px;height:12px;border-radius:4px 4px 3px 3px;display:inline-block}
+.sflg i.k{background:var(--k-tek)}.sflg i.f{background:var(--sf-free-bg);border:1.5px dashed var(--sf-free)}.sflg i.o{background:var(--k-line)}
+/* collapsed strip */
+.sfstrip{direction:ltr;display:flex;gap:5px;align-items:center}
+.sfstrip .sft{height:32px;width:44px;flex:none;border-radius:9px 9px 5px 5px;font-size:0}
+.sfstrip .sft::after{bottom:4px;height:2px}
+.sfstrip .sft svg{width:16px;height:16px}
+.sfstrip .w{direction:rtl;margin-left:auto;font-size:13px;color:var(--k-muted)}
+/* answers */
+.sfq{margin:0;font:700 17px/1.4 var(--f-serif)}
+.sfopts{display:flex;flex-direction:column;gap:8px}
+.sfo{border:1.5px solid var(--k-line);background:var(--k-surface);border-radius:14px;min-height:56px;padding:8px 12px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.sfo .r{display:flex;align-items:center;gap:12px}
+.sfo .r>i{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--k-muted);display:grid;place-items:center}
+.sfo .r>span{flex:1;display:flex;flex-direction:column;line-height:1.3}
+.sfo .r>span b{font-size:15.5px}
+.sfo .r>span small{font-size:12.5px;color:var(--k-muted)}
+.sfo .r>svg{color:var(--k-muted)}
+.sfo.on{border:2px solid var(--k-tek);background:color-mix(in srgb,var(--k-tek) 6%,var(--k-surface))}
+.sfo.on .r>i{border-color:var(--k-tek)}
+.sfo.on .r>i::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--k-tek)}
+.sfo.on .r>svg{color:var(--k-tek)}
+.sfo.ro{border-style:solid;background:var(--k-stone)}
+.sfo.ro .r>i{display:none}
+/* stepper (inside the chosen answer) */
+.sfstep{display:flex;align-items:center;gap:10px;border-top:1px solid var(--k-line);padding-top:10px}
+.sfstep .l{flex:1;font-size:14px;font-weight:700;line-height:1.3}
+.sfstep .l small{display:block;font-weight:500;font-size:12px;color:var(--k-muted)}
+.sfstep .bx{display:flex;align-items:center;gap:0;border:1.5px solid var(--k-line);border-radius:12px;background:var(--k-surface);overflow:hidden}
+.sfstep .bx b{width:48px;height:48px;display:grid;place-items:center;color:var(--k-tek)}
+.sfstep .bx b.off{color:var(--k-line)}
+.sfstep .bx span{min-width:44px;text-align:center;font:800 22px/1 var(--f-ui);font-variant-numeric:tabular-nums;border-inline:1.5px solid var(--k-line);height:48px;display:grid;place-items:center}
+.sfsame{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:24px;border:1.5px solid var(--k-tek);color:var(--k-tek);font-weight:700;font-size:14.5px;align-self:flex-start;background:var(--k-surface)}
+.sfsame.on{background:var(--k-tek);color:var(--k-on)}
+/* footer */
+.sffoot{flex:none;border-top:1px solid var(--k-line);background:var(--k-surface);padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px}
+.sffoot .sum{display:flex;gap:6px;flex-wrap:wrap;font-size:12.5px}
+.sffoot .sum span{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 10px;background:var(--k-stone);border:1px solid var(--k-line);font-weight:700}
+.sffoot .sum span.t{border-color:var(--k-tek);color:var(--k-tek)}
+.sffoot .dl{font-size:12px;color:var(--k-muted);text-align:center}
+/* done screen */
+.sfdone{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:8px 0 4px}
+.sfdone .ck{width:76px;height:76px;border-radius:50%;background:color-mix(in srgb,var(--k-olive) 16%,var(--k-surface));color:var(--k-olive);display:grid;place-items:center;border:2px solid var(--k-olive)}
+.sfdone .ck svg{width:40px;height:40px;stroke-width:2.4}
+.sfrow{display:flex;align-items:center;gap:10px;min-height:52px;border-top:1px solid var(--k-line);padding-top:8px}
+.sfrow:first-of-type{border-top:0;padding-top:0}
+.sfrow .g{flex:1;display:flex;flex-direction:column;line-height:1.35}
+.sfrow .g b{font-size:14.5px}.sfrow .g small{font-size:12.5px;color:var(--k-muted)}
+/* push, card, wizard */
+.kpush{background:var(--k-surface);border:1px solid var(--k-line);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.kpush .ap{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--k-muted)}
+.kpush .ap .klogo{width:18px;height:18px;border-radius:5px;font-size:11px}
+.kpush b{font-size:15px}.kpush p{margin:0;font-size:14px;line-height:1.45}
+.wz{display:flex;gap:8px;direction:rtl}
+.wz>div{flex:1;border:1px solid var(--k-line);border-radius:12px;background:var(--k-surface);padding:8px;display:flex;flex-direction:column;gap:5px;font-size:11.5px;min-height:150px}
+.wz>div b{font-size:12px}
+.wz .bar{height:8px;border-radius:4px;background:var(--k-line)}
+.wz .bar.t{background:var(--k-tek)}
+.wz .bar.f{background:var(--sf-free-bg);border:1px dashed var(--sf-free)}
+.wz .dots{display:flex;gap:3px;justify-content:center;margin-top:auto}
+.wz .dots i{width:6px;height:6px;border-radius:50%;background:var(--k-line)}.wz .dots i.on{background:var(--k-tek)}
+.anno{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.anno li{display:flex;gap:8px;align-items:flex-start}
+.anno li b.n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--k-gold);color:#fff;font-size:11.5px;display:grid;place-items:center}
+.pin{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--k-gold);color:#fff;font:700 11.5px/20px var(--f-ui);text-align:center;z-index:2;box-shadow:0 0 0 2px var(--k-surface)}
+.rel{position:relative}
+table.sync{border-collapse:collapse;font-size:12.5px;width:100%}
+table.sync td,table.sync th{border-bottom:1px solid var(--k-line);padding:6px 4px;text-align:start;vertical-align:top}
+table.sync th{color:var(--k-muted);font-weight:700}
+/* 1280 web glance */
+.web{width:1280px;height:820px;background:var(--k-stone);color:var(--k-ink);display:flex;flex-direction:column;font-family:var(--f-ui)}
+.web .wt{height:60px;flex:none;display:flex;align-items:center;gap:12px;padding:0 24px;background:var(--k-surface);border-bottom:1px solid var(--k-line)}
+.web .wt nav{display:flex;gap:4px;margin-inline-start:24px}
+.web .wt nav a{padding:8px 14px;border-radius:10px;text-decoration:none;font-weight:700;color:var(--k-muted)}
+.web .wt nav a.on{color:var(--k-tek);background:color-mix(in srgb,var(--k-tek) 10%,transparent)}
+.web .wb{flex:1;min-height:0;display:flex;justify-content:center;padding:24px}
+.web .wc{width:1040px;display:flex;flex-direction:column;gap:16px}
+.web .cols{display:flex;gap:24px;align-items:flex-start}
+.web .cols>*{flex:1}
+.web .sft{height:64px}
+.web .sfgrid .cx{height:14px}
+@media (max-width:440px){.stage.fts>.hscroll{margin:0 16px}.stage.fts>.pf{width:100%}.stage.fts>.pf>.cap{margin:0 16px;width:auto}.stage.fts>.pf>.phone.ft{width:100%;margin:0;outline:0;border-radius:0}}
+</style>
+</head>
+<body><svg width="0" height="0" style="position:absolute;top:0;left:0;overflow:hidden" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="belloff" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M3 12L21 4l-6 16-3-7z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="chair" viewBox="0 0 24 24"><path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/></symbol>
+<symbol id="mega" viewBox="0 0 24 24"><path d="M3 10v4h4l8 4V6L7 10zM18 9a4 4 0 0 1 0 6"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+<symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="scroll" viewBox="0 0 24 24"><path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V6a2 2 0 0 0-2-2zM9 20H6"/><path d="M11 9h4M11 13h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
+
+<symbol id="up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+
+<symbol id="ark" viewBox="0 0 24 24"><path d="M5 21V9a7 7 0 0 1 14 0v12zM12 4v17M9 13h.01M15 13h.01"/></symbol>
+<symbol id="out" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol>
+<symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></symbol>
+<symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="seat" viewBox="0 0 24 24"><path d="M7 4h10a1 1 0 0 1 1 1v7H6V5a1 1 0 0 1 1-1zM4 12h16v3H4zM7 15v5M17 15v5"/></symbol>
+</defs></svg>
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P38 · טופס מקומות · מצבים</b><span>נשלח, כבר עניתם (עריכה), אחרי המועד, מקומות בשני מקומות, ואין מקומות.</span></div><nav class="pn"><a href="P37.html">הקודם</a><a href="P39.html">הבא</a></nav></header>
+<main class="stage fts"><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">א · נשלח</p><div class="phone kit ft"><div class="sb"><span class="num">20:14</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="sftop"><span class="kib" aria-label="חזרה"><svg class="i " aria-hidden="true"><use href="#back"/></svg></span><h1>טופס מקומות לשבת<small>שבת פרשת וירא · כ׳ בחשוון</small></h1></div><div class="kscroll fade sfs"><div class="sfdone"><span class="ck"><svg class="i " aria-hidden="true"><use href="#check"/></svg></span><h2 class="ktitle">נשלח. תודה!</h2><p class="kt s m">המקומות שפיניתם יחכו למי שצריך. הגבאי רואה אותם במפה שלו.</p></div>
+<section class="kc"><div class="sfrow"><div class="g"><b>ליל שבת</b><small>2 מגיעים · 1 פנוי</small></div><div class="sfstrip"><span class="sft k" role="img" aria-label="מגיע"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></span><span class="sft k" role="img" aria-label="מגיע"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="i xs" aria-hidden="true"><use href="#out"/></svg></span></div></div><div class="sfrow"><div class="g"><b>שבת בבוקר</b><small>לא מגיעים · 3 פנויים</small></div><div class="sfstrip"><span class="sft f" role="img" aria-label="פנוי"><svg class="i xs" aria-hidden="true"><use href="#out"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="i xs" aria-hidden="true"><use href="#out"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="i xs" aria-hidden="true"><use href="#out"/></svg></span></div></div></section>
+<p class="kt c m" style="text-align:center">אפשר לשנות עד יום שישי <span class="knum">12:00</span>.</p>
+<div class="krow"><button class="kb">חזרה לבית</button><button class="kb s">שינוי</button></div></div></div><div class="gest"></div></div></figure><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">ב · כבר עניתם: פותחים שוב לעריכה</p><div class="phone kit ft"><div class="sb"><span class="num">09:30</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="sftop"><span class="kib" aria-label="חזרה"><svg class="i " aria-hidden="true"><use href="#back"/></svg></span><h1>טופס מקומות לשבת<small>שבת פרשת וירא · כ׳ בחשוון</small></h1></div><div class="kscroll fade sfs"><div class="kbn ok"><b>שלחתם ביום חמישי ב־<span class="knum">20:14</span>.</b><span>אפשר לשנות עד יום שישי <span class="knum">12:00</span>.</span></div>
+<div class="sfseg" role="tablist"><b class="on" role="tab" aria-selected="true">ליל שבת<small><i class="d"></i>1 פנוי</small></b><b class="" role="tab" aria-selected="false">שבת בבוקר<small><i class="d"></i>לא מגיעים</small></b></div>
+<section class="sfmap"><div class="mh"><svg class="i s" aria-hidden="true"><use href="#seat"/></svg><b>ימין · שורה 3</b><span class="tg">הצגת המפה <svg class="i xs" aria-hidden="true"><use href="#chev"/></svg></span></div><div class="sfstrip"><span class="sft k" role="img" aria-label="מגיע"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></span><span class="sft k" role="img" aria-label="מגיע"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></span><span class="sft f" role="img" aria-label="פנוי"><svg class="i xs" aria-hidden="true"><use href="#out"/></svg></span><span class="w">1 פנוי</span></div></section>
+<p class="sfq">מה עם ליל שבת?</p>
+<div class="sfopts"><div class="sfo" role="radio" aria-checked="false"><div class="r"><i></i><span><b>כולנו מגיעים</b><small>כל 3 המקומות שמורים לכם</small></span><svg class="i s" aria-hidden="true"><use href="#users"/></svg></div></div>
+<div class="sfo on" role="radio" aria-checked="true"><div class="r"><i></i><span><b>מגיעים, ומפנים חלק</b></span><svg class="i s" aria-hidden="true"><use href="#seat"/></svg></div><div class="sfstep"><div class="l">כמה מקומות מפנים?<small>מהקצה הרחוק מהמעבר.</small></div><div class="bx" role="group" aria-label="כמה מקומות מפנים?"><b class="" aria-label="עוד אחד"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg></b><span class="knum" aria-live="polite">1</span><b class="off" aria-label="אחד פחות"><svg class="i s" aria-hidden="true"><use href="#minus"/></svg></b></div></div></div>
+<div class="sfo" role="radio" aria-checked="false"><div class="r"><i></i><span><b>לא מגיעים השבת</b><small>כל 3 המקומות פנויים לאחרים</small></span><svg class="i s" aria-hidden="true"><use href="#out"/></svg></div></div></div></div><div class="sffoot"><div class="sum"><span class="t">ליל שבת: 1 פנוי</span><span>שבת בבוקר: לא מגיעים</span></div><button class="kb off">שליחת השינויים</button><p class="dl">אין שינויים לשלוח</p></div></div><div class="gest"></div></div></figure><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">ג · אחרי המועד: לקריאה בלבד</p><div class="phone kit ft"><div class="sb"><span class="num">13:05</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="sftop"><span class="kib" aria-label="חזרה"><svg class="i " aria-hidden="true"><use href="#back"/></svg></span><h1>טופס מקומות לשבת<small>שבת פרשת וירא · כ׳ בחשוון</small></h1></div><div class="kscroll fade sfs"><div class="kbn"><b>הטופס נסגר ביום שישי ב־<span class="knum">12:00</span>.</b><span>רוצים לשנות? פנו לגבאי.</span><button class="kb s" style="min-height:44px"><svg class="i s" aria-hidden="true"><use href="#phone"/></svg>פנייה לגבאי</button></div>
+<div class="sfseg" role="tablist"><b class="on" role="tab" aria-selected="true">ליל שבת<small><i class="d"></i>1 פנוי</small></b><b class="" role="tab" aria-selected="false">שבת בבוקר<small><i class="d"></i>לא מגיעים</small></b></div>
+<section class="sfmap"><div class="mh"><svg class="i s" aria-hidden="true"><use href="#seat"/></svg><b>ימין · שורה 3 · 3 מקומות</b><span class="tg">הסתרה <svg class="i xs" aria-hidden="true"><use href="#up"/></svg></span></div><div class="sfark"><span><svg class="i xs" aria-hidden="true"><use href="#ark"/></svg>ארון הקודש</span></div><div class="sfgap" aria-hidden="true">• • •</div><div class="sfblk"><div class="sfln" aria-hidden="true"><span>מעבר</span></div><div class="sfgrid" style="grid-template-columns:repeat(5,1fr) 34px"><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">1</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">2</span><div class="sft k lk" role="switch" aria-checked="true"><svg class="i xs" aria-hidden="true"><use href="#lock"/></svg>מגיע</div><div class="sft k lk" role="switch" aria-checked="true"><svg class="i xs" aria-hidden="true"><use href="#lock"/></svg>מגיע</div><div class="sft f lk" role="switch" aria-checked="false"><svg class="i xs" aria-hidden="true"><use href="#lock"/></svg>פנוי</div><i class="ot" aria-hidden="true"></i><i class="ot" aria-hidden="true"></i><span class="rn me">3</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">4</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">5</span></div></div><div class="sflg"><span><i class="k"></i>מגיע</span><span><i class="f"></i>פנוי לאחרים</span><span><i class="o"></i>של אחרים</span></div></section>
+<div class="sfopts"><div class="sfo on ro" role="radio" aria-checked="true"><div class="r"><i></i><span><b>ליל שבת: מגיעים, ומפנים 1</b><small>זה מה ששלחתם</small></span><svg class="i s" aria-hidden="true"><use href="#seat"/></svg></div></div></div></div></div><div class="gest"></div></div></figure><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">ד · מקומות בשני מקומות באולם</p><div class="phone kit ft"><div class="sb"><span class="num">20:14</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="sftop"><span class="kib" aria-label="חזרה"><svg class="i " aria-hidden="true"><use href="#back"/></svg></span><h1>טופס מקומות לשבת<small>שבת פרשת וירא · כ׳ בחשוון</small></h1></div><div class="kscroll fade sfs"><div class="sfseg" role="tablist"><b class="on" role="tab" aria-selected="true">ליל שבת<small><i class="d"></i>1 פנוי</small></b><b class="" role="tab" aria-selected="false">שבת בבוקר<small><i class=""></i>עוד לא ענית</small></b></div>
+<section class="sfmap"><div class="mh"><svg class="i s" aria-hidden="true"><use href="#seat"/></svg><b>ימין · שורה 3 · 2 מקומות</b><span class="tg">הסתרה <svg class="i xs" aria-hidden="true"><use href="#up"/></svg></span></div><div class="sfark"><span><svg class="i xs" aria-hidden="true"><use href="#ark"/></svg>ארון הקודש</span></div><div class="sfgap" aria-hidden="true">• • •</div><div class="sfblk"><div class="sfln" aria-hidden="true"><span>מעבר</span></div><div class="sfgrid" style="grid-template-columns:repeat(5,1fr) 34px"><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">1</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">2</span><div class="sft k" role="switch" aria-checked="true"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>מגיע</div><div class="sft k" role="switch" aria-checked="true"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>מגיע</div><i class="ot" aria-hidden="true"></i><i class="ot" aria-hidden="true"></i><i class="ot" aria-hidden="true"></i><span class="rn me">3</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">4</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">5</span></div></div></section>
+<section class="sfmap"><div class="mh"><svg class="i s" aria-hidden="true"><use href="#seat"/></svg><b>מרכז שמאל · שורה 11 · 2 מקומות</b></div><div class="sfblk"><div class="sfln" aria-hidden="true"><span>מעבר</span></div><div class="sfgrid" style="grid-template-columns:repeat(4,1fr) 34px"><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">9</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">10</span><i class="ot" aria-hidden="true"></i><i class="ot" aria-hidden="true"></i><div class="sft f" role="switch" aria-checked="false"><svg class="i xs" aria-hidden="true"><use href="#out"/></svg>פנוי</div><div class="sft k" role="switch" aria-checked="true"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg>מגיע</div><span class="rn me">11</span><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><i class="cx" aria-hidden="true"></i><span class="rn">12</span></div><div class="sfln" aria-hidden="true"><span>מעבר</span></div></div><div class="sflg"><span><i class="k"></i>מגיע</span><span><i class="f"></i>פנוי לאחרים</span><span><i class="o"></i>של אחרים</span></div></section>
+<div class="sfopts"><div class="sfo on" role="radio" aria-checked="true"><div class="r"><i></i><span><b>מגיעים, ומפנים חלק</b></span><svg class="i s" aria-hidden="true"><use href="#seat"/></svg></div><div class="sfstep"><div class="l">כמה מקומות מפנים?<small>קודם מהמקום השני, מהקצה הרחוק מהמעבר.</small></div><div class="bx" role="group" aria-label="כמה מקומות מפנים?"><b class="" aria-label="עוד אחד"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg></b><span class="knum" aria-live="polite">1</span><b class="off" aria-label="אחד פחות"><svg class="i s" aria-hidden="true"><use href="#minus"/></svg></b></div></div></div></div></div><div class="sffoot"><div class="sum"><span class="t">ליל שבת: 3 מגיעים · 1 פנוי</span><span>שבת בבוקר: עוד לא</span></div><button class="kb">הבא: שבת בבוקר ‹</button><p class="dl">אפשר לשלוח ולשנות עד יום שישי <span class="knum">12:00</span></p></div></div><div class="gest"></div></div></figure><figure class="pf" style="margin:0;display:flex;flex-direction:column;gap:8px"><p class="cap">ה · אין מקומות מוקצים</p><div class="phone kit ft"><div class="sb"><span class="num">20:14</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="sftop"><span class="kib" aria-label="חזרה"><svg class="i " aria-hidden="true"><use href="#back"/></svg></span><h1>מקומות בשבת<small>שבת פרשת וירא · כ׳ בחשוון</small></h1></div><div class="kscroll fade sfs"><section class="kc e"><p class="kt b"><svg class="i s" aria-hidden="true"><use href="#seat"/></svg> עוד לא הוקצו לכם מקומות</p><p class="kt s">את המקומות בבית הכנסת מקצה הגבאי. לשאלות פנו לגבאי.</p><p class="kt c m">כשיהיו לכם מקומות, הטופס יגיע אליכם כל שבוע בהתראה.</p></section></div></div><div class="gest"></div></div></figure><div class="notes"><h2>הערות</h2><ul>
+<li>"הגבאי עדכן" (P24, §15.6): באנר מידע במקום הבאנר הירוק של ב׳, "הגבאי עדכן את המקומות שלכם ביום … ", בלי שם.</li>
+<li>אחרי המועד המקטע עדיין מתחלף (רק צפייה), הכיסאות עם מנעול, ואין כפתור שליחה.</li>
+<li>בשני מקומות: כל קבוצה בכרטיס משלה, לפי כלל §15.3. מקרא אחד בסוף. כל קבוצה מתקפלת לבד.</li>
+<li>אין מקומות: אין התראה ואין כרטיס בבית. המסך נגיש רק מ"אני".</li></ul></div></main>
+</body>
+</html>
