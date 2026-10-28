@@ -14,7 +14,7 @@ import { Banner, Button, Card, Txt, useTokens } from '../../kit/components.tsx';
 import { BackIcon } from '../../kit/Icon.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import { effectiveFamilies, initialMatchState, matchReducer } from '../../seats/decisions.ts';
-import { fixtureMapFamilies, fixturePasteTsv, fixtureSeatFamilies } from '../../seats/fixturePaste.ts';
+import { fixturePasteTsv, fixtureSeatFamilies } from '../../seats/fixturePaste.ts';
 import { readPaste } from '../../seats/readPaste.ts';
 import type { PasteProblem } from '../../seats/readPaste.ts';
 import { defaultBlockNames, familiesForMatch } from '../../seats/savePlan.ts';
@@ -55,7 +55,7 @@ export function SeatEditor({ onBack, onDirty, onToast }: { onBack: () => void; o
       if (current) {
         try { for (const ref of Object.values((await api.seatAssignments(kehilaId, current.effectiveFrom)).assignments)) if (ref.startsWith('family:')) holding.add(ref.slice(7)); } catch { /* ignore */ }
       }
-      setLoad({ status: 'ready', families: config.fixtures && fixtureParams().screen === 'seat-map' ? fixtureMapFamilies() : isSeatFixture(fixtureParams().screen) ? fixtureSeatFamilies() : families, holders, layouts: layouts.layouts, holding });
+      setLoad({ status: 'ready', families: config.fixtures && fixtureParams().screen !== 'seat-map' && isSeatFixture(fixtureParams().screen) ? fixtureSeatFamilies() : families, holders, layouts: layouts.layouts, holding });
     } catch (e) { setLoad({ status: 'error', code: e }); }
   }, [api, kehilaId]);
   React.useEffect(() => { void fetchAll(); }, [fetchAll]);

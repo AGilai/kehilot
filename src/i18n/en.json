@@ -1937,8 +1937,30 @@
       "version": "Version {n} · effective {from}",
       "saved": "saved {when}",
       "draft": "New map, not saved yet",
-      "scheduled": "A version is scheduled from {from}.",
+      "note": "Another version of the map takes effect from {later}. What you change here applies until then and does not carry over to it.",
+      "noteOpen": "Edit the version from {later}",
+      "noteClose": "Close this note",
       "back": "Back to the map"
+    },
+    "holder": {
+      "link": "Link to a registered family…",
+      "other": "Another family…",
+      "me": "This is me: link to my family",
+      "delete": "Delete the holder…",
+      "dirty": "Save or discard your map changes before linking or deleting.",
+      "mine": "My family",
+      "deleteTitle": "Delete \"{name}\"?",
+      "deleteLoading": "Checking its seats…",
+      "deleteBody": "Its seats become free, then the record is deleted:",
+      "deleteLine": "{n} seats in the version from {from}",
+      "deleteLineOne": "One seat in the version from {from}",
+      "deletePast": "(a past Shabbat)",
+      "deleteNone": "It holds no seat in any version of the map.",
+      "deleteAfter": "It leaves the families list and the link suggestions. This cannot be undone.",
+      "deleteGo": "Free the seats and delete",
+      "deleted": "Holder deleted. {n} seats freed.",
+      "linkTitle": "Link \"{name}\" to a registered family",
+      "linkPick": "Pick the registered family. Its seats move there in every version, and the \"no account\" record closes."
     },
     "mode": {
       "label": "Editing mode",
@@ -1990,7 +2012,7 @@
       "holder": "Seat holder without an account",
       "move": "Move family…",
       "freeAll": "Free all seats",
-      "pick": "Pick a family from the list, or click one of its seats on the map.",
+      "pick": "Pick a family from the list, or click a seat on the map: you can assign it or mark it free.",
       "unpick": "Clear the family selection",
       "families": "Families",
       "newHolder": "New seat holder…"
@@ -2002,7 +2024,11 @@
       "assignTo": "Assign to {name}",
       "assignOther": "Assign to…",
       "free": "Mark free",
-      "clear": "Clear selection"
+      "clear": "Clear selection",
+      "ofOne": "{name}'s seat",
+      "ofN": "{n} seats of {name}",
+      "freeOne": "Free (clear the seat)",
+      "freeN": "Free (clear {n} seats)"
     },
     "picker": {
       "title": "Assign the seats",

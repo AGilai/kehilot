@@ -19,9 +19,13 @@ export function CountBubble({ n, on }: { n: number; on?: boolean }) {
 }
 export const countText = (t: (k: string, p?: Record<string, string | number>) => string, n: number) => (n === 0 ? t('seatMap.panel.countNone') : n === 1 ? t('seatMap.panel.countOne') : t('seatMap.panel.countN', { n }));
 
-export function AssignPanel({ rows, selected, totals, onSelect, onMove, onFreeAll, onNewHolder, searchRef, moving }: {
+/** Actions on the selected holder without an account (link / "this is me" / delete); `me` only when the gabbai's own family matches it. */
+export type HolderActions = { onLink: () => void; onMe: (() => void) | null; onDelete: () => void };
+
+export function AssignPanel({ rows, selected, totals, onSelect, onMove, onFreeAll, onNewHolder, searchRef, moving, holderActions, mineRef }: {
   rows: Household[]; selected: string | null; totals: { seats: number; assigned: number; free: number };
   onSelect: (ref: string | null) => void; onMove: () => void; onFreeAll: () => void; onNewHolder: () => void; searchRef: React.RefObject<TextInput | null>; moving: boolean;
+  /** For a saved holder (`holder:<id>`) when it is selected. */ holderActions?: HolderActions | null; /** The gabbai's own family (`family:<id>`), tagged in the list. */ mineRef?: string | null;
 }) {
   const { t, lang, dir } = useI18n();
   const k = useTokens();
@@ -52,6 +56,7 @@ export function AssignPanel({ rows, selected, totals, onSelect, onMove, onFreeAl
                   {r.blocks.length ? <Txt size="caption" color={k.muted} numberOfLines={1} content>{r.blocks.join(' · ')}</Txt> : null}
                 </View>
                 {r.pending ? <Tag text={t('seatMap.panel.new')} /> : null}
+                {r.ref === mineRef ? <Tag text={t('seatMap.holder.mine')} /> : null}
                 {r.noAccount ? <Tag text={t('seatMap.panel.noAccount')} dashed /> : null}
               </Pressable>
             );
@@ -67,6 +72,15 @@ export function AssignPanel({ rows, selected, totals, onSelect, onMove, onFreeAl
               <View style={{ flex: 1 }}><Button kind="secondary" title={t('seatMap.panel.move')} disabled={cur.count === 0 || moving} onPress={onMove} /></View>
               <View style={{ flex: 1 }}><Button kind="secondary" title={t('seatMap.panel.freeAll')} disabled={cur.count === 0 || moving} onPress={onFreeAll} /></View>
             </View>
+            {holderActions && cur.noAccount && !cur.pending ? (
+              <View style={{ gap: 6 }}>
+                {holderActions.onMe ? <Button title={t('seatMap.holder.me')} disabled={moving} onPress={holderActions.onMe} /> : null}
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1 }}><Button kind="secondary" title={t('seatMap.holder.link')} disabled={moving} onPress={holderActions.onLink} /></View>
+                  <View style={{ flex: 1 }}><Button kind="secondary" title={t('seatMap.holder.delete')} disabled={moving} onPress={holderActions.onDelete} /></View>
+                </View>
+              </View>
+            ) : null}
           </View>
         ) : <Txt size="small" color={k.muted}>{t('seatMap.panel.pick')}</Txt>}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

@@ -100,9 +100,9 @@ test('history rows: newest first, numbered from the oldest, read-only before the
   assert.deepEqual(h.map((x) => x.scheduled), [true, false, false]);
   assert.equal(h[1]!.until, '2026-11-13');
   assert.equal(h[0]!.until, null);
-  assert.equal(versionToOpen(rows), '2026-10-09');
-  assert.equal(versionToOpen(rows.map((r) => ({ ...r, current: false }))), '2026-11-13');
-  assert.equal(versionToOpen([]), null);
+  assert.equal(versionToOpen(rows, now), '2026-10-09');
+  assert.equal(versionToOpen(rows.map((r) => ({ ...r, current: false })), now), '2026-10-09'); // by date, not by the server's flag
+  assert.equal(versionToOpen([], now), null);
   assert.equal(scheduledAfter(rows, '2026-10-09'), '2026-11-13');
   assert.equal(scheduledAfter(rows, '2026-11-13'), null);
   assert.ok(isPastVersion('2026-10-23', now));

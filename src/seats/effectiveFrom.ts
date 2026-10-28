@@ -14,6 +14,19 @@ export function defaultEffectiveFrom(now: Date): string {
   return friday;
 }
 
+/**
+ * The save dialog's default date. In place on the open version whenever the server still takes writes to it (not before the current
+ * Shabbat): the gabbai is fixing that map, and a copy from a later date would leave the open one, which is the map that counts until
+ * then, unchanged. When the hall itself changed (cells, names, size), never into a Shabbat that is already open for answers. A past
+ * version cannot be written: then a new version from the first Shabbat not yet open (UX §16.5).
+ */
+export function defaultSaveFrom(opened: string | null, now: Date, layoutChanged: boolean): string {
+  const fallback = defaultEffectiveFrom(now);
+  if (!opened || opened < currentShabbatFriday(israelDate(now))) return fallback;
+  if (!layoutChanged) return opened;
+  return opened >= fallback ? opened : fallback;
+}
+
 /** Fridays the save dialog offers: from the current Shabbat on (earlier ones are read-only on the server). */
 export function effectiveOptions(now: Date, count = 14): string[] {
   const start = currentShabbatFriday(israelDate(now));

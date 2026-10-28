@@ -37,10 +37,34 @@ export function historyRows(layouts: SeatLayoutRow[], now: Date): HistoryRow[] {
     readOnly: isPastVersion(l.effectiveFrom, now),
   })).reverse();
 }
-/** The version the editor opens: the one in effect, else the newest. */
-export const versionToOpen = (layouts: SeatLayoutRow[]): string | null => layouts.find((l) => l.current)?.effectiveFrom ?? [...layouts].sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1))[0]?.effectiveFrom ?? null;
+/**
+ * The version the editor opens: the one that governs the coming Shabbat (the latest from the current Shabbat or before). The server's
+ * `current` is the version in effect today, which on a weekday can already be a past (read-only) one while a version from this Friday
+ * exists: editing that would save a second copy instead of the map that counts. With only future versions, the first of them.
+ */
+export function versionToOpen(layouts: SeatLayoutRow[], now: Date): string | null {
+  const friday = currentShabbatFriday(israelDate(now));
+  const asc = layouts.map((l) => l.effectiveFrom).sort();
+  return asc.filter((f) => f <= friday).pop() ?? asc[0] ?? null;
+}
 /** A future version scheduled after the one open (for the editor's banner). */
 export const scheduledAfter = (layouts: SeatLayoutRow[], openFrom: string): string | null => layouts.filter((l) => l.effectiveFrom > openFrom).sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? -1 : 1))[0]?.effectiveFrom ?? null;
+
+/** The editor's note about a version that starts after the open one (it does not see the edits made here). */
+export function scheduledNote(layouts: SeatLayoutRow[], openFrom: string): { from: string; updatedAt: number } | null {
+  const from = scheduledAfter(layouts, openFrom);
+  const row = from ? layouts.find((l) => l.effectiveFrom === from) : undefined;
+  return row ? { from: row.effectiveFrom, updatedAt: row.updatedAt } : null;
+}
+type NoteStore = { getItem(k: string): string | null; setItem(k: string, v: string): void };
+/** Dismissed per device, per Kehila and per version state (saving that version again brings the note back). */
+export const noteKey = (kehilaId: string, note: { from: string; updatedAt: number }): string => `kehilot.seatMapNote.${kehilaId}.${note.from}.${note.updatedAt}`;
+export function noteDismissed(store: NoteStore | undefined, key: string): boolean {
+  try { return store?.getItem(key) === '1'; } catch { return false; }
+}
+export function dismissNote(store: NoteStore | undefined, key: string): void {
+  try { store?.setItem(key, '1'); } catch { /* storage unavailable: the note comes back next time */ }
+}
 
 const conflict = (carry: SaveCarry, stage: 'layout' | 'assignments', code: string): SaveResult => ({ ok: false, stage, code, conflict: true, carry, made: [] });
 

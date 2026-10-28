@@ -468,6 +468,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     }
     return undefined;
   };
+  const mineFx = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('mine') === '1';
   let seatConflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
   if (screen === 'seat-holders' || screen === 'seat-link') {
     const hl = fixtureHolderLayout();
@@ -487,7 +488,8 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   }
   const seatingFixture = (method: string, path: string, body: unknown): unknown => {
     const p = path.split('?')[0]!;
-    if (p === `${A}/families`) return screen === 'seat-map' ? fixtureMapFamilies() : holdersFx ? fixtureHolderFamilies() : fixtureSeatFamilies();
+    // `&mine=1`: the signed-in gabbai has a family that matches the map's holder ("זה אני")
+    if (p === `${A}/families`) return screen === 'seat-map' ? [...fixtureMapFamilies(), ...(mineFx ? [{ familyId: '01FIXTUREMAPFAMMINE0000001', name: 'מדומה', adults: [{ userId: me.userId, displayName: 'דנה מדומה' }], children: [] }] : [])] : holdersFx ? fixtureHolderFamilies() : fixtureSeatFamilies();
     if (p === `${A}/seating/holders`) {
       if (method === 'GET') return structuredClone(seatHolders);
       const b = body as { name: string; phone?: string };
@@ -495,11 +497,20 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       seatHolders = [...seatHolders, h]; return h;
     }
     if (p === `${A}/seating/link-suggestions`) return !holdersFx && (screen === 'overview' || screen?.startsWith('area')) ? { count: 2, suggestions: [] } : holdersFx ? { count: linkSuggestions.length, suggestions: structuredClone(linkSuggestions) } : { count: 0, suggestions: [] };
+    const hs = /\/seating\/holders\/([^/]+)\/seats$/.exec(p);
+    if (hs && method === 'GET') {
+      if (!seatHolders.some((x) => x.holderId === hs[1])) throw new ApiCodeError(404, 'holder_not_found');
+      const current = shabbatFriday(fixtureNow() ?? new Date());
+      const versions = [...seatLayouts.entries()].sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([effectiveFrom, v]) => ({ effectiveFrom, seats: Object.values(v.asg).filter((r) => r === `holder:${hs[1]}`).length, past: effectiveFrom < current }))
+        .filter((v) => v.seats > 0);
+      return { total: versions.reduce((n, v) => n + v.seats, 0), versions };
+    }
     const hm = /\/seating\/holders\/([^/]+)(\/link)?$/.exec(p);
     if (hm) {
       const h = seatHolders.find((x) => x.holderId === hm[1]);
       if (!h) throw new ApiCodeError(404, 'holder_not_found');
-      if (method === 'DELETE') { seatHolders = seatHolders.filter((x) => x !== h); linkSuggestions = linkSuggestions.filter((x) => x.holderId !== h.holderId); return undefined; }
+      if (method === 'DELETE') { for (const v of seatLayouts.values()) for (const [id, ref] of Object.entries(v.asg)) if (ref === `holder:${h.holderId}`) delete v.asg[id]; seatHolders = seatHolders.filter((x) => x !== h); linkSuggestions = linkSuggestions.filter((x) => x.holderId !== h.holderId); return undefined; }
       if (method === 'PUT') { const b = body as { name: string; phone?: string }; Object.assign(h, { name: b.name, phone: b.phone ?? null, updatedAt: Date.now() }); return structuredClone(h); }
       if (method === 'POST' && hm[2]) {
         const b = body as { familyId: string; ifUpdatedAt?: number };

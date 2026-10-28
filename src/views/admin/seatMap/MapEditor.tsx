@@ -16,14 +16,17 @@ import { shortDate } from '../../../schedule/memberView.ts';
 import { scheduleWeekOf } from '../../../schedule/week.ts';
 import {
   addCol, addHolder, addRow, assignKeys, changeCount, changedPositions, countsByRef, diffDrafts, draftIssues, editReducer, emptyDraft, freeAllOf, freeKeys, heldByOthers,
-  initialEdit, isSeat, layoutBodyOf, moveFamily, paintCells, paintLosers, rebaseOnto, removeCol, removeRow, renameBlock, seatCount, seatsOf, setRowLabel, usedHolders,
+  initialEdit, isSeat, layoutBodyOf, moveFamily, paintCells, paintLosers, rebaseOnto, removeCol, removeRow, renameBlock, seatCount, seatsOf, setRowLabel, summarize, usedHolders,
 } from '../../../seats/editModel.ts';
 import type { Draft, EditError, Kind, Overlap } from '../../../seats/editModel.ts';
-import { defaultEffectiveFrom, openForAnswers } from '../../../seats/effectiveFrom.ts';
+import { defaultSaveFrom, openForAnswers } from '../../../seats/effectiveFrom.ts';
 import { emptySel, jumpPos, parsePos, selReducer, stepPos } from '../../../seats/grid.ts';
 import type { Pos } from '../../../seats/grid.ts';
 import { households } from '../../../seats/households.ts';
-import { historyRows, loadVersion, saveMap, scheduledAfter, versionToOpen, whenLabel } from '../../../seats/mapSave.ts';
+import { isMine, myFamily, selectionActions } from '../../../seats/holderActions.ts';
+import type { HolderSeats } from '../../../seats/holderActions.ts';
+import { linkError } from '../../../seats/holders.ts';
+import { dismissNote, historyRows, loadVersion, noteDismissed, noteKey, saveMap, scheduledNote, versionToOpen, whenLabel } from '../../../seats/mapSave.ts';
 import type { MapApi, Version } from '../../../seats/mapSave.ts';
 import { initialSaveSession, saveSessionReducer } from '../../../seats/saveSession.ts';
 import { savePlanKey } from '../../../seats/savePlan.ts';
@@ -39,12 +42,16 @@ import { FamilyPicker } from './FamilyPicker.tsx';
 import { HallGrid } from './HallGrid.tsx';
 import type { Mods, Zoom } from './HallGrid.tsx';
 import { HistoryDialog } from './HistoryDialog.tsx';
+import { DeleteHolderDialog, LinkHolderDialog, familyLabel } from './HolderDialogs.tsx';
 import { LayoutPanel } from './LayoutPanel.tsx';
 import { SaveDialog } from './SaveDialog.tsx';
 import type { SavePhase } from './SaveDialog.tsx';
 import { SelectionBar } from './SelectionBar.tsx';
 
-type Dlg = null | 'save' | 'history' | 'picker' | 'others' | 'conflict' | 'paint' | 'confirm';
+type Dlg = null | 'save' | 'history' | 'picker' | 'others' | 'conflict' | 'paint' | 'confirm' | 'link' | 'delete';
+const noteStore = (): { getItem(k: string): string | null; setItem(k: string, v: string): void } | undefined => {
+  try { return typeof localStorage !== 'undefined' ? localStorage : undefined; } catch { return undefined; }
+};
 const ZOOM_ORDER: Zoom[] = ['fit', 'z100', 'z150'];
 const KIND_KEYS: Record<string, Kind> = { s: 'seat', a: 'aisle', b: 'bimah', k: 'ark' };
 
@@ -55,7 +62,8 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   const { t } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
-  const kehilaId = useSession().state.kehilaId!;
+  const sessionState = useSession().state;
+  const kehilaId = sessionState.kehilaId!;
   const errText = useAdminErrText();
   const title = useShabbatTitle();
   const now = React.useMemo(() => fixtureNow() ?? new Date(), []);
@@ -84,7 +92,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
       setLoad({ status: 'ready' });
     } catch (e) { setLoad({ status: 'error', text: errText(e) }); }
   }, [mapApi]); // eslint-disable-line react-hooks/exhaustive-deps
-  React.useEffect(() => { void openVersion(scratch ? null : versionToOpen(layouts)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { void openVersion(scratch ? null : versionToOpen(layouts, now)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const draft = viewing ? viewing.version.draft : edit.draft;
   const readOnly = !!viewing || phone;
@@ -125,7 +133,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   const commit = (d: Draft, say?: string) => { dispatchEdit({ type: 'set', draft: d }); if (say) setLive(say); setInfo(null); };
   const clearSel = () => dispatchSel({ type: 'clear' });
   const askDiscard = (go: () => void) => { if (changes > 0) { setConfirm(() => go); setDlg('confirm'); } else go(); };
-  const resetDraft = () => { dispatchEdit({ type: 'reset', draft: base?.draft ?? scratchBase.current }); clearSel(); setMoving(null); setInfo(null); };
+  const resetDraft = () => { dispatchEdit({ type: 'reset', draft: base?.draft ?? scratchBase.current }); clearSel(); setMoving(null); setInfo(null); setHolderNote(null); };
 
   // ---- assigning ----
   const total = (d: Draft, ref: string) => countsByRef(d).get(ref) ?? 0;
@@ -187,7 +195,12 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
 
   // ---- keyboard ----
   const zoomBy = (d: number) => setZoom(ZOOM_ORDER[Math.max(0, Math.min(2, ZOOM_ORDER.indexOf(zoom) + d))]!);
-  const openSave = () => { if (changes > 0) { setSavePhase({ name: 'idle' }); setDlg('save'); } };
+  // the default date is decided when the dialog opens (in place on the open version when possible); a failed save keeps its date
+  const openSave = () => {
+    if (changes === 0) return;
+    if (!session.failed) { const s = summarize(cs); setSaveFrom(defaultSaveFrom(base?.from ?? null, now, s.cells > 0 || s.names || s.size)); }
+    setSavePhase({ name: 'idle' }); setDlg('save');
+  };
   const onKey = (key: Key) => {
     if (readOnly || dlg) return;
     const L = edit.draft.layout;
@@ -216,10 +229,9 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   };
 
   // ---- save ----
-  const [saveFrom, setSaveFrom] = React.useState(() => defaultEffectiveFrom(now));
+  const [saveFrom, setSaveFrom] = React.useState(() => defaultSaveFrom(null, now, true));
   const [savePhase, setSavePhase] = React.useState<SavePhase>({ name: 'idle' });
   const [session, dispatchSession] = React.useReducer(saveSessionReducer, undefined, initialSaveSession);
-  React.useEffect(() => { if (base && base.from >= defaultEffectiveFrom(now) && !openForAnswers(now, base.from, null)) setSaveFrom(base.from); }, [base]); // eslint-disable-line react-hooks/exhaustive-deps
   const planKey = React.useMemo(() => savePlanKey(saveFrom, layoutBodyOf(edit.draft), usedHolders(edit.draft), edit.draft.assign), [saveFrom, edit.draft]);
   React.useEffect(() => { dispatchSession({ type: 'sync', key: planKey }); }, [planKey]);
   const [weekOpen, setWeekOpen] = React.useState<boolean | null>(null);
@@ -246,7 +258,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
         const v = await loadVersion(mapApi, saveFrom);
         setBase(v); dispatchEdit({ type: 'reset', draft: v.draft });
       } catch { /* the saved version could not be re-read; the editor keeps the draft as the new base */ }
-      setSavePhase({ name: 'idle' }); setDlg(null); setSelRef(null); clearSel(); setInfo(null);
+      setSavePhase({ name: 'idle' }); setDlg(null); setSelRef(null); clearSel(); setInfo(null); setHolderNote(null);
       onToast(t('seatMap.save.toast'));
     } else if (result.conflict) { setSavePhase({ name: 'idle' }); setDlg('conflict'); void startConflict(); } else {
       setSavePhase({ name: 'failed', result, text: result.code === 'invalid_layout' && result.field ? `${errText({ code: result.code })} (${result.field})` : errText({ code: result.code }) });
@@ -320,6 +332,57 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   };
   const overwrite = () => { setDlg('save'); void doSave(true); };
 
+  // ---- holder actions (link / delete): server writes, so only with no unsaved map changes ----
+  const mine = React.useMemo(() => myFamily(families, sessionState.me?.userId), [families, sessionState.me?.userId]);
+  const [holderDlg, setHolderDlg] = React.useState<{ holder: SeatHolder; familyId: string | null; usage: HolderSeats | null } | null>(null);
+  const [holderBusy, setHolderBusy] = React.useState(false);
+  const [holderError, setHolderError] = React.useState<string | null>(null);
+  const selHolder = selRef?.startsWith('holder:') ? holders.find((h) => h.holderId === selRef.slice(7)) ?? null : null;
+  const afterHolderChange = async () => {
+    await refreshLists();
+    if (base) await openVersion(base.from);
+    setSelRef(null); clearSel();
+  };
+  const startHolder = (kind: 'link' | 'me' | 'delete') => {
+    if (!selHolder) return;
+    if (changes > 0) { setInfo(null); setHolderNote(t('seatMap.holder.dirty')); return; }
+    setHolderError(null); setHolderNote(null);
+    setHolderDlg({ holder: selHolder, familyId: kind === 'me' ? mine?.familyId ?? null : null, usage: null });
+    setDlg(kind === 'delete' ? 'delete' : 'link');
+    if (kind === 'delete') {
+      api.seatHolderSeats(kehilaId, selHolder.holderId).then(
+        (usage) => setHolderDlg((d) => (d && d.holder.holderId === selHolder.holderId ? { ...d, usage } : d)),
+        (e) => setHolderError(errText(e)));
+    }
+  };
+  const [holderNote, setHolderNote] = React.useState<string | null>(null);
+  const doLink = async () => {
+    if (!holderDlg?.familyId || holderBusy) return;
+    const fam = families.find((f) => f.familyId === holderDlg.familyId);
+    setHolderBusy(true); setHolderError(null);
+    try {
+      await api.linkSeatHolder(kehilaId, holderDlg.holder.holderId, { familyId: holderDlg.familyId, ifUpdatedAt: holderDlg.holder.updatedAt });
+      setDlg(null); setHolderDlg(null);
+      onToast(t('seatHolders.toast.linked', { household: fam ? familyLabel(fam, t('seatEditor.and')) : '' }));
+      await afterHolderChange();
+    } catch (e) {
+      const kind = linkError(e);
+      setHolderError(kind === 'changed' ? t('seatHolders.link.changed') : kind === 'retry' ? t('seatHolders.link.retry') : kind === 'gone' ? t('seatHolders.link.gone') : errText(e));
+      if (kind === 'changed' || kind === 'gone') await refreshLists();
+    } finally { setHolderBusy(false); }
+  };
+  const doDelete = async () => {
+    if (!holderDlg?.usage || holderBusy) return;
+    setHolderBusy(true); setHolderError(null);
+    try {
+      await api.deleteSeatHolder(kehilaId, holderDlg.holder.holderId);
+      const n = holderDlg.usage.total;
+      setDlg(null); setHolderDlg(null);
+      onToast(t('seatMap.holder.deleted', { n }));
+      await afterHolderChange();
+    } catch (e) { setHolderError(errText(e)); } finally { setHolderBusy(false); }
+  };
+
   // ---- history ----
   const hist = React.useMemo(() => historyRows(layouts, now), [layouts, now]);
   const dateLabel = (from: string) => { const w = scheduleWeekOf(from); return `${title({ friday: w.friday, shabbat: w.shabbat, weekdays: [], thursday: w.thursday })} · ${shortDate(from)}`; };
@@ -335,6 +398,8 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
     askDiscard(() => { void go(); });
   };
 
+  const [hiddenNotes, setHiddenNotes] = React.useState<string[]>([]);
+
   // ---- rendering ----
   const back = (
     <Pressable accessibilityRole="button" accessibilityLabel={t('editor.back')} onPress={onBack} style={{ minHeight: 48, justifyContent: 'center', alignSelf: 'flex-start' }}>
@@ -344,7 +409,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   if (load.status !== 'ready') {
     return (
       <View style={{ padding: 24, maxWidth: 760 }}>
-        {load.status === 'error' ? <Banner tone="error" text={`${t('seatMap.loadFailed')} ${load.text}`} action={{ title: t('common.retry'), onPress: () => { void openVersion(scratch ? null : versionToOpen(layouts)); } }} /> : <Txt color={k.muted}>{t('seatMap.loading')}</Txt>}
+        {load.status === 'error' ? <Banner tone="error" text={`${t('seatMap.loadFailed')} ${load.text}`} action={{ title: t('common.retry'), onPress: () => { void openVersion(scratch ? null : versionToOpen(layouts, now)); } }} /> : <Txt color={k.muted}>{t('seatMap.loading')}</Txt>}
       </View>
     );
   }
@@ -356,7 +421,9 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   const bandText = viewing
     ? (viewing.until ? t('seatMap.view.band', { n: viewing.n, from: dateLabel(viewing.from), to: dateLabel(viewing.until) }) : t('seatMap.view.bandOpen', { n: viewing.n, from: dateLabel(viewing.from) }))
     : base ? `${t('seatMap.band.version', { n: hist.find((h) => h.from === base.from)?.n ?? 1, from: dateLabel(base.from) })} · ${t('seatMap.band.saved', { when: whenLabel(base.updatedAt) })}` : t('seatMap.band.draft');
-  const later = headVersion ? scheduledAfter(layouts, headVersion.from) : null;
+  const later = headVersion ? scheduledNote(layouts, headVersion.from) : null;
+  const laterKey = later ? noteKey(kehilaId, later) : null;
+  const showNote = !!later && !!laterKey && !noteDismissed(noteStore(), laterKey) && !hiddenNotes.includes(laterKey);
   const hallProps = { draft, mode: gridMode, zoom, sel: viewing ? [] : sel.keys, focus: viewing ? null : focus, changed, selectedRef: viewing ? null : selRef, struck, short, full, blockOnTop, onDown, onDrag, onUp, onKey } as const;
 
   // phone: view only. The hall (zoom for names) and the list of households with counts.
@@ -403,8 +470,17 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
           </>
         ) : <Button kind="secondary" title={t('seatMap.tool.paste')} onPress={() => askDiscard(onPaste)} />}
       </View>
-      {later && !viewing ? <Banner text={t('seatMap.band.scheduled', { from: dateLabel(later) })} /> : null}
+      {showNote && later && laterKey && base && !viewing ? (
+        <View accessibilityRole="summary" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingStart: 12, paddingEnd: 4, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: k.tekhelet, borderStartWidth: 6, backgroundColor: k.surface, flexWrap: 'wrap' }}>
+          <Txt size="small" style={{ flex: 1, minWidth: 260 }}>{t('seatMap.band.note', { later: dateLabel(later.from) })}</Txt>
+          <Pressable accessibilityRole="button" onPress={() => askDiscard(() => { void openVersion(later.from); })} style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: 8 }}>
+            <Txt size="small" bold color={k.tekhelet}>{t('seatMap.band.noteOpen', { later: shortDate(later.from) })}</Txt>
+          </Pressable>
+          <IconBtn icon="x" label={t('seatMap.band.noteClose')} size={40} onPress={() => { dismissNote(noteStore(), laterKey); setHiddenNotes((h) => [...h, laterKey]); }} />
+        </View>
+      ) : null}
       {info ? <Banner tone="success" text={info} /> : null}
+      {holderNote ? <Banner text={holderNote} /> : null}
     </View>
   );
   const needN = moving ? seatsOf(edit.draft, moving).length : 0;
@@ -413,16 +489,22 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
     if (moving) {
       bar = <SelectionBar text={`${t('seatMap.move.banner', { name: short(moving), n: needN, m: sel.keys.length })}${moveError ? ` · ${moveError}` : ''}`} actions={[{ key: 'ok', label: t('seatMap.move.confirm'), onPress: confirmMove, disabled: sel.keys.length !== needN }, { key: 'no', label: t('seatMap.move.cancel'), onPress: cancelMove }]} />;
     } else if (sel.keys.length) {
-      const text = mode === 'layout' ? t('seatMap.bar.cells', { n: sel.keys.length }) : sel.keys.length === 1 ? t('seatMap.bar.one') : t('seatMap.bar.n', { n: sel.keys.length });
+      // a seat that is someone's: say whose, and offer "פנוי" first (owner report: freeing a seat from the map was not obvious)
+      const acts = selectionActions(edit.draft, sel.keys, selRef);
+      const n = sel.keys.length;
+      const text = mode === 'layout' ? t('seatMap.bar.cells', { n }) : acts.owner ? (n === 1 ? t('seatMap.bar.ofOne', { name: short(acts.owner) }) : t('seatMap.bar.ofN', { n, name: short(acts.owner) })) : n === 1 ? t('seatMap.bar.one') : t('seatMap.bar.n', { n });
+      const free = { key: 'free', label: acts.free === 1 ? t('seatMap.bar.freeOne') : acts.free > 1 ? t('seatMap.bar.freeN', { n: acts.free }) : t('seatMap.bar.free'), onPress: () => doFree(sel.keys), disabled: acts.free === 0, primary: acts.free > 0 };
       bar = <SelectionBar text={text} actions={mode === 'assign'
-        ? [...(selRef ? [{ key: 'to', label: t('seatMap.bar.assignTo', { name: short(selRef) }), onPress: () => applyAssign(sel.keys, selRef) }] : []), { key: 'other', label: t('seatMap.bar.assignOther'), onPress: () => setDlg('picker') }, { key: 'free', label: t('seatMap.bar.free'), onPress: () => doFree(sel.keys) }, { key: 'clear', label: t('seatMap.bar.clear'), onPress: clearSel }]
+        ? [...(acts.free ? [free] : []), ...(selRef && acts.assignTo ? [{ key: 'to', label: t('seatMap.bar.assignTo', { name: short(selRef) }), onPress: () => applyAssign(sel.keys, selRef), primary: !acts.free }] : []), { key: 'other', label: t('seatMap.bar.assignOther'), onPress: () => setDlg('picker') }, ...(acts.free ? [] : [free]), { key: 'clear', label: t('seatMap.bar.clear'), onPress: clearSel }]
         : [{ key: 'clear', label: t('seatMap.bar.clear'), onPress: clearSel }]} />;
     }
   }
   const panelRows = rows;
   const panel = mode === 'assign' || viewing ? (
     <AssignPanel rows={panelRows} selected={viewing ? null : selRef} totals={{ seats, assigned, free: seats - assigned }} onSelect={(r) => { if (!viewing) setSelRef(r); }} onMove={startMove}
-      onFreeAll={() => { if (selRef) commit(freeAllOf(edit.draft, selRef), t('seatMap.live.freed', { n: total(edit.draft, selRef) })); }} onNewHolder={() => { setNewHolder(true); setDlg('picker'); }} searchRef={searchRef} moving={!!moving || !!viewing} />
+      onFreeAll={() => { if (selRef) commit(freeAllOf(edit.draft, selRef), t('seatMap.live.freed', { n: total(edit.draft, selRef) })); }} onNewHolder={() => { setNewHolder(true); setDlg('picker'); }} searchRef={searchRef} moving={!!moving || !!viewing}
+      mineRef={mine ? `family:${mine.familyId}` : null}
+      holderActions={selHolder && !viewing ? { onLink: () => startHolder('link'), onMe: isMine(selHolder.name, mine) ? () => startHolder('me') : null, onDelete: () => startHolder('delete') } : null} />
   ) : (
     <LayoutPanel draft={edit.draft} selected={sel.keys.length} focusRow={focusRC ? focusRC.r : null} error={layoutError}
       onPaint={paintSel} onAddRow={(w) => apply(addRow(edit.draft, w))} onAddCol={(w) => apply(addCol(edit.draft, w))}
@@ -478,6 +560,15 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
 
       <SaveDialog shifts={!!edit.draft.shifted} visible={dlg === 'save'} cs={cs} issues={issues} layouts={layouts} openedFrom={base?.from ?? null} now={now} from={saveFrom} isOpen={openForAnswers(now, saveFrom, weekOpen)}
         phase={savePhase} newHolders={usedHolders(edit.draft).length} onFrom={(f) => { if (savePhase.name !== 'running') setSaveFrom(f); }} onGo={() => { void doSave(false); }} onClose={() => setDlg(null)} partial={partial} />
+
+      {dlg === 'link' && holderDlg ? (
+        <LinkHolderDialog holder={holderDlg.holder} familyId={holderDlg.familyId} families={families} counts={countsByRef(edit.draft)} mineId={mine?.familyId ?? null} busy={holderBusy} error={holderError}
+          onFamily={(id) => { setHolderError(null); setHolderDlg({ ...holderDlg, familyId: id }); }} onGo={() => { void doLink(); }} onClose={() => { if (!holderBusy) { setDlg(null); setHolderDlg(null); } }} />
+      ) : null}
+      {dlg === 'delete' && holderDlg ? (
+        <DeleteHolderDialog holder={holderDlg.holder} usage={holderDlg.usage} dateLabel={dateLabel} busy={holderBusy} error={holderError}
+          onGo={() => { void doDelete(); }} onClose={() => { setDlg(null); setHolderDlg(null); }} />
+      ) : null}
 
       <ConflictDialog visible={dlg === 'conflict'} state={conflictView} pick={pick} onPick={(key, v) => setPick((p) => ({ ...p, [key]: v }))} onApply={applyConflict} onOverwrite={overwrite} onClose={() => setDlg(null)} busy={conflictBusy} />
     </View>

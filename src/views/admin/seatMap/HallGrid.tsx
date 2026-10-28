@@ -50,7 +50,8 @@ export function HallGrid({ draft, mode, zoom, sel, focus, changed, selectedRef, 
     const move = (e: PointerEvent) => { const p = at(e); if (p && down && p !== last) { last = p; if (p !== down) dragged = true; live.current.onDrag(p); } };
     const up = (e: PointerEvent) => {
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-      if (down) live.current.onUp(at(e) ?? last ?? down, dragged, mods(e));
+      // a click acts where it went down (the page may scroll under the pointer between down and up)
+      if (down) live.current.onUp(dragged ? at(e) ?? last ?? down : down, dragged, mods(e));
       down = null; last = null; dragged = false;
     };
     const start = (e: PointerEvent) => {
