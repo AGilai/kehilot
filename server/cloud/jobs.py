@@ -49,10 +49,16 @@ def _now():
 
 def seat_reminders_job(repo, event):
     """Queue the due seat-form reminders. event {"dryRun": true, "now": "YYYY-MM-DDTHH:MM" (Israel wall clock)}
-    reports what is due without claiming or sending; `now` is honoured in a dry run only."""
+    reports what is due without claiming, sending or writing; `now` needs `dryRun: true` and `dryRun` must be the
+    boolean true, else ValueError and nothing runs."""
+    if 'dryRun' in event or 'now' in event:  # anything but a real dry run is refused, never run for real
+        if event.get('dryRun') is not True:
+            raise ValueError('dryRun must be true when dryRun or now is given')
     dry = event.get('dryRun') is True
     now = _now()
-    if dry and event.get('now'):
+    if dry and 'now' in event:
+        if not isinstance(event['now'], str):
+            raise ValueError('now must be YYYY-MM-DDTHH:MM')
         now = datetime.strptime(event['now'], '%Y-%m-%dT%H:%M').replace(tzinfo=seating_week.TZ)
     return {'ok': True, **seat_reminders.run(repo, now, dry_run=dry)}
 

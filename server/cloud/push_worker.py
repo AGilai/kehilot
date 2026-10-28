@@ -114,7 +114,13 @@ def _build_seat_reminder(repo, meta, kehila, ref):
     day = seat_times.reminders_of(settings)[n]['day']
     data = {'kehila': kehila, 'screen': 'seats', 'week': friday}  # no names, no counts
     messages, owners = [], {}
+    expires = int(time.time()) + seat_reminders.MARKER_TTL
     for uid in seat_reminders.recipients(repo, kehila, friday):
+        if not repo.list_devices(uid):
+            continue
+        # once per user: a redelivered record or a retry after a partial failure skips whoever was already handled
+        if not repo.claim_seat_reminder(kehila, friday, f'{n}#U#{uid}', expires):
+            continue
         title, body = seat_reminders.texts(n, _lang(repo, uid, default), meta.get('name', ''), deadline, day)
         for device in repo.list_devices(uid):
             token = device['token']
@@ -154,6 +160,12 @@ def _build(repo, kind, kehila, ref):
     return messages, owners
 
 
+def _release_users(repo, kehila, ref, uids):
+    friday, n = seat_reminders.parse_ref(ref)
+    for uid in set(uids):
+        repo.release_seat_reminder(kehila, friday, f'{n}#U#{uid}')
+
+
 def _process(repo, job, token):
     kind, kehila, ref = job['kind'], job['kehila'], job['ref']
     if kind == seat_reminders.KIND:
@@ -169,10 +181,19 @@ def _process(repo, job, token):
         return
     messages, owners = _build(repo, kind, kehila, ref)
     sent = dropped = 0
+    ok_users = set()
     for start in range(0, len(messages), CHUNK):
         chunk = messages[start:start + CHUNK]
-        for message, ticket in zip(chunk, expo.send(chunk, token)):
+        try:
+            tickets = expo.send(chunk, token)
+        except Exception:
+            if kind == seat_reminders.KIND:  # nothing came back: let the retry send this chunk's users
+                _release_users(repo, kehila, ref, [u for m in chunk for u in owners[m['to']]])
+            raise
+        for message, ticket in zip(chunk, tickets):
             uids = owners[message['to']]
+            if ticket.get('status') == 'ok':
+                ok_users.update(uids)
             if ticket.get('status') == 'ok' and ticket.get('id'):
                 sent += 1
                 repo.put_push_ticket(ticket['id'], message['to'], uids[0], int(time.time()) + TICKET_TTL)
@@ -183,6 +204,8 @@ def _process(repo, job, token):
             else:
                 log.warning('push ticket error %s token=%.12s', (ticket.get('details') or {}).get('error'),
                             message['to'])
+    if kind == seat_reminders.KIND:  # Expo definitely rejected every message of these users: they may be retried
+        _release_users(repo, kehila, ref, [u for us in owners.values() for u in us if u not in ok_users])
     log.info('push kind=%s kehila=%s ref=%s sent=%d unregistered=%d', kind, kehila, ref, sent, dropped)
 
 

@@ -443,10 +443,43 @@ class SeatReminderPushTest(test_seatweek.SeatWeekTest):
         self.assertEqual(self.call('PUT', f'{self.base()}/admin/seats/times',
                                    body={'reminders': {'2': {'day': 'thu', 'time': '21:00'}}})[0], 200)
         self.now = at(21, 30) - timedelta(days=1)
+        for uid in (self.member, self.quiet):  # same reminder again, as if no user had been handled yet
+            self.repo.release_seat_reminder(self.k, WEEK, f'2#U#{uid}')
         self.work(f'{WEEK}#2')
         self.assertEqual(self.by_user()[self.quiet]['body'], 'A gentle reminder: the seats form is open until '
                          f'Fri{NBSP}14:00. A seat you free could make someone else\'s Shabbat.')
         self.assertIn(f'יום ו׳{NBSP}14:00', self.by_user()[self.member]['body'])
+
+    def test_redelivery_sends_each_user_once(self):
+        record_ = {'Records': [record('seat_reminder', self.k, f'{WEEK}#1')]}
+        push_worker.handler(record_, None)
+        push_worker.handler(record_, None)  # SQS delivers the record again
+        self.assertEqual(sorted(s['to'] for s in self.sent),
+                         sorted(f'ExponentPushToken[{u}]' for u in (self.member, self.quiet)))
+
+    def test_mid_chunk_failure_then_retry_sends_each_user_once(self):
+        record_ = {'Records': [record('seat_reminder', self.k, f'{WEEK}#1')]}
+        calls = []
+        def flaky(messages, token):
+            calls.append(len(messages))
+            if len(calls) == 2:
+                raise urllib.error.URLError('boom')
+            return self.fake_send(messages, token)
+        with mock.patch.object(push_worker, 'CHUNK', 1), mock.patch.object(expo, 'send', side_effect=flaky):
+            first = push_worker.handler(record_, None)
+            self.assertEqual(len(first['batchItemFailures']), 1)
+            push_worker.handler(record_, None)
+            push_worker.handler(record_, None)
+        self.assertEqual(sorted(s['to'] for s in self.sent),
+                         sorted(f'ExponentPushToken[{u}]' for u in (self.member, self.quiet)))
+
+    def test_rejected_message_releases_the_user_marker(self):
+        record_ = {'Records': [record('seat_reminder', self.k, f'{WEEK}#1')]}
+        with mock.patch.object(expo, 'send', side_effect=lambda m, t: [{'status': 'error', 'details': {'error': 'MessageRateExceeded'}}] * len(m)):
+            push_worker.handler(record_, None)
+        self.assertEqual(self.repo.seat_reminders_sent(self.k, WEEK), set())
+        push_worker.handler(record_, None)
+        self.assertEqual(len(self.sent), 2)
 
     def test_seat_reminder_not_in_editable_push_texts(self):
         self.assertNotIn(seat_reminders.KIND, PUSH_TEXT)

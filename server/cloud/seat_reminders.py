@@ -105,33 +105,44 @@ def skip_reason(repo, kehila, ref, now):
     return None
 
 
+def _run_kehila(repo, k, friday, now, dry_run, out):
+    meta = repo.get_kehila(k)
+    if not meta or not repo.layout_for(k, friday):
+        return
+    out['kehilot'] += 1
+    settings = meta.get('settings', {})
+    due = seat_times.due(now, friday, seat_times.reminders_of(settings), seat_times.deadline_hm(settings))
+    already = repo.seat_reminders_sent(k, friday) if due and not dry_run else set()
+    for n in due:
+        if dry_run:
+            out['due'].append({'kehila': k, 'n': n, 'recipients': len(recipients(repo, k, friday))})
+            continue
+        if n in already or not repo.claim_seat_reminder(k, friday, n, int(now.timestamp()) + MARKER_TTL):
+            continue
+        try:
+            push.send(KIND, k, f'{friday}#{n}')
+        except Exception:
+            log.exception('seat_reminders send failed kehila=%s friday=%s n=%s', k, friday, n)
+            try:
+                repo.release_seat_reminder(k, friday, n)
+            except Exception:
+                log.exception('seat_reminders release failed kehila=%s friday=%s n=%s', k, friday, n)
+            continue
+        out['sent'].append({'kehila': k, 'n': n})
+
+
 def run(repo, now, dry_run=False):
     """Queue the reminders that are due. Per Kehila, Friday and reminder number the conditional marker is claimed
     first and released if the queue refuses the job: a reminder goes out once, a queue failure retries next tick.
     `now` is an aware Asia/Jerusalem datetime."""
     friday = seating_rules.current_shabbat(now.date()).isoformat()
-    out = {'kehilot': 0, 'due': [], 'sent': []}
-    for k in repo.seat_kehila_ids():
-        meta = repo.get_kehila(k)
-        if not meta or not repo.layout_for(k, friday):
-            continue
-        out['kehilot'] += 1
-        settings = meta.get('settings', {})
-        due = seat_times.due(now, friday, seat_times.reminders_of(settings), seat_times.deadline_hm(settings))
-        already = repo.seat_reminders_sent(k, friday) if due and not dry_run else set()
-        for n in due:
-            if dry_run:
-                out['due'].append({'kehila': k, 'n': n, 'recipients': len(recipients(repo, k, friday))})
-                continue
-            if n in already or not repo.claim_seat_reminder(k, friday, n, int(now.timestamp()) + MARKER_TTL):
-                continue
-            try:
-                push.send(KIND, k, f'{friday}#{n}')
-            except Exception:
-                repo.release_seat_reminder(k, friday, n)
-                log.exception('seat_reminders send failed kehila=%s friday=%s n=%s', k, friday, n)
-                continue
-            out['sent'].append({'kehila': k, 'n': n})
-    log.info('seat_reminders dry_run=%s kehilot=%d due=%d sent=%d', dry_run, out['kehilot'], len(out['due']),
-             len(out['sent']))
+    out = {'kehilot': 0, 'due': [], 'sent': [], 'failed': 0}
+    for k in repo.seat_kehila_ids(backfill=not dry_run):
+        try:
+            _run_kehila(repo, k, friday, now, dry_run, out)
+        except Exception:  # one Kehila's failure must not stop the others; the next tick retries
+            out['failed'] += 1
+            log.exception('seat_reminders kehila failed kehila=%s friday=%s', k, friday)
+    log.info('seat_reminders dry_run=%s kehilot=%d due=%d sent=%d failed=%d', dry_run, out['kehilot'], len(out['due']),
+             len(out['sent']), out['failed'])
     return out

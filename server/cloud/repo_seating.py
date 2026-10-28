@@ -337,9 +337,10 @@ class SeatingRepo:
     def add_seat_kehila(self, k):
         self.table.update_item(Key=SEAT_REGISTRY, UpdateExpression='ADD ids :k', ExpressionAttributeValues={':k': {k}})
 
-    def seat_kehila_ids(self):
+    def seat_kehila_ids(self, backfill=True):
         """Sorted Kehila ids that have saved a layout. Until `complete` is set it scans once for layouts saved
-        before the registry existed, adds them and marks the registry complete."""
+        before the registry existed, adds them and marks the registry complete (with `backfill=False`, a dry run, it
+        scans but writes nothing)."""
         item = self.table.get_item(Key=SEAT_REGISTRY, ConsistentRead=True).get('Item') or {}
         if not item.get('complete'):
             found, kwargs = set(), {}
@@ -350,6 +351,8 @@ class SeatingRepo:
                 if 'LastEvaluatedKey' not in page:
                     break
                 kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+            if not backfill:
+                return sorted(found | set(item.get('ids') or ()))
             if found:
                 self.table.update_item(Key=SEAT_REGISTRY, UpdateExpression='ADD ids :k',
                                        ExpressionAttributeValues={':k': found})
@@ -377,7 +380,8 @@ class SeatingRepo:
     def seat_reminders_sent(self, k, friday):
         """The reminder numbers already claimed for that Shabbat (markers `SEATREM#<friday>#<n>`)."""
         prefix = f'SEATREM#{friday}#'
-        return {i['sk'][len(prefix):] for i in self._query_prefix(k, prefix, consistent=True)}
+        found = (i['sk'][len(prefix):] for i in self._query_prefix(k, prefix, consistent=True))
+        return {n for n in found if '#' not in n}  # `<n>#U#<userId>` are the worker's per-user markers
 
     def layout_for(self, k, friday):
         """The latest layout version taking effect on or before that Friday, or None."""
