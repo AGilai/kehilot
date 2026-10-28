@@ -15,11 +15,13 @@ export const ROW_LABEL_MAX = 8;
 export { MAX_COLS, MAX_ROWS, MAX_BLOCKS, BLOCK_NAME_MAX };
 
 /** `assign`: position to "family:<id>" | "holder:<id>" | "new:<key>" (a holder this draft will create at save). */
-export type Draft = { layout: LayoutBody; assign: Record<Pos, string>; holders: NewHolder[] };
+/** `shifted`: a row or column was added or removed in front of other seats, so their positions (and seat ids) moved. */
+export type Draft = { layout: LayoutBody; assign: Record<Pos, string>; holders: NewHolder[]; shifted?: boolean };
+export const shiftsSeats = (d: Draft): boolean => !!d.shifted;
 export type EditError = 'rows-cap' | 'cols-cap' | 'last-row' | 'last-col' | 'blocks-cap' | 'count' | 'taken' | 'not-seat' | 'range';
 export type Edit = { ok: true; draft: Draft } | { ok: false; error: EditError };
 
-const clone = (d: Draft): Draft => ({ layout: { ...d.layout, cells: d.layout.cells.map((r) => [...r]), blocks: d.layout.blocks.map((b) => ({ ...b })), rowLabels: [...d.layout.rowLabels] }, assign: { ...d.assign }, holders: d.holders.map((h) => ({ ...h })) });
+const clone = (d: Draft): Draft => ({ layout: { ...d.layout, cells: d.layout.cells.map((r) => [...r]), blocks: d.layout.blocks.map((b) => ({ ...b })), rowLabels: [...d.layout.rowLabels] }, assign: { ...d.assign }, holders: d.holders.map((h) => ({ ...h })), ...(d.shifted ? { shifted: true } : {}) });
 export const kindAt = (d: Draft, p: Pos): Kind | undefined => { const { r, c } = parsePos(p); return d.layout.cells[r]?.[c]; };
 export const isSeat = (d: Draft, p: Pos): boolean => kindAt(d, p) === 'seat';
 
@@ -127,6 +129,7 @@ export function addRow(d: Draft, where: 'front' | 'back'): Edit {
   const n = clone(d);
   const fresh = (): Kind[] => Array.from({ length: n.layout.cols }, (_, c) => (n.layout.blocks.some((b) => c >= b.colStart && c <= b.colEnd) ? 'empty' : 'aisle'));
   if (where === 'front') {
+    n.shifted = true;
     n.layout.cells.unshift(fresh()); n.layout.rowLabels.unshift(null);
     n.assign = Object.fromEntries(Object.entries(d.assign).map(([p, ref]) => { const { r, c } = parsePos(p); return [posKey(r + 1, c), ref]; }));
   } else { n.layout.cells.push(fresh()); n.layout.rowLabels.push(null); }
@@ -137,6 +140,7 @@ export function removeRow(d: Draft, row: number): Edit {
   if (d.layout.rows <= 1) return { ok: false, error: 'last-row' };
   if (row < 0 || row >= d.layout.rows) return { ok: false, error: 'range' };
   const n = clone(d);
+  if (row < d.layout.rows - 1) n.shifted = true;
   n.layout.cells.splice(row, 1); n.layout.rowLabels.splice(row, 1); n.layout.rows -= 1;
   n.assign = Object.fromEntries(Object.entries(d.assign).filter(([p]) => parsePos(p).r !== row).map(([p, ref]) => { const { r, c } = parsePos(p); return [posKey(r > row ? r - 1 : r, c), ref]; }));
   return { ok: true, draft: n };
@@ -149,6 +153,7 @@ export function addCol(d: Draft, where: 'left' | 'right'): Edit {
   for (const r of L.cells) { if (where === 'left') r.unshift('empty'); else r.push('empty'); }
   L.cols += 1;
   if (where === 'left') {
+    n.shifted = true;
     L.blocks.forEach((b) => { b.colStart += 1; b.colEnd += 1; });
     if (L.blocks.length) L.blocks[0]!.colStart = 0;
     n.assign = Object.fromEntries(Object.entries(d.assign).map(([p, ref]) => { const { r, c } = parsePos(p); return [posKey(r, c + 1), ref]; }));
@@ -160,6 +165,7 @@ export function removeCol(d: Draft, col: number): Edit {
   if (col < 0 || col >= d.layout.cols) return { ok: false, error: 'range' };
   const n = clone(d);
   const L = n.layout;
+  if (col < d.layout.cols - 1) n.shifted = true;
   for (const r of L.cells) r.splice(col, 1);
   L.cols -= 1;
   L.blocks = L.blocks.flatMap((b) => {
@@ -251,7 +257,12 @@ export function summarize(cs: ChangeSet): { assigned: number; freed: number; cel
   return { assigned: vals.filter((v) => v !== null).length, freed: vals.filter((v) => v === null).length, cells: Object.keys(cs.cells).length, names: !!cs.blocks || !!cs.rowLabels, size: !!cs.dims };
 }
 
-export type Overlap = { pos: Pos; what: 'cell' | 'seat'; base: string | null; theirs: string | null; mine: string | null };
+/**
+ * `gone`: the place stopped being a seat in my version, so nothing can be kept there (no choice offered; their holder is dropped).
+ * `family`: after the merge a household holds more seats than any side gave it, or seats where both sides put it; `pos` is its ref,
+ * `mineSeats` / `theirsSeats` where each side newly put it. Default keeps theirs; picking 'mine' drops theirs' new seats instead.
+ */
+export type Overlap = { pos: Pos; what: 'cell' | 'seat' | 'family'; base: string | null; theirs: string | null; mine: string | null; gone?: boolean; mineSeats?: Pos[]; theirsSeats?: Pos[] };
 /**
  * Re-apply `mine` (against `base`) on `theirs`, the newer saved version: every change that theirs did not also touch lands as an unsaved
  * change; a position both changed differently stays theirs unless `pick[pos+what]` is 'mine'. Overlaps are reported for the dialog's list.
@@ -280,16 +291,39 @@ export function rebaseOnto(theirs: Draft, base: Draft, mine: Draft, pick: Record
     if (clash) overlaps.push({ pos: p, what: 'cell', base: b, theirs: t, mine: m });
     if ((!clash || pick[`${p}|cell`] === 'mine') && m && L.cells[r]?.[c] !== undefined) L.cells[r]![c] = m;
   }
+  const reported = new Set<Pos>();
   for (const [p, m] of Object.entries(cs.assign)) {
     const t = isSeat(theirs, p) ? theirs.assign[p] ?? null : null, b = isSeat(base, p) ? base.assign[p] ?? null : null;
-    const gone = !!m && !isSeat(out, p); // the place is no longer a seat after the merge: nothing to hold
+    const gone = !isSeat(out, p) && (!!m || t !== b); // the place is no longer a seat after the merge: nothing to hold
     const clash = (t !== b && t !== m) || gone;
-    if (clash) overlaps.push({ pos: p, what: 'seat', base: b, theirs: t, mine: m });
+    if (clash) { overlaps.push({ pos: p, what: 'seat', base: b, theirs: t, mine: m, ...(gone ? { gone: true } : {}) }); reported.add(p); }
     if (!clash || (pick[`${p}|seat`] === 'mine' && !gone)) { if (m) out.assign[p] = m; else delete out.assign[p]; }
+  }
+  // a seat I turned into something else that theirs gave to a household: their holder is lost, shown as gone
+  for (const [p, m] of Object.entries(cs.cells)) {
+    const t = isSeat(theirs, p) ? theirs.assign[p] ?? null : null;
+    if (m && m !== 'seat' && t && t !== (isSeat(base, p) ? base.assign[p] ?? null : null) && !reported.has(p)) overlaps.push({ pos: p, what: 'seat', base: isSeat(base, p) ? base.assign[p] ?? null : null, theirs: t, mine: null, gone: true });
   }
   // a holder of a cell that is no longer a seat, or off the grid, is dropped
   for (const p of Object.keys(out.assign)) if (!isSeat(out, p)) delete out.assign[p];
+  // a household with more seats than any side gave it, or seats where both sides put it
+  const countOf = (d: Draft, ref: string) => countsByRef(d).get(ref) ?? 0;
+  const refs = new Set(Object.values(out.assign));
+  for (const ref of refs) {
+    if (ref.startsWith('new:')) continue;
+    const mineSeats = Object.entries(cs.assign).filter(([p, v]) => v === ref && out.assign[p] === ref).map(([p]) => p);
+    const theirsSeats = Object.keys(theirs.assign).filter((p) => isSeat(theirs, p) && theirs.assign[p] === ref && !(isSeat(base, p) && base.assign[p] === ref) && out.assign[p] === ref);
+    const most = Math.max(countOf(base, ref), countOf(mine, ref), countOf(theirs, ref));
+    const sameSpots = mineSeats.length === theirsSeats.length && mineSeats.every((p) => theirsSeats.includes(p));
+    if (countOf(out, ref) <= most && !(mineSeats.length && theirsSeats.length && !sameSpots)) continue;
+    if (!mineSeats.length || !theirsSeats.length) continue;
+    const mineOnly = mineSeats.filter((p) => !theirsSeats.includes(p)), theirsOnly = theirsSeats.filter((p) => !mineSeats.includes(p));
+    if (!mineOnly.length || !theirsOnly.length) continue;
+    overlaps.push({ pos: ref, what: 'family', base: String(countOf(base, ref)), theirs: String(countOf(theirs, ref)), mine: String(countOf(mine, ref)), mineSeats: mineOnly, theirsSeats: theirsOnly });
+    for (const q of pick[`${ref}|family`] === 'mine' ? theirsOnly : mineOnly) delete out.assign[q];
+  }
   out.layout = fitBlocks(L);
+  if (mine.shifted) out.shifted = true;
   return { draft: out, overlaps };
 }
 

@@ -8,7 +8,7 @@ import { Banner, Button, Txt, useTokens } from '../../../kit/components.tsx';
 import { Radio } from '../seatEditor/bits.tsx';
 import { Dialog } from './Dialog.tsx';
 
-export type ConflictLine = { key: string; where: string; theirs: string; mine?: string };
+export type ConflictLine = { key: string; where: string; theirs: string; mine?: string; /** No choice: the place is no longer a seat in my version. */ gone?: boolean };
 export type ConflictState =
   | { phase: 'loading' }
   | { phase: 'error' }
@@ -54,8 +54,9 @@ export function ConflictDialog({ visible, state, pick, onPick, onApply, onOverwr
               {ready.overlaps.slice(0, 12).map((o) => (
                 <View key={o.key} style={{ gap: 2, padding: 8, borderRadius: 8, borderWidth: 1, borderColor: k.line }}>
                   <Txt size="small" bold content>{o.where}</Txt>
+                  {o.gone ? <Txt size="small" color={k.muted}>{`${t('seatMap.conflict.theirs', { value: o.theirs })} · ${t('seatMap.conflict.gone')}`}</Txt> : <>
                   <Radio on={(pick[o.key] ?? 'theirs') === 'theirs'} label={t('seatMap.conflict.theirs', { value: o.theirs })} onPress={() => onPick(o.key, 'theirs')} />
-                  <Radio on={pick[o.key] === 'mine'} label={t('seatMap.conflict.mine', { value: o.mine ?? '' })} onPress={() => onPick(o.key, 'mine')} />
+                  <Radio on={pick[o.key] === 'mine'} label={t('seatMap.conflict.mine', { value: o.mine ?? '' })} onPress={() => onPick(o.key, 'mine')} /></>}
                 </View>
               ))}
             </View>

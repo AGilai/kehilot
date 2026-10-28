@@ -18,8 +18,8 @@ import { Dialog } from './Dialog.tsx';
 
 export type SavePhase = { name: 'idle' } | { name: 'running'; progress: SaveProgress } | { name: 'failed'; result: Extract<SaveResult, { ok: false }>; text: string };
 
-export function SaveDialog({ visible, cs, issues, layouts, openedFrom, now, from, onFrom, isOpen, phase, newHolders, onGo, onClose, partial }: {
-  visible: boolean; cs: ChangeSet; issues: DraftIssue[]; layouts: SeatLayoutRow[]; openedFrom: string | null; now: Date; from: string; onFrom: (f: string) => void;
+export function SaveDialog({ shifts, visible, cs, issues, layouts, openedFrom, now, from, onFrom, isOpen, phase, newHolders, onGo, onClose, partial }: {
+  /** The change moved seats (a row or column added or removed in front of others). */ shifts: boolean; visible: boolean; cs: ChangeSet; issues: DraftIssue[]; layouts: SeatLayoutRow[]; openedFrom: string | null; now: Date; from: string; onFrom: (f: string) => void;
   /** Ruling 6: that Shabbat already takes answers. */ isOpen: boolean; phase: SavePhase; newHolders: number; onGo: () => void; onClose: () => void;
   /** The partial-save card (holders made so far, retry/discard), shown after a failed write. */ partial: React.ReactNode;
 }) {
@@ -61,6 +61,7 @@ export function SaveDialog({ visible, cs, issues, layouts, openedFrom, now, from
       footer={<><Button title={busy ? t('seatMap.save.saving') : t('seatMap.save.go')} busy={busy} disabled={busy || issues.length > 0 || n === 0} onPress={onGo} /><Button kind="secondary" title={t('seatMap.save.cancel')} disabled={busy || locked} onPress={onClose} /></>}>
       <Txt accessibilityLiveRegion="polite">{n ? t('seatMap.save.diff', { n, parts: parts.join(' · ') }) : t('seatMap.save.diffNone')}</Txt>
       {newHolders ? <Txt color={k.gold}>{t('seatMap.save.newHolders', { n: newHolders })}</Txt> : null}
+      {shifts ? <Banner text={t('seatMap.save.shift')} /> : null}
       {issues.map((i, idx) => <Banner key={idx} tone="error" text={issueText(i)} />)}
       <View style={{ gap: 6, zIndex: 20 }}>
         <Txt bold>{t('seatMap.save.from')}</Txt>

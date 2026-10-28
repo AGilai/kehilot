@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import {
   MAX_COLS, MAX_ROWS, addCol, addHolder, addRow, assignKeys, assignmentsOf, changeCount, changedPositions, countsByRef, diffDrafts, draftFromVersion, draftIssues,
   editReducer, emptyDraft, freeAllOf, freeKeys, heldByOthers, initialEdit, layoutBodyOf, moveFamily, paintCells, paintLosers, rebaseOnto, removeCol, removeRow,
-  renameBlock, seatCount, seatsOf, setRowLabel, summarize, usedHolders, HISTORY_LIMIT,
+  renameBlock, seatCount, seatsOf, setRowLabel, shiftsSeats, summarize, usedHolders, HISTORY_LIMIT,
 } from '../src/seats/editModel.ts';
 import type { Draft } from '../src/seats/editModel.ts';
 
@@ -234,4 +234,57 @@ test('undo / redo, redo cleared by a new edit, limit 40, identical set is no ste
   for (let i = 0; i < 60; i++) long = editReducer(long, { type: 'set', draft: setRowLabel(long.draft, 0, String(i)) });
   assert.equal(long.past.length, HISTORY_LIMIT);
   assert.deepEqual(editReducer(long, { type: 'reset', draft: d0 }), initialEdit(d0));
+});
+
+test('rebase: both gabbaim moved the same family to different seats is a family overlap; theirs kept by default, mine on request', () => {
+  const b = assignKeys(base(), ['0:0'], A);
+  const mine = assignKeys(freeKeys(b, ['0:0']), ['0:1'], A);
+  const theirs = assignKeys(freeKeys(b, ['0:0']), ['0:2'], A);
+  const r = rebaseOnto(theirs, b, mine);
+  const fam = r.overlaps.filter((o) => o.what === 'family');
+  assert.equal(fam.length, 1);
+  assert.deepEqual([fam[0]!.pos, fam[0]!.mineSeats, fam[0]!.theirsSeats], [A, ['0:1'], ['0:2']]);
+  assert.deepEqual(seatsOf(r.draft, A), ['0:2']);
+  assert.deepEqual(seatsOf(rebaseOnto(theirs, b, mine, { [`${A}|family`]: 'mine' }).draft, A), ['0:1']);
+});
+
+test('rebase: theirs gave X new seats while I gave X seats elsewhere: never silently more seats than either side', () => {
+  const b = base();
+  const mine = assignKeys(b, ['2:0'], A);
+  const theirs = assignKeys(b, ['2:3', '2:2'], A);
+  const r = rebaseOnto(theirs, b, mine);
+  assert.equal(r.overlaps.filter((o) => o.what === 'family').length, 1);
+  assert.deepEqual(seatsOf(r.draft, A), ['2:3', '2:2']);
+  // adding seats on both sides at the same spots is no overlap
+  assert.deepEqual(rebaseOnto(mine, b, mine).overlaps, []);
+  // different households in different places: none
+  assert.deepEqual(rebaseOnto(assignKeys(b, ['2:3'], B), b, mine).overlaps, []);
+});
+
+test('rebase: a seat I painted to empty that theirs assigned is gone (no choice), their holder is dropped', () => {
+  const b = base();
+  const mine = paintCells(b, ['2:0'], 'empty');
+  const theirs = assignKeys(b, ['2:0'], B);
+  const r = rebaseOnto(theirs, b, mine);
+  assert.deepEqual(r.overlaps, [{ pos: '2:0', what: 'seat', base: null, theirs: B, mine: null, gone: true }]);
+  assert.equal(r.draft.assign['2:0'], undefined);
+  assert.equal(r.draft.layout.cells[2]![0], 'empty');
+  assert.equal(rebaseOnto(theirs, b, mine, { '2:0|seat': 'mine' }).draft.assign['2:0'], undefined);
+  // theirs did not touch it: no overlap
+  assert.deepEqual(rebaseOnto(b, b, mine).overlaps, []);
+});
+
+test('shifted flag: rows or columns added/removed in front of other seats; not at the far end', () => {
+  const d = base();
+  const flag = (e: ReturnType<typeof addRow>) => (e.ok ? !!e.draft.shifted : null);
+  assert.equal(flag(addRow(d, 'front')), true);
+  assert.equal(flag(addRow(d, 'back')), false);
+  assert.equal(flag(addCol(d, 'left')), true);
+  assert.equal(flag(addCol(d, 'right')), false);
+  assert.equal(flag(removeRow(d, 0)), true);
+  assert.equal(flag(removeRow(d, 2)), false);
+  assert.equal(flag(removeCol(d, 0)), true);
+  assert.equal(flag(removeCol(d, 3)), false);
+  const f = addRow(d, 'front');
+  if (f.ok) { assert.equal(shiftsSeats(assignKeys(f.draft, ['1:0'], A)), true); assert.equal(shiftsSeats(rebaseOnto(d, d, f.draft).draft), true); }
 });

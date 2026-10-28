@@ -297,7 +297,9 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
     const theirsDraft = conflict.theirs.draft;
     const L = theirsDraft.layout;
     const where = (p: Pos) => { const { r, c } = parsePos(p); const b = L.blocks.find((x) => c >= x.colStart && c <= x.colEnd)?.name ?? ''; const lab = L.rowLabels[r]; return [b, lab ? t('seatMap.grid.row', { row: lab }) : t('seatMap.grid.row', { row: r + 1 })].filter(Boolean).join(', '); };
-    const line = (o: Overlap): ConflictLine => ({ key: `${o.pos}|${o.what}`, where: where(o.pos), theirs: o.what === 'cell' ? cellKindText(o.theirs) : refText(conflict.holders, o.theirs), mine: o.what === 'cell' ? cellKindText(o.mine) : refText(conflict.holders, o.mine) });
+    const line = (o: Overlap): ConflictLine => o.what === 'family'
+      ? { key: `${o.pos}|family`, where: `${refText(conflict.holders, o.pos)} · ${t('seatMap.conflict.family')}`, theirs: t('seatMap.panel.countN', { n: o.theirsSeats?.length ?? 0 }), mine: t('seatMap.panel.countN', { n: o.mineSeats?.length ?? 0 }) }
+      : ({ ...(o.gone ? { gone: true } : {}), key: `${o.pos}|${o.what}`, where: where(o.pos), theirs: o.what === 'cell' ? cellKindText(o.theirs) : refText(conflict.holders, o.theirs), mine: o.what === 'cell' ? cellKindText(o.mine) : refText(conflict.holders, o.mine) });
     const rb = rebaseOnto(theirsDraft, conflictBase, edit.draft, pick);
     const theirCs = diffDrafts(conflictBase, theirsDraft);
     const theirChanges: ConflictLine[] = [
@@ -475,7 +477,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
         onView={(f) => { void viewVersion(f); }} onRestore={(f) => { void restore(f); }}
         onOpen={(f) => { askDiscard(() => { setDlg(null); void openVersion(f); }); }} />
 
-      <SaveDialog visible={dlg === 'save'} cs={cs} issues={issues} layouts={layouts} openedFrom={base?.from ?? null} now={now} from={saveFrom} isOpen={openForAnswers(now, saveFrom, weekOpen)}
+      <SaveDialog shifts={!!edit.draft.shifted} visible={dlg === 'save'} cs={cs} issues={issues} layouts={layouts} openedFrom={base?.from ?? null} now={now} from={saveFrom} isOpen={openForAnswers(now, saveFrom, weekOpen)}
         phase={savePhase} newHolders={usedHolders(edit.draft).length} onFrom={(f) => { if (savePhase.name !== 'running') setSaveFrom(f); }} onGo={() => { void doSave(false); }} onClose={() => setDlg(null)} partial={partial} />
 
       <ConflictDialog visible={dlg === 'conflict'} state={conflictView} pick={pick} onPick={(key, v) => setPick((p) => ({ ...p, [key]: v }))} onApply={applyConflict} onOverwrite={overwrite} onClose={() => setDlg(null)} busy={conflictBusy} />

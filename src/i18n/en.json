@@ -1929,7 +1929,8 @@
       "rowLabel": "A row name is too long (up to 8 characters).",
       "tooManyBlocks": "Too many blocks.",
       "cancel": "Cancel",
-      "toast": "The map was saved"
+      "toast": "The map was saved",
+      "shift": "Adding or removing a row or column moves seats. Weekly answers for seats that moved are reset."
     },
     "conflict": {
       "title": "A newer version exists",
@@ -1952,7 +1953,9 @@
       "applied": "Your changes were applied to the newer version. They are not saved yet.",
       "appliedOverlap": "Your changes were applied to the newer version and are not saved yet. {n} overlapping places stayed as in the newer version.",
       "failed": "Could not read the newer version.",
-      "later": "Later"
+      "later": "Later",
+      "gone": "You removed this seat, so their assignment to it will not be kept.",
+      "family": "The household got new seats from both sides"
     },
     "history": {
       "title": "History",
@@ -1991,7 +1994,8 @@
     },
     "phone": {
       "banner": "The map is edited on the website only.",
-      "hint": "You can see the hall and the list of families. Names appear when zoomed in."
+      "hint": "You can see the hall and the list of families. Names appear when zoomed in.",
+      "families": "Families"
     },
     "loadFailed": "The map did not load.",
     "loading": "Loading the map…"

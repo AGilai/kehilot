@@ -123,3 +123,16 @@ test('he.json and en.json have no duplicate keys at any level', () => {
     assert.deepEqual(dups, [], file);
   }
 });
+
+test('every literal key the seat map editor asks for exists in he and en', async () => {
+  const { readdirSync } = await import('node:fs');
+  const dir = new URL('../src/views/admin/seatMap/', import.meta.url);
+  const fh = flat(he), fe = flat(en);
+  const missing: string[] = [];
+  for (const f of readdirSync(dir)) {
+    for (const m of readFileSync(new URL(f, dir), 'utf8').matchAll(/\bt\('(seatMap\.[A-Za-z0-9_.]+)'/g)) {
+      if (!(m[1]! in fh) || !(m[1]! in fe)) missing.push(`${f}: ${m[1]}`);
+    }
+  }
+  assert.deepEqual(missing, []);
+});
