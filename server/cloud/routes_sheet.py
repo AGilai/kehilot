@@ -141,8 +141,6 @@ def _find(ctx, k, friday, item_id):
 
 
 def _line(value, item):
-    if item['kind'] == 'free':
-        raise ApiError(400, 'invalid_line')
     if not isinstance(value, dict) or set(value) - {'text', 'bold'} or 'text' not in value:
         raise ApiError(400, 'invalid_line')
     try:
@@ -181,7 +179,15 @@ def set_item(ctx, params):
             if 'line' in item:
                 removes.append('line')
         else:
-            sets['line'] = _line(d['line'], item)
+            line = _line(d['line'], item)
+            if item['kind'] == 'free':  # the line of a free item is its own text and bold
+                sets['text'] = line['text']
+                if line['bold']:
+                    sets['bold'] = line['bold']
+                elif 'bold' in item:
+                    removes.append('bold')
+            else:
+                sets['line'] = line
     updated = ctx.repo.update_sheet_item(k, friday.isoformat(), item['itemId'], sets, removes) if sets or removes else item
     message = None
     if updated['kind'] == 'message':

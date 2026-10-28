@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 from moto import mock_aws
 
 from server.cloud import push, routes_sheet, sheet_items
+from server.cloud.errors import ApiError
 from server.tests.cloud import test_messages
 
 J = ZoneInfo('Asia/Jerusalem')
@@ -132,6 +133,29 @@ class SheetRoutesTest(test_messages.MessagesTest):
         self.assertEqual(self.admin('PUT', f'/{item_id}', body={}), (400, {'error': 'invalid_body'}))
         self.assertEqual(self.admin('PUT', f'/{item_id}', body={'state': 'x'}), (400, {'error': 'invalid_state'}))
 
+    def test_free_item_line_edit(self):
+        item_id = self.admin('POST', body={'type': 'celebration', 'text': 'טעות', 'bold': 'מזל'})[1]['itemId']
+        status, item = self.admin('PUT', f'/{item_id}', body={'line': {'text': 'תוקן', 'bold': 'טוב'}})
+        self.assertEqual((status, item['line'], item['kind']), (200, {'text': 'תוקן', 'bold': 'טוב'}, 'free'))
+        self.assertEqual(self.sheet()[1]['items'][0]['line'], {'text': 'תוקן', 'bold': 'טוב'})
+        item = self.admin('PUT', f'/{item_id}', body={'line': {'text': 'רק טקסט', 'bold': ''}})[1]
+        self.assertEqual(item['line'], {'text': 'רק טקסט', 'bold': ''})
+        self.assertEqual(self.admin('PUT', f'/{item_id}', body={'line': {'text': ''}}), (400, {'error': 'invalid_line'}))
+        notice = self.free()
+        self.assertEqual(self.admin('PUT', f'/{notice}', body={'line': {'text': 'x', 'bold': 'b'}}),
+                         (400, {'error': 'invalid_line'}))
+        self.assertEqual(self.admin('PUT', f'/{notice}', body={'line': {'text': 'חדש'}})[1]['line']['text'], 'חדש')
+        self.assertEqual(self.admin('PUT', f'/{notice}', body={'line': None}), (400, {'error': 'invalid_line'}))
+
+    def test_stale_move_is_try_again(self):
+        a, b = self.free('a'), self.free('b')
+        stale = self.repo.list_sheet_items(self.k, FRIDAY, int(time.time()))
+        self.assertEqual(self.admin('POST', f'/{b}/move', body={'direction': 'up'})[0], 200)
+        with self.assertRaises(ApiError) as caught:
+            self.repo.swap_sheet_order(self.k, FRIDAY, stale[0], stale[1])
+        self.assertEqual((caught.exception.status, caught.exception.code), (409, 'try_again'))
+        self.assertEqual([i['itemId'] for i in self.sheet()[1]['items']], [b, a])
+
     def test_free_item_json(self):
         status, item = self.admin('POST', body={'type': 'celebration', 'text': 'א\nב', 'bold': 'מזל טוב',
                                                 'source': 'byGabbai'})
@@ -183,9 +207,28 @@ class SheetRoutesTest(test_messages.MessagesTest):
         self.assertEqual(self.admin('POST', '/nope/move', body={'direction': 'up'}), (404, {'error': 'item_not_found'}))
 
     def test_other_kehila_404(self):
+        pending = self.mazal('member-sub')
+        free = self.free()
+        before = {i['itemId']: i for i in self.repo.list_sheet_items(self.k, FRIDAY, int(time.time()))}
         other = self.repo.create_kehila('Beit Other', {})
-        for method, path, body in (('GET', f'/v1/kehilot/{other}/sheet/{FRIDAY}', None),
-                                   ('POST', f'/v1/kehilot/{other}/admin/sheet/{FRIDAY}/items', {'type': 'event', 'text': 'x'}),
-                                   ('PUT', f'/v1/kehilot/{other}/admin/sheet/{FRIDAY}/items/x', {'state': 'in'}),
-                                   ('POST', f'/v1/kehilot/{other}/admin/sheet/{FRIDAY}/items/x/move', {'direction': 'up'})):
-            self.assertEqual(self.call(method, path, body=body)[0], 404, path)
+        other_gabbai = self.call('GET', '/v1/me', sub='other-sub')[1]['userId']
+        self.repo.put_membership(other, other_gabbai, 'gabbai')
+        base = f'/v1/kehilot/{other}'
+        denied = (404, {'error': 'item_not_found'})
+        for method, path, body in (
+                ('GET', f'{base}/sheet/{FRIDAY}', None),
+                ('PUT', f'{base}/admin/sheet/{FRIDAY}/items/{pending}', {'state': 'in'}),
+                ('PUT', f'{base}/admin/sheet/{FRIDAY}/items/{free}', {'line': {'text': 'x'}}),
+                ('POST', f'{base}/admin/sheet/{FRIDAY}/items/{free}/move', {'direction': 'up'})):
+            status, answer = self.call(method, path, sub='other-sub', body=body)
+            if method == 'GET':
+                self.assertEqual((status, answer['items']), (200, []), path)
+            else:
+                self.assertEqual((status, answer), denied, path)
+        after = {i['itemId']: i for i in self.repo.list_sheet_items(self.k, FRIDAY, int(time.time()))}
+        self.assertEqual(after, before)
+        # and a non-member of the Kehila gets kehila_not_found
+        self.assertEqual(self.call('PUT', f'/v1/kehilot/{self.k}/admin/sheet/{FRIDAY}/items/{free}', sub='other-sub',
+                                   body={'state': 'removed'}), (404, {'error': 'kehila_not_found'}))
+        self.assertEqual(self.call('GET', f'/v1/kehilot/{self.k}/sheet/{FRIDAY}', sub='other-sub')[1],
+                         {'error': 'kehila_not_found'})
