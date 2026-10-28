@@ -47,15 +47,32 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** A role check on 'gabbai' in any quote style: `==`/`!=`/`===`/`!==`, `case`, `includes(`/`indexOf(`, `['gabbai'].includes(` and `isGabbai`. */
+const ROLE_CHECK = /(?:[=!]=+\s*|\b(?:includes|indexOf)\(\s*|\bcase\s+)(['"`])gabbai\1|(['"`])gabbai\2\s*[=!]=|\[[^\]]*(['"`])gabbai\3[^\]]*\]\s*\.\s*(?:includes|indexOf|some)\b|\bisGabbai\b/;
+
+/** The only places a literal 'gabbai' check may stay, by file and exact line count: the definitions in roles.ts and the fixture switches
+ * that compare a `card` / `variant` URL value (not a role). A new one anywhere else, or one more in these files, fails. */
+const ALLOWED: Record<string, number> = { 'src/client/roles.ts': 3, 'src/client/fixtures.ts': 1, 'src/seats/fixtureSeats.ts': 5 };
+
+test('the role-check detector knows every form', () => {
+  for (const line of [`x === 'gabbai'`, `x !== "gabbai"`, `x == 'gabbai'`, `x != "gabbai"`, `'gabbai' === x`, "x === `gabbai`", `['gabbai'].includes(x)`, `['gabbai', 'tech'].indexOf(x)`, `list.includes('gabbai')`, `list.indexOf("gabbai")`, `case 'gabbai':`, `case "gabbai":`, `const isGabbai = 1`]) {
+    assert.ok(ROLE_CHECK.test(line), line);
+  }
+  for (const line of [`role: 'gabbai',`, `type R = 'member' | 'gabbai'`, `by: 'gabbai' as const`, `x === 'gabbaim'`, `isManagement(x)`]) assert.ok(!ROLE_CHECK.test(line), line);
+});
+
 test('lint: no role comparison with gabbai in src/ (use isManagement)', () => {
   const bad: string[] = [];
-  // roles.ts defines the roles; the seat fixtures and `card ===` / `variant ===` compare fixture switches, not roles.
-  for (const f of walk('src').filter(f => f !== 'src/client/roles.ts' && !/^src\/seats\/fixture/.test(f))) {
+  const counts: Record<string, number> = {};
+  for (const f of walk('src')) {
     readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
-      if (/[=!]==\s*'gabbai'|'gabbai'\s*[=!]==|isGabbai/.test(line.replace(/\b(card|variant|screen)\s*===\s*'gabbai'/g, ''))) bad.push(`${f}:${i + 1}: ${line.trim()}`);
+      if (!ROLE_CHECK.test(line)) return;
+      counts[f] = (counts[f] ?? 0) + 1;
+      if (!(f in ALLOWED)) bad.push(`${f}:${i + 1}: ${line.trim()}`);
     });
   }
   assert.deepEqual(bad, []);
+  assert.deepEqual(counts, ALLOWED, 'exemptions are exact: remove an entry when its line goes, never raise a count to fit a new check');
 });
 
 import { PICKER_ROLES, roleChangeKey } from '../src/client/roles.ts';

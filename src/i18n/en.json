@@ -576,7 +576,7 @@
       "action": "Leave the Kehila",
       "confirm": "Leave the Kehila: {kehila}? You will stop getting its messages, and the links you made there will be revoked.",
       "yes": "Yes, leave",
-      "lastGabbai": "You are the only gabbai of this Kehila. To leave, appoint another gabbai first (management screen), then try again.",
+      "lastGabbai": "You are the only gabbai or tech of this Kehila. To leave, appoint another gabbai or tech first (management screen), then try again.",
       "done": "You left the Kehila",
       "confirmListener": "Leave the Kehila: {kehila}? You will stop getting its messages. You can come back with a new invite link.",
       "family": "You'll also leave your family here. {name} keeps it, with the children list.",
@@ -664,7 +664,7 @@
     "confirm": "Delete the account for good",
     "cancel": "Cancel",
     "working": "Deleting the account…",
-    "lastGabbai": "You are the only gabbai of a Kehila. Appoint another gabbai first (management screen) or leave that Kehila, then try again.",
+    "lastGabbai": "You are the only gabbai or tech of a Kehila. Appoint another gabbai or tech first (management screen) or leave that Kehila, then try again.",
     "failed": "The deletion did not finish. You can press again, it is safe to repeat.",
     "deleted": {
       "i1": "Your account and sign-in",
