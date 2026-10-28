@@ -137,7 +137,7 @@ test('deceased: ash colours, 62% opacity, a candle badge; the ז״ל label stays
   const alive = figureSvg({ ...base, deceased: false }), gone = figureSvg({ ...base, deceased: true });
   assert.notEqual(alive, gone);
   assert.ok(!alive.includes('data-candle')); assert.ok(gone.includes('data-candle'));
-  assert.ok(gone.includes('opacity="0.62"'));
+  assert.ok(gone.includes(`opacity="0.62"`));
   assert.ok(!gone.includes('ז״ל') && !alive.includes('ז״ל') && !/<text/i.test(gone));
   // no saturated colour is left in the figure group (every art colour is grey): only the candle flame is gold.
   const art = gone.slice(0, gone.indexOf('data-candle'));

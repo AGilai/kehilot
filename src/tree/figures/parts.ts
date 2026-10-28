@@ -45,11 +45,12 @@ export function tint(hex: string, t: number): string {
 }
 /** The "ash" look for the deceased: every colour becomes a grey of the same lightness, at a softer contrast
  *  (what `filter: grayscale(1) contrast(.85)` does, done on the colours so no SVG filter is needed). */
-export function ash(markup: string): string {
+export function ash(markup: string, dark = false): string {
   return markup.replace(/#[0-9a-fA-F]{6}\b/g, hex => {
     const [r, g, b] = rgb(hex);
     const y = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    const v = hex2(((y - 0.5) * 0.85 + 0.5) * 255);
+    const lum = dark ? 0.38 + y * 0.55 : (y - 0.5) * 0.85 + 0.5; // on a dark tile the darkest greys would vanish
+    const v = hex2(lum * 255);
     return ('#' + v + v + v).toUpperCase();
   });
 }

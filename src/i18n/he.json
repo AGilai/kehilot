@@ -1,5 +1,17 @@
 {
   "errors": {
+    "invalid_if_version": "העץ שנשלח לא מעודכן. טוענים מחדש.",
+    "invalid_people": "רשימת האנשים בעץ לא תקינה",
+    "invalid_relation": "הקשר המשפחתי לא תקין",
+    "invalid_tribe": "השבט לא תקין (כהן, לוי או ישראל)",
+    "invalid_hebrew_date": "התאריך העברי לא תקין",
+    "invalid_adar": "החודש אדר לא מתאים לשנה הזאת (אדר א׳ וב׳ רק בשנה מעוברת)",
+    "invalid_birth": "תאריך הלידה לא תקין",
+    "invalid_death": "תאריך הפטירה לא תקין",
+    "invalid_bar_mitzvah": "תאריך בר המצווה לא תקין",
+    "invalid_figure": "אפשרויות הדמות לא תקינות",
+    "version_conflict": "מישהו אחר עדכן את העץ. טוענים מחדש.",
+    "tree_too_large": "העץ גדול מדי",
     "invalid_body": "הבקשה לא תקינה",
     "invalid_json": "הבקשה לא תקינה",
     "invalid_first_name": "נא להזין שם פרטי (עד 60 תווים)",

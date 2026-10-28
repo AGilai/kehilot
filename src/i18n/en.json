@@ -1,5 +1,17 @@
 {
   "errors": {
+    "invalid_if_version": "The tree you sent is out of date. Reloading.",
+    "invalid_people": "The list of people in the tree is not valid",
+    "invalid_relation": "The family relation is not valid",
+    "invalid_tribe": "The tribe is not valid (kohen, levi or yisrael)",
+    "invalid_hebrew_date": "The Hebrew date is not valid",
+    "invalid_adar": "That Adar does not exist in that year (Adar I and II only in a leap year)",
+    "invalid_birth": "The birth date is not valid",
+    "invalid_death": "The date of death is not valid",
+    "invalid_bar_mitzvah": "The bar mitzvah date is not valid",
+    "invalid_figure": "The figure options are not valid",
+    "version_conflict": "Someone else updated the tree. Reloading.",
+    "tree_too_large": "The tree is too large",
     "invalid_body": "The request is not valid",
     "invalid_json": "The request is not valid",
     "invalid_first_name": "Enter a first name (up to 60 characters)",

@@ -84,7 +84,7 @@ const ROOT = (viewBox: string, inner: string) => {
   const [, , w, h] = box(viewBox);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${n(w)}" height="${n(h)}" viewBox="${viewBox}">${inner}</svg>`;
 };
-const fade = (markup: string, deceased: boolean) => deceased ? `<g opacity="0.62">${ash(markup)}</g>` : markup;
+const fade = (markup: string, deceased: boolean, dark = false) => deceased ? `<g opacity="${dark ? '0.8' : '0.62'}">${ash(markup, dark)}</g>` : markup;
 
 function badgeFor(style: 'A' | 'B', viewBox: string, dark: boolean): string {
   if (style === 'B') return candleBadge(80, 82, 13, dark);
@@ -104,10 +104,10 @@ export function figureSvg(a: FigureArgs): string {
   if (a.style === 'B') {
     const id = 'c' + hash(JSON.stringify([a.stage, a.gender, a.options, a.seed]));
     const art = `<g clip-path="url(#${id})"><circle cx="50" cy="50" r="50" fill="${disc}"/>${figureBMarkup(m)}</g>`;
-    return ROOT('0 0 100 100', `<defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath></defs>${fade(art, a.deceased)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
+    return ROOT('0 0 100 100', `<defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath></defs>${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
   }
   const fig = figureA(lookOf(m));
-  return ROOT(fig.viewBox, `${fade(fig.markup, a.deceased)}${a.deceased ? badgeFor('A', fig.viewBox, a.dark) : ''}`);
+  return ROOT(fig.viewBox, `${fade(fig.markup, a.deceased, a.dark)}${a.deceased ? badgeFor('A', fig.viewBox, a.dark) : ''}`);
 }
 
 /** A married child: one tile, our child in front on a tekhelet stage, the spouse a step behind (and a little smaller). */
@@ -119,14 +119,14 @@ export function coupleSvg(a: { style: 'A' | 'B'; dark: boolean; deceased: boolea
       + `<g transform="translate(35 56.2) scale(0.6615) translate(-50 -46)">${figureBMarkup(a.spouse)}</g>`
       + `<ellipse data-marker="1" cx="62" cy="100" rx="30" ry="9" fill="${spot.c}" fill-opacity="${spot.o}"/>`
       + `<g transform="translate(62 52) scale(0.8) translate(-50 -46)">${figureBMarkup(a.child)}</g></g>`;
-    return ROOT('0 0 100 100', `<defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath></defs>${fade(art, a.deceased)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
+    return ROOT('0 0 100 100', `<defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath></defs>${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
   }
   const vb = '18 0 70 150';
   const art = `<ellipse data-marker="1" cx="61" cy="145.5" rx="17" ry="3.6" fill="${spot.c}" fill-opacity="${spot.o}"/>`
     + `<g transform="translate(-11 0) translate(50 146) scale(0.9) translate(-50 -146)">${figureA(lookOf(a.spouse)).markup}</g>`
     + `<g transform="translate(11 0)">${figureA(lookOf(a.child)).markup}</g>`
     + `<rect data-marker="1" x="55" y="147" width="30" height="3" rx="1.5" fill="${spot.c}"/>`;
-  return ROOT(vb, `${fade(art, a.deceased)}${a.deceased ? badgeFor('A', vb, a.dark) : ''}`);
+  return ROOT(vb, `${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('A', vb, a.dark) : ''}`);
 }
 
 /** An empty slot: a dashed outline (head and shoulders in a dashed circle in B, the body in A). */
