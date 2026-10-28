@@ -266,6 +266,15 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const readable = new Set(readableIds());
     return still(c) && cache === mine ? hits.filter(h => readable.has(h.channelId)) : [];
   }
+  /** Everything in the on-device archive of the open Kehila that the person can read now. */
+  async function archive(): Promise<CachedMessage[]> {
+    const c = current();
+    const mine = cache;
+    if (!c || !mine) return [];
+    const hits = await mine.list();
+    const readable = new Set(readableIds());
+    return still(c) && cache === mine ? hits.filter(h => readable.has(h.channelId)) : [];
+  }
   async function cacheStatus(): Promise<{ complete: boolean; count: number }> {
     return cache ? cache.status() : { complete: false, count: 0 };
   }
@@ -429,7 +438,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   return {
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
-    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptAge13, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, cacheStatus, cachedMessage, loadHit, reset, guard,
+    loadMe, selectKehila, chooseKehila, start, saveProfile, acceptAge13, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, archive, cacheStatus, cachedMessage, loadHit, reset, guard,
     setNotify, editProfile, setPhone, setShowPhone, leaveKehila, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };

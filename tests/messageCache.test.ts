@@ -35,6 +35,14 @@ test('upsert and search newest first', async () => {
   assert.deepEqual((await cache.search('שבת', { channelId: 'c2' })), []);
 });
 
+test('list returns the whole archive newest first, optionally one channel', async () => {
+  const { cache } = await ready();
+  const a = msg(T0, { channelId: 'c1' }, 1); const b = msg(T0 + 40 * DAY, { channelId: 'c2' }, 2); const c = msg(T0 + 80 * DAY, { channelId: 'c1' }, 3);
+  await cache.upsert([a, c, b]);
+  assert.deepEqual((await cache.list()).map(m => m.messageId), [c.messageId, b.messageId, a.messageId]);
+  assert.deepEqual((await cache.list({ channelId: 'c1' })).map(m => m.messageId), [c.messageId, a.messageId]);
+});
+
 test('search covers author and target names, final letters fold', async () => {
   const { cache } = await ready();
   await cache.upsert([msg(T0, { title: 'מזל טוב', targetName: 'בדיוני', authorName: 'דנה בדויה' }, 1)]);

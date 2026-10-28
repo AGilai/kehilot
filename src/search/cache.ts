@@ -232,6 +232,18 @@ export function createMessageCache(store: CacheStore, userId: string, k: string)
       });
     },
 
+    /** The whole archive (optionally one channel), newest first: the Messages filter's counts run over it. */
+    list(o: { channelId?: string } = {}): Promise<CachedMessage[]> {
+      return run(async () => {
+        if (!(await loadMeta())) return [];
+        const out: CachedMessage[] = [];
+        for (const mo of await loadMonthList()) {
+          for (const msg of Object.values(await loadMonth(mo))) if (!o.channelId || msg.channelId === o.channelId) out.push(msg);
+        }
+        return out.sort((a, b) => (a.messageId < b.messageId ? 1 : a.messageId > b.messageId ? -1 : 0));
+      });
+    },
+
     /** One cached message (offline copy for the detail screen), or null. */
     get(id: string): Promise<CachedMessage | null> {
       return run(async () => ((await loadMeta()) ? ((await loadMonth(monthOf(id)))[id] ?? null) : null));

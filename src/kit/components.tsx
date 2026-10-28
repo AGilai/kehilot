@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import type { StyleProp, TextInputProps, TextStyle, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -154,6 +154,30 @@ export function Segmented<K extends string>({ options, value, onChange }: { opti
         );
       })}
     </View>
+  );
+}
+
+/**
+ * One full-width control that opens a list and says what is chosen (UX §12.8). `label` is bold; `summary` is the muted
+ * rest ("· הכול") shown while nothing is chosen. `active` (something chosen) gets a 2 px ink border and, with `count`, a badge.
+ */
+export function SelectButton({ icon = 'sliders', label, summary, count, active, open, onPress, accessibilityLabel, accessibilityHint }: {
+  icon?: IconName; label: string; summary?: string; count?: number; active?: boolean; open?: boolean; onPress: () => void; accessibilityLabel?: string; accessibilityHint?: string;
+}) {
+  const k = useTokens();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityHint={accessibilityHint} accessibilityState={{ expanded: !!open }}
+      {...(Platform.OS === 'web' ? ({ 'aria-haspopup': 'dialog' } as object) : {})} onPress={onPress}
+      style={{ minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8, paddingStart: active ? 11 : 12, paddingEnd: active ? 7 : 8, borderRadius: 10, borderWidth: active ? 2 : 1, borderColor: active ? k.ink : k.line, backgroundColor: k.surface }}>
+      <Icon name={icon} size={20} color={active ? k.ink : k.muted} />
+      <Txt numberOfLines={1} style={{ flex: 1 }}><Txt bold>{label}</Txt>{summary ? <Txt color={k.muted}>{` ${summary}`}</Txt> : null}</Txt>
+      {active && count ? (
+        <View style={{ minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: k.ink, alignItems: 'center', justifyContent: 'center' }}>
+          <Txt size="caption" bold color={k.stone} style={{ fontVariant: ['tabular-nums'] }}>{count}</Txt>
+        </View>
+      ) : null}
+      <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}><Icon name="chev" size={20} color={k.muted} /></View>
+    </Pressable>
   );
 }
 

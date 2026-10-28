@@ -72,6 +72,8 @@ export type SessionApi = {
   targetFamilies(channelId: string): Promise<TargetFamily[]>;
   /** Offline search over the on-phone cache of the open Kehila. */
   search(q: string, o?: { channelId?: string }): Promise<CachedMessage[]>;
+  /** The whole on-phone archive of the open Kehila (the Messages filter counts over it). */
+  archive(): Promise<CachedMessage[]>;
   cacheStatus(): Promise<{ complete: boolean; count: number }>;
   /** An older message (a search hit): full online, the read-only offline copy without a connection. */
   loadHit(messageId: string): Promise<Hit>;
@@ -170,6 +172,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     targetFamilies: async c => { const k = store.getState().kehilaId; return k ? api.targetFamilies(k, c) : []; },
     directory: async c => { const k = store.getState().kehilaId; return k ? api.directory(k, c) : []; },
     search: (q, o) => store.search(q, o),
+    archive: () => store.archive(),
     cacheStatus: () => store.cacheStatus(),
     loadHit: m => store.loadHit(m),
     imageUrl: async (m, fresh) => { const k = store.getState().kehilaId; return k ? images.get(k, m, { fresh }) : null; },
