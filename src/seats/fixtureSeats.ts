@@ -100,6 +100,11 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
   if (card === 'seats-gabbai' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'gabbai', at: 1_790_000_100_000 });
   if (card === 'seats-done' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'member', at: 1_790_000_100_000 });
 
+  // Who has answered: every other household with an even number; his family only for the "done"/gabbai cards.
+  const answered: Record<WirePrayer, Map<string, number>> = { erev: new Map(), day: new Map() };
+  allocations.slice(1).forEach((a, i) => { if (i % 2 === 0) { answered.erev.set(`family:${a.householdId}`, 1_790_000_000_000); answered.day.set(`family:${a.householdId}`, 1_790_000_000_000); } });
+  if (card === 'seats-done' || card === 'seats-gabbai' || variant === 'gabbai') for (const p of ['erev', 'day'] as const) answered[p].set('family:me', 1_790_000_100_000);
+
   const open = variant !== 'closed';
   const deadline = () => (open ? israelInstant(friday, '12:00') : new Date(Date.now() - 3_600_000)).toISOString();
   const myIds = () => new Set(mine.map(fixtureSeatId));
@@ -119,7 +124,7 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
       })),
     }));
     const flagged = [...myIds()].some((id) => state.erev.get(id)?.by === 'gabbai' || state.day.get(id)?.by === 'gabbai');
-    return { ...base, seats: view.seatCount, updatedByGabbai: flagged, updatedAt: { ...updatedAt }, frames };
+    return { ...base, seats: view.seatCount, updatedByGabbai: flagged, updatedAt: { ...updatedAt }, answered: { erev: answered.erev.has('family:me'), day: answered.day.has('family:me') }, frames };
   }
 
   /** The family's seats by order k (the server's order). */
@@ -136,12 +141,13 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
     const order = myOrder();
     const want = new Set(body.released.map((k) => order[k - 1]).filter((x): x is string => !!x));
     for (const id of order) { if (want.has(id)) { if (!state[body.prayer].has(id)) state[body.prayer].set(id, { by: 'member', at: Date.now() }); } else state[body.prayer].delete(id); }
+    answered[body.prayer].set('family:me', Date.now());
     updatedAt[body.prayer] += 1000;
     return memberWire();
   }
 
   function adminWeek(): WeekWire {
-    const prayerOut = (p: WirePrayer) => ({ seats: Object.fromEntries([...state[p]].map(([id, r]) => [id, { released: true, by: r.by, at: r.at }])), requests: {}, canUndo: false, updatedAt: updatedAt[p] });
+    const prayerOut = (p: WirePrayer) => ({ seats: Object.fromEntries([...state[p]].map(([id, r]) => [id, { released: true, by: r.by, at: r.at }])), requests: {}, canUndo: false, answered: Object.fromEntries(answered[p]), updatedAt: updatedAt[p] });
     return { week: friday, deadline: deadline(), open, layout: hallLayout(h.hall), assignments, households, prayers: { erev: prayerOut('erev'), day: prayerOut('day') } };
   }
 
@@ -150,6 +156,7 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
     for (const [id, want] of Object.entries(body.released)) {
       if (!assignments[id]) throw new ApiCodeError(400, 'invalid_released');
       if (want) state[body.prayer].set(id, { by: 'gabbai', at: Date.now() }); else state[body.prayer].delete(id);
+      answered[body.prayer].set(assignments[id]!, Date.now());
     }
     updatedAt[body.prayer] += 1000;
     return { updatedAt: updatedAt[body.prayer] };

@@ -1,4 +1,4 @@
-import type { PrintState } from './printModel.ts';
+import type { PrintState } from './wire.ts';
 
 /** UX-DESIGN §15.9: the gabbai print's colour style. Shapes and labels are the same in every style. */
 export type PrintStyle = 'green' | 'greenRed' | 'bw';
@@ -8,9 +8,9 @@ export const PRINT_STYLE_DEFAULT: PrintStyle = 'green';
 export const PRINT_STYLE_KEY = 'kehilot.seatPrintStyle';
 
 const FILLS: Record<PrintStyle, Record<PrintState, string>> = {
-  green: { taken: '#EBEBEB', released: '#9ED8AA', free: '#57B46C' },
-  greenRed: { taken: '#DB5B56', released: '#9ED8AA', free: '#57B46C' },
-  bw: { taken: '#C8C8C8', released: '#FFFFFF', free: '#FFFFFF' },
+  green: { taken: '#EBEBEB', released: '#9ED8AA', free: '#57B46C', pending: '#EBEBEB' },
+  greenRed: { taken: '#DB5B56', released: '#9ED8AA', free: '#57B46C', pending: '#DB5B56' },
+  bw: { taken: '#C8C8C8', released: '#FFFFFF', free: '#FFFFFF', pending: '#C8C8C8' },
 };
 
 export const seatFill = (style: PrintStyle, state: PrintState): string => FILLS[style][state];

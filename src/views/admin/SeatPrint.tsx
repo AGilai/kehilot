@@ -143,7 +143,7 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
         <Txt bold size="small">{t('seats.print.style')}</Txt>
         <Segmented<PrintStyle> options={PRINT_STYLES.map(x => ({ key: x, label: styleName(x) }))} value={style} onChange={pickStyle} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {(['taken', 'released', 'free'] as const).map(st => <PaperBox key={st} state={st} style={style} w={26} h={18} />)}
+          {(['taken', 'pending', 'released', 'free'] as const).map(st => <PaperBox key={st} state={st} style={style} w={26} h={18} />)}
         </View>
         <Txt size="caption" color={k.muted}>{t('seats.print.styleNote')}</Txt>
         <Check label={t('seats.print.names')} note={t('seats.print.namesNote')} value={names} onChange={setNames} />
@@ -220,6 +220,7 @@ function PrintPage({ model, prayer, names, sheet, style, onSeat }: { model: Layo
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22 }}>
         <LegendItem state="taken" text={t('seats.print.legendTaken')} />
+        <LegendItem state="pending" text={t('seats.print.legendPending')} />
         <LegendItem state="released" text={t('seats.print.legendReleased')} />
         <LegendItem state="free" text={t('seats.print.legendFree')} />
         {T(t(style === 'green' ? 'seats.print.noteGreen' : style === 'greenRed' ? 'seats.print.noteGreenRed' : 'seats.print.noteBw'), { size: 12.5, bold: true })}
@@ -228,11 +229,11 @@ function PrintPage({ model, prayer, names, sheet, style, onSeat }: { model: Layo
     </View>
   );
 
-  function CountCell({ title, c, first }: { title: string; c: { taken: number; released: number; free: number }; first?: boolean }) {
+  function CountCell({ title, c, first }: { title: string; c: { taken: number; released: number; free: number; pending: number }; first?: boolean }) {
     return (
       <View style={{ flex: 1, paddingHorizontal: 6, paddingVertical: 4, borderStartWidth: first ? 0 : 1, borderStartColor: INK }}>
         {T(title, { size: 12.5, bold: true })}
-        {T(`${t('seats.print.taken')} ${c.taken} · ${t('seats.print.released')} ${c.released} · ${t('seats.print.free')} ${c.free}`, { size: 11 })}
+        {T(`${t('seats.print.taken')} ${c.taken} · ${t('seats.print.pending')} ${c.pending} · ${t('seats.print.released')} ${c.released} · ${t('seats.print.free')} ${c.free}`, { size: 11 })}
       </View>
     );
   }
@@ -251,7 +252,7 @@ function PaperBox({ state, style, w, h, label, strike }: { state: PrintState; st
   const base = { width: w, height: h, borderTopLeftRadius: 5, borderTopRightRadius: 5, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: seatFill(style, state) } as const;
   const diag = Math.sqrt(w * w + h * h);
   return (
-    <View style={[base, state === 'taken' ? { borderWidth: 1, borderColor: INK } : state === 'released' ? { borderWidth: 2, borderColor: INK } : { borderWidth: 1.2, borderStyle: 'dashed', borderColor: INK }]}>
+    <View style={[base, state === 'taken' ? { borderWidth: 1, borderColor: INK } : state === 'pending' ? { borderWidth: 1.5, borderStyle: 'dotted', borderColor: INK } : state === 'released' ? { borderWidth: 2, borderColor: INK } : { borderWidth: 1.2, borderStyle: 'dashed', borderColor: INK }]}>
       {state === 'released' ? <View style={{ position: 'absolute', width: diag, height: 2, backgroundColor: INK, transform: [{ rotate: `${-Math.atan2(h, w)}rad` }] }} /> : null}
       {label ? <Txt color={INK} style={{ fontSize: 10, lineHeight: 12, textDecorationLine: strike ? 'line-through' : 'none', textAlign: 'center' }} numberOfLines={1}>{label}</Txt> : null}
     </View>

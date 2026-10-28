@@ -19,8 +19,8 @@ import { roleFeatures } from '../client/roleView.ts';
 import { HomeCards } from './HomeCards.tsx';
 import { TestBuildCard } from './TestBuildCard.tsx';
 import { SeatCard } from './SeatCard.tsx';
-import { readAnswered, rememberAnswered, useMemberSeats } from '../seats/useMemberSeats.ts';
-import { cardModel as seatCardModel } from '../seats/wire.ts';
+import { useMemberSeats } from '../seats/useMemberSeats.ts';
+import { cardModel as seatCardModel, yesChoices } from '../seats/wire.ts';
 import { whenParts } from '../seats/window.ts';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
@@ -104,14 +104,8 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
   // The seat card (UX §15.2): from the member API only; a family with no seats (or a Kehila with no hall map) gets nothing, and any error hides it.
   const seatRole = state.kehila?.role === 'member' || state.kehila?.role === 'gabbai';
   const seats = useMemberSeats(seatRole);
-  const seatWeek = seats.state.status === 'ready' ? seats.state.data.week : null;
-  const [seatAnswered, setSeatAnswered] = React.useState(false);
-  React.useEffect(() => {
-    let live = true;
-    if (seatWeek && state.kehilaId) void readAnswered(state.kehilaId, seatWeek).then(v => { if (live) setSeatAnswered(v); });
-    return () => { live = false; };
-  }, [seatWeek, state.kehilaId]);
-  const seatCard = seats.state.status === 'ready' ? seatCardModel(seats.state.data, now, seatAnswered, config.seatsPreview) : null;
+  const [seatBusy, setSeatBusy] = React.useState(false);
+  const seatCard = seats.state.status === 'ready' ? seatCardModel(seats.state.data, now, config.seatsPreview) : null;
   const kehila = state.kehila;
   if (!kehila) return null;
   const today = zmanim?.date === date ? zmanim : null;
@@ -134,11 +128,12 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
 
       {seatCard && onSeats ? (
         <SeatCard count={seatCard.count} state={seatCard.state} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
+          busy={seatBusy}
           onYes={() => {
-            if (config.seatsPreview) { onToast?.(t('seats.previewToast')); return; }
-            setSeatAnswered(true); // "yes, everyone's coming" is no change on the server: remembered on this device
-            if (state.kehilaId && seatWeek) void rememberAnswered(state.kehilaId, seatWeek);
-            onToast?.(t('seats.saved'));
+            // "Yes, everyone's coming" is an answer: his current released set (usually none) is saved for both prayers.
+            if (seats.state.status !== 'ready' || seatBusy) return;
+            setSeatBusy(true);
+            seats.save(yesChoices(seats.state.data)).then(r => { if (r) onToast?.(r.kind === 'saved' ? t('seats.saved') : t('seats.updatedNow')); }, () => onToast?.(t('errors.generic'))).finally(() => setSeatBusy(false));
           }} onUpdate={onSeats} />
       ) : null}
 

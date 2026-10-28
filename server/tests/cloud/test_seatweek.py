@@ -96,7 +96,7 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual([r['label'] for r in frame['rows']], ['3', '4', '5', '6', '7'])
         self.assertEqual(frame['blockName'], 'שמאל בדיוני')
         self.assertEqual(frame['cols'], 2)
-        self.assertEqual(set(body), {'week', 'deadline', 'open', 'seats', 'updatedByGabbai', 'updatedAt', 'frames'})
+        self.assertEqual(set(body), {'week', 'deadline', 'open', 'seats', 'answered', 'updatedByGabbai', 'updatedAt', 'frames'})
         raw = json.dumps(body, ensure_ascii=False)
         for secret in list(self.at.values()) + [self.other, self.holder, HOLDER, 'Quinn', 'ימין בדיוני', self.fam, 'holder:', 'family:',
                                                 'assignments']:
@@ -170,6 +170,38 @@ class SeatWeekTest(test_messages.MessagesTest):
             self.assertEqual(self.put_me([1], 'erev')[0], 200)  # replaces the erev set
             state = {c['k']: c['state']['erev'] for c in self.cells(self.me()[1]['frames'][0]) if c['kind'] == 'mine'}
             self.assertEqual(state, {1: 'released', 2: 'kept', 3: 'kept'})
+
+    def test_answered_is_stored_per_household_week_and_prayer(self):
+        self.mine((5, 0), (5, 1))
+        self.give(f'holder:{self.holder}', (8, 0))
+        ref = f'family:{self.fam}'
+        with self.now(at(11)):
+            self.assertEqual(self.me()[1]['answered'], {'erev': False, 'day': False})
+            self.assertEqual(self.put_me([], 'erev')[0], 200)  # "yes, everyone's coming": no seat change, still an answer
+            body = self.me()[1]
+            self.assertEqual(body['answered'], {'erev': True, 'day': False})
+            self.assertEqual(self.put_me([], 'erev', sub='member-sub')[0], 200)
+            week = self.admin_week()
+            self.assertIn(ref, week['prayers']['erev']['answered'])
+            self.assertNotIn(ref, week['prayers']['day']['answered'])
+            self.assertEqual(week['prayers']['erev']['answered'].keys() & {f'holder:{self.holder}'}, set())
+            self.assertFalse(self.me(week=friday(2))[1].get('answered', {}).get('erev', False))
+            # a responses file does not change it, in either direction
+            self.assertEqual(self.respond([{'household': ref, 'released': 1, 'override': True},
+                                           {'household': f'holder:{self.holder}', 'released': 1}], 'day')[0], 200)
+            week = self.admin_week()
+            self.assertNotIn(ref, week['prayers']['day']['answered'])
+            self.assertIn(ref, week['prayers']['erev']['answered'])
+            self.assertEqual(self.respond([{'household': ref, 'released': 0, 'override': True}], 'erev')[0], 200)
+            self.assertEqual(self.undo('erev')[0], 200)
+            self.assertIn(ref, self.admin_week()['prayers']['erev']['answered'])
+        # gabbai on behalf marks the households of the seats it names, even past the deadline
+        with self.now(at(15)):
+            self.assertEqual(self.gput({self.at[(8, 0)]: False}, 'day')[0], 200)
+            day = self.admin_week()['prayers']['day']['answered']
+            self.assertIn(f'holder:{self.holder}', day)
+            self.assertNotIn(ref, day)
+            self.assertEqual(self.me()[1]['answered'], {'erev': True, 'day': False})
 
     def test_member_cannot_release_what_is_not_his(self):
         self.mine((5, 0))

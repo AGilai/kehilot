@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { ApiCodeError } from '../src/client/errors.ts';
 import {
   cardModel, conflictOutcome, householdsOf, kindRects, layoutPrint, lastBy, memberFromWire, memberPutBody, onBehalfBody,
-  printGeometry, saveRelease, holdsSeats, sameOwnSeats,
+  printGeometry, saveRelease, yesChoices, holdsSeats, sameOwnSeats,
 } from '../src/seats/wire.ts';
 import type { CellKind, MemberSeats, MemberWire, WeekWire } from '../src/seats/wire.ts';
 
@@ -89,27 +89,42 @@ test('member payload: his frames, orders as keys, released states per prayer, bi
 test('member with no seats: nothing to show, no card', () => {
   const none = memberFromWire({ week: 'w', deadline: '2026-10-30T10:00:00+00:00', open: true, seats: 0 });
   assert.equal(holdsSeats(none), false);
-  assert.equal(cardModel(none, new Date('2026-10-30T08:00:00Z'), false), null);
-  assert.equal(cardModel(none, new Date('2026-10-30T08:00:00Z'), false, true), null);
-  assert.equal(cardModel(null, new Date(), false), null);
+  assert.equal(cardModel(none, new Date('2026-10-30T08:00:00Z')), null);
+  assert.equal(cardModel(none, new Date('2026-10-30T08:00:00Z'), true), null);
+  assert.equal(cardModel(null, new Date()), null);
 });
 test('card window: a day before the server deadline until the deadline', () => {
   const m = member();
-  assert.equal(cardModel(m, new Date('2026-10-29T09:59:59Z'), false), null);
-  assert.equal(cardModel(m, new Date('2026-10-29T10:00:00Z'), false)?.state, 'ask');
-  assert.equal(cardModel(m, new Date('2026-10-30T09:59:59Z'), false)?.state, 'ask');
-  assert.equal(cardModel(m, new Date('2026-10-30T10:00:00Z'), false), null);
-  assert.equal(cardModel(member({ open: false }), new Date('2026-10-30T09:00:00Z'), false), null);
-  assert.equal(cardModel(m, new Date('2026-11-20T09:00:00Z'), false, true)?.state, 'ask', 'preview ignores the timer');
+  assert.equal(cardModel(m, new Date('2026-10-29T09:59:59Z')), null);
+  assert.equal(cardModel(m, new Date('2026-10-29T10:00:00Z'))?.state, 'ask');
+  assert.equal(cardModel(m, new Date('2026-10-30T09:59:59Z'))?.state, 'ask');
+  assert.equal(cardModel(m, new Date('2026-10-30T10:00:00Z')), null);
+  assert.equal(cardModel(member({ open: false }), new Date('2026-10-30T09:00:00Z')), null);
+  assert.equal(cardModel(m, new Date('2026-11-20T09:00:00Z'), true)?.state, 'ask', 'preview ignores the timer');
 });
-test('card state: ask, done (tapped yes or released a seat), by gabbai', () => {
+test('card state: ask until the server says both prayers are answered; a gabbai change shows its own state', () => {
   const now = new Date('2026-10-30T08:00:00Z');
-  assert.equal(cardModel(member(), now, true)?.state, 'done');
-  const some = cardModel(member({}, [['released', 'kept'], ['kept', 'kept'], ['kept', 'kept']]), now, false)!;
-  assert.equal(some.state, 'done');
+  const ans = (erev: boolean, day: boolean) => member({ answered: { erev, day } });
+  assert.equal(cardModel(member(), now)?.state, 'ask');
+  assert.equal(cardModel(ans(true, false), now)?.state, 'ask');
+  assert.equal(cardModel(ans(true, true), now)?.state, 'done');
+  const some = cardModel(member({ answered: { erev: true, day: true } }, [['released', 'kept'], ['kept', 'kept'], ['kept', 'kept']]), now)!;
   assert.deepEqual(some.free, { arvit: 1, shacharit: 0 });
-  assert.equal(cardModel(member({ updatedByGabbai: true }), now, true)?.state, 'byGabbai');
-  assert.equal(cardModel(member(), now, false)?.count, 3);
+  assert.equal(cardModel(member({ updatedByGabbai: true, answered: { erev: true, day: true } }), now)?.state, 'byGabbai');
+  assert.equal(cardModel(member(), now)?.count, 3);
+});
+test('"yes, everyone\'s coming" saves the current released set for both prayers', () => {
+  const m = member({}, [['released', 'kept'], ['kept', 'kept'], ['kept', 'kept']]);
+  const y = yesChoices(m);
+  assert.deepEqual([...y.arvit], ['1']);
+  assert.deepEqual([...y.shacharit], []);
+  assert.deepEqual(memberPutBody(m.week, 'shacharit', y.shacharit, m.updatedAt.shacharit), { week: '2026-10-30', prayer: 'day', released: [], ifUpdatedAt: null });
+});
+test('seats: 0 payload (deep link, push) is the no-seats state', () => {
+  const none = memberFromWire({ week: 'w', deadline: '2026-10-30T10:00:00+00:00', open: true, seats: 0 });
+  assert.equal(none.seatCount, 0);
+  assert.deepEqual(none.frames, []);
+  assert.deepEqual(none.answered, { arvit: false, shacharit: false });
 });
 
 // ---- bimah from the server's cells
@@ -136,7 +151,7 @@ function week(): WeekWire {
     assignments: { s00: 'family:f1', s01: 'family:f1', s03: 'family:f1', s10: 'holder:h1', s11: 'holder:h1', s04: 'family:f2' },
     households: { 'family:f1': 'משפחת בדיוני', 'holder:h1': 'דוגמה', 'family:f2': 'ניסיון' },
     prayers: {
-      erev: { seats: { s01: { released: true, by: 'member', at: 10 }, s10: { released: true, by: 'gabbai', at: 20 }, s04: { released: false, by: 'member', at: 5 } }, requests: {}, canUndo: false, updatedAt: 77 },
+      erev: { answered: { 'family:f2': 5, 'family:f1': 10 }, seats: { s01: { released: true, by: 'member', at: 10 }, s10: { released: true, by: 'gabbai', at: 20 }, s04: { released: false, by: 'member', at: 5 } }, requests: {}, canUndo: false, updatedAt: 77 },
       day: { seats: {}, requests: {}, canUndo: false, updatedAt: null },
     },
   };
@@ -146,13 +161,21 @@ test('layoutPrint: states, counts per block and total, bimah from cells, names o
   const w = week();
   const p = layoutPrint(w, 'arvit');
   assert.equal(p.seats.length, 12);
-  assert.deepEqual(p.total, { taken: 4, released: 2, free: 6 });
+  assert.deepEqual(p.total, { taken: 4, released: 2, free: 6, pending: 0 });
   assert.deepEqual(p.blocks.map((b) => [b.name, b.taken, b.released, b.free]), [['שמאל', 2, 2, 2], ['ימין', 2, 0, 4]]);
   assert.deepEqual(p.bimah, [{ row: 0, col: 5, rows: 2, cols: 1 }]);
   assert.ok(p.seats.every((s) => s.name === undefined), 'no names by default');
   assert.equal(layoutPrint(w, 'arvit', { names: true }).seats.find((s) => s.id === 's10')!.name, 'דוגמה');
   assert.equal(layoutPrint(w, 'arvit', { names: true }).seats.find((s) => s.id === 's20')?.name, undefined, 'free seats have no name');
-  assert.deepEqual(layoutPrint(w, 'shacharit').total, { taken: 6, released: 0, free: 6 });
+  // pending: an assigned family seat whose family has not answered; holders without an account cannot answer, so they stay taken
+  const open = structuredClone(w);
+  open.prayers.erev.answered = {};
+  const pend = layoutPrint(open, 'arvit');
+  assert.deepEqual(pend.total, { taken: 1, released: 2, free: 6, pending: 3 });
+  assert.equal(pend.seats.find((s) => s.id === 's11')!.state, 'taken');
+  assert.equal(pend.seats.find((s) => s.id === 's00')!.state, 'pending');
+  assert.equal(pend.seats.find((s) => s.id === 's01')!.state, 'released', 'released wins over pending');
+  assert.deepEqual(layoutPrint(w, 'shacharit').total, { taken: 2, released: 0, free: 6, pending: 4 });
 });
 
 test('printGeometry fits any layout inside the page box', () => {
@@ -214,6 +237,7 @@ test('fixture member wire round-trips; a member save and a gabbai on-behalf chan
   const fx = createSeatsFixture('default', null, '2026-10-30');
   const m = memberFromWire(fx.memberWire());
   assert.equal(m.seatCount, 3);
+  assert.deepEqual(m.answered, { arvit: false, shacharit: false });
   assert.equal(m.updatedByGabbai, false);
   assert.deepEqual(m.frames[0]!.rows.filter((r) => r.mine).length, 1);
   // member releases seat 3 for erev
@@ -228,6 +252,7 @@ test('fixture member wire round-trips; a member save and a gabbai on-behalf chan
   fx.putWeek(body);
   const seen = memberFromWire(fx.memberWire());
   assert.equal(seen.updatedByGabbai, true);
+  assert.deepEqual(seen.answered, { arvit: true, shacharit: false }, 'save and on-behalf answer only their prayer');
   assert.deepEqual([...seen.released.arvit].sort(), ['1', '3']);
   assert.throws(() => fx.putWeek(body), { code: 'week_changed' });
   assert.equal(memberFromWire(createSeatsFixture('none', null, '2026-10-30').memberWire()).seatCount, 0);

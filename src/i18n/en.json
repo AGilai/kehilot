@@ -1314,7 +1314,9 @@
       "emptyTitle": "No hall map saved yet",
       "emptyBody": "To print a map, first paste or draw the hall in the seating editor.",
       "emptyGo": "To the seating editor",
-      "loadError": "Couldn't load the seat state."
+      "loadError": "Couldn't load the seat state.",
+      "pending": "Pending",
+      "legendPending": "Pending · no answer yet"
     },
     "updatedNow": "Your seats changed in the meantime. This is the current state.",
     "loadError": "Couldn't load the seats.",

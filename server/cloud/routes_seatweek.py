@@ -91,6 +91,7 @@ def _out_member(ctx, k, friday, family_id):
     flagged = any(((states[p]['seats']).get(s) or {}).get('by') == 'g' for p in wk.PRAYERS for s in ordered)
     return {**base, 'seats': len(ordered), 'updatedByGabbai': flagged,
             'updatedAt': {p: (raw[p] or {}).get('updatedAt') for p in wk.PRAYERS},
+            'answered': {p: ref in ((raw[p] or {}).get('answered') or {}) for p in wk.PRAYERS},
             'frames': wk.frames(layout, ordered, states)}
 
 
@@ -135,7 +136,8 @@ def put_mine(ctx, params):
         want = int(sid in wanted)
         if int(_is_released(current, sid)) != want:
             seats[sid] = {'r': want, 'by': 'm', 'at': now, 'h': ref}
-    fields = {**{key: v for key, v in (item or {}).items() if key not in ('pk', 'sk', 'updatedAt')}, 'seats': seats}
+    fields = {**{key: v for key, v in (item or {}).items() if key not in ('pk', 'sk', 'updatedAt')}, 'seats': seats,
+              'answered': {**((item or {}).get('answered') or {}), ref: now}}
     ctx.repo.put_week(k, friday, prayer, fields, guard)
     return 200, _out_member(ctx, k, friday, family_id)
 
@@ -161,6 +163,7 @@ def _prayer_out(item, held):
     return {'seats': {s: {'released': bool(v.get('r')), 'by': 'gabbai' if v.get('by') == 'g' else 'member',
                           'at': v.get('at')} for s, v in (item.get('seats') or {}).items()},
             'requests': item.get('requests') or {}, 'canUndo': bool(item.get('undo')),
+            'answered': {r: at for r, at in (item.get('answered') or {}).items() if r in held.values()},
             'updatedAt': item.get('updatedAt')}
 
 
@@ -206,7 +209,11 @@ def put_week(ctx, params):
     for sid, want in changes.items():
         if _is_released(current, sid) != want:
             seats[sid] = {'r': int(want), 'by': 'g', 'at': now, 'h': held[sid]}
-    fields = {**{key: v for key, v in (item or {}).items() if key not in ('pk', 'sk', 'updatedAt')}, 'seats': seats}
+    answered = dict((item or {}).get('answered') or {})
+    for sid in changes:
+        answered[held[sid]] = now
+    fields = {**{key: v for key, v in (item or {}).items() if key not in ('pk', 'sk', 'updatedAt')}, 'seats': seats,
+              'answered': answered}
     updated = ctx.repo.put_week(k, friday, prayer, fields, guard)
     return 200, {'updatedAt': updated}
 
@@ -293,7 +300,8 @@ def apply_responses(ctx, params):
                     seats[sid] = {'r': want, 'by': 'g', 'at': now, 'h': ref}
             store_requests(ref, requests)
         result.update(households=applied, released=released_n, kept=kept_n, warnings=warnings, requestTotals=totals)
-        return {'seats': seats, 'requests': reqs, 'undo': {'at': now, 'seats': undo_seats, 'requests': undo_reqs}}
+        return {'seats': seats, 'requests': reqs, 'answered': item.get('answered') or {},
+                'undo': {'at': now, 'seats': undo_seats, 'requests': undo_reqs}}
     ctx.repo.change_week(k, friday, prayer, change)
     return 200, {'event': prayer, 'duplicates': duplicates, **result}
 
@@ -333,6 +341,6 @@ def undo_responses(ctx, params):
                 reqs.pop(ref, None)
             else:
                 reqs[ref] = prev
-        return {'seats': seats, 'requests': reqs}
+        return {'seats': seats, 'requests': reqs, 'answered': item.get('answered') or {}}
     ctx.repo.change_week(k, friday, prayer, change)
     return 200, {'event': prayer, 'restored': True, 'skipped': len(skipped)}

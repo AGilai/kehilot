@@ -6,11 +6,10 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Segmented, Sheet, Tag, Txt, useTokens } from '../kit/components.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
 import { useReportPad } from '../client/reportUi.ts';
-import { useSession } from '../client/SessionProvider.tsx';
 import { fonts } from '../kit/theme.ts';
 import { releaseCounts, toggleRelease } from '../seats/release.ts';
 import type { Prayer } from '../seats/release.ts';
-import { rememberAnswered, useMemberSeats } from '../seats/useMemberSeats.ts';
+import { useMemberSeats } from '../seats/useMemberSeats.ts';
 import { useShabbat } from '../seats/useShabbat.ts';
 import { whenParts } from '../seats/window.ts';
 import type { MemberSeats, SeatFrame, SeatRow } from '../seats/wire.ts';
@@ -44,7 +43,6 @@ function SeatPageReady({ data, save, onBack, onToast }: { data: MemberSeats; sav
   const { t, lang } = useI18n();
   const k = useTokens();
   const errText = useErrorText();
-  const kehilaId = useSession().state.kehilaId;
   const [prayer, setPrayer] = React.useState<Prayer>('arvit');
   const initial = data.released;
   const [released, setReleased] = React.useState<Record<Prayer, Set<string>>>(() => ({ arvit: new Set(initial.arvit), shacharit: new Set(initial.shacharit) }));
@@ -58,6 +56,7 @@ function SeatPageReady({ data, save, onBack, onToast }: { data: MemberSeats; sav
   const deadline = whenParts(data.deadline, lang);
   const differs = (p: Prayer) => released[p].size !== initial[p].size || [...released[p]].some(x => !initial[p].has(x));
   const dirty = differs('arvit') || differs('shacharit');
+  const unanswered = !(data.answered.arvit && data.answered.shacharit); // saving with no change is still the answer
   const locked = !data.open;
   const pad = useReportPad(); // the dev report pill sits above the tabs: keep Save clear of it
 
@@ -72,16 +71,13 @@ function SeatPageReady({ data, save, onBack, onToast }: { data: MemberSeats; sav
   function back() { if (dirty) setConfirmLeave(true); else onBack(); }
 
   async function submit() {
-    if (busy || !dirty) return;
+    if (busy || (!dirty && !unanswered)) return;
     setBusy(true); setError(null); setStale(false);
     try {
-      const choices = Object.fromEntries((['arvit', 'shacharit'] as Prayer[]).filter(differs).map(p => [p, released[p]]));
+      const choices = Object.fromEntries((['arvit', 'shacharit'] as Prayer[]).filter(p => differs(p) || !data.answered[p]).map(p => [p, released[p]]));
       const r = await save(choices);
       if (r?.kind === 'updated') setStale(true); // somebody else changed his seats: the page now shows the current state
-      else if (r) {
-        onToast(t('seats.saved'));
-        if (kehilaId) void rememberAnswered(kehilaId, data.week);
-      }
+      else if (r) onToast(t('seats.saved'));
     } catch (e) { setError(errText(e)); } finally { setBusy(false); }
   }
 
@@ -125,7 +121,7 @@ function SeatPageReady({ data, save, onBack, onToast }: { data: MemberSeats; sav
         <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.stone, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10 + pad, gap: 6 }}>
           <View style={{ width: '100%', maxWidth: 680, alignSelf: 'center', gap: 6 }}>
             <Txt size="caption" color={k.muted} style={{ textAlign: 'center' }}>{t('seats.deadline', deadline)}</Txt>
-            <Button title={t('seats.save')} busy={busy} disabled={!dirty} onPress={() => void submit()} />
+            <Button title={t('seats.save')} busy={busy} disabled={!dirty && !unanswered} onPress={() => void submit()} />
           </View>
         </View>
       )}

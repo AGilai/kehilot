@@ -18,7 +18,7 @@ export type WireFrame = { blockName: string; cols: number; rowFrom: string | nul
 /** `GET/PUT …/seats/me`. A family with no seats gets `seats: 0` and nothing else. */
 export type MemberWire = {
   week: string; deadline: string; open: boolean; seats: number;
-  updatedByGabbai?: boolean; updatedAt?: Record<WirePrayer, number | null>; frames?: WireFrame[];
+  updatedByGabbai?: boolean; updatedAt?: Record<WirePrayer, number | null>; /** His family has answered that prayer (any successful save, even with no seat change, or a gabbai's on-behalf save). */ answered?: Record<WirePrayer, boolean>; frames?: WireFrame[];
 };
 
 /** `mine` is the only cell that carries an identity: its order k, which is also the key the page toggles by. */
@@ -32,6 +32,7 @@ export type MemberSeats = {
   seatCount: number;
   updatedByGabbai: boolean;
   updatedAt: Record<Prayer, number | null>;
+  answered: Record<Prayer, boolean>;
   frames: SeatFrame[];
   /** The orders (as strings) of his seats that are released, per prayer. */
   released: Record<Prayer, Set<string>>;
@@ -63,6 +64,7 @@ export function memberFromWire(w: MemberWire): MemberSeats {
     seatCount: w.seats,
     updatedByGabbai: !!w.updatedByGabbai,
     updatedAt: { arvit: w.updatedAt?.erev ?? null, shacharit: w.updatedAt?.day ?? null },
+    answered: { arvit: !!w.answered?.erev, shacharit: !!w.answered?.day },
     frames,
     released,
   };
@@ -122,19 +124,19 @@ const DAY_MS = 86_400_000;
 /**
  * The Home card: only to a family that holds seats, from a day before the server's deadline (the reminder, default Thursday
  * 12:00 for a Friday 12:00 deadline) until the deadline. `always` is the fixtures preview (UX §15.4: no timer).
- * Answered: a gabbai's change shows "a gabbai updated", else a released seat or a tapped "yes" shows the thanks line.
+ * Done when the server says both prayers are answered (a saved "yes" counts); a gabbai's change shows "a gabbai updated".
  */
-export function cardModel(m: MemberSeats | null, now: Date, answered: boolean, always = false): CardModel | null {
+export function cardModel(m: MemberSeats | null, now: Date, always = false): CardModel | null {
   if (!m || m.seatCount <= 0) return null;
   const t = now.getTime();
   if (!always && !(m.open && t < m.deadline.getTime() && t >= m.deadline.getTime() - DAY_MS)) return null;
   const free = { arvit: m.released.arvit.size, shacharit: m.released.shacharit.size };
-  const state = m.updatedByGabbai ? 'byGabbai' : answered || free.arvit + free.shacharit > 0 ? 'done' : 'ask';
+  const state = m.updatedByGabbai ? 'byGabbai' : m.answered.arvit && m.answered.shacharit ? 'done' : 'ask';
   return { state, count: m.seatCount, deadline: m.deadline, free };
 }
 
-/** Per-device, per-week memory that he tapped "yes, everyone's coming" (the server keeps no answer for "no change"). */
-export const answeredKey = (kehilaId: string, week: string): string => `kehilot.seatAnswered.${kehilaId}.${week}`;
+/** "Yes, everyone's coming": the current released set for both prayers, saved as the answer (usually nothing is released). */
+export const yesChoices = (m: MemberSeats): Record<Prayer, ReadonlySet<string>> => ({ arvit: m.released.arvit, shacharit: m.released.shacharit });
 
 // ---------------------------------------------------------------- gabbai: week, print, on behalf
 
@@ -144,7 +146,7 @@ export type WireLayout = {
   blocks: { name: string; colStart: number; colEnd: number }[];
   rowLabels: (string | null)[]; seats: { id: string; row: number; col: number }[];
 };
-export type WirePrayerState = { seats: Record<string, { released: boolean; by: 'member' | 'gabbai'; at: number | null }>; requests: unknown; canUndo: boolean; updatedAt: number | null };
+export type WirePrayerState = { /** Households holding seats that answered, ref to ms. */ answered?: Record<string, number>; seats: Record<string, { released: boolean; by: 'member' | 'gabbai'; at: number | null }>; requests: unknown; canUndo: boolean; updatedAt: number | null };
 /** `GET …/admin/seats/week/{week}`. */
 export type WeekWire = {
   week: string; deadline: string; open: boolean; layout: WireLayout;
@@ -178,8 +180,9 @@ export function kindRects(cells: CellKind[][], kind: CellKind): Rect[] {
   return [...done, ...open].sort((a, b) => a.row - b.row || a.col - b.col);
 }
 
-export type PrintState = 'taken' | 'released' | 'free';
-export type Counts = { taken: number; released: number; free: number };
+/** `pending`: a family's seat whose family has not answered this prayer yet. */
+export type PrintState = 'taken' | 'released' | 'free' | 'pending';
+export type Counts = { taken: number; released: number; free: number; pending: number };
 export type LayoutPrintSeat = { id: string; row: number; col: number; state: PrintState; ref: string | null; name?: string };
 export type LayoutPrint = {
   rows: number; cols: number; rowLabels: (string | null)[];
@@ -191,12 +194,13 @@ export type LayoutPrint = {
 export function layoutPrint(w: WeekWire, prayer: Prayer, opts: { names?: boolean } = {}): LayoutPrint {
   const L = w.layout;
   const state = w.prayers[toWire(prayer)]?.seats ?? {};
-  const empty = (): Counts => ({ taken: 0, released: 0, free: 0 });
+  const answered = w.prayers[toWire(prayer)]?.answered ?? {};
+  const empty = (): Counts => ({ taken: 0, released: 0, free: 0, pending: 0 });
   const total = empty();
   const blocks = L.blocks.map((b) => ({ ...b, ...empty() }));
   const seats = L.seats.map((s): LayoutPrintSeat => {
     const ref = w.assignments[s.id] ?? null;
-    const st: PrintState = !ref ? 'free' : state[s.id]?.released ? 'released' : 'taken';
+    const st: PrintState = !ref ? 'free' : state[s.id]?.released ? 'released' : ref.startsWith('family:') && !answered[ref] ? 'pending' : 'taken';
     total[st]++;
     const b = blocks.find((x) => s.col >= x.colStart && s.col <= x.colEnd);
     if (b) b[st]++;

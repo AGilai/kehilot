@@ -1,8 +1,7 @@
 import React from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { useSession } from '../client/SessionProvider.tsx';
-import { answeredKey, memberFromWire, saveRelease } from './wire.ts';
+import { memberFromWire, saveRelease } from './wire.ts';
 import type { MemberSeats, SaveResult } from './wire.ts';
 import type { Prayer } from './release.ts';
 
@@ -48,12 +47,4 @@ export function useMemberSeats(enabled = true): { state: MemberSeatsState; reloa
   }, [api, kehilaId, load]);
 
   return { state, reload, save };
-}
-
-/** Remember on this device that he tapped "yes, everyone's coming" (best effort: storage can be blocked). */
-export async function rememberAnswered(kehilaId: string, week: string): Promise<void> {
-  try { await AsyncStorage.setItem(answeredKey(kehilaId, week), '1'); } catch { /* storage blocked */ }
-}
-export async function readAnswered(kehilaId: string, week: string): Promise<boolean> {
-  try { return (await AsyncStorage.getItem(answeredKey(kehilaId, week))) === '1'; } catch { return false; }
 }
