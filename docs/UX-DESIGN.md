@@ -3919,41 +3919,50 @@ screen frame shows two lines), web fonts, and the wide layout (specified, not dr
 
 Added 2026-10-28 from the owner's decisions of the same day (binding). Frames: `P48` (`private-replies.html`: phone 1
 Messages with the count and the button on the card, 1a the long-press sheet, 1b the reply Sheet from the card, 2 M3
-with the reply box, 2a the condolence box, 3 the replies mailbox, 4 the author's own message), at 390 × 844, light and
-dark. All names are invented. This section replaces the M3 "ברכה אישית למשפחה" private reply (§5 M3 row, flow 3 in §6)
+with the reply box, 2a the condolence box, 2b a mazal tov with the recipient picker and its states panel, 3 the
+replies mailbox, 3a and 3b the mailbox of each spouse, 4 the author's own message), at 390 × 844, light and dark. All names are invented. This section replaces the M3 "ברכה אישית למשפחה" private reply (§5 M3 row, flow 3 in §6)
 with one mechanism. Everything else in §12, §19 and §19.2a stands. "Management" means gabbai or tech (§20).
 
 **Owner decisions (2026-10-28, binding).**
-1. There is **no switch in Compose**. Every message to the whole Kehila written by a person in the Kehila can be
-   answered privately. The reader gets a "תשובה פרטית" button on the card and on M3, and a long-press action on the card.
+1. There is **no switch in Compose**. Every message to the whole Kehila written by a **member** of the Kehila can be
+   answered privately. **Messages written by management (gabbai or tech) get no private-reply button and no count.** The reader gets a "תשובה פרטית" button on the card and on M3, and a long-press action on the card.
 2. **Routing.** A private reply to a **mazal tov or condolence** goes to the **subject**: the adults of the family the
    message names, not the poster (as today). A private reply to **every other message** goes only to its **author**.
 3. The count of private replies shows on the card **to the whole Kehila**: "{n} תשובות פרטיות". The reason is that a
    visible count encourages people to reply.
 4. The existing family blessing becomes this one mechanism: one storage, one count on the card, one mailbox. Only the
    routing rule above differs.
+5. **Choosing the recipient (mazal tov, condolence).** The replier chooses who receives it: **the whole family**
+   (default) or **one of the family's adults, by name**. A reply sent to one adult is seen only by that adult: not by
+   the spouse, the rest of the family or the gabbaim (§22.4a).
 
 Nothing changes in Compose (M4, §12.3, §19.2): no new control, and the template preview (§19.2) shows the card's
 reply row exactly as members will see it.
 
-### 22.1 Which messages can be answered (my call)
+### 22.1 Which messages can be answered (owner rules, plus my calls on type and channel)
 
 A message has the reply action when **all** of these hold:
 
 | Rule | Why |
 |---|---|
 | It is in the main channel ("הודעות הקהילה"), the whole-Kehila audience | Owner: "a message to the Kehila". Group channels and conversation channels already have their own conversation, so they get no private reply in v1 |
-| Its author is a person: a member, gabbai or tech (`authorKind` member **or** management) | Owner: "written by a member of the Kehila". A gabbai is a person in the Kehila too, and their event and help messages gain the most from replies. Replies to a gabbai's message go to **that gabbai's** mailbox, not to every gabbai |
+| Its author is a **member** (`authorKind: member`). **Management (gabbai or tech) messages never qualify**, whatever their type: no button, no count, no long-press action, no box on M3 | Owner decision 1. The rule follows the author's role when the message was posted (`authorKind` is stored on the message), so a member who later becomes a gabbai keeps replies on older messages |
 | Its type is הודעה, אירוע, מזל טוב or השתתפות בצער | **עדכון שבועי is excluded**: it is the Kehila's notice sheet, not one person speaking, and questions about it belong to the gabbai directly |
 | It is not a system message (welcome, automatic notices, test-build card) | Nobody reads the mailbox of "the app" |
 | The recipient still exists: the author is still in the Kehila and can read the channel; for a blessing, the family still has a live adult who can (today's `target_left`) | Otherwise the reply would go nowhere |
 
-Who may reply: members, gabbaim and tech. **Listeners (guests) see the count but get no button** (they can't post or
+Who may reply: members, gabbaim and tech (management can reply to a member's message; it just can't receive
+replies on its own). **Listeners (guests) see the count but get no button** (they can't post or
 reply anywhere, §3). The author never sees a reply action on their own message; an adult of the named family never
 sees one on the blessing about them. A muted author (§M5) is muted for notifications only: the button stays.
 
+**Consequence of the management rule:** a mazal tov or condolence that a gabbai or tech posted has no blessing box,
+even though its replies would go to the family. In a Kehila whose type rule is "ההנהלה בלבד" (§12.2), no mazal tov
+takes blessings at all. This is the owner's rule as given; it is raised as the one open question in §22.9.
+
 **For the developer:** the server decides with one rule and returns `canReply: bool` and `replyTo: "author"|"family"`
-on the message object, so the app never re-derives it. Not designed here.
+on the message object, and for a family target `replyAdults: [{userId, name}]` (the live adults who can read the
+channel), so the app never re-derives it. Not designed here.
 
 ### 22.2 Labels per type (condolence wording is my call)
 
@@ -3991,6 +4000,7 @@ the same count. "ברכה פרטית" becomes "ברכה אישית" everywhere (
 - **The author's own card** (and the named family's card): no button; after the count, " · {m} חדשות" in bold
   pomegranate when unread replies exist. Tapping the count opens M3 at "תשובות שהגיעו".
 - **Listener:** the count only.
+- **A management message:** no reply row at all (owner).
 - A card with neither a count nor a button (עדכון שבועי, a group channel, a message nobody answered that I can't answer)
   has no reply row at all.
 
@@ -4025,6 +4035,53 @@ title as a muted line "על: {title}"; it closes on send with the Toast "נשל�
   shows.
 - **Existing blessings** written before this change may hold several replies by one person: all stay visible, the
   count already counts people, and the box shows the newest as "my reply".
+
+### 22.4a Choosing the recipient: mazal tov and condolence (owner, P48 phone 2b and its panel)
+
+**The picker.** Under the box heading, a label **"אל מי"** and one row of `Chip size="filter"` choices (radio
+semantics, wrapping, 40 high with a 48 hit area, selected = ink fill with `check`, as §19.2):
+**"כל המשפחה"** (`users` icon, **default, preselected** every time the box opens) · then one chip per adult, by display
+name ("שולמית ברקן", "יגאל ברקן", `user` icon), in the family's stored order. The same picker is in the Sheet from the
+card and on M3. The heading follows the choice: "ברכה אישית למשפחת ברקן" → "ברכה אישית לשולמית ברקן"
+(condolence: "מילה אישית למשפחת שדמי" → "מילה אישית לאלון שדמי").
+
+**The lock line** follows the choice and never scrolls away while typing:
+- whole family: "יגיע למשפחת {family} בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים." (as §22.4);
+- one adult: "תגיע רק אל {name}. לא לבן או לבת הזוג, לא לשאר המשפחה, לא לשאר הקהילה ולא לגבאים."
+
+**Sent state.** My reply card says "נשלחה אל {name} בלבד · {time}" for one adult, "נשלחה למשפחה בלבד · {time}" for
+the family. **The recipient is fixed once sent (my call):** "עריכה" changes the text only, and the picker is not shown
+while editing. To send to someone else, delete and send again. Moving a reply from one person to the family would
+show it to someone it was not written for. Still one reply per person per message (§22.4): a person can't send one to
+the family and another to one spouse. This keeps the count one per person and keeps the box simple.
+
+**How many adults (my call).**
+- **One live adult** (no partner, or the partner left): **no picker.** The reply goes to "the family", which is that
+  one adult today. A partner who links later sees family replies, as today, but never a personal one.
+- **Two adults:** the picker as above.
+- **More than two:** not possible in today's model, because a family has at most two linked adults and grown children
+  have their own families. If it ever happens, the chips simply wrap: "כל המשפחה" then each live adult by name. Children
+  are never recipients.
+- An adult who can't read the channel (left the Kehila or its groups) is left out of the picker. If that leaves one
+  adult, there is no picker.
+
+**Who sees a personal reply.** Only the chosen adult and the writer. Not the spouse, children, gabbaim or tech, and it
+never appears in the spouse's mailbox, unread count, push or export. If the chosen adult later unlinks from the family
+and stays in the Kehila, the reply stays theirs. If they leave the Kehila or delete their account, it is deleted
+(nobody else may read it), and the count drops.
+
+**The count** on the card and on M3 counts **every** reply, family and personal ("12 ברכות אישיות"), and stays one per
+replier. The family's own count line adds " · {m} חדשות" with the unread replies **that this adult can see**.
+
+**Each spouse's mailbox (P48 phones 3a, 3b).** The blessing's card in the mailbox shows what *I* can see: the family
+replies plus the ones sent to me personally. Personal ones carry a small pomegranate Tag **"אישית"** with a `lock`
+after the writer's name. The header line counts mine: "ברכות למשפחה שלכם · {n} ברכות · {p} אישיות · {m} חדשות".
+Example: 12 on the card = 9 to the family + 2 to Shulamit + 1 to Yigal. Shulamit sees 11 (2 personal) and Yigal sees 10
+(1 personal). Neither learns that the other got personal ones. The public count says only "12", with no breakdown. On
+M3 "ברכות שהגיעו" uses the same list and Tag.
+
+**Push.** A personal reply pushes only the chosen adult: "ברכה אישית חדשה" (condolence: "מילה אישית חדשה"), with no
+"למשפחה", no name and no text. Family replies push every adult as §22.5.
 
 ### 22.5 The recipient's side: M3 and the mailbox (P48 phones 3 and 4)
 
@@ -4063,7 +4120,7 @@ That place stays, generalised, and a mailbox is added for everything that came t
 | **Mazal tov / condolence** | Same mechanism, routed to the named family (owner). The join action ("מצטרף לברכות", "משתתף בצער") is unchanged and separate: a public count of people, no text. Condolence now shows its count too (owner), in ash, as people ("9 חברים כתבו למשפחה") |
 | **§19.2a update of a message** | Replies stay with the message (same id). No push to repliers |
 | **Deleting the message** (author, or management from GD6) | Its replies are deleted with it, for everyone, including each replier's own copy. Confirm: "ההודעה תימחק לכל הקהילה, ואיתה {n} התשובות הפרטיות שהגיעו עליה. אי אפשר לשחזר." (count shown only when n > 0). Repliers are not notified |
-| **Download my data** (export) | My own replies, as today, now with the message title and `to` ("author" or "family"). **Plus, my call: replies I received** (writer's display name, time, text) as `repliesReceived`, because they were written to me; a family's blessings go into both adults' exports. Never anyone else's |
+| **Download my data** (export) | My own replies, as today, now with the message title and `to` ("author", "family" or the chosen adult's name). **Plus, my call: replies I received** (writer's display name, time, text) as `repliesReceived`, because they were written to me; a family's blessings go into both adults' exports. Never anyone else's |
 | **Account deletion, the replier** | With "delete my posts": every reply they wrote is deleted and counts drop (today's rule, now for all replies). Without: replies stay, the name shows as "חבר/ה שעזב/ה" (names are blanked, §M12 rule) |
 | **Account deletion, the author** | Replies addressed to the author are deleted with the account (nobody else may read them), the button disappears and the count goes. With "delete my posts" the message goes too, as today. For a blessing the family's replies are untouched by the poster's deletion: they belong to the family |
 | **Author leaves the Kehila** | Like `target_left`: the button is replaced by the "can't reply" Banner; replies are kept until the message is deleted, and come back if the author rejoins |
@@ -4098,6 +4155,15 @@ display name; both are isolated (§11.5).
 | `reply.placeholder.celebration` (was `detail.replyPlaceholder`) | כתבו ברכה למשפחה | Write a blessing to the family |
 | `reply.placeholder.condolence` | כתבו למשפחה כמה מילים | Write a few words to the family |
 | `reply.lock.general` | תגיע רק אל {name}. לא תוצג לשאר הקהילה, גם לא לגבאים. | Only {name} will see it. Not the rest of the community, not the gabbaim. |
+| `reply.to` | אל מי | To whom |
+| `reply.toFamily` | כל המשפחה | The whole family |
+| `reply.title.celebrationPerson` | ברכה אישית ל{name} | Personal blessing to {name} |
+| `reply.title.condolencePerson` | מילה אישית ל{name} | A personal word to {name} |
+| `reply.lock.person` | תגיע רק אל {name}. לא לבן או לבת הזוג, לא לשאר המשפחה, לא לשאר הקהילה ולא לגבאים. | Only {name} will see it. Not their spouse, the rest of the family, the community or the gabbaim. |
+| `reply.personalTag` | אישית | Personal |
+| `inbox.personal` | {n} אישיות | {n} personal |
+| push `personal_blessing` (fixed) | ברכה אישית חדשה | New personal blessing |
+| push `personal_word` (fixed) | מילה אישית חדשה | New personal word |
 | `reply.lock.family` (was `detail.lock`) | יגיע למשפחת {family} בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים. | Only the {family} family will see it. Not the rest of the community, not the gabbaim. |
 | `reply.sent.general` | נשלחה אל {name} בלבד · {time} | Sent to {name} only · {time} |
 | `reply.sent.family` (was `detail.sent`) | נשלחה למשפחה בלבד · {time} | Sent to the family only · {time} |
@@ -4149,15 +4215,15 @@ from the card traps focus and returns it to the button on close. Targets 48.
 - Server work, not designed here: `canReply` / `replyTo` on the message; one reply per person (edit = `PUT`, withdraw =
   `DELETE .../replies/{r}`, both by the writer only); read markers per recipient; replies to the author; the push
   throttle; `repliesReceived` in the export; deleting the author's received replies with the account.
-- Management-authored messages are included (§22.1). If gabbaim find their mailbox too busy, the narrow fix is to
-  exclude `authorKind: management` of type הודעה, not to bring back a switch.
+- Server work for §22.4a: a reply's `to` is `family` or one adult's `userId`; reads, pushes, unread markers and
+  export follow it.
+- **Open with the owner:** should a mazal tov or condolence posted by management still take blessings? They go to the
+  family, not to the gabbai, so the reason for the management rule does not apply. Recommendation: yes. Until the
+  owner answers, build the rule as given (no replies on any management message).
 
 ### 22.10 Verification
 
-Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P48 phones 1, 1a, 1b, 2, 2a, 3 and 4 and the
+Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P48 phones 1, 1a, 1b, 2, 2a, 2b, 3, 3a, 3b and 4 and the
 state panels at 390 × 844 in light and dark, and the page at 390 wide (no horizontal scroll). Not checked: real
 devices, 360-wide Android, English, screen readers, the long-press gesture itself, web fonts, and the wide layout (the
 mailbox follows the 680 content column of M3; not drawn).
-
-**Owner decision (2026-10-28, supersedes the §22 call that management messages take replies):** messages written by
-management (gabbai or tech) get **no** private-reply button and no count. Only messages written by a member qualify.
