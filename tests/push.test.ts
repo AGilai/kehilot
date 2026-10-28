@@ -151,3 +151,17 @@ test('family screen opens home', () => {
   assert.equal(pushDestination({ screen: 'family' }, 'member'), 'home');
   assert.deepEqual(routeFromPush({ kehila: 'k1', screen: 'family', name: 'x' }), { kehila: 'k1', screen: 'family' });
 });
+
+test('routeFromPush keeps a valid week (a Friday date) and drops anything else', () => {
+  assert.deepEqual(routeFromPush({ kehila: 'k', screen: 'seats', week: '2026-10-30' }), { kehila: 'k', screen: 'seats', week: '2026-10-30' });
+  assert.equal(routeFromPush({ kehila: 'k', screen: 'seats', week: 'x' })!.week, undefined);
+  assert.equal(routeFromPush({ kehila: 'k', screen: 'seats', week: '2026-10-29' })!.week, undefined, 'Thursday is not a Friday');
+  assert.equal(routeFromPush({ kehila: 'k', week: 5 })!.week, undefined);
+});
+
+test('pushDestination: seats opens for every adult (no preview flag needed); a listener gets home', () => {
+  for (const role of ['member', 'gabbai', 'tech']) {
+    assert.equal(pushDestination({ screen: 'seats' }, role), 'seats');
+  }
+  assert.equal(pushDestination({ screen: 'seats' }, 'listener'), 'home');
+});

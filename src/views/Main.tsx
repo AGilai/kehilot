@@ -82,7 +82,7 @@ type Nav =
   | { tab: 'channels' }
   | { tab: 'import' }
   | { tab: 'pushTexts' }
-  | { tab: 'seats' }
+  | { tab: 'seats'; week?: string }
   | { tab: 'schedule' }
   | { tab: 'scheduleEditor' }
   | { tab: 'seatPrint'; behalf?: boolean }
@@ -134,7 +134,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
 }
 
 /** The signed-in app for every role (listeners get the reading parts, see roleView.ts): top bar, the open screen, and the bottom tabs. */
-export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, takeMenu }: { onOpenMenu: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string } | null; /** Changes when the Kehila menu asks for a screen (management, tree, phone list, invite). */ menuSignal?: number; /** Returns the pending request once. */ takeMenu?: () => MenuAction | null }) {
+export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, takeMenu }: { onOpenMenu: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string; week?: string } | null; /** Changes when the Kehila menu asks for a screen (management, tree, phone list, invite). */ menuSignal?: number; /** Returns the pending request once. */ takeMenu?: () => MenuAction | null }) {
   const { t } = useI18n();
   const k = useTokens();
   const { state } = useSession();
@@ -198,7 +198,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     if (!target) return;
     guard(() => {
       const dest = pushDestination(target, state.kehila?.role);
-      if (dest === 'seats') setNav({ tab: 'seats' });
+      if (dest === 'seats') setNav({ tab: 'seats', ...(target.week ? { week: target.week } : {}) });
       else if (dest === 'approvals') { setManage(true); setNav({ tab: 'approvals' }); }
       else if (dest === 'group_requests') {
         if (isManagement(state.kehila?.role)) { setManage(true); setNav({ tab: 'groups' }); }
@@ -280,7 +280,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
     case 'seats':
-      body = isAdult(kehila?.role) ? <SeatPage onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
+      body = isAdult(kehila?.role) ? <SeatPage week={nav.week} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
     case 'seatEditor':
       body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;

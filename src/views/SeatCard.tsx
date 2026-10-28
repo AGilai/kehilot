@@ -4,15 +4,32 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Button, Card, Tag, Txt, useTokens } from '../kit/components.tsx';
 import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
+import { closedCardText } from '../seats/homeText.ts';
+import type { Summary } from '../seats/wire.ts';
 
-export type SeatCardState = 'ask' | 'done' | 'byGabbai';
+export type SeatCardState = 'ask' | 'done' | 'byGabbai' | 'closed';
 /** How many of his seats are free for others, per prayer: the thanks line says so when any is. */
 export type SeatCardFree = { arvit: number; shacharit: number };
 
 /** P24: the Home reminder card (UX-DESIGN §15.2). `ask` is the question; `done`/`byGabbai` is the collapsed answer until the deadline. */
-export function SeatCard({ byRole = 'gabbai', count, state, deadline, free = { arvit: 0, shacharit: 0 }, preview = false, busy = false, onYes, onUpdate }: { byRole?: 'gabbai' | 'tech'; count: number; state: SeatCardState; deadline: { day: string; time: string }; free?: SeatCardFree; preview?: boolean; busy?: boolean; onYes: () => void; onUpdate: () => void }) {
+export function SeatCard({ byRole = 'gabbai', count, state, deadline, free = { arvit: 0, shacharit: 0 }, preview = false, busy = false, summary = { kind: 'kept' }, onYes, onUpdate }: { summary?: Summary; byRole?: 'gabbai' | 'tech'; count: number; state: SeatCardState; deadline: { day: string; time: string }; free?: SeatCardFree; preview?: boolean; busy?: boolean; onYes: () => void; onUpdate: () => void }) {
   const { t } = useI18n();
   const k = useTokens();
+  if (state === 'closed') {
+    // The final card after the deadline, until Shabbat ends (UX §21.3): no buttons, the whole card opens the read-only page.
+    return (
+      <Pressable accessibilityRole="button" accessibilityLabel={`${t('seats.card.closedTitle')}. ${closedCardText(summary, t)}`} onPress={onUpdate}>
+        <Card edgeColor={k.ash} style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="lock" size={20} color={k.muted} />
+            <Txt bold style={{ flexShrink: 1 }}>{t('seats.card.closedTitle')}</Txt>
+            {preview ? <Tag tone="preview" label={t('seats.preview')} /> : null}
+          </View>
+          <Txt size="small">{closedCardText(summary, t)}</Txt>
+        </Card>
+      </Pressable>
+    );
+  }
   if (state !== 'ask') {
     return (
       <Card edgeColor={k.olive} style={{ gap: 4 }}>

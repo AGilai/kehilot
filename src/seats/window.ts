@@ -59,3 +59,15 @@ export function dayTime(at: Date, lang: 'he' | 'en'): string {
     : `יום ${HEBREW_DAY_LABELS[dayOfWeek(israelDate(at))]}`;
   return `${day}\u00a0${whenParts(at, lang).time}`;
 }
+
+/**
+ * When Shabbat ends, for `shabbatFriday`: only on Saturday (else null). The Kehila schedule's `shabbatEnd` ("HH:MM") wins;
+ * without a schedule it is the loaded zmanim `nightfall` (ISO); with neither it is null (Saturday then lasts all day, like the server).
+ */
+export function shabbatEndFor(now: Date, from: { scheduleHm?: string | null; nightfall?: string | null }): Date | null {
+  const today = israelDate(now);
+  if (dayOfWeek(today) !== 6) return null;
+  if (from.scheduleHm) return israelInstant(today, from.scheduleHm);
+  if (from.nightfall) { const at = new Date(from.nightfall); return Number.isNaN(at.getTime()) ? null : at; }
+  return null;
+}

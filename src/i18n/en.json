@@ -1414,7 +1414,10 @@
       "doneSome": "Thanks. {prayer}: {need} coming, {free} free for others.",
       "byGabbai": "Your seats were updated by the gabbaim.",
       "change": "Change",
-      "byTech": "Your seats were updated by the tech."
+      "byTech": "Your seats were updated by the tech.",
+      "closedTitle": "Shabbat seats form · Closed",
+      "closedSent": "You sent: {summary}. To change it, ask a gabbai.",
+      "closedNone": "You didn't answer this Shabbat. All your seats were kept. To change it, ask a gabbai."
     },
     "push": {
       "title": "Shabbat seats",
@@ -1426,7 +1429,19 @@
     "shacharitShort": "Shacharit",
     "summary": "{prayer}: {need} coming · {free} free for others",
     "block": "{block} · rows {range}",
-    "row": "Row {n}",
+    "row": {
+      "title": "Seats form · {shabbat}",
+      "open": "Not answered yet · Open until {day} {time}",
+      "answered": "Answered: {summary} · You can change it until {day} {time}",
+      "byGabbai": "A gabbai updated it · You can change it until {day} {time}",
+      "closed": "The form is closed · {summary}",
+      "none": "No seats for you this Shabbat. Ask a gabbai if you have questions.",
+      "sumAll": "Everyone's coming",
+      "sumNone": "Not coming",
+      "sumFree": "{n} free for others",
+      "sumKept": "All your seats were kept",
+      "shabbat": "Shabbat {parasha}"
+    },
     "frontRow": "Front row",
     "frontShort": "Front",
     "toArk": "↑ Toward the ark",

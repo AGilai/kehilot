@@ -34,8 +34,8 @@ test('admin guard, manage entry, home card, menu rows, push for a tech', () => {
   assert.equal(takeManageEntry({ current: 1 }, 'tech'), true);
   assert.equal(pickHomeCard({ terms: true } as never, 'tech'), 'terms');
   assert.deepEqual(menuRows('tech'), menuRows('gabbai'));
-  assert.equal(pushDestination({ screen: 'requests' }, 'tech', false), 'approvals');
-  assert.equal(pushDestination({ screen: 'group_requests' }, 'tech', false), 'group_requests');
+  assert.equal(pushDestination({ screen: 'requests' }, 'tech'), 'approvals');
+  assert.equal(pushDestination({ screen: 'group_requests' }, 'tech'), 'group_requests');
 });
 
 test('a tech may remove any group admin; a member may not remove a gabbai or a tech', () => {

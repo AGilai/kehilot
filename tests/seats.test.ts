@@ -276,12 +276,12 @@ test('print model: counts add up to 225 per prayer and names are off by default'
   assert.notDeepEqual(other.total, m.total);
 });
 
-test('deep link: screen "seats" opens the seat page when the preview is on, Home otherwise', () => {
-  assert.equal(pushDestination({ screen: 'seats' }, 'member', true), 'seats');
-  assert.equal(pushDestination({ screen: 'seats' }, 'gabbai', true), 'seats');
-  assert.equal(pushDestination({ screen: 'seats' }, 'member', false), 'home');
-  assert.equal(pushDestination({ screen: 'requests' }, 'gabbai', true), 'approvals');
-  assert.equal(pushDestination({ messageId: 'M1' }, 'member', true), 'message');
+test('deep link: screen "seats" opens the seat page for adults whatever the preview flag', () => {
+  assert.equal(pushDestination({ screen: 'seats' }, 'member'), 'seats');
+  assert.equal(pushDestination({ screen: 'seats' }, 'gabbai'), 'seats');
+  assert.equal(pushDestination({ screen: 'seats' }, 'listener'), 'home');
+  assert.equal(pushDestination({ screen: 'requests' }, 'gabbai'), 'approvals');
+  assert.equal(pushDestination({ messageId: 'M1' }, 'member'), 'message');
   const r = routeFromPush({ kehila: 'K1', screen: 'seats' });
   assert.deepEqual(r, { kehila: 'K1', screen: 'seats' });
 });

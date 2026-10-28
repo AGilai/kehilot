@@ -8,7 +8,7 @@ import { useSchedule } from '../client/useSchedule.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { visibleList } from '../client/messageView.ts';
 import { config } from '../config.ts';
-import { clockTime, dayOfWeek, displayDate, dualDate, israelDate, upcomingFriday } from '../dates.ts';
+import { clockTime, dayOfWeek, displayDate, dualDate, hebrewDate, israelDate, upcomingFriday } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, CollapsibleCard, Tag, Txt, useTokens } from '../kit/components.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
@@ -20,8 +20,10 @@ import { HomeCards } from './HomeCards.tsx';
 import { TestBuildCard } from './TestBuildCard.tsx';
 import { SeatCard } from './SeatCard.tsx';
 import { useMemberSeats } from '../seats/useMemberSeats.ts';
-import { cardModel as seatCardModel, yesChoices } from '../seats/wire.ts';
-import { whenParts } from '../seats/window.ts';
+import { cardModel as seatCardModel, homeSeatSlot, rowModel as seatRowModel, yesChoices } from '../seats/wire.ts';
+import { shabbatEndFor, shabbatFriday, whenParts } from '../seats/window.ts';
+import { useShabbat } from '../seats/useShabbat.ts';
+import { SeatRow } from './SeatRow.tsx';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
 import { ForwardIcon, Icon } from '../kit/Icon.tsx';
@@ -103,10 +105,20 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
   };
 
   // The seat card (UX §15.2): from the member API only; a family with no seats (or a Kehila with no hall map) gets nothing, and any error hides it.
+  // Home's Shabbat: until it ends, Saturday still belongs to the Friday before (the Kehila's schedule time, else the zmanim nightfall).
   const seatRole = isAdult(state.kehila?.role);
-  const seats = useMemberSeats(seatRole);
+  const zmanimToday = zmanim?.date === date ? zmanim : null;
+  const shabbatEnd = shabbatEndFor(now, doc ? { scheduleHm: zmanimForLocation(doc.location)(date)?.shabbatEnd } : { nightfall: zmanimToday?.times.nightfall });
+  const seatWeek = shabbatFriday(now, shabbatEnd);
+  const seats = useMemberSeats(seatRole, seatWeek);
+  const seatShabbat = useShabbat(seatWeek);
   const [seatBusy, setSeatBusy] = React.useState(false);
-  const seatCard = seats.state.status === 'ready' ? seatCardModel(seats.state.data, now, config.seatsPreview) : null;
+  // The slot decides: the card at the top, or the row at the bottom, never both. The preview ignores the timer unless the URL fixes the clock.
+  const seatAlways = config.seatsPreview && !fixtureNow();
+  const seatData = seats.state.status === 'ready' ? seats.state.data : null;
+  const seatSlot = homeSeatSlot(seatData, now, seatAlways);
+  const seatCard = seatSlot === 'card' ? seatCardModel(seatData, now, seatAlways) : null;
+  const seatRow = seatSlot === 'row' && seatData ? seatRowModel(seatData) : null;
   const kehila = state.kehila;
   if (!kehila) return null;
   const today = zmanim?.date === date ? zmanim : null;
@@ -128,7 +140,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
       <TestBuildCard />
 
       {seatCard && onSeats ? (
-        <SeatCard byRole={seatCard.byRole} count={seatCard.count} state={seatCard.state === 'closed' ? 'done' : seatCard.state} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
+        <SeatCard byRole={seatCard.byRole} count={seatCard.count} state={seatCard.state} summary={seatCard.summary} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
           busy={seatBusy}
           onYes={() => {
             // "Yes, everyone's coming" is an answer: his current released set (usually none) is saved for both prayers.
@@ -204,6 +216,8 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
       </View>
 
       {guest ? <LockedRows /> : null}
+
+      {seatRow && onSeats ? <SeatRow model={seatRow} shabbat={seatShabbat.parasha ? t('seats.row.shabbat', { parasha: seatShabbat.parasha }) : hebrewDate(seatShabbat.saturday, lang)} onOpen={onSeats} /> : null}
 
       <Button kind="secondary" title={t('home.signOut')} onPress={() => void signOut()} />
     </PadScroll>

@@ -59,7 +59,22 @@ export function fixtureMemberSeats(variant: SeatVariant = 'default'): FixtureMem
   return { ...cut, closed: variant === 'closed', source: variant === 'gabbai' ? 'gabbai' : 'member', answers };
 }
 
+/** The Home fixture screens of the seat row and the Thursday/closed card (UX §21.2-21.3); the URL's `now=` decides open or closed. */
+export const HOME_SEAT_SCREENS = ['home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded'];
+type HomeSeat = { remindable: boolean; answered: boolean; gabbai: boolean; free: boolean; closed: boolean };
+export function homeSeatOf(screen: string | null): HomeSeat | null {
+  if (!screen || !HOME_SEAT_SCREENS.includes(screen)) return null;
+  return {
+    remindable: screen === 'home-seat-thu' || screen === 'home-seat-closed' || screen === 'home-row-open',
+    answered: screen === 'home-row-answered' || screen === 'home-row-gabbai' || screen === 'home-seat-closed',
+    gabbai: screen === 'home-row-gabbai',
+    free: screen === 'home-row-answered' || screen === 'home-seat-closed',
+    closed: screen === 'home-row-closed' || screen === 'home-seat-closed',
+  };
+}
+
 export function seatVariantOf(screen: string | null): SeatVariant {
+  if (screen === 'home-row-none') return 'none';
   return screen === 'seats-split' ? 'split' : screen === 'seats-none' ? 'none' : screen === 'seats-closed' ? 'closed' : screen === 'seats-gabbai' ? 'gabbai' : 'default';
 }
 
@@ -83,7 +98,8 @@ export function hallLayout(hall: Hall = HALL, effectiveFrom = '2026-09-04'): Wir
 
 type Rec = { by: 'member' | 'gabbai' | 'tech'; at: number };
 
-export function createSeatsFixture(variant: SeatVariant, card: string | null, friday: string) {
+export function createSeatsFixture(variant: SeatVariant, card: string | null, friday: string, home: { screen: string | null; now: Date } | null = null) {
+  const hs = homeSeatOf(home?.screen ?? null);
   const h = fixtureSeatHall();
   const mine = variant === 'split' ? MINE.split : variant === 'none' ? [] : MINE.default;
   const allocations: Allocation[] = [{ ...h.allocations[0]!, seats: mine }, ...h.allocations.slice(1)];
@@ -100,22 +116,26 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
   if (card === 'seats-gabbai' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'gabbai', at: 1_790_000_100_000 });
   if (card === 'seats-done' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'member', at: 1_790_000_100_000 });
 
+  if (hs?.free && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'member', at: 1_790_000_100_000 });
+  if (hs?.gabbai && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'gabbai', at: 1_790_000_100_000 });
+
   // Who has answered: every other household with an even number; his family only for the "done"/gabbai cards.
   const answered: Record<WirePrayer, Map<string, number>> = { erev: new Map(), day: new Map() };
   allocations.slice(1).forEach((a, i) => { if (i % 2 === 0) { answered.erev.set(`family:${a.householdId}`, 1_790_000_000_000); answered.day.set(`family:${a.householdId}`, 1_790_000_000_000); } });
-  if (card === 'seats-done' || card === 'seats-gabbai' || variant === 'gabbai') for (const p of ['erev', 'day'] as const) answered[p].set('family:me', 1_790_000_100_000);
+  if (card === 'seats-done' || card === 'seats-gabbai' || variant === 'gabbai' || hs?.answered) for (const p of ['erev', 'day'] as const) answered[p].set('family:me', 1_790_000_100_000);
 
-  const open = variant !== 'closed';
-  const deadline = () => (open ? israelInstant(friday, DEFAULT_WINDOW.deadline.time) : new Date(Date.now() - 3_600_000)).toISOString();
+  const dueAt = israelInstant(friday, DEFAULT_WINDOW.deadline.time);
+  const open = variant !== 'closed' && (home ? home.now < dueAt : true);
+  const deadline = () => (open || home ? dueAt : new Date(Date.now() - 3_600_000)).toISOString();
   const myIds = () => new Set(mine.map(fixtureSeatId));
   const cut = () => memberView(h.hall, allocations, 'me');
   const idOfKey = (key: string): string => fixtureSeatId(parseSeatKey(key)!);
   const stateOf = (p: WirePrayer, id: string): 'kept' | 'released' => (state[p].has(id) ? 'released' : 'kept');
 
   function memberWire(): MemberWire {
-    const base = { week: friday, deadline: deadline(), open, remindable: true };
+    const base = { week: friday, deadline: deadline(), open, remindable: hs ? hs.remindable : true };
     const view = cut();
-    if (!view.seatCount) return { ...base, seats: 0, hadSeats: false };
+    if (!view.seatCount) return { ...base, seats: 0, hadSeats: home?.screen === 'home-row-none' };
     const frames: WireFrame[] = view.frames.map((f) => ({
       blockName: f.blockName, cols: f.cols, rowFrom: rowLabel(f.rowFrom), rowTo: rowLabel(f.rowTo),
       rows: f.rows.map((r) => ({

@@ -20,9 +20,9 @@ const ROW_NO = 40;
 const HATCH = 'repeating-linear-gradient(135deg, rgba(128,134,160,.45) 0 4px, transparent 4px 9px)';
 
 /** P25: the member's seat page (UX-DESIGN §15.3), on the member API. It gets only its own cut (`frames`): there is no whole-hall map here, by design. */
-export function SeatPage({ onBack, onToast }: { onBack: () => void; onToast: (text: string) => void }) {
+export function SeatPage({ week, onBack, onToast }: { /** The Friday of the Shabbat to show; the server's coming one when absent. */ week?: string; onBack: () => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
-  const seats = useMemberSeats();
+  const seats = useMemberSeats(true, week);
   const errText = useErrorText();
   const head = (back: () => void) => <BackLink onPress={back} />;
   if (seats.state.status === 'loading') {
