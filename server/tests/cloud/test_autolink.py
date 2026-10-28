@@ -17,6 +17,10 @@ class AutoLinkTest(sl.SeatLinkTest):
     def setUp(self):
         super().setUp()
         self.profile(self.listener, 'לאה', 'מאזין', '+972508888888')
+        self.profile(self.gabbai_id(), 'דוד', 'גבאי')
+
+    def gabbai_id(self):
+        return self.call('GET', '/v1/me', sub='gabbai-sub')[1]['userId']
 
     def register(self):
         self.assertEqual(self.call('POST', f'{self.base()}/membership-request', sub='listener-sub')[0], 202)
@@ -295,6 +299,105 @@ class AutoLinkTest(sl.SeatLinkTest):
             self.assertEqual(self.undo(h)[0], 500)
         self.assertEqual(self.undo(h)[0], 200)
         self.assertEqual(sorted(self.asg().values()), [f'holder:{h}'] * 2)
+
+    # round 2
+    def _blocked_by(self, other_name):
+        a = self.holder_named('מאזין ל.')
+        b = self.holder_named(other_name)
+        self.register()
+        self.assertTrue({a, b} <= self.holder_ids(), other_name)
+        self.assertEqual(self.autos()[1]['count'], 0)
+
+    def test_other_row_with_a_full_first_name_blocks(self):
+        self._blocked_by('מאזין לילך')
+
+    def test_other_row_first_name_first_blocks(self):
+        self._blocked_by('לילך מאזין')
+
+    def test_other_row_with_several_initials_blocks(self):
+        self._blocked_by('מאזין ש. ור.')
+
+    def test_other_row_with_a_prefix_and_a_name_blocks(self):
+        self._blocked_by('משפחת מאזין שמעון ורחל')
+
+    def test_unrelated_two_word_row_does_not_block(self):
+        a = self.holder_named('מאזין ל.')
+        self.holder_named('שמעון בדיוני')
+        self.register()
+        self.assertNotIn(a, self.holder_ids())
+
+    def pending(self, h):
+        """A pending auto-link: the first move fails."""
+        with mock.patch.object(self.repo, 'move_holder_seats', side_effect=Exception('boom')):
+            fam = self.register()
+        self.assertEqual(self.autos()[1]['items'][0]['state'], 'pending')
+        return fam
+
+    def test_undo_of_a_pending_link_cancels_it_for_good(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0), (5, 1))
+        self.pending(h)
+        with mock.patch.object(routes_seatlink, '_restore_weeks', side_effect=Exception('boom')):
+            self.assertEqual(self.undo(h)[0], 500)
+        self.assertEqual(self.repo.get_auto_link(self.k, h)['state'], 'cancelled')
+        routes_seatlink.try_auto_link(self.ctx(), self.k, self.listener)  # another approval
+        self.assertIn(h, self.holder_ids())
+        self.assertEqual(sorted(self.asg().values()), [f'holder:{h}'] * 2)
+        self.assertEqual(self.call('POST', f'{self.base()}/admin/seating/auto-links/{h}/finish')[0], 409)
+        self.assertEqual(self.undo(h)[0], 200)
+
+    def test_cancelling_a_pending_link_is_never_blocked_by_a_changed_seat(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0), (5, 1))
+        self.pending(h)
+        self.give(f'holder:{h}', (5, 0))  # the gabbai freed a seat meanwhile
+        self.assertEqual(self.undo(h)[0], 200)
+        self.assertEqual(self.autos()[1]['count'], 0)
+        self.assertEqual(self.repo.get_auto_link(self.k, h)['state'], 'undone')
+
+    def test_tombstone_outlives_the_record(self):
+        h = self.holder_named('מאזין ל.')
+        self.register()
+        self.assertEqual(self.undo(h)[0], 200)
+        rec = self.repo.get_auto_link(self.k, h)
+        self.assertEqual((rec['holderName'], rec['familyName'], rec['holderPhone']), ('', '', None))  # no personal data is kept
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'SEATAUTO#{h}'})  # the record's TTL fired
+        self.approved_spouse = self.profile(self.quiet, 'מיכל', 'מאזין')
+        self.call('POST', f'{self.base()}/admin/families/link', body={'userIds': [self.listener, self.quiet]})
+        routes_seatlink.try_auto_link(self.ctx(), self.k, self.quiet)
+        self.assertIn(h, self.holder_ids())
+
+    def test_a_pending_link_older_than_14_days_is_not_resumed(self):
+        h = self.holder_named('מאזין ל.')
+        self.give(f'holder:{h}', (5, 0))
+        self.pending(h)
+        with mock.patch.object(routes_seatlink.time, 'time', return_value=__import__('time').time() + 15 * DAY):
+            routes_seatlink.try_auto_link(self.ctx(), self.k, self.listener)
+            self.assertEqual(self.autos()[1]['count'], 0)
+        self.assertEqual(self.repo.get_auto_link(self.k, h)['state'], 'expired')
+        self.assertIn(h, self.holder_ids())
+        self.assertEqual(list(self.asg().values()), [f'holder:{h}'])
+
+    def test_a_member_without_a_surname_blocks(self):
+        other = self.add('m5-sub', 'member', 'No Surname')
+        self.repo.ensure_family(self.k, other)
+        self.profile(other, 'לילך', '')
+        h = self.holder_named('מאזין ל.')
+        self.register()
+        self.assertIn(h, self.holder_ids())
+
+    def test_a_requester_with_a_latin_name_blocks(self):
+        self.profile(self.add('r6-sub', 'listener', 'Lia Other'), 'Lilach', 'Mazin')
+        self.assertEqual(self.call('POST', f'{self.base()}/membership-request', sub='r6-sub')[0], 202)
+        h = self.holder_named('מאזין ל.')
+        self.register()
+        self.assertIn(h, self.holder_ids())
+
+    def test_a_latin_first_name_with_the_surname_blocks(self):
+        self.profile(self.add('l7-sub', 'listener', 'Lia Other'), 'Lilach', 'מאזין')
+        h = self.holder_named('מאזין ל.')
+        self.register()
+        self.assertIn(h, self.holder_ids())
 
     def test_record_has_a_ttl(self):
         h = self.holder_named('מאזין ל.')

@@ -172,9 +172,15 @@ def certain_holder(ctx, k, adults):
     holder, why, uid = next(iter(found.values()))
     others = [o for o in holders if o['holderId'] != holder['holderId']]
     mine = set(ids)
-    rest = [m['userId'] for m in ctx.repo.list_members(k) if m['userId'] not in mine]
-    rest += [r['sk'][len('REQ#'):] for r in ctx.repo.list_requests(k) if r['sk'][len('REQ#'):] not in mine and r['sk'][len('REQ#'):] not in rest]
-    others_profiles = _profiles(ctx, rest)
+    holding = {r for item in ctx.repo.list_assignments(k).values() for r in item['assignments'].values()}
+    # (userId, can't-be-ruled-out-when-unknown): members not yet seated and requesters could be a holder's own household
+    people = {m['userId']: m.get('role') in MEMBER_ROLES and f'family:{m.get("familyId")}' not in holding
+              for m in ctx.repo.list_members(k) if m['userId'] not in mine}
+    for r in ctx.repo.list_requests(k):
+        uid = r['sk'][len('REQ#'):]
+        if uid not in mine:
+            people[uid] = True
+    others_profiles = _profiles(ctx, list(people))
     if why == 'phone-surname':
         digits = link.digits(holder.get('phone'))
         if any(link.digits(o.get('phone')) == digits for o in others):
@@ -182,11 +188,15 @@ def certain_holder(ctx, k, adults):
         if any(link.digits(p.get('phone')) == digits for p in others_profiles.values()):
             return None
         return holder
-    if any(link.holders_alike(holder['name'], o['name']) for o in others):
+    if any(link.holder_blocks(holder['name'], o['name']) for o in others):
         return None
     initial = link.split_holder_name(holder['name'])[1]
-    for p in others_profiles.values():
-        if link.surname_alike(holder['name'], p.get('lastName')) and (not _initial(p) or _initial(p) == initial):
+    for uid, p in others_profiles.items():
+        known = link.has_hebrew(p.get('lastName'))
+        if not known and people[uid]:
+            return None  # no Hebrew surname on file: can't be ruled out
+        first = _initial(p)
+        if known and link.surname_alike(holder['name'], p.get('lastName')) and (not first or not link.has_hebrew(first) or first == initial):
             return None
     return holder
 
@@ -194,6 +204,9 @@ def certain_holder(ctx, k, adults):
 def _finish(ctx, k, rec):
     """Run (or resume) the recorded link: add the seats put on the holder since, then the confirmed link itself."""
     holder_id, family_id = rec['holderId'], rec['familyId']
+    fresh = ctx.repo.get_auto_link(k, holder_id)
+    if not fresh or fresh.get('state') != 'pending':
+        return  # cancelled, being undone or expired meanwhile: never run it
     family = ctx.repo.get_family(k, family_id)
     adults = ctx.repo.live_adults(k, family) if family else []
     if not adults:
@@ -229,6 +242,8 @@ def auto_link_family(ctx, k, user_id):
     if not holder:
         return None
     holder_id = holder['holderId']
+    if ctx.repo.has_auto_tombstone(k, holder_id):
+        return None  # a gabbai said 'not them' before
     if any(holder_id in (m.get('seatLinkHolders') or ()) for m in ctx.repo.list_members(k)):
         return None  # a manual link is mid-way
     ref = f'holder:{holder_id}'
@@ -248,8 +263,11 @@ def auto_link_family(ctx, k, user_id):
 
 def resume_pending(ctx, k):
     """Finish auto-links that stopped half-way (every later approval retries them)."""
+    now = int(time.time())
     for rec in ctx.repo.list_auto_links(k):
-        if rec.get('state') == 'pending':
+        if rec.get('state') == 'pending' and int(rec['at']) + UNDO_SECONDS <= now:
+            ctx.repo.update_auto_link(k, rec['holderId'], {'state': 'expired'})  # too late to run unseen: a suggestion again
+        elif rec.get('state') == 'pending':
             try:
                 _finish(ctx, k, rec)
             except Exception as error:
@@ -278,9 +296,9 @@ def list_auto_links(ctx, params):
     require(ctx.repo, ctx.user_id, k, GABBAI)
     now = int(time.time())
     items = [{'holderId': r['holderId'], 'holderName': r['holderName'], 'familyId': r['familyId'],
-              'familyName': r['familyName'], 'seats': int(r['seats']), 'state': r['state'], 'at': int(r['at']),
+              'familyName': r['familyName'], 'seats': int(r['seats']), 'state': 'pending' if r['state'] == 'pending' else 'done', 'at': int(r['at']),
               'expiresAt': int(r['at']) + UNDO_SECONDS}
-             for r in ctx.repo.list_auto_links(k) if r.get('state') in ('pending', 'done') and int(r['at']) + UNDO_SECONDS > now]
+             for r in ctx.repo.list_auto_links(k) if r.get('state') in ('pending', 'done', 'cancelled', 'undoing') and int(r['at']) + UNDO_SECONDS > now]
     items.sort(key=lambda i: (-i['at'], i['holderId']))
     return 200, {'count': len(items), 'items': items}
 
@@ -290,7 +308,7 @@ def _auto_record(ctx, params, live_states):
     require(ctx.repo, ctx.user_id, k, GABBAI)
     holder_id = params['holderId']
     rec = ctx.repo.get_auto_link(k, holder_id) if ID_RE.fullmatch(holder_id) else None
-    if not rec or rec.get('state') == 'undone':
+    if not rec or rec.get('state') in ('undone', 'expired'):
         raise ApiError(404, 'autolink_not_found')
     if rec['state'] not in live_states:
         raise ApiError(409, 'autolink_not_pending')
@@ -312,24 +330,27 @@ def undo_auto_link(ctx, params):
     """Restores the holder and moves back every seat that is still the family's (a seat the gabbai changed since is left
     as it is and counted in `skipped`; 409 `autolink_changed` when none could be restored). Week records follow, the
     family's Home card loses the holder, and a tombstone keeps the holder from being auto-linked again. Resumable."""
-    k, rec = _auto_record(ctx, params, ('pending', 'done'))
+    k, rec = _auto_record(ctx, params, ('pending', 'done', 'cancelled', 'undoing'))
     holder_id = rec['holderId']
     if int(rec['at']) + UNDO_SECONDS <= int(time.time()):
         raise ApiError(410, 'autolink_expired')
     family_ref, ref = f'family:{rec["familyId"]}', f'holder:{holder_id}'
-    current = ctx.repo.list_assignments(k)
-    todo = skipped = 0
-    for friday, seats in (rec.get('moved') or {}).items():
-        assigned = (current.get(friday) or {}).get('assignments') or {}
-        for sid in seats:
-            if assigned.get(sid) == family_ref:
-                todo += 1
-            elif assigned.get(sid) != ref:
-                skipped += 1
-    if skipped and not todo and not rec.get('undoing'):
-        raise ApiError(409, 'autolink_changed')
-    if not rec.get('undoing'):
-        ctx.repo.update_auto_link(k, holder_id, {'undoing': True})  # from here on a retry just carries on
+    if rec['state'] in ('pending', 'done'):
+        current = ctx.repo.list_assignments(k)
+        todo = skipped = 0
+        for friday, seats in (rec.get('moved') or {}).items():
+            assigned = (current.get(friday) or {}).get('assignments') or {}
+            for sid in seats:
+                if assigned.get(sid) == family_ref:
+                    todo += 1
+                elif assigned.get(sid) != ref:
+                    skipped += 1
+        if rec['state'] == 'done' and skipped and not todo:
+            raise ApiError(409, 'autolink_changed')
+        # from here on resume and finish refuse the record, a retry of the undo just carries on; the tombstone is written
+        # first so nothing can link the holder again, not even after the record's TTL
+        ctx.repo.put_auto_tombstone(k, holder_id, rec['familyId'])
+        ctx.repo.update_auto_link(k, holder_id, {'state': 'cancelled' if rec['state'] == 'pending' else 'undoing'})
     if not ctx.repo.get_holder(k, holder_id):
         ctx.repo.put_holder(k, holder_id, rec['holderName'], rec.get('holderPhone'), created=int(rec['holderCreatedAt']))
     skipped = 0
@@ -359,5 +380,6 @@ def undo_auto_link(ctx, params):
     family = ctx.repo.get_family(k, rec['familyId'])
     for m in (ctx.repo.live_adults(k, family) if family else []):
         ctx.repo.drop_seat_link_holder(k, m['userId'], holder_id, int(rec['seats']))
-    ctx.repo.update_auto_link(k, holder_id, {'state': 'undone'})  # the tombstone: kept until the TTL
+    ctx.repo.update_auto_link(k, holder_id, {'state': 'undone', 'holderName': '', 'holderPhone': None, 'familyName': '',
+                                             'moved': {}, 'weeks': {}})  # no personal data stays; the tombstone item is permanent
     return 200, {'holderId': holder_id, 'skipped': skipped}

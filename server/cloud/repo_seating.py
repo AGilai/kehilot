@@ -178,6 +178,13 @@ class SeatingRepo:
                                ExpressionAttributeNames=names, ExpressionAttributeValues=values,
                                ConditionExpression='attribute_exists(sk)')
 
+    def put_auto_tombstone(self, k, holder_id, family_id):
+        """The gabbai said 'not them': no names, no TTL, so nothing re-links the holder when the record expires."""
+        self.table.put_item(Item={**self._key(k, f'SEATNOAUTO#{holder_id}'), 'holderId': holder_id, 'familyId': family_id})
+
+    def has_auto_tombstone(self, k, holder_id):
+        return self._seat_get(k, f'SEATNOAUTO#{holder_id}') is not None
+
     def get_auto_link(self, k, holder_id):
         return self._seat_get(k, f'SEATAUTO#{holder_id}')
 

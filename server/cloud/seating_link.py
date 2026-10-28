@@ -101,9 +101,30 @@ def surname_alike(holder_name, last_name):
     return _same(s, p) or bool(set(k for v in s for k in _spelling_keys(v)) & set(k for v in p for k in _spelling_keys(v)))
 
 
-def holders_alike(a, b):
-    """Two holder names share a surname (spelling variants included), whatever their initials."""
-    return surname_alike(a, split_holder_name(b)[0][-1])
+_NAME_PREFIXES = ('משפחת', 'משפחה', 'משפ', 'בית', 'הרב')
+_HEBREW = re.compile('[א-ת]')
+
+
+def has_hebrew(text):
+    return bool(_HEBREW.search(text or ''))
+
+
+def holder_blocks(candidate_name, other_name):
+    """True when another holder row could be the same surname as the candidate: any word (or run of words, for a
+    two-word surname) of the other row, whatever else it holds (an initial, several, a full first name, either order),
+    equals the candidate's surname or is a spelling variant of it. Over-blocking is the safe direction."""
+    cands = split_holder_name(candidate_name)[0]
+    ckeys = {k for v in cands for k in _spelling_keys(v)}
+    tokens = [t for t in normalize(other_name).split(' ') if t]
+    while tokens and tokens[0] in _NAME_PREFIXES:
+        tokens = tokens[1:]
+    tokens = [t for t in tokens if len(t) > 1]
+    for a in range(len(tokens)):
+        for b in range(a + 1, len(tokens) + 1):
+            run = ' '.join(tokens[a:b])
+            if run in cands or any(k in ckeys for k in _spelling_keys(run)):
+                return True
+    return False
 
 
 def suggest(holders, people):
