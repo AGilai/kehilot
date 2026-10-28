@@ -27,6 +27,8 @@ import { PushTexts } from './admin/PushTexts.tsx';
 import { Overview } from './admin/Overview.tsx';
 import { SeatPrint } from './admin/SeatPrint.tsx';
 import { SeatEditor } from './admin/SeatEditor.tsx';
+import { SeatHolders } from './admin/SeatHolders.tsx';
+import { SeatResponses } from './admin/SeatResponses.tsx';
 import { SeatPage } from './SeatPage.tsx';
 import { seatEditorAllowed, seatPrintRole, seatScreenFor } from '../seats/access.ts';
 import { TermsGate } from './TermsGate.tsx';
@@ -66,6 +68,8 @@ type Nav =
   | { tab: 'scheduleEditor' }
   | { tab: 'seatPrint' }
   | { tab: 'seatEditor' }
+  | { tab: 'seatResponses' }
+  | { tab: 'seatHolders' }
   | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'me' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
@@ -84,7 +88,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'me' || s === 'me-family' || s === 'me-request' || s === 'me-linked' || s === 'partner-picker' || s === 'child-sheet' || s === 'privacy' || s === 'privacy-ready' || s === 'kehila-info' || s === 'leave-listener' || s === 'delete' || s === 'delete-ticked') return { nav: { tab: 'me' } };
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
   if (s === 'overview' || s === 'overview-privacy' || s === 'terms') return { nav: { tab: 'overview' }, manage: true };
-  if (s === 'approvals') return { nav: { tab: 'approvals' }, manage: true };
+  if (s === 'approvals' || s === 'seat-approval') return seatEditorAllowed(state.kehila?.role) || s === 'approvals' ? { nav: { tab: 'approvals' }, manage: true } : null;
   if (s === 'members' || s === 'admin-families' || s === 'admin-link' || s === 'tags-manage' || s === 'tags-assign' || s === 'tags-empty') return { nav: { tab: 'members' }, manage: true };
   if (s === 'invite-member') return { nav: { tab: 'invite', member: true }, manage: true };
   if (s === 'groups') return { nav: { tab: 'groups' }, manage: true };
@@ -95,6 +99,8 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (seat === 'seats') return { nav: { tab: 'seats' } };
   if (seat === 'seatPrint') return { nav: { tab: 'seatPrint' }, manage: true };
   if (s?.startsWith('seat-editor') || s === 'seat-map') return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatEditor' }, manage: true } : null;
+  if (s?.startsWith('seat-upload')) return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatResponses' }, manage: true } : null;
+  if (s === 'seat-holders' || s === 'seat-link') return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatHolders' }, manage: true } : null;
   if (s === 'schedule') return { nav: { tab: 'schedule' } };
   if (s === 'schedule-editor' || s === 'schedule-editor-none') return scheduleEditorAllowed(state.kehila?.role) ? { nav: { tab: 'scheduleEditor' }, manage: true } : null;
   if (s === 'm5') return { nav: { tab: 'prefs', from: 'home' } };
@@ -203,7 +209,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   const kehila = state.kehila;
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'scheduleEditor' || (nav.tab === 'group' && nav.from === 'groups');
+  const adminTab = nav.tab === 'overview' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'seatResponses' || nav.tab === 'seatHolders' || nav.tab === 'scheduleEditor' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : 'overview') : nav.tab === 'me' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || (nav.tab === 'group' && nav.from === 'me') ? 'me'
     : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
@@ -236,6 +242,12 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     case 'seatEditor':
       body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => setNav({ tab: 'overview' }))} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
+    case 'seatResponses':
+      body = seatEditorAllowed(kehila?.role) ? <SeatResponses onBack={() => setNav({ tab: 'overview' })} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
+      break;
+    case 'seatHolders':
+      body = seatEditorAllowed(kehila?.role) ? <SeatHolders onBack={() => setNav({ tab: 'overview' })} onToast={showToast} /> : null;
+      break;
     case 'seatPrint':
       body = seatPrintRole(kehila?.role) ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
       break;
@@ -252,10 +264,10 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintRole(state.kehila?.role) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onSeatEditor={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatEditor' }) : undefined} onCount={setPending} onToast={showToast} />;
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintRole(state.kehila?.role) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onSeatEditor={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatEditor' }) : undefined} onSeatResponses={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatResponses' }) : undefined} onSeatHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} onCount={setPending} onToast={showToast} />;
       break;
     case 'approvals':
-      body = <Approvals onCount={setPending} onToast={showToast} />;
+      body = <Approvals onCount={setPending} onToast={showToast} onHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} />;
       break;
     case 'members':
       body = <Members onToast={showToast} />;

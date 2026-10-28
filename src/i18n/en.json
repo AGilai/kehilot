@@ -2033,5 +2033,222 @@
     },
     "loadFailed": "The map did not load.",
     "loading": "Loading the map…"
+  },
+  "seatUpload": {
+    "band": "Form responses upload",
+    "title": "Upload a responses file",
+    "lead": "The file is the responses tab of the old Form. Only this week's answers are read, and each household's latest answer wins.",
+    "step": {
+      "upload": "Upload",
+      "columns": "Columns",
+      "match": "Match",
+      "preview": "Preview"
+    },
+    "event": {
+      "label": "These answers are for",
+      "shabbat": "Shabbat",
+      "shabbatParasha": "Shabbat {parasha}",
+      "hag": "Holiday",
+      "megila": "Megillah"
+    },
+    "soon": "Soon",
+    "how": "In Google Sheets, download the Form's responses tab (File > Download > CSV) and upload it here. The whole tab is fine: only this week's answers are read.",
+    "pick": "Click to choose a file",
+    "pickHelp": "CSV or Excel. The file is read in the browser, and nothing is sent until you confirm.",
+    "template": "Download a template",
+    "templateFile": "responses-template.csv",
+    "templateHelp": "The same columns as the Form",
+    "headersHelp": "The Form's headers are longer; they are recognised by their words (ערב שבת, יום שבת, חג, מגילה, נשים, גברים, אולם), not by position.",
+    "paste": "Or paste the table here",
+    "pasteHint": "Copy the whole tab from the sheet, including the header row.",
+    "read": "Read the table",
+    "privacy": "The file is read in the browser. Only numbers per household are sent, after you confirm. Names from the file are not stored.",
+    "webOnly": "Responses upload: on the website only.",
+    "back": "Back",
+    "earlier": "A responses file was already uploaded for this Shabbat.",
+    "problem": {
+      "empty": "The file is empty.",
+      "no-timestamp": "No timestamp column found. Is this the Form's responses tab?",
+      "no-name": "No name column found.",
+      "no-counts": "No Shabbat evening or Shabbat day column found.",
+      "big": "The file is too big (2 MB at most).",
+      "read": "We could not read the file."
+    },
+    "columns": {
+      "title": "Columns",
+      "lead": "We recognised the columns by their headers. Check that everything is right.",
+      "unknown": "Not used: {list}",
+      "missing": "Missing column: {col}",
+      "next": "Continue to matching"
+    },
+    "meaning": {
+      "stamp": "Answer time",
+      "name": "Household",
+      "erev": "Evening prayer · released",
+      "day": "Morning prayer · released",
+      "unused": "Not used for this Shabbat",
+      "requests": "Seat requests · {area}"
+    },
+    "released": "The Form asks how many seats are not needed. This is the released count, not the number coming.",
+    "window": {
+      "main": "{n} rows from this week (since the last Shabbat ended). {old} older rows were not read.",
+      "later": "{n} later rows were not read.",
+      "undated": "{n} rows without a readable date were not read.",
+      "unreadable": "{n} cells that are not numbers were left out.",
+      "none": "The file has no answers from this week."
+    },
+    "match": {
+      "lead": "Every name in the file needs a household: a registered family, or a seat holder without an account. Nothing is matched without you.",
+      "counts": "Evening {erev} · Morning {day}",
+      "request": "{n} in {area}",
+      "noCounts": "No numbers",
+      "earlier": "{n} answers. The latest was taken.",
+      "none": "No similar household found.",
+      "noSeats": "has no seats on the map",
+      "optSkip": "Skip this row",
+      "optSkipHelp": "This answer will not be applied.",
+      "skipped": "Skipped",
+      "next": "To the preview",
+      "requestOnly": "A row that releases seats needs a household that holds seats. A request-only row is saved only for a household that has seats on the map."
+    },
+    "prayer": {
+      "erev": "Evening",
+      "day": "Morning"
+    },
+    "col": {
+      "household": "Household",
+      "seats": "Seats",
+      "change": "Change"
+    },
+    "preview": {
+      "summary": "{change} households will change ({noAccount} without an account) · {same} unchanged · {skipped} skipped · {errors} errors",
+      "undoFirst": "A file was already uploaded for this Shabbat. Applying undoes it first, then applies this one.",
+      "errors": "Errors ({n})",
+      "notApplied": "Not applied.",
+      "above": "Releasing {what}, and it has {max} seats.",
+      "noSeats": "It has no seats on the map this week, so there is nothing to release.",
+      "noSeatsRequest": "It has no seats on the map this week, so the request is not saved.",
+      "duplicate": "There is a later answer for the same household.",
+      "skip": "Skipped.",
+      "kept": "Also answered in the app ({n})",
+      "keptHelp": "By default the app's answer wins. You can pick the file for any household.",
+      "answeredApp": "Answered in the app",
+      "compare": "App: releasing {app} · File: {file}",
+      "useApp": "The app",
+      "useFile": "The file",
+      "changes": "Will change ({n})",
+      "showAll": "Show all {n}",
+      "requests": "Seat requests",
+      "households": "{n} households",
+      "requestsNote": "Counted for the requests list (no map, numbers only). They do not change the men's map.",
+      "skipped": "Skipped ({n})",
+      "nothing": "There is nothing to apply.",
+      "apply": "Apply the changes",
+      "orderNote": "A release applies to the family's seats in its own order, as in the sheet. By default the app's answer wins."
+    },
+    "result": {
+      "done": "Applied. {n} households updated, {requests} requests recorded.",
+      "detail": "{released} seats released · {requests} seats in requests.",
+      "undone": "The upload was undone.",
+      "undoneToast": "Upload undone",
+      "undoneSkipped": "Upload undone. {n} seats changed since stay as they are.",
+      "warnings": "Things to look at",
+      "undo": "Undo the upload",
+      "again": "Another upload",
+      "undoHelp": "Undo restores the households the file changed (also those without an account) and removes the requests it added. A seat changed since, in the app or by a gabbai, stays as it is."
+    },
+    "warn": {
+      "app_answer_kept": "{n} households answered in the app and their answer stayed",
+      "no_seats": "{n} households have no seats on the map and were not applied",
+      "above_seats": "{n} households asked to release more than they hold, so all their seats were released"
+    },
+    "empty": {
+      "title": "No hall map saved yet",
+      "body": "To upload answers you first need a hall map with families. Paste or draw it in the map editor."
+    },
+    "card": {
+      "open": "Upload the Form's responses"
+    }
+  },
+  "seatHolders": {
+    "title": "Seat holders without an account",
+    "lead": "Families who sit in the synagogue and have no account. A gabbai created them (by paste, by hand or from a responses file). They appear on the map and can be updated on their behalf; when they register, you link them.",
+    "new": "New seat holder",
+    "empty": "No seat holders without an account.",
+    "created": "Created {date}",
+    "edit": "Edit",
+    "privacy": "Personal data: only gabbaim see it; deleted on request; never in notifications or logs.",
+    "card": {
+      "open": "Seat holders without an account",
+      "hints": "{n} link suggestions: families who registered and look like seat holders."
+    },
+    "suggest": {
+      "count": "{n} link suggestions:",
+      "lead": "Families who registered in the app and look like seat holders here.",
+      "only": "Show suggestions only",
+      "all": "Show all",
+      "could": "Could this be",
+      "review": "Review and link…"
+    },
+    "why": {
+      "phone-surname": "Same phone and same surname",
+      "phone": "Same phone",
+      "surname-initial": "Same surname and first initial",
+      "spelling": "Surname spelled differently",
+      "surname-only": "Same surname",
+      "surname-other-initial": "Same surname, different initial",
+      "other": "Similar name",
+      "noPhone": "no phone to compare"
+    },
+    "form": {
+      "newTitle": "New seat holder",
+      "editTitle": "Edit seat holder",
+      "name": "Household name",
+      "phone": "Phone (optional)",
+      "phoneHelp": "Helps suggest a link when they register.",
+      "create": "Create",
+      "save": "Save",
+      "badName": "Enter a name (up to 60 characters).",
+      "badPhone": "The phone number is not valid.",
+      "privacy": "After saving, choose its seats on the map. Personal data: only gabbaim see it; deleted on request; never in notifications or logs."
+    },
+    "delete": {
+      "open": "Delete the record",
+      "title": "Delete \"{name}\"?",
+      "confirm": "Delete",
+      "body": "The record is deleted and its {n} seats go back to free in every version of the map. This cannot be undone. It also serves a family's deletion request."
+    },
+    "link": {
+      "title": "Link \"{name}\"",
+      "pickTitle": "Link \"{name}\" to a registered family",
+      "search": "Search a surname",
+      "noAccountSide": "Without an account",
+      "registeredSide": "Registered family",
+      "registered": "Registered",
+      "what": "What will happen",
+      "what1": "The seats move to {household}, from today (also this coming Shabbat).",
+      "what2": "Answers a gabbai or the file already gave for them stay.",
+      "what3": "The \"no account\" record closes.",
+      "what4": "The head of the household gets a \"Your seats in the synagogue\" card on Home and can release seats in the app.",
+      "union": "{household} already hold {family} seats. After linking they will have {total}. If this is a double entry in the sheet, free a seat afterwards on the map.",
+      "confirm": "Link and move the seats",
+      "notThem": "Not the same family",
+      "never": "Never automatic, even on an identical phone. \"Not the same family\" hides this suggestion on this device; you can still link by hand.",
+      "changed": "The record changed in the meantime. The list was refreshed; check and try again.",
+      "retry": "The link did not complete. The record is kept. Try again.",
+      "gone": "The record or the family was not found. The list was refreshed."
+    },
+    "toast": {
+      "created": "Seat holder created",
+      "saved": "Changes saved",
+      "deleted": "Record deleted",
+      "linked": "Linked. The seats moved to {household}."
+    },
+    "approval": {
+      "maybe": "Could this be one from the map:",
+      "more": "and {n} more",
+      "after": "The suggestion also appears after approval, in the seat holders list, where you link. Nothing is linked by itself.",
+      "open": "Seat holders without an account"
+    }
   }
 }

@@ -7,13 +7,13 @@ export type StepKey = 'paste' | 'check' | 'match' | 'save';
 const STEPS: StepKey[] = ['paste', 'check', 'match', 'save'];
 
 /** UX §16.3: four steps, the open one is aria-current. */
-export function StepRow({ step }: { step: StepKey }) {
+export function StepRow({ step, steps = STEPS, label }: { step: string; steps?: readonly string[]; /** Text of a step; the editor's own steps by default. */ label?: (s: string) => string }) {
   const { t } = useI18n();
   const k = useTokens();
-  const at = STEPS.indexOf(step);
+  const at = steps.indexOf(step);
   return (
     <View accessibilityRole="list" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      {STEPS.map((s, i) => {
+      {steps.map((s, i) => {
         const on = i === at;
         const done = i < at;
         const color = on ? k.tekhelet : done ? k.olive : k.muted;
@@ -21,9 +21,9 @@ export function StepRow({ step }: { step: StepKey }) {
           <React.Fragment key={s}>
             <View accessibilityRole="text" {...(on ? { 'aria-current': 'step' as const } : {})}
               style={{ paddingVertical: 4, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: on ? k.tekhelet : done ? k.olive : k.line, backgroundColor: k.surface }}>
-              <Txt size="small" bold color={color}>{`${done ? '✓ ' : ''}${i + 1} · ${t(`seatEditor.step.${s}`)}`}</Txt>
+              <Txt size="small" bold color={color}>{`${done ? '✓ ' : ''}${i + 1} · ${(label ?? ((x: string) => t(`seatEditor.step.${x}`)))(s)}`}</Txt>
             </View>
-            {i < STEPS.length - 1 ? <Txt color={k.muted}>{'‹'}</Txt> : null}
+            {i < steps.length - 1 ? <Txt color={k.muted}>{'‹'}</Txt> : null}
           </React.Fragment>
         );
       })}

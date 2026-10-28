@@ -95,7 +95,7 @@ function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged
 }
 
 /** GM1 without the seating meters: pending count, member and listener counts, the cap, the invite links. */
-export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onSeatPrint, onSchedule, onSeatEditor, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; /** The seat-release preview (UX §15.5): only passed when the preview flag is on. */ onSeatPrint?: () => void; /** The prayer-schedule editor (UX §14.2). */ onSchedule?: () => void; /** The seating editor (UX §16): gabbaim only. */ onSeatEditor?: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
+export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onSeatPrint, onSchedule, onSeatEditor, onSeatResponses, onSeatHolders, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; /** The seat-release preview (UX §15.5): only passed when the preview flag is on. */ onSeatPrint?: () => void; /** The prayer-schedule editor (UX §14.2). */ onSchedule?: () => void; /** The seating editor (UX §16): gabbaim only. */ onSeatEditor?: () => void; /** The old Form's responses upload (§16.6) and the holders without an account (§16.7): gabbaim only. */ onSeatResponses?: () => void; onSeatHolders?: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state, refreshKehila } = useSession();
@@ -107,6 +107,14 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
   const [privacy, setPrivacy] = React.useState<{ contact: string; terms: { name: string; at: number } | null | undefined } | null>(null);
   const [invites, setInvites] = React.useState<InviteRow[] | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [linkHints, setLinkHints] = React.useState(0);
+  React.useEffect(() => {
+    // link suggestions for the gabbai (best effort: nothing is shown when it fails)
+    if (!onSeatHolders) return;
+    let live = true;
+    api.seatLinkSuggestions(kehilaId).then(r => { if (live) setLinkHints(r.count); }, () => {});
+    return () => { live = false; };
+  }, [api, kehilaId, !!onSeatHolders]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadInvites = React.useCallback(async () => {
     try { setInvites(await api.invites(kehilaId)); } catch (e) { setError(errText(e)); setInvites(prev => prev ?? []); }
@@ -152,6 +160,9 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
               <Txt serif size="heading" accessibilityRole="header">{t('seatEditor.card.title')}</Txt>
               <Txt size="small" color={k.muted}>{t('seatEditor.card.body')}</Txt>
               <Button title={t('seatEditor.card.open')} onPress={onSeatEditor} />
+              {onSeatResponses ? <Button kind="secondary" title={t('seatUpload.card.open')} onPress={onSeatResponses} /> : null}
+              {onSeatHolders ? <Button kind="secondary" title={t('seatHolders.card.open')} onPress={onSeatHolders} /> : null}
+              {linkHints > 0 && onSeatHolders ? <Banner text={t('seatHolders.card.hints', { n: linkHints })} /> : null}
             </Card>
           ) : null}
           {privacy ? <PrivacyContactCard contact={privacy.contact} onSaved={c => { setPrivacy(p => p && { ...p, contact: c }); onToast(t('admin.overview.privacy.saved')); void refreshKehila(); }} /> : null}

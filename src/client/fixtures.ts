@@ -11,6 +11,7 @@ import { addDays } from '../schedule/week.ts';
 import { israelInstant, shabbatFriday } from '../seats/window.ts';
 import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
 import { fixtureMap, fixtureMapFamilies, fixtureSeatFamilies } from '../seats/fixturePaste.ts';
+import { createUploadFixture, fixtureHolderFamilies, fixtureHolderLayout, fixtureHolders, fixtureLinkSuggestions } from '../seats/fixtureUpload.ts';
 import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
@@ -26,7 +27,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -278,6 +279,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { userId: '01FIXTUREUSER00000000011', displayName: 'נועה בדויה', createdAt: secs(now - 30 * H), previouslyRejected: false },
     { userId: '01FIXTUREUSER00000000012', displayName: 'אורי לדוגמה', createdAt: secs(now - 5 * H), previouslyRejected: true },
   ];
+  if (screen === 'seat-approval') (requests[0] as Record<string, unknown>).seatSuggestions = { count: 1, items: [{ holderId: '01FIXTUREHOLDER00000000001', holderName: 'משפחת מדומה', why: 'phone', level: 'likely' }] };
   const adminFam = screen === 'admin-families' || screen === 'admin-link';
   const U = (n: number) => `01FIXTUREUSER000000000${n}`;
   const memberRows = adminFam ? [
@@ -418,7 +420,10 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   let scheduleDoc = structuredClone(routes[`GET ${K}/schedule`]) as ScheduleDoc;
   let conflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
   // Seating editor (fixture builds): holders and layouts are kept in memory, so a save shows up on the next read.
-  let seatHolders: Array<{ holderId: string; name: string; phone: string | null; createdAt: number; updatedAt: number }> = [{ holderId: '01FIXTUREHOLDER00000000001', name: 'משפחת מדומה', phone: null, createdAt: 1_780_000_000_000, updatedAt: 1_780_000_000_000 }];
+  const holdersFx = !!screen && (screen.startsWith('seat-upload') || screen === 'seat-holders' || screen === 'seat-link' || screen === 'seat-approval');
+  let seatHolders: Array<{ holderId: string; name: string; phone: string | null; createdAt: number; updatedAt: number }> = holdersFx ? fixtureHolders() : [{ holderId: '01FIXTUREHOLDER00000000001', name: 'משפחת מדומה', phone: null, createdAt: 1_780_000_000_000, updatedAt: 1_780_000_000_000 }];
+  const uploadFx = screen?.startsWith('seat-upload') ? createUploadFixture(shabbatFriday(fixtureNow() ?? new Date())) : null;
+  let linkSuggestions = fixtureLinkSuggestions().suggestions;
   type SeatVersion = { body: Record<string, unknown>; seats: Array<{ id: string; row: number; col: number }>; updatedAt: number; asg: Record<string, string>; asgAt: number | null };
   const seatLayouts = new Map<string, SeatVersion>();
   const seatId = (row: number, col: number) => `s${String(row).padStart(3, '0')}${String(col).padStart(3, '0')}`;
@@ -441,6 +446,10 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     return undefined;
   };
   let seatConflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
+  if (screen === 'seat-holders' || screen === 'seat-link') {
+    const hl = fixtureHolderLayout();
+    seatLayouts.set('2026-01-02', { body: hl.body as unknown as Record<string, unknown>, seats: hl.seats, updatedAt: 1_780_000_000_000, asg: hl.asg, asgAt: 1_780_000_000_000 });
+  }
   if (screen === 'seat-map') {
     const m = fixtureMap();
     const seats = seatsOfBody(m.layout.cells);
@@ -455,12 +464,28 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   }
   const seatingFixture = (method: string, path: string, body: unknown): unknown => {
     const p = path.split('?')[0]!;
-    if (p === `${A}/families`) return screen === 'seat-map' ? fixtureMapFamilies() : fixtureSeatFamilies();
+    if (p === `${A}/families`) return screen === 'seat-map' ? fixtureMapFamilies() : holdersFx ? fixtureHolderFamilies() : fixtureSeatFamilies();
     if (p === `${A}/seating/holders`) {
       if (method === 'GET') return structuredClone(seatHolders);
       const b = body as { name: string; phone?: string };
       const h = { holderId: fixtureUlid(Date.now() + seatHolders.length, 40), name: b.name, phone: b.phone ?? null, createdAt: Date.now(), updatedAt: Date.now() };
       seatHolders = [...seatHolders, h]; return h;
+    }
+    if (p === `${A}/seating/link-suggestions`) return holdersFx ? { count: linkSuggestions.length, suggestions: structuredClone(linkSuggestions) } : { count: 0, suggestions: [] };
+    const hm = /\/seating\/holders\/([^/]+)(\/link)?$/.exec(p);
+    if (hm) {
+      const h = seatHolders.find((x) => x.holderId === hm[1]);
+      if (!h) throw new ApiCodeError(404, 'holder_not_found');
+      if (method === 'DELETE') { seatHolders = seatHolders.filter((x) => x !== h); linkSuggestions = linkSuggestions.filter((x) => x.holderId !== h.holderId); return undefined; }
+      if (method === 'PUT') { const b = body as { name: string; phone?: string }; Object.assign(h, { name: b.name, phone: b.phone ?? null, updatedAt: Date.now() }); return structuredClone(h); }
+      if (method === 'POST' && hm[2]) {
+        const b = body as { familyId: string; ifUpdatedAt?: number };
+        if (b.ifUpdatedAt !== undefined && b.ifUpdatedAt !== h.updatedAt) throw new ApiCodeError(409, 'holder_changed');
+        let moved = 0;
+        for (const v of seatLayouts.values()) for (const [id, ref] of Object.entries(v.asg)) if (ref === `holder:${h.holderId}`) { v.asg[id] = `family:${b.familyId}`; moved++; }
+        seatHolders = seatHolders.filter((x) => x !== h); linkSuggestions = linkSuggestions.filter((x) => x.holderId !== h.holderId);
+        return { familyId: b.familyId, seats: moved };
+      }
     }
     if (p === `${A}/seating/layouts` && method === 'GET') {
       const today = israelDate(fixtureNow() ?? new Date());
@@ -535,8 +560,14 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
         if (method === 'PUT') { scheduleDoc.weekOverrides[friday] = body as ScheduleDoc['weekOverrides'][string]; return {} as any; }
         if (method === 'DELETE') { delete scheduleDoc.weekOverrides[friday]; return undefined as any; }
       }
+      if (uploadFx && path.startsWith(`${A}/seats/week/`)) {
+        const p = path.split('?')[0]!;
+        if (method === 'POST' && p.endsWith('/responses/undo')) return uploadFx.undoApply((body as { event: 'erev' | 'day' }).event) as any;
+        if (method === 'POST' && p.endsWith('/responses')) return uploadFx.apply(body as never) as any;
+        if (method === 'GET') return uploadFx.adminWeek() as any;
+      }
       if (path.split('?')[0] === `${K}/seats/me` || path.startsWith(`${A}/seats/week/`)) return seatsWeekFixture(method, path, body) as any;
-      if (path.includes('/admin/seating/') || ((screen?.startsWith('seat-editor') || screen === 'seat-map') && path === `${A}/families`)) return seatingFixture(method, path, body) as any;
+      if (path.includes('/admin/seating/') || ((screen?.startsWith('seat-editor') || screen === 'seat-map' || holdersFx) && path === `${A}/families`)) return seatingFixture(method, path, body) as any;
       if (method === 'GET' && path === '/v1/me/export' && !('GET /v1/me/export' in routes)) throw new ApiCodeError(404, 'export_not_found');
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
       const key = `${method} ${path.split('?')[0]}`;

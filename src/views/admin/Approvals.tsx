@@ -8,12 +8,13 @@ import type { Classification, RequestRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
+import { whyKey } from '../../seats/holders.ts';
 import { Choice, WIDE, useShortDate, useAdminErrText } from './shared.tsx';
 
 type Pick = Classification | 'guest' | null;
 
 /** One request: the person, and the three-way choice with the consequence written under each option. */
-function RequestCard({ row, busy, onApprove, onKeep }: { row: RequestRow; busy: boolean; onApprove: (c: Classification) => void; onKeep: () => void }) {
+function RequestCard({ row, busy, onApprove, onKeep, onHolders }: { row: RequestRow; busy: boolean; onApprove: (c: Classification) => void; onKeep: () => void; /** Opens the holders-without-an-account list (gabbai). */ onHolders?: () => void }) {
   const { t } = useI18n();
   const k = useTokens();
   const date = useShortDate();
@@ -25,6 +26,15 @@ function RequestCard({ row, busy, onApprove, onKeep }: { row: RequestRow; busy: 
         {row.previouslyRejected ? <Tag label={t('admin.approvals.previouslyRejected')} tone="strong" /> : null}
       </View>
       <Txt size="small" color={k.muted}>{t('admin.approvals.since', { date: date(row.createdAt) })}</Txt>
+      {row.seatSuggestions && row.seatSuggestions.items.length ? (
+        // a suggestion only: nothing is linked, and a requester has no family yet, so the link itself is made later from the holders list (P30)
+        <View accessibilityRole="summary" style={{ gap: 4, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: k.line, borderStartWidth: 5, borderStartColor: k.gold, backgroundColor: k.surface }}>
+          <Txt size="small"><Txt size="small" bold>{t('seatHolders.approval.maybe')}</Txt>{' '}<Txt size="small" bold content>{row.seatSuggestions.items[0]!.holderName}</Txt></Txt>
+          <Txt size="small" color={k.muted}>{t(`seatHolders.why.${whyKey(row.seatSuggestions.items[0]!.why).key}`)}{whyKey(row.seatSuggestions.items[0]!.why).weak ? ` · ${t('seatHolders.why.noPhone')}` : ''}{row.seatSuggestions.count > 1 ? ` · ${t('seatHolders.approval.more', { n: row.seatSuggestions.count - 1 })}` : ''}</Txt>
+          <Txt size="caption" color={k.muted}>{t('seatHolders.approval.after')}</Txt>
+          {onHolders ? <View style={{ alignSelf: 'flex-start' }}><Button kind="secondary" title={t('seatHolders.approval.open')} onPress={onHolders} /></View> : null}
+        </View>
+      ) : null}
       <Txt size="small" bold>{t('admin.approvals.choose')}</Txt>
       <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
         <Choice label={t('admin.approvals.optA')} note={t('admin.approvals.noteA')} selected={pick === 'א'} onPress={() => setPick('א')} />
@@ -40,7 +50,7 @@ function RequestCard({ row, busy, onApprove, onKeep }: { row: RequestRow; busy: 
 }
 
 /** GM2 (cards) and GD2 (queue on the start side, detail beside it): the requests of listeners, oldest first. */
-export function Approvals({ onCount, onToast }: { onCount: (n: number) => void; onToast: (text: string) => void }) {
+export function Approvals({ onCount, onToast, onHolders }: { onCount: (n: number) => void; onToast: (text: string) => void; onHolders?: () => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -77,7 +87,7 @@ export function Approvals({ onCount, onToast }: { onCount: (n: number) => void; 
   const wide = width >= WIDE;
   const list = rows ?? [];
   const current = list.find(r => r.userId === selected) ?? list[0];
-  const card = (r: RequestRow) => <RequestCard key={r.userId} row={r} busy={busy === r.userId} onApprove={c => void approve(r.userId, c)} onKeep={() => void keep(r.userId)} />;
+  const card = (r: RequestRow) => <RequestCard key={r.userId} row={r} busy={busy === r.userId} onApprove={c => void approve(r.userId, c)} onKeep={() => void keep(r.userId)} onHolders={onHolders} />;
 
   return (
     <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1100 : 680, alignSelf: 'center' }}>

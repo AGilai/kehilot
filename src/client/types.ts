@@ -169,7 +169,11 @@ export type InviteOptions = { uses?: number; days?: number; role?: 'listener' | 
 
 export type DirectoryEntry = { userId: string; displayName: string };
 
-export type RequestRow = { userId: string; displayName: string; createdAt: number; previouslyRejected: boolean };
+export type RequestRow = {
+  userId: string; displayName: string; createdAt: number; previouslyRejected: boolean;
+  /** Seat holders without an account that look like this requester (top three); a suggestion only, nothing is linked. */
+  seatSuggestions?: { count: number; items: Array<{ holderId: string; holderName: string; why: string; level: 'exact' | 'likely' }> };
+};
 
 /** A Kehila-defined label on a person. Labels only: nothing in the client may gate on it. */
 export type RoleTag = { tagId: string; name: string };

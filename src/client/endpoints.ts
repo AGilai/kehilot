@@ -11,6 +11,8 @@ import type {
 } from './types.ts';
 import type { LayoutBody } from '../seats/savePlan.ts';
 import type { MemberWire, OnBehalfBody, WeekWire } from '../seats/wire.ts';
+import type { LinkSuggestions } from '../seats/holders.ts';
+import type { ApplyResult, ResponseCall } from '../seats/upload.ts';
 import type { memberPutBody } from '../seats/wire.ts';
 
 const e = encodeURIComponent;
@@ -127,6 +129,13 @@ export function endpoints(http: Http) {
     putSeatWeek: (k: string, week: string, body: OnBehalfBody) => r<{ updatedAt: number }>('PUT', `${A(k)}/seats/week/${e(week)}`, body),
     deleteSeatHolder: (k: string, id: string) => r<void>('DELETE', `${A(k)}/seating/holders/${e(id)}`),
     createSeatHolder: (k: string, body: { name: string; phone?: string }) => r<SeatHolder>('POST', `${A(k)}/seating/holders`, body),
+    putSeatHolder: (k: string, id: string, body: { name: string; phone?: string }) => r<SeatHolder>('PUT', `${A(k)}/seating/holders/${e(id)}`, body),
+    seatLinkSuggestions: (k: string) => r<LinkSuggestions>('GET', `${A(k)}/seating/link-suggestions`),
+    /** Links one holder to one registered family (a gabbai's explicit confirm); 409 `holder_changed` when `ifUpdatedAt` is stale. */
+    linkSeatHolder: (k: string, id: string, body: { familyId: string; ifUpdatedAt: number }) => r<{ familyId: string; seats: number }>('POST', `${A(k)}/seating/holders/${e(id)}/link`, body),
+    // the old Form's responses: one call per prayer (`erev`, `day`), and the undo of the last apply of that prayer (404 `nothing_to_undo`)
+    applySeatResponses: (k: string, week: string, body: ResponseCall) => r<ApplyResult>('POST', `${A(k)}/seats/week/${e(week)}/responses`, body),
+    undoSeatResponses: (k: string, week: string, event: 'erev' | 'day') => r<{ event: string; restored: boolean; skipped: number }>('POST', `${A(k)}/seats/week/${e(week)}/responses/undo`, { event }),
     acceptTerms: (k: string) => r<{ at: number }>('POST', `${A(k)}/terms`),
     pushTexts: (k: string) => r<PushTexts>('GET', `${A(k)}/push-texts`),
     putPushText: (k: string, key: string, lang: Lang, text: string) =>
