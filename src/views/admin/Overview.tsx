@@ -13,6 +13,8 @@ import type { IconName } from '../../kit/Icon.tsx';
 import { ListGroup, NavRow } from '../../kit/NavRows.tsx';
 import { CountBadge } from '../../kit/NavRows.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
+import { timesStatus } from '../../seats/times.ts';
+import type { SeatTimes } from '../../seats/times.ts';
 import { useShabbat } from '../../seats/useShabbat.ts';
 import { BackLink } from '../Me.tsx';
 import { useWaiting } from '../useWaiting.ts';
@@ -24,14 +26,14 @@ export type GoTarget = Exclude<AreaTarget, `sheet:${string}`>;
 
 export const AREA_ICON: Record<AreaId, IconName> = { prayers: 'clock', seats: 'chair', messages: 'msg', simchas: 'cal', people: 'users', settings: 'sliders' };
 const ROW_ICON: Record<string, IconName> = {
-  schedule: 'clock', sheet: 'print', print: 'print', behalf: 'edit', responses: 'copy', editor: 'grid', holders: 'users', compose: 'send', channels: 'msg', types: 'sliders', pushTexts: 'bell',
+  schedule: 'clock', sheet: 'print', print: 'print', behalf: 'edit', responses: 'copy', times: 'bell', editor: 'grid', holders: 'users', compose: 'send', channels: 'msg', types: 'sliders', pushTexts: 'bell',
   simchas: 'cal', aliyot: 'book', approvals: 'check', members: 'users', tags: 'pin', groups: 'users', invite: 'link', import: 'copy', cap: 'sliders', privacy: 'shield', terms: 'book',
 };
 
 type Data = {
   members: number; listeners: number; groups: number | null; channels: number | null; invites: number | null;
   cap: number | undefined; contact: string; terms: { name: string; at: number } | null | undefined;
-  schedule: { saved: boolean; updatedAt: number | null } | null; weeks: SimchaWeek[] | null;
+  schedule: { saved: boolean; updatedAt: number | null } | null; weeks: SimchaWeek[] | null; times: SeatTimes | null;
 };
 
 /** The numbers behind the status lines. Every call is best effort: a failure leaves that line out. */
@@ -43,7 +45,7 @@ function useAreaData(): { data: Data | null; error: string | null; reload: () =>
   const [data, setData] = React.useState<Data | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const reload = React.useCallback(async () => {
-    const [mem, keh, inv, grp, chn, sch, sim] = await Promise.allSettled([api.members(kehilaId), api.kehila(kehilaId), api.invites(kehilaId), api.groups(kehilaId), api.channels(kehilaId), api.schedule(kehilaId), api.simchas(kehilaId, 8)]);
+    const [mem, keh, inv, grp, chn, sch, sim, tim] = await Promise.allSettled([api.members(kehilaId), api.kehila(kehilaId), api.invites(kehilaId), api.groups(kehilaId), api.channels(kehilaId), api.schedule(kehilaId), api.simchas(kehilaId, 8), api.seatTimes(kehilaId)]);
     const failed = [mem, keh].find(x => x.status === 'rejected');
     setError(failed && failed.status === 'rejected' ? errText(failed.reason) : null);
     setData(prev => ({
@@ -57,6 +59,7 @@ function useAreaData(): { data: Data | null; error: string | null; reload: () =>
       terms: keh.status === 'fulfilled' ? keh.value.termsAccepted : prev?.terms,
       schedule: sch.status === 'fulfilled' ? { saved: sch.value.sections.length > 0, updatedAt: sch.value.updatedAt } : prev?.schedule ?? null,
       weeks: sim.status === 'fulfilled' ? sim.value.weeks : prev?.weeks ?? null,
+      times: tim.status === 'fulfilled' ? tim.value : prev?.times ?? null,
     }));
   }, [api, kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => { void reload(); }, [reload]);
@@ -127,6 +130,7 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
     switch (r.id) {
       case 'schedule': return { status: prayersStatus };
       case 'sheet': case 'print': case 'behalf': case 'responses': case 'editor': case 'compose': case 'types': case 'pushTexts': case 'aliyot': case 'members': case 'tags': case 'import': return { status: sub(r.id) };
+      case 'times': return { status: data?.times ? timesStatus(data.times, lang, t) : undefined };
       case 'holders': return { status: waiting.linkHints > 0 ? t('seatHolders.card.hints', { n: waiting.linkHints }) : undefined };
       case 'channels': return { status: data?.channels != null ? t('admin.status.channels', { n: data.channels }) : undefined };
       case 'simchas': return { status: simchaText ?? undefined };
@@ -163,7 +167,7 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
   // A group screen (P42 phone 2): back "› סקירה", then list groups of rows.
   const current = area ? list.find(a => a.id === area) : undefined;
   if (area && current) {
-    const sections = current.id === 'seats' ? (['week', 'hall'] as const).map(s => ({ label: t(`admin.section.${s}`), rows: current.rows.filter(r => r.section === s) })) : [{ label: undefined, rows: current.rows }];
+    const sections = current.id === 'seats' ? (['week', 'every', 'hall'] as const).map(s => ({ label: t(`admin.section.${s}`), rows: current.rows.filter(r => r.section === s) })) : [{ label: undefined, rows: current.rows }];
     return (
       <PadScroll contentContainerStyle={frame}>
         <BackLink onPress={onBack} label={t('admin.area.back')} />

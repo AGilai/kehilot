@@ -13,12 +13,12 @@ export const AREA_IDS: AreaId[] = ['prayers', 'seats', 'messages', 'simchas', 'p
 
 /** Where a row goes: a screen of Main, or a Sheet of the settings group. `null`: reserved, no destination yet. */
 export type AreaTarget =
-  | 'scheduleEditor' | 'seatPrint' | 'seatBehalf' | 'seatResponses' | 'seatEditor' | 'seatHolders'
+  | 'scheduleEditor' | 'seatPrint' | 'seatBehalf' | 'seatResponses' | 'seatTimes' | 'seatEditor' | 'seatHolders'
   | 'compose' | 'channels' | 'pushTexts' | 'simchas'
   | 'approvals' | 'members' | 'membersTags' | 'groups' | 'invite' | 'import'
   | 'sheet:cap' | 'sheet:privacy' | 'sheet:terms';
 export type BadgeKind = 'requests' | 'linkHints' | 'groupRequests';
-export type AreaRow = { id: string; target: AreaTarget | null; badge?: BadgeKind; section?: 'week' | 'hall' };
+export type AreaRow = { id: string; target: AreaTarget | null; badge?: BadgeKind; section?: 'week' | 'every' | 'hall' };
 export type Area = { id: AreaId; rows: AreaRow[] };
 
 export function areas(role: Role | string | undefined): Area[] {
@@ -30,6 +30,7 @@ export function areas(role: Role | string | undefined): Area[] {
       { id: 'print', target: 'seatPrint', section: 'week', when: seatPrintRole(role) },
       { id: 'behalf', target: 'seatBehalf', section: 'week', when: seatPrintRole(role) },
       { id: 'responses', target: 'seatResponses', section: 'week', when: seatEditorAllowed(role) },
+      { id: 'times', target: 'seatTimes', section: 'every' },
       { id: 'editor', target: 'seatEditor', section: 'hall', when: seatEditorAllowed(role) },
       { id: 'holders', target: 'seatHolders', section: 'hall', badge: 'linkHints', when: seatEditorAllowed(role) },
     ]) },

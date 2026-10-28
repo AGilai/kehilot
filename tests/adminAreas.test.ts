@@ -16,7 +16,7 @@ test('areas: the six groups in §18.3 order, only for a gabbai', () => {
 test('areas: rows inside each group, in order', () => {
   const rows = (id: string) => areas('gabbai').find(a => a.id === id)!.rows.map(r => r.id);
   assert.deepEqual(rows('prayers'), ['schedule', 'sheet']);
-  assert.deepEqual(rows('seats'), ['print', 'behalf', 'responses', 'editor', 'holders']);
+  assert.deepEqual(rows('seats'), ['print', 'behalf', 'responses', 'times', 'editor', 'holders']);
   assert.deepEqual(rows('messages'), ['compose', 'channels', 'types', 'pushTexts']);
   assert.deepEqual(rows('simchas'), ['simchas', 'aliyot']);
   assert.deepEqual(rows('people'), ['approvals', 'members', 'tags', 'groups', 'invite', 'import']);
@@ -25,15 +25,23 @@ test('areas: rows inside each group, in order', () => {
 
 test('areas: seat rows keep their two sections; the aliyot row is reserved (no destination)', () => {
   const seats = areas('gabbai').find(a => a.id === 'seats')!.rows;
-  assert.deepEqual(seats.map(r => r.section), ['week', 'week', 'week', 'hall', 'hall']);
+  assert.deepEqual(seats.map(r => r.section), ['week', 'week', 'week', 'every', 'hall', 'hall']);
   assert.equal(areas('gabbai').find(a => a.id === 'simchas')!.rows[1]!.target, null);
   assert.equal(seats.find(r => r.id === 'holders')!.badge, 'linkHints');
   assert.equal(areas('gabbai').find(a => a.id === 'people')!.rows[0]!.badge, 'requests');
 });
 
+test('areas: the times row is in section every, for gabbai and tech, not for a member', () => {
+  const row = areas('gabbai').find(a => a.id === 'seats')!.rows.find(r => r.id === 'times')!;
+  assert.deepEqual([row.target, row.section], ['seatTimes', 'every']);
+  assert.ok(allowedTargets('gabbai').has('seatTimes'));
+  assert.ok(allowedTargets('tech').has('seatTimes'));
+  assert.ok(!allowedTargets('member').has('seatTimes'));
+});
+
 test('areas: every existing management screen is reachable from some row', () => {
   const t = allowedTargets('gabbai');
-  for (const x of ['approvals', 'members', 'membersTags', 'groups', 'invite', 'import', 'channels', 'pushTexts', 'compose', 'simchas', 'scheduleEditor', 'seatPrint', 'seatBehalf', 'seatResponses', 'seatEditor', 'seatHolders', 'sheet:cap', 'sheet:privacy', 'sheet:terms']) assert.ok(t.has(x as never), x);
+  for (const x of ['approvals', 'members', 'membersTags', 'groups', 'invite', 'import', 'channels', 'pushTexts', 'compose', 'simchas', 'scheduleEditor', 'seatPrint', 'seatBehalf', 'seatResponses', 'seatTimes', 'seatEditor', 'seatHolders', 'sheet:cap', 'sheet:privacy', 'sheet:terms']) assert.ok(t.has(x as never), x);
   assert.equal(allowedTargets('member').size, 0);
 });
 

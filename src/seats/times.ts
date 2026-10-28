@@ -52,6 +52,13 @@ export function allowedRange(t: SeatTimes, which: Which): { from: Slot; to: Slot
   return lo <= to ? { from: slotAt(lo), to: slotAt(to) } : null;
 }
 
+/** The step before `which` and the step after it (null after the deadline), as the order error names them. */
+export function neighbours(t: SeatTimes, which: Which): { prev: Slot; next: Slot | null } {
+  const steps = chain(t);
+  const i = Math.max(0, steps.findIndex((s) => s.which === which));
+  return { prev: slotAt(steps[Math.max(0, i - 1)]!.minute), next: steps[i + 1] ? slotAt(steps[i + 1]!.minute) : null };
+}
+
 /** Is `slot` an allowed time for `which`: a quarter hour, on Thursday or Friday (the deadline on Friday), inside the range. */
 export function fits(t: SeatTimes, which: Which, slot: Slot): boolean {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.time) || hm(slot.time) % STEP !== 0) return false;
@@ -64,7 +71,14 @@ export function fits(t: SeatTimes, which: Which, slot: Slot): boolean {
 }
 
 /** "ה׳ 08:30" / "Thu 08:30", never breaking between day and time. */
-export const slotLabel = (s: Slot, lang: 'he' | 'en'): string =>
-  `${lang === 'en' ? (s.day === 'thu' ? 'Thu' : 'Fri') : s.day === 'thu' ? 'ה׳' : 'ו׳'}\u00a0${s.time}`;
+export const dayLabel = (day: Day, lang: 'he' | 'en'): string => (lang === 'en' ? (day === 'thu' ? 'Thu' : 'Fri') : day === 'thu' ? 'ה׳' : 'ו׳');
+export const slotLabel = (s: Slot, lang: 'he' | 'en'): string => `${dayLabel(s.day, lang)}\u00a0${s.time}`;
 
 export const onCount = (t: SeatTimes): 0 | 1 | 2 => ((t.reminders['1'].on ? 1 : 0) + (t.reminders['2'].on ? 1 : 0)) as 0 | 1 | 2;
+
+/** The overview row's status: "נסגר ו׳ 14:00 · 2 תזכורות" / "· תזכורת אחת" / "· תזכורות כבויות". `tr` is the `t` of the I18n context. */
+export function timesStatus(t: SeatTimes, lang: 'he' | 'en', tr: (key: string, params?: Record<string, string | number>) => string): string {
+  const n = onCount(t);
+  const params = { day: dayLabel('fri', lang), time: t.deadline, n };
+  return n === 0 ? tr('admin.seats.timesOff', params) : n === 1 ? tr('admin.seats.timesOne', params) : tr('admin.seats.timesStatus', params);
+}

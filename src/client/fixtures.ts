@@ -10,6 +10,8 @@ export type { FixtureMemberSeats, SeatVariant } from '../seats/fixtureSeats.ts';
 import { dayOfWeek, israelDate, upcomingFriday } from '../dates.ts';
 import { addDays } from '../schedule/week.ts';
 import { israelInstant, shabbatFriday } from '../seats/window.ts';
+import { DEFAULT_REMINDERS, OPENS, fits, weekMinute } from '../seats/times.ts';
+import type { SeatTimes } from '../seats/times.ts';
 import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
 import { fixtureMap, fixtureMapFamilies, fixtureSeatFamilies } from '../seats/fixturePaste.ts';
 import { createUploadFixture, fixtureHolderFamilies, fixtureHolderLayout, fixtureHolders, fixtureLinkSuggestions } from '../seats/fixtureUpload.ts';
@@ -29,7 +31,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -458,6 +460,26 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const noLayout = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('nolayout') === '1';
   const homeSeat = !!screen && HOME_SEAT_SCREENS.includes(screen);
   const seatsFx = (config.seatsPreview || homeSeat) && !noLayout ? createSeatsFixture(seatVariantOf(screen), card, shabbatFriday(fixtureNow() ?? new Date()), homeSeat ? { screen, now: fixtureNow() ?? new Date() } : null) : null;
+  // Form times and reminders (`?screen=seat-times`, `seat-times-off` with both reminders off): kept in memory; the order rules are the client model's.
+  let seatTimes: SeatTimes = {
+    opens: OPENS, reminders: { '1': { ...DEFAULT_REMINDERS['1'], on: screen !== 'seat-times-off' }, '2': { ...DEFAULT_REMINDERS['2'], on: screen !== 'seat-times-off' } },
+    deadline: '14:00', week: shabbatFriday(fixtureNow() ?? new Date()), layout: true, pending: 4, sent: { '1': false, '2': false },
+  };
+  const seatTimesFixture = (method: string, body: unknown): unknown => {
+    if (method === 'GET') return structuredClone(seatTimes);
+    const b = (body ?? {}) as { deadline?: string; reminders?: Partial<Record<'1' | '2', { on?: boolean; day?: 'thu' | 'fri'; time?: string }>> };
+    const next: SeatTimes = structuredClone(seatTimes);
+    if (b.deadline !== undefined) next.deadline = b.deadline;
+    for (const n of ['1', '2'] as const) next.reminders[n] = { ...next.reminders[n], ...(b.reminders?.[n] ?? {}) } as SeatTimes['reminders']['1'];
+    if (b.deadline !== undefined) {
+      const dm = weekMinute({ day: 'fri', time: next.deadline });
+      for (const n of ['1', '2'] as const) if (next.reminders[n].on && weekMinute(next.reminders[n]) > dm) throw new ApiCodeError(400, 'seat_reminder_after_deadline', `reminders.${n}`);
+    }
+    const bad = (['1', '2'] as const).find(n => next.reminders[n].on && !fits(next, n, next.reminders[n]));
+    if (bad || (b.deadline !== undefined && !fits(next, 'deadline', { day: 'fri', time: next.deadline }))) throw new ApiCodeError(400, 'seat_times_order', bad ? `reminders.${bad}` : undefined);
+    seatTimes = next;
+    return structuredClone(seatTimes);
+  };
   const seatsWeekFixture = (method: string, path: string, body: unknown): unknown => {
     const p = path.split('?')[0]!;
     const week = /\/seats\/week\//.test(p);
@@ -603,6 +625,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
         if (method === 'POST' && p.endsWith('/responses')) return uploadFx.apply(body as never) as any;
         if (method === 'GET') return uploadFx.adminWeek() as any;
       }
+      if (path.split('?')[0] === `${A}/seats/times`) return seatTimesFixture(method, body) as any;
       if (path.split('?')[0] === `${K}/seats/me` || path.startsWith(`${A}/seats/week/`)) return seatsWeekFixture(method, path, body) as any;
       if (path.includes('/admin/seating/') || ((screen?.startsWith('seat-editor') || screen === 'seat-map' || holdersFx) && path === `${A}/families`)) return seatingFixture(method, path, body) as any;
       if (method === 'GET' && path === '/v1/me/export' && !('GET /v1/me/export' in routes)) throw new ApiCodeError(404, 'export_not_found');

@@ -1110,7 +1110,8 @@
       "import": "Import a list",
       "cap": "Listener cap",
       "privacy": "Privacy contact",
-      "terms": "Terms between the community and communities"
+      "terms": "Terms between the community and communities",
+      "times": "Form times and reminders"
     },
     "rowSub": {
       "schedule": "Times, formulas and changes for the week",
@@ -1143,7 +1144,8 @@
     },
     "section": {
       "week": "This week",
-      "hall": "Setting up the hall"
+      "hall": "Setting up the hall",
+      "every": "Every week"
     },
     "sidebar": {
       "label": "Management"
@@ -1163,6 +1165,50 @@
       "self": "You'll leave management right away.",
       "saved": "Role updated",
       "pickOther": "Choose another role"
+    },
+    "seats": {
+      "timesStatus": "Closes {day} {time} · {n} reminders",
+      "timesOne": "Closes {day} {time} · 1 reminder",
+      "timesOff": "Closes {day} {time} · Reminders off",
+      "applies": "Applies every week. Coming up: {shabbat}, {date}.",
+      "r1": "Reminder",
+      "r1Sub": "To whoever hasn't answered",
+      "r2": "Gentle reminder",
+      "r2Sub": "To whoever still hasn't answered",
+      "deadline": "Deadline",
+      "deadlineSub": "After it only a gabbai can change answers",
+      "opens": "Opens {day} {time}",
+      "off": "Off",
+      "range": "Between {from} and {to}",
+      "errOrder": "Must be after {prev} and before {next}, at least half an hour apart.",
+      "errDeadline": "{reminder} ({when}) would be after the deadline. Change the reminder first.",
+      "saved": "Saved",
+      "onToast": "Reminder on",
+      "offToast": "Reminder off",
+      "who": "The men of families with seats this Shabbat that haven't answered. In a family with no man: its adult women. Nobody gets one once their family has answered. People who turned reminders off get nothing.",
+      "pending": "Not answered yet: {n} families",
+      "sample": "Sample notification",
+      "lateNote": "It goes out within 5 minutes of the time.",
+      "stripLabel": "The week, Thursday to Friday: {opens}, {r1}, {r2}, {deadline}",
+      "stripOpens": "Opens {when}",
+      "stripR1": "Reminder {when}",
+      "stripR2": "Gentle {when}",
+      "stripDeadline": "Closes {when}",
+      "stripOff": "Off",
+      "changeTime": "Change the reminder time",
+      "changeDeadline": "Change the deadline time",
+      "switchLabel": "Reminder, {when}",
+      "switchLabel2": "Gentle reminder, {when}",
+      "day": "Day",
+      "timeLabel": "Time",
+      "loadError": "Couldn't load the times",
+      "sampleTitle": "How it looks on the lock screen",
+      "sampleKehila": "Sample Kehila",
+      "sampleNow": "now",
+      "errAfter": "Must be after {prev}, at least half an hour apart.",
+      "errStep": "Pick a time in quarter-hour steps (for example 20:15).",
+      "shabbatFallback": "this Shabbat",
+      "times": "Form times and reminders"
     }
   },
   "phoneList": {
@@ -1421,7 +1467,16 @@
     },
     "push": {
       "title": "Shabbat seats",
-      "body": "You have {n} seats this Shabbat. Is everyone coming? You can update until {day} {time}."
+      "body": "You have {n} seats this Shabbat. Is everyone coming? You can update until {day} {time}.",
+      "r1": {
+        "title": "{kehila} · Shabbat seats form",
+        "body": "You haven't answered the Shabbat seats form yet. You can answer until {day} {time}."
+      },
+      "r2": {
+        "title": "{kehila}",
+        "body": "A gentle reminder: the seats form is open until {time} today. A seat you free could make someone else's Shabbat.",
+        "bodyOtherDay": "A gentle reminder: the seats form is open until {day} {time}. A seat you free could make someone else's Shabbat."
+      }
     },
     "arvit": "Arvit · Friday night",
     "shacharit": "Shacharit · Shabbat morning",

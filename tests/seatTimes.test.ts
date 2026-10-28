@@ -55,3 +55,43 @@ test('client defaults equal the server', () => {
   assert.deepEqual(DEFAULT_REMINDERS, server);
   assert.equal(Number(/^MIN_GAP = (\d+)/m.exec(st)![1]), MIN_GAP);
 });
+
+// ---- Task 8: the management screen's status line and the sample push copy ----
+import { neighbours, timesStatus } from '../src/seats/times.ts';
+import { translate } from '../src/i18n/translate.ts';
+
+const he = JSON.parse(readFileSync(new URL('../src/i18n/he.json', import.meta.url), 'utf8'));
+const en = JSON.parse(readFileSync(new URL('../src/i18n/en.json', import.meta.url), 'utf8'));
+const trOf = (lang: 'he' | 'en') => (key: string, p?: Record<string, string | number>) => translate(lang === 'he' ? he : en, he, key, p).replace(/[⁦-⁩]/g, '');
+const withOn = (a: boolean, b: boolean): SeatTimes => ({ ...defaults, reminders: { '1': { ...defaults.reminders['1'], on: a }, '2': { ...defaults.reminders['2'], on: b } } });
+
+test('timesStatus: both on, one on, both off (he and en)', () => {
+  assert.equal(timesStatus(withOn(true, true), 'he', trOf('he')), 'נסגר ו׳ 14:00 · 2 תזכורות');
+  assert.equal(timesStatus(withOn(true, false), 'he', trOf('he')), 'נסגר ו׳ 14:00 · תזכורת אחת');
+  assert.equal(timesStatus(withOn(false, false), 'he', trOf('he')), 'נסגר ו׳ 14:00 · תזכורות כבויות');
+  assert.equal(timesStatus(withOn(true, true), 'en', trOf('en')), 'Closes Fri 14:00 · 2 reminders');
+  assert.equal(timesStatus(withOn(false, false), 'en', trOf('en')), 'Closes Fri 14:00 · Reminders off');
+});
+
+test('push copy: the client sample texts equal the server texts', () => {
+  const py = readFileSync(new URL('../server/cloud/seat_reminders.py', import.meta.url), 'utf8');
+  const block = (name: string): string => py.match(new RegExp(`^${name} = \\{([\\s\\S]*?)(?=^(?:_|def |\\n)\\w*)`, 'm'))![1]!;
+  const strings = (src: string): string[] => [...src.matchAll(/'(?:he|en)': ('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g)].map((m) => m[1]!.slice(1, -1).replace(/\\(.)/g, '$1'));
+  const title = strings(block('_TITLE'));
+  const body = strings(block('_BODY'));
+  const other = strings(block('_BODY_OTHER_DAY'));
+  assert.equal(title.length, 4); assert.equal(body.length, 4); assert.equal(other.length, 2);
+  const want = (lang: 'he' | 'en', i: number) => [
+    ['r1.title', title[i]], ['r1.body', body[i]], ['r2.title', title[2 + i]], ['r2.body', body[2 + i]], ['r2.bodyOtherDay', other[i]],
+  ] as const;
+  for (const [lang, dict] of [['he', he], ['en', en]] as const) {
+    const i = lang === 'he' ? 0 : 1;
+    for (const [key, text] of want(lang, i)) assert.equal(dict.seats.push[key.split('.')[0]!][key.split('.')[1]!], text, `${lang} ${key}`);
+  }
+});
+
+test('neighbours: the steps around a time, for the order error', () => {
+  assert.deepEqual(neighbours(defaults, '1'), { prev: { day: 'thu', time: '08:00' }, next: { day: 'fri', time: '11:00' } });
+  assert.deepEqual(neighbours(defaults, 'deadline'), { prev: { day: 'fri', time: '11:00' }, next: null });
+  assert.deepEqual(neighbours(withOn(false, true), '2'), { prev: { day: 'thu', time: '08:00' }, next: { day: 'fri', time: '14:00' } });
+});
