@@ -1,14 +1,19 @@
 """SQS-triggered Lambda: turn a queued push job into Expo messages.
 
 Logs carry counts and IDs only; device tokens appear as a short prefix at most.
+
+Kind 'seat_reminder' (ref '<friday>#<n>', queued by the seat_reminders job) is not in PUSH_TEXT: its texts are fixed
+(seat_reminders.texts). The worker drops it when the deadline has passed, the Kehila has no layout for that Friday or
+that reminder is now off, and reads the recipients (unanswered families' men, else adults) at send time.
 """
 import functools
 import json
 import logging
 import os
 import time
+from datetime import datetime
 
-from . import authz, expo, families, type_rules, visibility
+from . import authz, expo, families, seat_reminders, seat_times, seating_week, type_rules, visibility
 from .push import MESSAGE_TYPES, PUSH_TEXT, SYSTEM_KEYS, resolve_text
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
@@ -30,8 +35,15 @@ def backoff(receive_count):
     return min(MAX_BACKOFF, 30 * 2 ** receive_count)
 
 
+def _now():
+    return datetime.now(seating_week.TZ)
+
+
 def recipients(repo, kind, kehila, ref):
     """User IDs to push for this job."""
+    if kind == seat_reminders.KIND:
+        parsed = seat_reminders.parse_ref(ref)
+        return seat_reminders.recipients(repo, kehila, parsed[0]) if parsed else []
     if kind == 'request':
         return [m['userId'] for m in repo.list_members(kehila) if visibility.is_management(m)]
     if kind == 'group_request':  # ref = the group ID: appointed admins, else every gabbai
@@ -93,11 +105,34 @@ def _lang(repo, uid, default):
     return lang if lang in ('he', 'en') else default
 
 
+def _build_seat_reminder(repo, meta, kehila, ref):
+    friday, n = seat_reminders.parse_ref(ref)
+    settings = meta.get('settings', {})
+    default = settings.get('defaultLang', 'he')
+    default = default if default in ('he', 'en') else 'he'
+    deadline = seating_week.deadline_of(friday, seat_times.deadline_hm(settings))
+    day = seat_times.reminders_of(settings)[n]['day']
+    data = {'kehila': kehila, 'screen': 'seats', 'week': friday}  # no names, no counts
+    messages, owners = [], {}
+    for uid in seat_reminders.recipients(repo, kehila, friday):
+        title, body = seat_reminders.texts(n, _lang(repo, uid, default), meta.get('name', ''), deadline, day)
+        for device in repo.list_devices(uid):
+            token = device['token']
+            if token in owners:
+                owners[token].append(uid)
+                continue
+            owners[token] = [uid]
+            messages.append({'to': token, 'title': title, 'body': body, 'data': data, 'sound': 'default'})
+    return messages, owners
+
+
 def _build(repo, kind, kehila, ref):
     """([expo messages], {token: [userIds]}) with each token appearing once."""
     meta = repo.get_kehila(kehila) or {}
     settings = meta.get('settings', {})
     title = meta.get('name', '')  # the community's name: the same for everyone, not personal data
+    if kind == seat_reminders.KIND:
+        return _build_seat_reminder(repo, meta, kehila, ref)
     text_key = kind
     if kind == 'message':
         message_type = (repo.get_message(kehila, ref) or {}).get('type')
@@ -121,7 +156,15 @@ def _build(repo, kind, kehila, ref):
 
 def _process(repo, job, token):
     kind, kehila, ref = job['kind'], job['kehila'], job['ref']
-    if kind not in PUSH_TEXT:
+    if kind == seat_reminders.KIND:
+        reason = seat_reminders.skip_reason(repo, kehila, ref, _now())
+        if reason == 'bad_ref':
+            log.warning('seat_reminder dropped: bad ref kehila=%s', kehila)
+            return
+        if reason:
+            log.info('push kind=seat_reminder kehila=%s ref=%s skipped=%s', kehila, ref, reason)
+            return
+    elif kind not in PUSH_TEXT:
         log.warning('unknown push kind %s', kind)
         return
     messages, owners = _build(repo, kind, kehila, ref)

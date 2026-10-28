@@ -2,11 +2,15 @@
 SEATHOLDER#<id> (a seat holder without an account: personal data, gabbai-only, never logged)."""
 import time
 
+from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
 from .errors import ApiError
 from .ids import new_id
 from .schedule_rules import plain, stored
+
+
+SEAT_REGISTRY = {'pk': 'SEATING', 'sk': 'KEHILOT'}
 
 
 def _next(old):
@@ -328,6 +332,47 @@ class SeatingRepo:
                 if error.code != 'week_changed':
                     raise
         raise ApiError(409, 'week_changed')
+
+    # the registry of Kehilot that hold a layout: the reminder job visits these instead of scanning the table
+    def add_seat_kehila(self, k):
+        self.table.update_item(Key=SEAT_REGISTRY, UpdateExpression='ADD ids :k', ExpressionAttributeValues={':k': {k}})
+
+    def seat_kehila_ids(self):
+        """Sorted Kehila ids that have saved a layout. Until `complete` is set it scans once for layouts saved
+        before the registry existed, adds them and marks the registry complete."""
+        item = self.table.get_item(Key=SEAT_REGISTRY, ConsistentRead=True).get('Item') or {}
+        if not item.get('complete'):
+            found, kwargs = set(), {}
+            while True:
+                page = self.table.scan(FilterExpression=Attr('sk').begins_with('SEATLAY#'),
+                                       ProjectionExpression='pk', ConsistentRead=True, **kwargs)
+                found.update(i['pk'][len('K#'):] for i in page['Items'] if i['pk'].startswith('K#'))
+                if 'LastEvaluatedKey' not in page:
+                    break
+                kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+            if found:
+                self.table.update_item(Key=SEAT_REGISTRY, UpdateExpression='ADD ids :k',
+                                       ExpressionAttributeValues={':k': found})
+            self.table.update_item(Key=SEAT_REGISTRY, UpdateExpression='SET complete = :t',
+                                   ExpressionAttributeValues={':t': True})
+            item = self.table.get_item(Key=SEAT_REGISTRY, ConsistentRead=True).get('Item') or {}
+        return sorted(item.get('ids') or ())
+
+    # once-only marker per Kehila, Friday and reminder number
+    def claim_seat_reminder(self, k, friday, n, expires_at):
+        """True for the one caller that writes the marker; False when it already exists."""
+        try:
+            self.table.put_item(Item={**self._key(k, f'SEATREM#{friday}#{n}'), 'at': int(time.time() * 1000),
+                                      'expiresAt': int(expires_at)},
+                                ConditionExpression='attribute_not_exists(pk)')
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
+            return False
+        return True
+
+    def release_seat_reminder(self, k, friday, n):
+        self.table.delete_item(Key=self._key(k, f'SEATREM#{friday}#{n}'))
 
     def seat_reminders_sent(self, k, friday):
         """The reminder numbers already claimed for that Shabbat (markers `SEATREM#<friday>#<n>`)."""

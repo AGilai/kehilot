@@ -52,6 +52,15 @@ class JobsTest(unittest.TestCase):
         jobs.handler({'job': 'push_receipts'}, None)
         self.assertEqual(self.asked, [])
 
+    def test_handler_passes_event(self):
+        seen = []
+        with mock.patch.dict(jobs.JOBS, {'probe': lambda repo, event: seen.append((repo, event))}):
+            self.assertEqual(jobs.handler({'job': 'probe', 'dryRun': True}, None), {'ok': True})
+        self.assertEqual(seen, [(self.repo, {'job': 'probe', 'dryRun': True})])
+        self.repo.put_push_ticket('ok1', 'ExponentPushToken[u2aaaaaaaaaa]', 'u2', 9999999999)
+        self.assertEqual(jobs.handler({'job': 'push_receipts'}, None), {'ok': True})
+        self.assertEqual(self.repo.list_push_tickets(), [])
+
     def test_unknown_job_raises(self):
         with self.assertRaises(ValueError):
             jobs.handler({'job': 'nope'}, None)

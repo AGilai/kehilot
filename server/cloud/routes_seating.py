@@ -61,6 +61,7 @@ def put_layout(ctx, params):
     earlier = [i['seats'] for i in sorted(ctx.repo.list_layouts(k), key=lambda i: i['effectiveFrom'], reverse=True)
                if i['effectiveFrom'] < friday]  # nearest first: a seat removed and re-added gets its old id back
     seats = rules.assign_seats(layout['cells'], old['seats'] if old else [], *earlier)
+    ctx.repo.add_seat_kehila(k)  # before the save: a registered Kehila without a layout is harmless, the reverse is not
     updated = ctx.repo.put_layout(k, friday, layout, seats, guard)
     ctx.repo.prune_assignments(k, friday, {s['id'] for s in seats})
     return 200, {**_layout_out({**layout, 'effectiveFrom': friday, 'seats': seats, 'updatedAt': updated})}

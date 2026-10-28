@@ -1,8 +1,10 @@
 """Push notifications: the request path only enqueues a small job; push_worker does the sending.
 
 The job is {"kind", "kehila", "ref"} on the SQS queue in env PUSH_QUEUE_URL. ref is a messageId for
-'message' and 'reply', the screen name for 'request' and the group ID for 'group_request'
-and the recipient's userId for 'family_request' and 'family_gabbai'. No message content ever enters the queue.
+'message' and 'reply', the screen name for 'request' and the group ID for 'group_request',
+the recipient's userId for 'family_request' and 'family_gabbai', and '<friday>#<n>' for 'seat_reminder'
+(sent by the seat_reminders job through `send`; fixed texts in seat_reminders.texts, never in PUSH_TEXT, never editable).
+No message content ever enters the queue.
 """
 import json
 import logging
@@ -41,18 +43,26 @@ def resolve_text(meta, key, lang) -> str:
     return text if isinstance(text, str) and text else PUSH_TEXT[key][lang]
 
 
+def send(kind, kehila, ref) -> None:
+    """Queue the job. Raises on a queue failure, and RuntimeError when PUSH_QUEUE_URL is unset (a caller that must
+    know whether the job was queued, such as the seat reminder job, claims first and releases on this)."""
+    url = os.environ.get('PUSH_QUEUE_URL')
+    if not url:
+        raise RuntimeError('PUSH_QUEUE_URL is not set')
+    import boto3
+    boto3.client('sqs').send_message(QueueUrl=url, MessageBody=json.dumps(
+        {'kind': kind, 'kehila': kehila, 'ref': ref}))
+
+
 def enqueue(kind, kehila, ref) -> None:
     """Queue a push of `kind` ('message' | 'reply' | 'request' | 'group_request' | 'family_request' |
     'family_gabbai') for `kehila`.
 
     No-op when PUSH_QUEUE_URL is unset. A queue failure is logged and swallowed: the message or request
     is already saved, and a missed push must not turn it into an error for the caller."""
-    url = os.environ.get('PUSH_QUEUE_URL')
-    if not url:
+    if not os.environ.get('PUSH_QUEUE_URL'):
         return
     try:
-        import boto3
-        boto3.client('sqs').send_message(QueueUrl=url, MessageBody=json.dumps(
-            {'kind': kind, 'kehila': kehila, 'ref': ref}))
+        send(kind, kehila, ref)
     except Exception:
         log.exception('push enqueue failed kind=%s kehila=%s', kind, kehila)

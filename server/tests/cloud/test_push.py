@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import timedelta
 import unittest
 import urllib.error
 from unittest import mock
@@ -7,10 +8,13 @@ from unittest import mock
 import boto3
 from moto import mock_aws
 
-from server.cloud import expo, push, push_worker
+from server.cloud import expo, push, push_worker, routes_admin, seat_reminders
 from server.cloud.push import PUSH_TEXT
 from server.cloud.repo import Repo
+from server.tests.cloud import test_seatweek
 from server.tests.cloud.helpers import ensure_member_channels, make_table
+from server.tests.cloud.test_groups import own_tests_only
+from server.tests.cloud.test_seatweek import WEEK, at
 
 
 def record(kind, k, ref, receive_count=1, message_id='r1'):
@@ -352,6 +356,118 @@ class ExpoTest(unittest.TestCase):
     def test_access_token_unconfigured_is_none(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             self.assertIsNone(expo.access_token())
+
+
+NBSP = '\u00a0'
+
+
+@own_tests_only
+@mock_aws
+class SeatReminderPushTest(test_seatweek.SeatWeekTest):
+    def setUp(self):
+        super().setUp()
+        self.mine((5, 0))
+        self.give(f'family:{self.other}', (5, 3))
+        self.repo.put_profile(self.member, 'Mia', 'Member', 'he')
+        self.repo.put_profile(self.quiet, 'Quinn', 'Quiet', 'en')
+        for uid in (self.member, self.quiet):
+            self.repo.put_device(uid, f'ExponentPushToken[{uid}]', 'ios')
+        self.sent = []
+        self.now = at(21, 0) - timedelta(days=1)  # Thursday 21:00
+        patches = [mock.patch.object(expo, 'send', side_effect=self.fake_send),
+                   mock.patch.object(expo, 'access_token', return_value=None),
+                   mock.patch.object(push_worker, '_repo', return_value=self.repo),
+                   mock.patch.object(push_worker, '_now', side_effect=lambda: self.now)]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def fake_send(self, messages, token):
+        self.sent += messages
+        return [{'status': 'ok', 'id': f'tk{len(self.sent)}-{i}'} for i, _ in enumerate(messages)]
+
+    def work(self, ref):
+        self.sent.clear()
+        return push_worker.handler({'Records': [record('seat_reminder', self.k, ref)]}, None)
+
+    def by_user(self):
+        return {s['to'][len('ExponentPushToken['):-1]: s for s in self.sent}
+
+    def test_seat_reminder_payload_and_text(self):
+        self.assertEqual(self.work(f'{WEEK}#1'), {'batchItemFailures': []})
+        got = self.by_user()
+        self.assertEqual(set(got), {self.member, self.quiet})
+        he, en = got[self.member], got[self.quiet]
+        self.assertEqual(he['title'], 'Beit Test · טופס מקומות לשבת')
+        self.assertEqual(he['body'], f'עוד לא עניתם על טופס המקומות לשבת. אפשר לענות עד יום ו׳{NBSP}14:00.')
+        self.assertEqual(en['title'], 'Beit Test · Shabbat seats form')
+        self.assertEqual(en['body'], f"You haven't answered the Shabbat seats form yet. You can answer until Fri{NBSP}14:00.")
+        for s in (he, en):
+            self.assertEqual(s['data'], {'kehila': self.k, 'screen': 'seats', 'week': WEEK})
+            blob = json.dumps({k: v for k, v in s.items() if k != 'to'}, ensure_ascii=False)  # 'to' is the device
+            for private in ('Mia', 'Quinn', 'Member', 'Quiet', self.fam, self.member):
+                self.assertNotIn(private, blob)
+        self.assertNotIn('seat_reminder', PUSH_TEXT)
+
+    def test_seat_reminder_recipients_at_send_time(self):
+        self.assertEqual(self.put_me([1])[0], 200)  # the family answers after the claim, before the worker
+        self.work(f'{WEEK}#1')
+        self.assertEqual(set(self.by_user()), {self.quiet})
+        self.assertEqual(self.respond([{'household': f'family:{self.other}', 'released': 0}])[0], 200)
+        self.assertEqual(set(self.by_user()), {self.quiet})  # a file upload is not an answer
+
+    def test_worker_drops_after_deadline_or_off(self):
+        ref = f'{WEEK}#1'
+        self.now = at(14, 0)
+        self.work(ref)
+        self.assertEqual(self.sent, [])
+        self.now = at(21, 0) - timedelta(days=1)
+        self.assertEqual(len(self.work(ref) and self.sent), 2)
+        self.assertEqual(self.call('PUT', f'{self.base()}/admin/seats/times', body={'reminders': {'1': {'on': False}}})[0], 200)
+        self.work(ref)
+        self.assertEqual(self.sent, [])
+        self.assertEqual(len(self.work(f'{WEEK}#2') and self.sent), 2)  # the other reminder is still on
+        self.work('2020-01-03#1')  # no layout that Friday
+        self.assertEqual(self.sent, [])
+        for bad in ('garbage', f'{WEEK}#3', f'{WEEK}'):
+            self.assertEqual(self.work(bad), {'batchItemFailures': []})
+            self.assertEqual(self.sent, [])
+
+    def test_seat_reminder_gentle_text_today_vs_other_day(self):
+        self.work(f'{WEEK}#2')
+        got = self.by_user()
+        self.assertEqual(got[self.member]['title'], 'Beit Test')
+        self.assertEqual(got[self.member]['body'], 'תזכורת עדינה: טופס המקומות פתוח עד 14:00 היום. מקום שתפנו יכול לשמח מישהו אחר בשבת.')
+        self.assertEqual(got[self.quiet]['body'], 'A gentle reminder: the seats form is open until 14:00 today. '
+                                                  'A seat you free could make someone else\'s Shabbat.')
+        self.assertEqual(self.call('PUT', f'{self.base()}/admin/seats/times',
+                                   body={'reminders': {'2': {'day': 'thu', 'time': '21:00'}}})[0], 200)
+        self.now = at(21, 30) - timedelta(days=1)
+        self.work(f'{WEEK}#2')
+        self.assertEqual(self.by_user()[self.quiet]['body'], 'A gentle reminder: the seats form is open until '
+                         f'Fri{NBSP}14:00. A seat you free could make someone else\'s Shabbat.')
+        self.assertIn(f'יום ו׳{NBSP}14:00', self.by_user()[self.member]['body'])
+
+    def test_seat_reminder_not_in_editable_push_texts(self):
+        self.assertNotIn(seat_reminders.KIND, PUSH_TEXT)
+        self.assertFalse(routes_admin._editable(seat_reminders.KIND))
+        self.assertNotIn(seat_reminders.KIND, push.SYSTEM_KEYS)
+
+    def test_send_needs_a_queue_and_enqueue_stays_quiet(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(RuntimeError):
+                push.send('seat_reminder', self.k, f'{WEEK}#1')
+            push.enqueue('message', self.k, 'm1')  # no queue: still a no-op
+        sqs = boto3.client('sqs', region_name='il-central-1')
+        url = sqs.create_queue(QueueName='seatq')['QueueUrl']
+        with mock.patch.dict(os.environ, {'PUSH_QUEUE_URL': url}):
+            push.send('seat_reminder', self.k, f'{WEEK}#1')
+            body = json.loads(sqs.receive_message(QueueUrl=url)['Messages'][0]['Body'])
+            self.assertEqual(body, {'kind': 'seat_reminder', 'kehila': self.k, 'ref': f'{WEEK}#1'})
+            with mock.patch('boto3.client', side_effect=RuntimeError('down')):
+                with self.assertRaises(RuntimeError):
+                    push.send('seat_reminder', self.k, f'{WEEK}#1')
+                push.enqueue('message', self.k, 'm1')  # swallowed, as before
 
 
 if __name__ == '__main__':
