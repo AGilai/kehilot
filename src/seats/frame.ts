@@ -30,9 +30,10 @@ function buildFrame(block: Block, rowFrom: number, rowTo: number, mine: SeatRef[
   const rows: FrameRow[] = [];
   for (let row = rowFrom; row <= rowTo; row++) {
     const seatCols = block.rows[row] ?? [];
-    const bimah = !!block.bimah?.includes(row);
+    const bimahCols = block.bimahCells?.[row] ?? [];
+    const bimah = bimahCols.length > 0;
     const cells: FrameCell[] = Array.from({ length: block.cols }, (_, col): FrameCell => {
-      if (bimah) return { kind: 'bimah' };
+      if (bimahCols.includes(col)) return { kind: 'bimah' };
       if (!seatCols.includes(col)) return { kind: 'gap' };
       const ref = { block: block.id, row, col };
       const key = seatKey(ref);

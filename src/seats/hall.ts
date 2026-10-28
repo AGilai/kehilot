@@ -14,8 +14,10 @@ export type Block = {
   cols: number;
   /** Row index to the block columns that hold a seat in that row. */
   rows: Record<number, number[]>;
-  /** Rows the bimah fills across the whole block. */
+  /** Rows that have bimah cells in the block. */
   bimah?: number[];
+  /** The bimah's own cells: row to block columns, as the server's layout marks them (frames follow these, not whole rows). */
+  bimahCells?: Record<number, number[]>;
 };
 export type Hall = { cols: number; rows: number; blocks: Block[] };
 export type SeatRef = { block: BlockId; row: number; col: number };
@@ -65,15 +67,16 @@ export function parseHall(grid: string): Hall {
   const blocks = spans.map(([from, to], i): Block => {
     const rows: Record<number, number[]> = {};
     const bimah: number[] = [];
+    const bimahCells: Record<number, number[]> = {};
     lines.forEach((l, r) => {
       const seats: number[] = [];
-      let b = 0;
-      for (let c = from; c <= to; c++) { if (l[c] === 'S') seats.push(c - from); else if (l[c] === 'B') b++; }
+      const bs: number[] = [];
+      for (let c = from; c <= to; c++) { if (l[c] === 'S') seats.push(c - from); else if (l[c] === 'B') bs.push(c - from); }
       if (seats.length) rows[r] = seats;
-      if (b) bimah.push(r);
+      if (bs.length) { bimah.push(r); bimahCells[r] = bs; }
     });
     const n = leftToRight[i]!;
-    return { id: n.id, name: n.he, x: from, cols: to - from + 1, rows, ...(bimah.length ? { bimah } : {}) };
+    return { id: n.id, name: n.he, x: from, cols: to - from + 1, rows, ...(bimah.length ? { bimah, bimahCells } : {}) };
   });
   return { cols, rows: lines.length, blocks: blocks.reverse() };
 }

@@ -6,9 +6,11 @@ import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
 
 export type SeatCardState = 'ask' | 'done' | 'byGabbai';
+/** How many of his seats are free for others, per prayer: the thanks line says so when any is. */
+export type SeatCardFree = { arvit: number; shacharit: number };
 
 /** P24: the Home reminder card (UX-DESIGN §15.2). `ask` is the question; `done`/`byGabbai` is the collapsed answer until the deadline. */
-export function SeatCard({ count, state, deadline, preview = true, onYes, onUpdate }: { count: number; state: SeatCardState; deadline: { day: string; time: string }; preview?: boolean; onYes: () => void; onUpdate: () => void }) {
+export function SeatCard({ count, state, deadline, free = { arvit: 0, shacharit: 0 }, preview = false, busy = false, onYes, onUpdate }: { count: number; state: SeatCardState; deadline: { day: string; time: string }; free?: SeatCardFree; preview?: boolean; busy?: boolean; onYes: () => void; onUpdate: () => void }) {
   const { t } = useI18n();
   const k = useTokens();
   if (state !== 'ask') {
@@ -26,7 +28,9 @@ export function SeatCard({ count, state, deadline, preview = true, onYes, onUpda
             </Pressable>
           </View>
         </View>
-        <Txt size="small">{state === 'byGabbai' ? t('seats.card.byGabbai') : t('seats.card.doneAll', { n: count })}</Txt>
+        {state === 'byGabbai' ? <Txt size="small">{t('seats.card.byGabbai')}</Txt>
+          : free.arvit + free.shacharit === 0 ? <Txt size="small">{t('seats.card.doneAll', { n: count })}</Txt>
+          : (['arvit', 'shacharit'] as const).filter(p => free[p] > 0).map(p => <Txt key={p} size="small">{t('seats.card.doneSome', { prayer: t(`seats.${p}Short`), need: count - free[p], free: free[p] })}</Txt>)}
       </Card>
     );
   }
@@ -39,7 +43,7 @@ export function SeatCard({ count, state, deadline, preview = true, onYes, onUpda
       </View>
       <Txt>{one ? t('seats.card.questionOne') : t('seats.card.questionOther', { n: count })}</Txt>
       <Txt size="small" color={k.muted}>{t('seats.card.deadline', { day: deadline.day, time: deadline.time })}</Txt>
-      <Button title={one ? t('seats.card.yesOne') : t('seats.card.yesOther')} onPress={onYes} />
+      <Button title={one ? t('seats.card.yesOne') : t('seats.card.yesOther')} busy={busy} onPress={onYes} />
       <Button kind="secondary" title={t('seats.card.update')} onPress={onUpdate} />
     </Card>
   );

@@ -3,14 +3,12 @@ import { ApiCodeError } from './errors.ts';
 import { endpoints } from './endpoints.ts';
 import type { Http } from './http.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
-import { HALL, allSeats, seatKey } from '../seats/hall.ts';
-import type { Hall, SeatRef } from '../seats/hall.ts';
-import { memberView } from '../seats/frame.ts';
-import type { Allocation, MemberSeats } from '../seats/frame.ts';
-import type { Prayer } from '../seats/release.ts';
+import { createSeatsFixture, seatVariantOf } from '../seats/fixtureSeats.ts';
+export { fixtureMemberSeats, fixtureSeatHall, seatVariantOf } from '../seats/fixtureSeats.ts';
+export type { FixtureMemberSeats, SeatVariant } from '../seats/fixtureSeats.ts';
 import { dayOfWeek, israelDate, upcomingFriday } from '../dates.ts';
 import { addDays } from '../schedule/week.ts';
-import { israelInstant } from '../seats/window.ts';
+import { israelInstant, shabbatFriday } from '../seats/window.ts';
 import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
 import { fixtureMap, fixtureMapFamilies, fixtureSeatFamilies } from '../seats/fixturePaste.ts';
 import type { Channel, Child, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
@@ -166,6 +164,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       imported: card === 'imported',
       phoneAsk: card === 'phone' || card === 'phone-nonumber',
       terms: role === 'gabbai' && (screen === 'terms' || card === 'terms'),
+      seatLink: card === 'seat-link' ? { seats: 2, at: 1_790_000_000 } : null,
     },
     ...(role === 'gabbai' ? { typeRules: { celebration: { post: 'broadcasters' as const, listeners: false }, condolence: { post: 'management' as const, listeners: true } } } : {}),
     ...(role === 'gabbai' ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'עמית דוגמה', at: TERMS_AT } } : {}),
@@ -413,7 +412,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   routes[`PUT ${K}/family/children/${kids[1]!.id}`] = kids[1];
   routes[`DELETE ${K}/family/children/${kids[0]!.id}`] = undefined;
   routes[`DELETE ${K}/family/children/${kids[1]!.id}`] = undefined;
-  for (const c of ['gabbai_link', 'imported', 'phone']) routes[`POST ${K}/me/cards/${c}/dismiss`] = undefined;
+  for (const c of ['gabbai_link', 'imported', 'phone', 'seat_link']) routes[`POST ${K}/me/cards/${c}/dismiss`] = undefined;
   // The schedule is kept in memory so the editor's saves show up on the next read; `?conflict=1` makes the first save answer 409
   // (somebody else saved: their copy has another Maariv time).
   let scheduleDoc = structuredClone(routes[`GET ${K}/schedule`]) as ScheduleDoc;
@@ -426,6 +425,21 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const seatsOfBody = (cells: string[][]) => { const out: Array<{ id: string; row: number; col: number }> = []; cells.forEach((r, row) => r.forEach((kind, col) => { if (kind === 'seat') out.push({ id: seatId(row, col), row, col }); })); return out; };
   // `?screen=seat-map`: three saved versions of an invented hall (one past, one in effect, one scheduled); `&conflict=1` makes the first layout save answer 409
   // after "another gabbai" saved (a few seats moved), so the conflict dialog can be shot.
+  // Seat release (weekly): the preview flag serves the fixture hall in the server's wire shapes; without it there is no layout.
+  const seatsFx = config.seatsPreview ? createSeatsFixture(seatVariantOf(screen), card, shabbatFriday(fixtureNow() ?? new Date())) : null;
+  const seatsWeekFixture = (method: string, path: string, body: unknown): unknown => {
+    const p = path.split('?')[0]!;
+    const week = /\/seats\/week\//.test(p);
+    if (p === `${K}/seats/me`) {
+      if (method === 'PUT') { if (!seatsFx) throw new ApiCodeError(404, 'no_seats'); return seatsFx.putMine(body as never); }
+      return seatsFx ? seatsFx.memberWire() : { week: shabbatFriday(new Date()), deadline: new Date().toISOString(), open: true, seats: 0 };
+    }
+    if (week) {
+      if (!seatsFx) throw new ApiCodeError(404, 'layout_not_found');
+      return method === 'PUT' ? seatsFx.putWeek(body as never) : seatsFx.adminWeek();
+    }
+    return undefined;
+  };
   let seatConflictPending = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('conflict') === '1';
   if (screen === 'seat-map') {
     const m = fixtureMap();
@@ -521,6 +535,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
         if (method === 'PUT') { scheduleDoc.weekOverrides[friday] = body as ScheduleDoc['weekOverrides'][string]; return {} as any; }
         if (method === 'DELETE') { delete scheduleDoc.weekOverrides[friday]; return undefined as any; }
       }
+      if (path.split('?')[0] === `${K}/seats/me` || path.startsWith(`${A}/seats/week/`)) return seatsWeekFixture(method, path, body) as any;
       if (path.includes('/admin/seating/') || ((screen?.startsWith('seat-editor') || screen === 'seat-map') && path === `${A}/families`)) return seatingFixture(method, path, body) as any;
       if (method === 'GET' && path === '/v1/me/export' && !('GET /v1/me/export' in routes)) throw new ApiCodeError(404, 'export_not_found');
       if (method === 'GET' && path === '/v1/invites/4D8F2H6NRT') throw new ApiCodeError(410, 'invite_expired');
@@ -577,60 +592,4 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     },
   };
   return endpoints(http);
-}
-
-
-// --- Seat-release preview (UX-DESIGN §15; the seats are the gabbai-side data, the member only ever gets memberView's cut) ---
-// All names are invented.
-export type SeatVariant = 'default' | 'split' | 'none' | 'closed' | 'gabbai';
-const SURNAMES = ['בדיוני', 'דוגמה', 'ניסוי', 'אלמוני', 'פלוני', 'מדומה', 'קהילתי', 'ניסיון', 'דגמי', 'שמי', 'תבנית', 'דמיוני', 'אקראי', 'מקרי', 'פיקטיבי'];
-const MINE: Record<'default' | 'split', SeatRef[]> = {
-  default: [{ block: 'CR', row: 6, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
-  split: [{ block: 'FL', row: 2, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
-};
-
-/** The whole hall for the gabbai: fixed pseudo-random households over the 225 seats (about one in eight stays unallocated) and what each prayer released. */
-export function fixtureSeatHall(hall: Hall = HALL): { hall: Hall; allocations: Allocation[]; released: Record<Prayer, Set<string>> } {
-  let seed = 11;
-  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const taken = new Set([...MINE.default, ...MINE.split].map(seatKey));
-  const allocations: Allocation[] = [{ householdId: 'me', name: 'דוגמה', seats: MINE.default }];
-  let current: Allocation | null = null;
-  let left = 0;
-  let n = 0;
-  for (const seat of allSeats(hall)) {
-    const key = seatKey(seat);
-    if (taken.has(key)) { current = null; continue; }
-    if (rnd() < 0.13) { current = null; continue; }
-    if (!current || left === 0) {
-      n++;
-      current = { householdId: `h${n}`, name: SURNAMES[n % SURNAMES.length]!, seats: [] };
-      left = 1 + Math.floor(rnd() * 3);
-      allocations.push(current);
-    }
-    current.seats.push(seat); left--;
-  }
-  const released: Record<Prayer, Set<string>> = { arvit: new Set(), shacharit: new Set() };
-  for (const a of allocations.slice(1)) for (const s of a.seats) {
-    if (rnd() < 0.15) released.arvit.add(seatKey(s));
-    if (rnd() < 0.25) released.shacharit.add(seatKey(s));
-  }
-  return { hall, allocations, released };
-}
-
-export type FixtureMemberSeats = MemberSeats & { closed: boolean; source: 'member' | 'gabbai'; answers: Record<Prayer, string[]> };
-/** What the member page receives in the preview: his frames cut from the gabbai-side hall, and his current answers. */
-export function fixtureMemberSeats(variant: SeatVariant = 'default'): FixtureMemberSeats {
-  const h = fixtureSeatHall();
-  const me = h.allocations[0]!;
-  const seats = variant === 'split' ? MINE.split : variant === 'none' ? [] : MINE.default;
-  const allocations = [{ ...me, seats }, ...h.allocations.slice(1)];
-  const cut = memberView(h.hall, allocations, 'me');
-  const mineKeys = seats.map(seatKey);
-  const answers: Record<Prayer, string[]> = variant === 'gabbai' ? { arvit: [mineKeys[2]!], shacharit: [] } : { arvit: [], shacharit: [] };
-  return { ...cut, closed: variant === 'closed', source: variant === 'gabbai' ? 'gabbai' : 'member', answers };
-}
-
-export function seatVariantOf(screen: string | null): SeatVariant {
-  return screen === 'seats-split' ? 'split' : screen === 'seats-none' ? 'none' : screen === 'seats-closed' ? 'closed' : screen === 'seats-gabbai' ? 'gabbai' : 'default';
 }

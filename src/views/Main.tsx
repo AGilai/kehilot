@@ -28,8 +28,7 @@ import { Overview } from './admin/Overview.tsx';
 import { SeatPrint } from './admin/SeatPrint.tsx';
 import { SeatEditor } from './admin/SeatEditor.tsx';
 import { SeatPage } from './SeatPage.tsx';
-import { seatEditorAllowed, seatPrintAllowed, seatScreenFor } from '../seats/access.ts';
-import { previewMemberSeats } from '../seats/preview.ts';
+import { seatEditorAllowed, seatPrintRole, seatScreenFor } from '../seats/access.ts';
 import { TermsGate } from './TermsGate.tsx';
 import { PhoneList } from './PhoneList.tsx';
 import { Compose } from './Compose.tsx';
@@ -189,7 +188,6 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
     api.requests(state.kehilaId).then(r => { if (live) setPending(r.length); }, () => {});
     return () => { live = false; };
   }, [manage, isGabbai, state.kehilaId, api]); // eslint-disable-line react-hooks/exhaustive-deps
-  const seatData = React.useMemo(() => (config.seatsPreview ? previewMemberSeats() : null), []);
   const jumped = React.useRef(false);
   const fixtureQuery = React.useMemo(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''), []);
 
@@ -224,7 +222,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
   switch (nav.tab) {
     case 'home':
       body = <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'home' }) : undefined}
-        onTerms={() => { setManage(true); setNav({ tab: 'overview' }); }} onToast={showToast} onSeats={config.seatsPreview ? () => setNav({ tab: 'seats' }) : undefined} onSchedule={() => setNav({ tab: 'schedule' })} />;
+        onTerms={() => { setManage(true); setNav({ tab: 'overview' }); }} onToast={showToast} onSeats={feats.tabs.includes('home') && (kehila?.role === 'member' || kehila?.role === 'gabbai') ? () => setNav({ tab: 'seats' }) : undefined} onSchedule={() => setNav({ tab: 'schedule' })} />;
       break;
     case 'schedule':
       body = <Schedule onBack={() => setNav({ tab: 'home' })} onToast={showToast} />;
@@ -233,13 +231,13 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => setNav({ tab: 'overview' }))} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
     case 'seats':
-      body = config.seatsPreview ? <SeatPage data={seatData!} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
+      body = kehila?.role === 'member' || kehila?.role === 'gabbai' ? <SeatPage onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
     case 'seatEditor':
       body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => setNav({ tab: 'overview' }))} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
     case 'seatPrint':
-      body = seatPrintAllowed(kehila?.role, config.seatsPreview) ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onToast={showToast} /> : null;
+      body = seatPrintRole(kehila?.role) ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
       break;
     case 'phoneList':
       body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'me' })} /> : null;
@@ -254,7 +252,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintAllowed(state.kehila?.role, config.seatsPreview) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onSeatEditor={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatEditor' }) : undefined} onCount={setPending} onToast={showToast} />;
+      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintRole(state.kehila?.role) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onSeatEditor={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatEditor' }) : undefined} onCount={setPending} onToast={showToast} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} />;

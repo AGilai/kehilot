@@ -1120,6 +1120,12 @@
       "title": "The Kehila terms are waiting",
       "body": "{kehila}'s management screens open once one gabbai accepts the terms. Everything else works as usual.",
       "open": "Read and accept"
+    },
+    "seatLink": {
+      "title": "Synagogue seats were linked to you",
+      "bodyOne": "One seat the gabbai had recorded under your name was added to your account. You can update it here every week.",
+      "bodyOther": "{n} seats the gabbai had recorded under your name were added to your account. You can update them here every week.",
+      "ok": "Got it"
     }
   },
   "age13": {
@@ -1231,7 +1237,7 @@
       "update": "Update seats",
       "doneAll": "Thanks. All {n} seats are kept for you this Shabbat.",
       "doneSome": "Thanks. {prayer}: {need} coming, {free} free for others.",
-      "byGabbai": "A gabbai updated your seats.",
+      "byGabbai": "Your seats were updated by the gabbaim.",
       "change": "Change"
     },
     "push": {
@@ -1259,7 +1265,7 @@
     "save": "Save",
     "saved": "Saved. Thanks!",
     "closed": "Updates closed {day} {time}. To change, ask a gabbai.",
-    "byGabbai": "A gabbai updated your seats. You can change them until the deadline.",
+    "byGabbai": "Your seats were updated by the gabbaim. You can change them until the deadline.",
     "noneTitle": "You don't have seats yet",
     "noneBody": "Seats are allocated by the gabbai. For questions, ask a gabbai.",
     "shabbatLine": "Shabbat {parasha} · {date}",
@@ -1304,7 +1310,33 @@
       "noteGreen": "Green = can be used",
       "noteGreenRed": "Green = can be used · red = taken",
       "noteBw": "Shapes only",
-      "fixture": "Sample data · preview"
+      "fixture": "Sample data · preview",
+      "emptyTitle": "No hall map saved yet",
+      "emptyBody": "To print a map, first paste or draw the hall in the seating editor.",
+      "emptyGo": "To the seating editor",
+      "loadError": "Couldn't load the seat state."
+    },
+    "updatedNow": "Your seats changed in the meantime. This is the current state.",
+    "loadError": "Couldn't load the seats.",
+    "behalf": {
+      "title": "Update for a household",
+      "sub": "A gabbai can update for a household even after the deadline.",
+      "search": "Find a household",
+      "none": "No households with seats.",
+      "for": "Update for {name}",
+      "note": "It is recorded as \"updated by a gabbai\". The household will see that the gabbaim updated.",
+      "save": "Save for the household",
+      "saved": "Saved for the household.",
+      "noChange": "Nothing to save.",
+      "stale": "The state changed in the meantime. The current state is shown, you can try again.",
+      "close": "Close",
+      "pastDeadline": "The deadline has passed. You can still update.",
+      "byGabbai": "Updated by a gabbai",
+      "byMember": "In the app",
+      "seatsCount": "{n} seats",
+      "tapHint": "You can also tap a taken seat on the map.",
+      "pick": "Pick a household",
+      "seatLine": "{block} · row {row} · seat {k} of {n}"
     }
   },
   "schedule": {

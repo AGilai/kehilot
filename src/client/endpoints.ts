@@ -10,6 +10,8 @@ import type {
   RequestRow, TargetFamily, UploadGrant,
 } from './types.ts';
 import type { LayoutBody } from '../seats/savePlan.ts';
+import type { MemberWire, OnBehalfBody, WeekWire } from '../seats/wire.ts';
+import type { memberPutBody } from '../seats/wire.ts';
 
 const e = encodeURIComponent;
 
@@ -120,7 +122,9 @@ export function endpoints(http: Http) {
     putSeatAssignments: (k: string, from: string, body: { assignments: Record<string, string | null>; ifUpdatedAt: number | null }) =>
       r<{ updatedAt: number }>('PUT', `${A(k)}/seating/layouts/${e(from)}/assignments`, body),
     seatHolders: (k: string) => r<SeatHolder[]>('GET', `${A(k)}/seating/holders`),
-    seatWeek: (k: string, week: string) => r<{ week: string; open: boolean }>('GET', `${A(k)}/seats/week/${e(week)}`),
+    // weekly release: the gabbai's whole week (names, layout, states) and the on-behalf save (409 `week_changed` when stale)
+    seatWeek: (k: string, week: string) => r<WeekWire>('GET', `${A(k)}/seats/week/${e(week)}`),
+    putSeatWeek: (k: string, week: string, body: OnBehalfBody) => r<{ updatedAt: number }>('PUT', `${A(k)}/seats/week/${e(week)}`, body),
     deleteSeatHolder: (k: string, id: string) => r<void>('DELETE', `${A(k)}/seating/holders/${e(id)}`),
     createSeatHolder: (k: string, body: { name: string; phone?: string }) => r<SeatHolder>('POST', `${A(k)}/seating/holders`, body),
     acceptTerms: (k: string) => r<{ at: number }>('POST', `${A(k)}/terms`),
@@ -147,6 +151,9 @@ export function endpoints(http: Http) {
       r<void>('DELETE', `${A(k)}/groups/${e(g)}/admins/${e(u)}`),
 
     // families, phone list and privacy: member-facing
+    // weekly release: the member's own cut (his frames only) and his answer for one prayer
+    seatsMe: (k: string, week?: string) => r<MemberWire>('GET', `${K(k)}/seats/me${query([['week', week]])}`),
+    putSeatsMe: (k: string, body: ReturnType<typeof memberPutBody>) => r<MemberWire>('PUT', `${K(k)}/seats/me`, body),
     dismissCard: (k: string, card: DismissCard) => r<void>('POST', `${K(k)}/me/cards/${e(card)}/dismiss`),
     putPhoneList: (k: string, show: boolean) => r<{ show: boolean }>('PUT', `${K(k)}/me/phone-list`, { show }),
     phoneList: (k: string) => r<PhoneListFamily[]>('GET', `${K(k)}/phone-list`),

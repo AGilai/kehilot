@@ -89,6 +89,18 @@ export function HomeCards({ onTerms, onToast }: { onTerms: () => void; onToast: 
     );
   }
 
+  if (card === 'seatLink' && kehila.cards.seatLink) {
+    const n = kehila.cards.seatLink.seats;
+    return (
+      <Card edgeColor={k.olive}>
+        {title(t('cards.seatLink.title'))}
+        <Txt>{n === 1 ? t('cards.seatLink.bodyOne') : t('cards.seatLink.bodyOther', { n })}</Txt>
+        <Button title={t('cards.seatLink.ok')} busy={busy} onPress={() => void run(() => api.dismissCard(kid, 'seat_link'))} />
+        {errorBanner}
+      </Card>
+    );
+  }
+
   if (card === 'terms') {
     return (
       <Card edgeColor={k.gold}>

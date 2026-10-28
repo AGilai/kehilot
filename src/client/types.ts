@@ -58,6 +58,8 @@ export type HomeCards = {
   imported: boolean;
   phoneAsk: boolean;
   terms: boolean;
+  /** A gabbai linked seats you held without an account to your family: `seats` is how many, `at` when. Once, until dismissed. */
+  seatLink?: { seats: number; at: number } | null;
 };
 
 export type Child = { id: string; firstName: string; gender: 'm' | 'f'; birthDate?: string };
@@ -90,7 +92,7 @@ export type AdminFamily = {
 };
 
 export type ExportLink = { url: string; expiresAt: number };
-export type DismissCard = 'gabbai_link' | 'imported' | 'phone';
+export type DismissCard = 'gabbai_link' | 'imported' | 'phone' | 'seat_link';
 
 export type Logo = { logoVersion: string; contentType: 'image/png'; data: string };
 

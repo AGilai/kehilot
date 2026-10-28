@@ -5,10 +5,10 @@ import { config } from '../config.ts';
 import { civilDate } from '../dates.ts';
 import { shabbatFriday } from './window.ts';
 
-/** The coming Shabbat for the seat screens: its Friday, its Saturday (Hebrew date) and the parasha once known. */
-export function useShabbat(): { friday: string; saturday: string; parasha: string | null } {
+/** The coming Shabbat for the seat screens (or `week`, the server's Friday): its Friday, its Saturday (Hebrew date) and the parasha once known. */
+export function useShabbat(week?: string): { friday: string; saturday: string; parasha: string | null } {
   const [parasha, setParasha] = React.useState<string | null>(null);
-  const friday = shabbatFriday(new Date());
+  const friday = week ?? shabbatFriday(new Date());
   const saturday = new Date(civilDate(friday).getTime() + 86400000).toISOString().slice(0, 10);
   React.useEffect(() => {
     let live = true;

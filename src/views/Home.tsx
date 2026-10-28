@@ -19,8 +19,9 @@ import { roleFeatures } from '../client/roleView.ts';
 import { HomeCards } from './HomeCards.tsx';
 import { TestBuildCard } from './TestBuildCard.tsx';
 import { SeatCard } from './SeatCard.tsx';
-import { previewCardState, previewMemberSeats } from '../seats/preview.ts';
-import { cardWindow, shabbatFriday, whenParts } from '../seats/window.ts';
+import { readAnswered, rememberAnswered, useMemberSeats } from '../seats/useMemberSeats.ts';
+import { cardModel as seatCardModel } from '../seats/wire.ts';
+import { whenParts } from '../seats/window.ts';
 import { LockedRows, MembershipCard } from './GuestHome.tsx';
 import { Stripe } from './MessageRow.tsx';
 import { ForwardIcon, Icon } from '../kit/Icon.tsx';
@@ -100,7 +101,17 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
     void AsyncStorage.setItem(key, value).catch(() => {});
   };
 
-  const seatPreview = React.useMemo(() => (config.seatsPreview ? previewMemberSeats() : null), []);
+  // The seat card (UX §15.2): from the member API only; a family with no seats (or a Kehila with no hall map) gets nothing, and any error hides it.
+  const seatRole = state.kehila?.role === 'member' || state.kehila?.role === 'gabbai';
+  const seats = useMemberSeats(seatRole);
+  const seatWeek = seats.state.status === 'ready' ? seats.state.data.week : null;
+  const [seatAnswered, setSeatAnswered] = React.useState(false);
+  React.useEffect(() => {
+    let live = true;
+    if (seatWeek && state.kehilaId) void readAnswered(state.kehilaId, seatWeek).then(v => { if (live) setSeatAnswered(v); });
+    return () => { live = false; };
+  }, [seatWeek, state.kehilaId]);
+  const seatCard = seats.state.status === 'ready' ? seatCardModel(seats.state.data, now, seatAnswered, config.seatsPreview) : null;
   const kehila = state.kehila;
   if (!kehila) return null;
   const today = zmanim?.date === date ? zmanim : null;
@@ -121,9 +132,14 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
 
       <TestBuildCard />
 
-      {seatPreview && onSeats && seatPreview.seatCount > 0 ? (
-        <SeatCard count={seatPreview.seatCount} state={seatPreview.source === 'gabbai' ? 'byGabbai' : previewCardState()} deadline={whenParts(cardWindow(shabbatFriday(now)).closesAt, lang)}
-          onYes={() => onToast?.(t('seats.previewToast'))} onUpdate={onSeats} />
+      {seatCard && onSeats ? (
+        <SeatCard count={seatCard.count} state={seatCard.state} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
+          onYes={() => {
+            if (config.seatsPreview) { onToast?.(t('seats.previewToast')); return; }
+            setSeatAnswered(true); // "yes, everyone's coming" is no change on the server: remembered on this device
+            if (state.kehilaId && seatWeek) void rememberAnswered(state.kehilaId, seatWeek);
+            onToast?.(t('seats.saved'));
+          }} onUpdate={onSeats} />
       ) : null}
 
       {onToast ? <HomeCards onTerms={onTerms ?? (() => {})} onToast={onToast} /> : null}

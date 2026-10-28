@@ -28,3 +28,13 @@ test('member never gets terms', () => {
 test('none when nothing pending', () => {
   for (const r of ['listener', 'member', 'gabbai'] as const) assert.equal(pickHomeCard(none, r), null);
 });
+
+test('seat-link notice: after the import notice, before terms and phone, members and gabbaim only', () => {
+  const link = { seats: 2, at: 1_780_000_000 };
+  assert.equal(pickHomeCard({ ...none, seatLink: link, phoneAsk: true }, 'member'), 'seatLink');
+  assert.equal(pickHomeCard({ ...none, seatLink: link, terms: true }, 'gabbai'), 'seatLink');
+  assert.equal(pickHomeCard({ ...none, seatLink: link, imported: true }, 'member'), 'imported');
+  assert.equal(pickHomeCard({ ...none, seatLink: link }, 'listener'), null);
+  assert.equal(pickHomeCard({ ...none, seatLink: { seats: 0, at: 1 } }, 'member'), null);
+  assert.equal(pickHomeCard({ ...none, seatLink: null }, 'member'), null);
+});

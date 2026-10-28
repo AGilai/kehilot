@@ -10,7 +10,7 @@ import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, parsePrintStyle, se
 import he from '../src/i18n/he.json' with { type: 'json' };
 import en from '../src/i18n/en.json' with { type: 'json' };
 import { releaseCounts, toggleRelease } from '../src/seats/release.ts';
-import { seatPrintAllowed, seatScreenFor } from '../src/seats/access.ts';
+import { seatPrintAllowed, seatPrintRole, seatScreenFor } from '../src/seats/access.ts';
 import { fixtureSeatHall, fixtureMemberSeats } from '../src/client/fixtures.ts';
 import { pushDestination, routeFromPush } from '../src/client/push.ts';
 
@@ -274,6 +274,8 @@ test('print gate: only a gabbai with the flag reaches the hall print; seat scree
   assert.equal(seatPrintAllowed('gabbai', true), true);
   for (const role of ['member', 'listener', undefined]) assert.equal(seatPrintAllowed(role, true), false);
   assert.equal(seatPrintAllowed('gabbai', false), false);
+  assert.equal(seatPrintRole('gabbai'), true, 'the real print needs no flag');
+  for (const role of ['member', 'listener', undefined]) assert.equal(seatPrintRole(role), false);
   assert.equal(seatScreenFor('seat-print', 'gabbai', true), 'seatPrint');
   assert.equal(seatScreenFor('seat-print', 'member', true), null);
   assert.equal(seatScreenFor('seat-print', 'gabbai', false), null);

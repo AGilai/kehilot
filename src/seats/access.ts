@@ -1,5 +1,7 @@
 /** Which seat screen a fixture `?screen=` opens, and who may open the whole-hall print (gabbaim only; a member never reaches whole-hall data). */
 export const SEAT_PRINT_ROLE = 'gabbai';
+/** The real hall print and the on-behalf edit: gabbaim only (the server refuses everyone else too). */
+export const seatPrintRole = (role: string | undefined): boolean => role === SEAT_PRINT_ROLE;
 export const seatPrintAllowed = (role: string | undefined, flag: boolean): boolean => flag && role === SEAT_PRINT_ROLE;
 
 export function seatScreenFor(screen: string | null, role: string | undefined, flag: boolean): 'seats' | 'seatPrint' | null {
