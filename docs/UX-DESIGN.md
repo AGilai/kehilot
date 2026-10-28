@@ -1452,27 +1452,28 @@ mini legend in the chosen style, and the hint "נשמר במכשיר הזה…".
 
 ### 15.10 שחרור מקומות — טופס חבר, גרסה גרפית (P37–P39)
 
-Added 2026-10-28 at the owner's request. Each week the member gets a push, "fill in the seats form". In the old
-Google Form he typed how many seats he frees; the aisle seat stays with the head of the family, so seats are freed
-from the far side. On the phone he wants the same form, but graphical: very simple, and a bit cool. Frames: `P37` (the
-recommended screen, how the map fits, sync rules, wizard versus one screen, entry), `P38` (states), `P39` (special event
-and a 1280 view). They are drawn on the real hall's shape (6 blocks, rows קדמית + 1–13, bimah) and use only kit parts
-plus the frame-only helpers in each frame's `<style>`. Nothing is added to `shared.css`. Names are invented.
+Added 2026-10-28 at the owner's request; revised the same day after his review (chair, colours, number circles,
+answers to the open questions). Each week the member gets a push, "fill in the seats form". In the old Google Form he
+typed how many seats he frees; the aisle seat stays with the head of the family, so seats are freed from the far side.
+On the phone he wants the same form, but graphical: very simple, and a bit cool. Frames: `P37` (the screen, how the
+map fits, sync rules, wizard versus one screen, entry), `P38` (states), `P39` (special event, **future**, and a 1280
+view). They are drawn on the real hall's shape (6 blocks, rows קדמית + 1–13, bimah) and use only kit parts plus the
+frame-only helpers in each frame's `<style>`. Nothing is added to `shared.css`. Names are invented.
 
 **Relation to P25.** This becomes the member's seat screen and replaces P25's layout. P25's rules all still hold: his
 block only, his row(s) ±2, no whole hall and no mini-map, others' seats nameless, no seat numbers, the split-seats rule
-of §15.3, gabbai updates and the closed state. What is new: the compact map, the aisle lane, the three answers with a
-stepper, the green "freed" seat, one Send for both prayers, and no tab bar.
+of §15.3, gabbai updates and the closed state. What is new: the compact map, the synagogue-chair glyph, red/green
+upholstery, the aisle lane, the number circles, one Send for both prayers, and no tab bar.
 
 #### 15.10.1 Wizard or one screen — recommendation: one screen
 
 - **A · Wizard** (P37 panel): 1 ליל שבת → 2 שבת בבוקר → 3 summary and Send. One question per screen, big and plain.
   But the common case (the same answer for both prayers) takes 4 taps over 3 screens, and the map is drawn twice.
 - **B · One screen (chosen)**: a two-part segment ליל שבת / שבת בבוקר, each part showing its own state; one map that
-  follows the selected part; the answers under it; and in the second part a **"כמו בליל שבת"** shortcut. The footer
-  button leads you through: **"הבא: שבת בבוקר ‹"** until both parts are answered, then **"שליחה"**. So the second
-  prayer can't be forgotten, without a wizard. Not coming at all = "לא מגיעים השבת" · "כמו בליל שבת" · שליחה (3 taps).
-  The P24 card's "כן, כולם מגיעים" stays one tap for both prayers.
+  follows the selected part; the number circles under it; and in the second part a **"כמו בליל שבת"** shortcut. The
+  footer button leads you through: **"הבא: שבת בבוקר ‹"** until both parts are answered, then **"שליחה"**. So the
+  second prayer can't be forgotten, without a wizard. Not coming at all = N · "כמו בליל שבת" · שליחה (3 taps). The P24
+  card's "כן, כולם מגיעים" stays one tap for both prayers.
 
 #### 15.10.2 Screen layout (P37, phone 390)
 
@@ -1484,29 +1485,22 @@ A stack screen opened from the push or the Home card. There is **no tab bar**, w
    (12) with an 8 px dot. An empty ring means "עוד לא ענית"; a filled dot means answered ("1 פנוי", "לא מגיעים",
    "כולם מגיעים"). The selected option has a surface fill, a tekhelet border and tekhelet text.
 3. **Map card** (§15.10.3), collapsible.
-4. **Question** (serif 17): "מה עם ליל שבת?" / "ומה עם שבת בבוקר?". In the second part, a `Chip` with `Icon copy`
-   comes before the answers: **"כמו בליל שבת · {state}"**. It copies the first part's answer and seats. It is never
-   applied automatically (P25 rule).
-5. **Three answers** (radio cards, each at least 56 high, 14 radius, a 22 px radio, title 15.5 bold, muted 12.5 sub
-   line, and an icon at the end):
-   - **כולנו מגיעים** (`users`), "כל {n} המקומות שמורים לכם".
-   - **מגיעים, ומפנים חלק** (`seat`). When chosen, the card opens a stepper under a divider (§15.10.4).
-   - **לא מגיעים השבת** (`out`), "כל {n} המקומות פנויים לאחרים". One tap frees every seat for that prayer.
-
-   A family with one seat gets only the first and third answers.
+4. In the second part only, a `Chip` with `Icon copy`: **"כמו בליל שבת · {state}"**. It copies the first part's count
+   and seats. It is never applied automatically (P25 rule).
+5. **Number circles** (§15.10.4): the question "כמה מקומות אתם מפנים בליל שבת?" (serif 17), circles 0…N, the end
+   captions "0 = כולנו מגיעים" / "N = לא מגיעים", and one muted hint line.
 6. **Fixed footer** (surface, top divider): a summary pill per prayer ("ליל שבת: 2 מגיעים · 1 פנוי"; the current one
    outlined in tekhelet), the primary button, and the deadline caption. Before anything is answered the button is
    disabled, and its caption says "עונים על שתי התפילות ושולחים…".
 
-**Fit check at 390 × 844:** header 56, segments 60, map about 230 open or 96 collapsed, the answers about 250 with
-the stepper open, footer 116. The third answer can sit just under the fold when the map is open. The fade shows there
-is more, and collapsing the map brings it all into one screen.
+**Fit check at 390 × 844:** header 56, segments 60, map about 240 open (one row of his) or 60 folded, circles about 120,
+footer 116. With one row of his it all fits on one screen; with two full rows (P38 ד) it still fits.
 
 #### 15.10.3 The compact map (the owner's space concern)
 
-- **His row(s) full size, the ±2 rows as tiny chairs.** Rows with his seats draw armchairs **56 high**; the other rows
-  in the window show the same chair glyph at **14 high** in `line` grey, with no state, no touch, and hidden from screen
-  readers. They are there to show where you are, not to read. Five rows then take about 150 px instead of P25's 270.
+- **His row(s) full size, the ±2 rows as tiny chairs.** Rows with his seats draw chairs **56 high** with the word
+  under them (74 per row). The other rows in the window show the same glyph at **16 high** in grey, with no state, no
+  touch, and hidden from screen readers. They are there to show where you are, not to read.
 - **The ark marker** sits at the top: a small pill with `Icon ark` and "ארון הקודש", on a thin line across the width.
   When rows between the ark and the window are hidden, a muted "• • •" shows the gap. The ark is never inside the
   window: the window is still only his block and his rows ±2.
@@ -1515,166 +1509,171 @@ is more, and collapsing the map brings it all into one screen.
   what makes "from the far side" visible.
 - **Row labels** at the start side, 34 wide: his row bold tekhelet 13, the others muted 11.5. Labels are the gabbai's
   own (קדמית, 1–13; CTO ruling 2).
-- **Card header:** `Icon seat` and "{block} · שורה {r} · {n} מקומות", and at the end a 44-high text button **"הסתרה ⌃"
-  / "הצגת המפה ⌄"**. Collapsed, the card shows **only his seats** as a strip of 36 × 40 armchairs (icon only, each with an
-  accessibility label), in the same left-to-right order, plus the count ("1 פנוי"). The choice is remembered per
-  device (`localStorage` `kehilot.seatMapCollapsed`). It is open on the first visit.
-- **Seat size:** on a 5-wide block at 390, a tile is about 50 × 56; at 360 it is 44 × 56. A 2-wide block is capped at 72
+- **Card header:** `Icon seat` and "{block} · שורה {r} · {n} מקומות" ("שורות 3–4" for two rows), and at the end a
+  44-high text button **"הסתרה ⌃" / "הצגת המפה ⌄"**. Folded, the card shows **only his seats** as a strip of 38 × 44
+  chairs (icon only, each with an accessibility label), in the same left-to-right order, plus the count ("1 פנוי"). The
+  choice is remembered per device (`localStorage` `kehilot.seatMapCollapsed`). It is open on the first visit.
+- **Seat size:** on a 5-wide block at 390, a cell is about 50 × 74; at 360 it is 44 × 74. A 2-wide block is capped at 72
   wide. Pinch zoom (P25) stays, but it isn't needed any more.
 
-**Seat states (shape + icon + word; colour is never the only signal):**
+**The seat glyph: a synagogue chair** (owner, 2026-10-28; drawn from a photo he sent, as an original simplified glyph,
+not traced). A front view in a 50 × 62 viewBox: two tall solid **wooden side panels** flaring slightly to **sled
+feet**, a tall straight wooden back with an **upholstered back panel**, **wooden armrests**, an **upholstered seat
+cushion**, a wooden stretcher below, and a small **padded book-rest** on top of the back (for the row behind). Build it
+as one `react-native-svg` component, `SeatChair {state, icon, size}`, with each part its own shape. **The wood always
+stays wood** (light `#B87A43` / shade `#8C5A2E` / line `#6B4321`; dark `#A86E3B` / `#7A4D27` / `#4A2E14`). **Only the
+upholstery (book-rest, back panel, cushion) carries the state.** A 19 px icon sits on the back panel, and the word sits
+under the chair (12, 800).
 
-| State | Fill | Border | Icon + word | Light text / fill | Dark text / fill |
+**Seat states (colour + icon + word + outline; colour is never the only signal):**
+
+| State | Upholstery | Outline | Icon on the back · word under it | Light | Dark |
 |---|---|---|---|---|---|
-| **מגיע** (kept) | tekhelet chair (cushion and armrests 82% tekhelet + 18% ink) | 1.6 px surface-coloured seams | `check` · "מגיע" | `#FFFFFF` on `#2A3F94` 9.4:1 | `#10132A` on `#8FA2F0` 7.5:1 |
-| **פנוי** (freed) | `--sf-free-bg` chair | 2 px **dashed** `--sf-free` (dash 4 / gap 3) on every part | `check` · "פנוי" | `#256B35` on `#E3F3E5` 5.6:1 | `#8FD49C` on `#163323` 7.9:1 |
-| others' | `line` grey chair | surface seams | none, hidden from screen readers | — | — |
-| read-only | as above at 72% | as above | `lock` instead of the icon | — | — |
+| **מגיע · תפוס** (kept) | **red** `#B8322E` / dark `#F0857F` | thin wood line, solid | `user` (someone sits here) · "מגיע" in red | icon `#FFFFFF` on red 5.9:1; word on stone 5.5:1 | icon `#10132A` on red 7.3:1; word 7.3:1 |
+| **פנוי** (freed) | **green** `#9ED8AA` / dark `#6FC283` | 1.8 px **dashed** `#256B35` / `#8FD49C` on every upholstered part | `check` · "פנוי" in a dashed 6-radius box | icon `#1B4D27` on green 6.0:1; word 6.0:1 | icon `#0C2414` 7.6:1; word 10.5:1 |
+| others' | grey glyph (the wood in `line` grey too) | surface seams | none, hidden from screen readers | — | — |
+| read-only | as above | as above | `lock` replaces the icon | — | — |
 
-**The seat glyph is a cinema-style armchair** (owner, 2026-10-28: "cooler"). It is one upholstered seat seen from the
-front, in a 50 × 56 viewBox: a backrest (34 × 34, radius 9), two armrests (10 × 29, radius 4) overlapping its sides, a
-cushion (36 × 14, radius 5) and two short legs. It is drawn as one `react-native-svg` component, `SeatChair {state,
-size}`, with the parts as separate rects so each state can fill and stroke them. The word and icon sit centred on the
-backrest (top 9%, 50% of the height), at 11.5 bold. The whole cell is the touch target: at least 44 × 56. The same
-glyph is used everywhere at every size: 56 for his rows, 14 for the ±2 rows, 40 in the folded strip and the sent
-summary, 20 in the legend, and 68 at 1280.
+Red and green are far apart in lightness (relative luminance 0.13 against 0.59), so they stay apart for colour-blind
+readers and in greyscale, and the icon, word and dashed outline still say it. **Red = occupied everywhere** (owner),
+the same as the print's "ירוק ואדום" style. Tekhelet stays the UI accent only (segments, selected circle, buttons).
 **Use the same glyph elsewhere (not redrawn yet):** in the P26 print legend, and inside the print's seat boxes if it
 stays readable at 32 × 24 (the line, diagonal, notch and dashed shapes of §15.9 / §16.12.4 stay on top). On the P24
 Home card it would replace `Icon seat` in the title. Both are to be done when P24 and P26 are next redrawn.
-The owner suggested red → green. We keep **tekhelet → green**: in the app, red (pomegranate) means error or delete, and
-the print (§15.9) already uses green to mean "you can sit here", so green for freed reads the same on the phone and on
-paper. Red stays a print style only. The two new colours are frame tokens to add to the kit theme: `seatFree`
-`#256B35` / `#8FD49C` and `seatFreeBg` `#E3F3E5` / `#163323`.
 
-**Motion ("cool", but quiet):** when a seat is tapped it flips (scaleX 1 → 0 → 1, 150 ms) and the new fill rises from
-the bottom, with a light haptic tick (`selection`). The stepper's number rolls up or down. With reduce motion turned
-on, only the colour changes. No confetti.
+**Motion ("cool", but quiet):** when a seat changes, it flips (scaleX 1 → 0 → 1, 150 ms) and the new upholstery colour
+rises from the bottom, with a light haptic tick (`selection`). With reduce motion turned on, only the colour changes.
 
-#### 15.10.4 Two ways to choose, always in sync
+#### 15.10.4 Number circles and the map, always in sync (owner: like the old Excel form)
 
-- **Tap a seat** (on "מגיעים, ומפנים חלק" or any answer): it toggles מגיע ↔ פנוי, and the answer and stepper follow.
-  Any seat may be freed, the aisle seat too: the member picks exact seats (CTO ruling 4).
-- **Stepper** "כמה מקומות מפנים?" with the hint "מהקצה הרחוק מהמעבר. אפשר גם לגעת בכיסא.": `+` / value / `−`, each
-  48 × 48, the value at 22 px with `aria-live`. The range is 1 … n−1.
-  - `+` frees the kept seat **farthest from the aisle**.
-  - `−` takes back the freed seat **closest to the aisle**.
-- **Rules:** freeing every seat (by taps) switches the answer to "לא מגיעים השבת"; freeing none switches it to "כולנו
-  מגיעים". Choosing "מגיעים, ומפנים חלק" from "כולנו מגיעים" starts at 1 freed seat (the far one).
+- **Question:** "כמה מקומות אתם מפנים {בליל שבת}?". It is followed by **one row of circles, 0…N**, where N = the
+  family's seats on the gabbai's map (usually 2–4, at most 7). It is a `radiogroup`, and 0 sits at the start (right).
+- **Size:** for N ≤ 5, 52 px circles with 12 gaps. For N = 6–7, 44 px circles spread over the full width: 8 × 44 = 352
+  fits in 358 at 390. Each circle's touch target is at least 44.
+- **Looks:** idle = surface with a `line` ring and the number at 18–20 / 800. Selected = tekhelet fill, on-colour
+  number, 3 px halo. **The N circle is drawn as "all free":** a dashed green ring and a green number, and when selected
+  a solid green fill. The end captions say **"0 = כולנו מגיעים"** and **"N = לא מגיעים"**. So "not coming" is simply the
+  last circle. **The separate answer cards are dropped:** 0 is everyone coming, N is not coming.
+- **Tap a number k:** k seats are freed automatically: first in the **rear row**, and in each row **from the far side
+  of the aisle**. The rest are "מגיע". The map updates with the flip.
+- **Tap a chair:** it toggles מגיע ↔ פנוי, and the selected circle moves to the number now free. If those chairs aren't
+  the automatic order (P37 phone 4: the aisle chair freed), **the circle stays selected and the map stays as tapped**,
+  with the hint "בחרתם כיסאות במפה. המספר מתעדכן לפיהם." (`Icon seat`). Tapping a number again goes back to the
+  automatic order.
+- **Hint line** under the circles: nothing chosen → "נוגעים במספר, או בכיסאות במפה."; 0 → "כל N המקומות שמורים לכם.";
+  1…N−1 → "מפנים מהקצה הרחוק מהמעבר. אפשר גם לגעת בכיסא." (big family: "קודם מהשורה שמאחור, מהקצה הרחוק מהמעבר.");
+  N → "לא מגיעים: כל N המקומות פנויים לאחרים."
+- **A family with one seat:** two circles, 0 and 1.
 - **"The aisle" in data:** the seat map knows aisle cells and block edges from the editor (§16: empty columns between
   blocks are aisles, and the hall's outer edges are walls). A seat's aisle distance = the number of seats between it and
-  the nearest aisle in its row. The head's seat = the family's seat with the smallest distance in its first group (the
-  family's order, §15.9). **Two groups** (P38 ד): the stepper frees from the other group first, far side first, and the
-  first group's aisle seat is freed last. Open question 2.
+  the nearest aisle in its row. **Automatic order:** rear row first, then the rows in front; within a row, the largest
+  aisle distance first. The head's seat (the front row's aisle seat) is freed last. This also applies when a gabbai or
+  the Form upload enters a count (it refines CTO ruling 4 from "−n first" to this order).
 
-#### 15.10.5 Special event (P39)
+#### 15.10.5 Special event — future, not in this phase (P39)
 
-The gabbai sets up an event (for example a festival, or the Megillah reading) with its own one or two prayers. The
-segment labels come from the event ("מגילה בלילה" / "מגילה בבוקר"). The screen and the parts are the same. **The
-question flips:**
-- The title is "טופס מקומות · {event}" and the question is **"כמה מקומות תצטרכו {בלילה}?"**.
-- **All seats start as "פנוי"** (open to guests), and the member marks only what he needs. An info `Banner` at the top
-  says "ב{event} המקומות פתוחים לכולם. סמנו רק את המקומות שתצטרכו." so that someone used to "how many are you freeing"
-  isn't confused.
-- The answers are **צריכים את כל המקומות** / **צריכים חלק** (stepper "כמה מקומות תצטרכו?", 1 … n−1, filled **from the
-  aisle seat outwards**: "מתחילים מהכיסא שליד המעבר.") / **לא צריכים מקומות**.
-- The legend says "פנוי לאורחים". The tile states and colours are the same as on Shabbat.
-- What happens to the seats of someone who doesn't answer an event is open question 3.
+**Owner: leave it as a gap.** P39 is marked "עתידי / לא בשלב זה" and kept as an unpolished sketch: for a festival or
+the Megillah, the question flips to "כמה מקומות תצטרכו?", and all seats start free. It still uses the old answer cards
+and stepper, and it won't be built now. Still open: whether there is an event form at all, which events get one, and
+what happens to an unanswered family's seats. The 1280 view on the same page is valid for the Shabbat form.
 
 #### 15.10.6 States (P38)
 
+- **No answer = occupied (owner).** On a regular Shabbat, a family that doesn't send keeps **all its seats occupied**:
+  freeing is voluntary. Until the deadline the print (P26) shows them as "ממתין"; after it, as "תפוס". After the
+  deadline the member sees an info `Banner` "לא שלחתם השבת. כל המקומות נשמרו לכם. לשינוי פנו לגבאי." over the folded
+  strip, all red (P38 panel).
 - **א · נשלח:** the same stack screen. A 76 px olive check circle, "נשלח. תודה!" (serif 21), the line "המקומות שפיניתם
-  יחכו למי שצריך. הגבאי רואה אותם במפה שלו.", then a `Card` with a row per prayer: state in words and the collapsed seat
+  יחכו למי שצריך. הגבאי רואה אותם במפה שלו.", then a `Card` with a row per prayer: state in words and the folded chair
   strip. Then "אפשר לשנות עד {day} {time}." and `Button`s **חזרה לבית** (primary) and **שינוי** (secondary, back to the
   form). The Home card (P24) turns olive "answered" as before. P26 now draws those seats as **שוחרר**.
 - **ב · כבר עניתם (edit):** the form opens filled in, with a success `Banner` "שלחתם ביום {day} ב־{time}. אפשר לשנות
   עד …". The button is **"שליחת השינויים"**, disabled until something changes (caption "אין שינויים לשלוח"). If a gabbai
   set the state, an info `Banner` "הגבאי עדכן את המקומות שלכם ב{day} {time}." replaces it (§15.6), without a name.
-- **ג · אחרי המועד:** an info `Banner` "הטופס נסגר ביום {day} ב־{time}. רוצים לשנות? פנו לגבאי." with a secondary
-  `Button` **"פנייה לגבאי"** (`Icon phone`; it opens the Kehila's gabbai contacts sheet, open question 4). The segments
-  still switch (to view only), the seat tiles are at 72% with `lock`, the chosen answer is a read-only card without a
-  radio ("ליל שבת: מגיעים, ומפנים 1 · זה מה ששלחתם"), and there is no footer. If nothing was sent: "לא שלחתם השבת. כל
-  המקומות נשמרו לכם."
-- **ד · מקומות בשני מקומות:** §15.3's rule: one map card per group, in block order right → left, each with its own
-  header and collapse, and one legend at the end. The stepper works across groups (§15.10.4).
+- **ג · אחרי המועד:** an info `Banner` "הטופס נסגר ביום {day} ב־{time}. לשינוי פנו לגבאי." This is **text only, with no
+  contact button** (owner). The segments still switch (to view only), the chairs show `lock`, the circles are dimmed
+  with the sent number still selected and the hint "זה מה ששלחתם.", and there is no footer.
+- **ד · משפחה גדולה (replaces "seats in two places", owner):** the rare real case is a whole row plus extra chairs in
+  the row behind. **Both rows are drawn full size in one card** ("ימין · שורות 3–4 · 7 מקומות"), with ±2 rows around
+  them. Circles 0…7. The automatic order frees **the rear row first, far from the aisle**, and only then the main row.
+  §15.3's split rule (separate cards for distant groups) stays in the data model but gets no special frame.
 - **ה · אין מקומות:** `Card` (tekhelet edge) "עוד לא הוקצו לכם מקומות" / "את המקומות בבית הכנסת מקצה הגבאי. לשאלות פנו
   לגבאי." / muted "כשיהיו לכם מקומות, הטופס יגיע אליכם כל שבוע בהתראה." No push and no Home card. It is reached only
   from "אני".
 - **Loading / error:** as in P25 (a spinner in the map card; an error `Banner` with "נסו שוב"). **Kehila without a hall
-  map:** P25's list fallback, with the same three answers and stepper above it.
+  map:** the circles alone, with no map.
 
 #### 15.10.7 Wide screen (P39, 1280)
 
 The same content in a 1040 column: the title and Shabbat line at the start, the segments (420 wide) at the end of the
-title row. Two equal columns under it: the **map card first (start side)** with 64-high tiles and 14 px strips, always
-open; the answers and stepper beside it; the summary and a 200-wide Send under the answers. Keyboard: arrows move
-between his seats, Space toggles, and the stepper responds to ↑/↓.
+title row. Two equal columns under it: the **map card first (start side)** with 74-high chairs, always open; the circles
+beside it; the summary and a 200-wide Send under them. Keyboard: arrows move between his chairs and Space toggles one;
+in the circles, arrows move and Space picks.
 
 #### 15.10.8 Entry and ties
 
 - **Push** (§15.2, new copy): title **"טופס מקומות לשבת"**, body "יש לכם {n} מקומות בשבת פרשת X. מי מגיע? אפשר לענות
   עד {day} {time}." `data: {kehila, screen: 'seats'}` → this screen.
 - **Home card P24:** the title becomes "טופס מקומות לשבת", the question is unchanged, and the secondary button becomes
-  **"למלא את הטופס"**. "כן, כולם מגיעים" still answers both prayers in one tap. P24's frame isn't redrawn; P37's
-  panel shows the new copy.
-- **Gabbai print P26 / on-behalf P27:** the result lands as before. Freed = שוחרר, no answer = ממתין (§16.12.4). The
-  head-seat order also applies when a gabbai or the Form upload enters a count (it refines CTO ruling 4 from "−n first" to
-  "far from the aisle first").
+  **"למלא את הטופס"**. "כן, כולם מגיעים" still answers both prayers in one tap (= 0 for both). P24's frame isn't
+  redrawn; P37's panel shows the new copy.
+- **Gabbai print P26 / on-behalf P27:** the result lands as before. Freed = שוחרר; no answer = ממתין until the deadline,
+  then תפוס (§16.12.4).
 
 #### 15.10.9 Accessibility
 
-- Each own seat is a `switch`: "{block}, שורה {row}, מקום {k} מתוך {n}, ליד המעבר / {state}". The words "ליד המעבר"
-  appear only for the head's seat. Context strips and others' seats are hidden.
-- The answers are a `radiogroup`; the stepper is `adjustable` (increment / decrement actions) with its value read as
-  "{x} מקומות פנויים מתוך {n}". The segments are `tab`s whose names include the state ("ליל שבת, נענה, 1 פנוי").
-- Targets: tiles at least 44 × 56, stepper and chips 48, collapse 44, radio cards 56.
+- Each own chair is a `switch`: "{block}, שורה {row}, מקום {k} מתוך {n}, ליד המעבר / {state}". The words "ליד המעבר"
+  appear only for the head's seat. Context chairs and others' chairs are hidden.
+- The circles are a `radiogroup`. Their names are "אף מקום, כולנו מגיעים", "{k} מקומות", and "{N}, לא מגיעים". The hint
+  line is a polite live region. The segments are `tab`s whose names include the state ("ליל שבת, נענה, 1 פנוי").
+- Targets: chair cells at least 44 × 74, circles at least 44, chips 48, the fold button 44.
 - English: the text flips; the hall does not mirror (§15.3).
 
 #### 15.10.10 Copy
 
 | Key | Hebrew | English |
 |---|---|---|
-| `seats.form.title` | טופס מקומות לשבת / טופס מקומות · {event} | Shabbat seats form / Seats form · {event} |
-| `seats.form.q` | מה עם {prayer}? / ומה עם {prayer}? | What about {prayer}? |
-| `seats.form.qEvent` | כמה מקומות תצטרכו {when}? | How many seats will you need {when}? |
-| `seats.form.all` / `allSub` | כולנו מגיעים / כל {n} המקומות שמורים לכם | We're all coming / All {n} seats are kept for you |
-| `seats.form.some` / `someSub` | מגיעים, ומפנים חלק / בוחרים כמה, או נוגעים בכיסאות במפה | Coming, freeing some / Choose how many, or tap seats on the map |
-| `seats.form.none` / `noneSub` | לא מגיעים השבת / כל {n} המקומות פנויים לאחרים | Not coming this Shabbat / All {n} seats are free for others |
-| `seats.form.ev.all` / `some` / `none` | צריכים את כל המקומות / צריכים חלק / לא צריכים מקומות | We need all seats / We need some / We don't need seats |
-| `seats.form.step` / `stepHint` | כמה מקומות מפנים? / מהקצה הרחוק מהמעבר. אפשר גם לגעת בכיסא. | How many seats are you freeing? / From the far side of the aisle. You can also tap a seat. |
-| `seats.form.ev.step` / `stepHint` | כמה מקומות תצטרכו? / מתחילים מהכיסא שליד המעבר. | How many seats will you need? / Starting from the aisle seat. |
+| `seats.form.title` | טופס מקומות לשבת | Shabbat seats form |
+| `seats.form.count` | כמה מקומות אתם מפנים {בליל שבת / בשבת בבוקר}? | How many seats are you freeing {on Friday night / on Shabbat morning}? |
+| `seats.form.count0` / `countAll` | 0 = כולנו מגיעים / {n} = לא מגיעים | 0 = we're all coming / {n} = not coming |
+| `seats.form.hint.none` | נוגעים במספר, או בכיסאות במפה. | Tap a number, or the chairs on the map. |
+| `seats.form.hint.zero` | כל {n} המקומות שמורים לכם. | All {n} seats are kept for you. |
+| `seats.form.hint.some` / `someRear` | מפנים מהקצה הרחוק מהמעבר. אפשר גם לגעת בכיסא. / קודם מהשורה שמאחור, מהקצה הרחוק מהמעבר. | Freed from the far side of the aisle. You can also tap a chair. / Rear row first, from the far side of the aisle. |
+| `seats.form.hint.all` | לא מגיעים: כל {n} המקומות פנויים לאחרים. | Not coming: all {n} seats are free for others. |
+| `seats.form.hint.custom` | בחרתם כיסאות במפה. המספר מתעדכן לפיהם. | You picked chairs on the map. The number follows them. |
+| `seats.form.hint.sent` | זה מה ששלחתם. | This is what you sent. |
 | `seats.form.same` | כמו בליל שבת · {state} | Same as Friday night · {state} |
 | `seats.form.unanswered` | עוד לא ענית | Not answered yet |
 | `seats.form.next` / `send` / `sendChanges` | הבא: {prayer} ‹ / שליחה / שליחת השינויים | Next: {prayer} / Send / Send changes |
 | `seats.form.foot` | אפשר לשלוח ולשנות עד {day} {time} | You can send and change until {day} {time} |
 | `seats.form.sent` / `sentBody` | נשלח. תודה! / המקומות שפיניתם יחכו למי שצריך. הגבאי רואה אותם במפה שלו. | Sent. Thanks! / The seats you freed will wait for whoever needs them. The gabbai sees them on his map. |
 | `seats.form.answered` | שלחתם ביום {day} ב־{time}. אפשר לשנות עד {day2} {time2}. | You sent this on {day} at {time}. You can change it until {day2} {time2}. |
-| `seats.form.closed` / `contact` | הטופס נסגר ביום {day} ב־{time}. רוצים לשנות? פנו לגבאי. / פנייה לגבאי | The form closed on {day} at {time}. Want a change? Ask a gabbai. / Contact a gabbai |
-| `seats.form.notSent` | לא שלחתם השבת. כל המקומות נשמרו לכם. | You didn't send this week. All your seats were kept. |
-| `seats.form.eventBanner` | ב{event} המקומות פתוחים לכולם. סמנו רק את המקומות שתצטרכו. | For {event} seats are open to everyone. Mark only the seats you'll need. |
+| `seats.form.closed` | הטופס נסגר ביום {day} ב־{time}. לשינוי פנו לגבאי. | The form closed on {day} at {time}. To change it, ask a gabbai. |
+| `seats.form.notSent` | לא שלחתם השבת. כל המקומות נשמרו לכם. לשינוי פנו לגבאי. | You didn't send this week. All your seats were kept. To change it, ask a gabbai. |
 | `seats.form.hide` / `show` | הסתרה / הצגת המפה | Hide / Show map |
 | `seats.form.ark` / `aisle` | ארון הקודש / מעבר | Ark / Aisle |
-| `seats.form.free` / `freeGuests` | פנוי / פנוי לאורחים | Free / Free for guests |
+| `seats.form.kept` / `free` / `others` | מגיע · תפוס / פנוי לאחרים / של אחרים | Coming · taken / Free for others / Other people's |
 | `seats.form.homeOpen` | למלא את הטופס | Fill in the form |
 | `seats.form.noSeatsLater` | כשיהיו לכם מקומות, הטופס יגיע אליכם כל שבוע בהתראה. | When you have seats, the form will reach you every week by notification. |
 
-#### 15.10.11 Open questions for the owner
+#### 15.10.11 Owner decisions and what is still open
 
-1. **Default for an unanswered Shabbat:** seats stay kept ("ממתין", as now), or are freed at the deadline?
-2. **Release order with two groups** (P38 ד): free the second group first (frames), or the far side of the first group?
-   For a middle block with aisles on both sides, which aisle seat is the head's: the one nearer the bimah, or the
+Decided (2026-10-28): synagogue chair, not a cinema seat · red = occupied, green = freed · no answer on Shabbat =
+occupied · big family in two rows replaces "seats in two places" · rear row first, far from the aisle · number circles
+0…N as in the old form · no "contact the gabbai" button after the deadline · special events left for later.
+
+Still open:
+1. **Special events** (P39, future): whether to have them, which events, the question wording, and the default for
+   families that don't answer.
+2. For a **middle block with aisles on both sides**, which aisle seat is the head's: the one nearer the bimah, or the
    gabbai's choice?
-3. **Events:** if a family doesn't answer, are its seats kept, or open to guests? (Frames: they start as "פנוי".) And
-   which events get a form (festivals, Megillah, Selichot …)?
-4. **"פנייה לגבאי":** call or WhatsApp the gabbai on duty, or open the gabbaim list?
-5. **Colours:** tekhelet for kept and green for freed (we kept red for print only). Is that fine, or does he want the
-   red → green he described?
 
 #### 15.10.12 Verification
 
 P37–P39 were generated by a script and rendered with headless Chromium (Playwright 1.47.2): each phone at 390 × 844 in
 light and dark, P37's panels, and P39's 1280 view, saved to `/tmp/claude-1000/kehilot-shots-seats/`. No horizontal
-scroll at a 390 viewport. Contrast was computed (table above). Not checked: a real device, the 360 width, the flip
-animation (not drawn), English, and screen readers.
+scroll at a 390 viewport, and the 8 circles for N = 7 fit on one line. Contrast was computed (table above). Not checked:
+a real device, the 360 width, the flip animation (not drawn), the glyph at print size, English, and screen readers.
 
 ## 16. Seating editor
 
