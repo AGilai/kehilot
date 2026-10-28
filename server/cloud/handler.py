@@ -130,6 +130,7 @@ ROUTES = [
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/tree$'), routes_tree.get_tree),
     ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/tree$'), routes_tree.put_tree),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/families/(?P<familyId>[^/]+)/tree$'), routes_tree.admin_tree),
+    ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/simchas$'), routes_tree.admin_simchas),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/candidates$'), routes_families.candidates),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests$'), routes_families.create_request),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/family/requests/mine$'), routes_families.withdraw_request),

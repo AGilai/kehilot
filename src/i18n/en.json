@@ -1,5 +1,6 @@
 {
   "errors": {
+    "invalid_weeks": "The number of weeks is not valid (1 to 12)",
     "invalid_if_version": "The tree you sent is out of date. Reloading.",
     "invalid_people": "The list of people in the tree is not valid",
     "invalid_relation": "The family relation is not valid",
@@ -2531,5 +2532,36 @@
       }
     },
     "conflictNotSaved": "Your change was NOT saved: somebody else updated the tree. The tree was reloaded. Check the details and save again."
+  },
+  "simchas": {
+    "title": "Upcoming simchas",
+    "intro": "Bar and bat mitzvahs in the next 8 weeks, from family trees.",
+    "filter": {
+      "all": "All · {n}",
+      "bar": "Bar mitzvah · {n}",
+      "bat": "Bat mitzvah · {n}"
+    },
+    "bar": "Bar mitzvah · {name}",
+    "bat": "Bat mitzvah · {name}",
+    "family": "The {surname} family",
+    "onShabbat": "on Shabbat",
+    "onDay": "{day} {hebrew}, {date}",
+    "manual": "Set by family",
+    "suggested": "Suggestion",
+    "none": "No bar or bat mitzvahs in the next 8 weeks.",
+    "noneNote": "The list is built from the birth dates in family trees. A family without a date does not appear.",
+    "quietWeeks": "No simchas: {parashot}.",
+    "toSheet": "Add to mazal tov in the weekly sheet",
+    "toSheetNote": "Opens a ready mazal tov message. The weekly sheet shows the week's mazal tov messages; confirm it there.",
+    "draftTitle": "Mazal tov",
+    "privacy": "Only first name, surname and date. Gabbaim only.",
+    "card": {
+      "title": "Upcoming simchas",
+      "this": "This Shabbat: {text}",
+      "later": "Next: {text}",
+      "more": "And {n} more in the next 8 weeks",
+      "all": "All simchas",
+      "none": "No bar or bat mitzvahs in the next 8 weeks."
+    }
   }
 }

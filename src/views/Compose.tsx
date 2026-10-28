@@ -21,7 +21,7 @@ import { BackIcon } from '../kit/Icon.tsx';
 import { channelLabel } from '../client/channelsView.ts';
 import { composeTypes, refusalBanner } from '../client/typesView.ts';
 
-export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked };
+export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked; /** A draft to start from (the gabbai's mazal tov from P36). */ title?: string; body?: string };
 
 /**
  * M4 (members) and GM3 (gabbaim): one screen. Type cards, channel, title, text, an optional image, and for a
@@ -40,8 +40,8 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   // The first postable type unless the person (or the opener) chose one that is still postable.
   const type: MessageType = chosenType && (types as MessageType[]).includes(chosenType) ? chosenType : (types[0] ?? 'general');
   const [refused, setRefused] = React.useState(false);
-  const [title, setTitle] = React.useState('');
-  const [body, setBody] = React.useState('');
+  const [title, setTitle] = React.useState(initial?.title ?? '');
+  const [body, setBody] = React.useState(initial?.body ?? '');
   const [targetId, setTargetId] = React.useState<string | null>(initial?.targetFamilyId ?? null);
   const [image, setImage] = React.useState<Picked | null>(initial?.image ?? null);
   const [q, setQ] = React.useState(initial?.query ?? '');

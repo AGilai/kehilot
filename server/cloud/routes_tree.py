@@ -2,12 +2,13 @@
 import json
 from datetime import date
 
-from . import inputs, repo_messages, tree_rules
+from . import inputs, repo_messages, simchas, tree_rules
 from .authz import require
 from .errors import ApiError
 from .ids import ID_RE
 
 MEMBERS = ('member', 'gabbai')
+DEFAULT_WEEKS = 8
 MAX_BODY = tree_rules.MAX_TREE_BYTES  # body and people JSON
 
 
@@ -50,3 +51,16 @@ def admin_tree(ctx, params):
     if not family:
         raise ApiError(404, 'family_not_found')
     return 200, tree_rules.tree_view(family)
+
+
+def admin_simchas(ctx, params):
+    """Upcoming bar and bat mitzvahs from the family trees (UX-DESIGN 17.14). Gabbaim only; first name, surname and
+    date per item, nothing logged."""
+    k = params['k']
+    require(ctx.repo, ctx.user_id, k, ('gabbai',))
+    raw = ctx.query.get('weeks', str(DEFAULT_WEEKS))
+    if not (raw.isascii() and raw.isdigit()) or not 1 <= int(raw) <= simchas.MAX_WEEKS:
+        raise ApiError(400, 'invalid_weeks')
+    today = date.fromisoformat(repo_messages.local_date())
+    live = [family for family in ctx.repo.list_families(k) if ctx.repo.live_adults(k, family)]
+    return 200, {'weeks': simchas.upcoming_simchas(simchas.families_people(live), today, int(raw))}

@@ -3,7 +3,7 @@ import type { CandleCity, ScheduleDoc, Section, WeekOverrides } from '../schedul
 import type { ReportContext } from './reportContext.ts';
 import type {
   TypeRules,
-  AdminFamily, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
+  AdminFamily, SimchaWeek, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
   DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, RoleTag, TagRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
   MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
@@ -186,6 +186,8 @@ export function endpoints(http: Http) {
     putFamilyTree: (k: string, body: { people: Person[]; ifVersion: number }) => r<{ version: number }>('PUT', `${K(k)}/family/tree`, body),
     /** Gabbai, read only: one family's tree. */
     adminFamilyTree: (k: string, familyId: string) => r<TreeDoc>('GET', `${A(k)}/families/${e(familyId)}/tree`),
+    /** Gabbai: bar and bat mitzvahs in the next `weeks` weeks (default 8), from the family trees. */
+    simchas: (k: string, weeks?: number) => r<{ weeks: SimchaWeek[] }>('GET', `${A(k)}/simchas${weeks === undefined ? '' : query([['weeks', String(weeks)]])}`),
     targetFamilies: (k: string, channelId: string) =>
       r<TargetFamily[]>('GET', `${K(k)}/families${query([['channelId', channelId]])}`),
 

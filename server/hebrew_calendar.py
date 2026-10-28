@@ -37,6 +37,14 @@ def bar_mitzvah_date(value, today):
         return None
 
 
+def bat_mitzvah_date(value, today):
+    """The 12th Hebrew birthday, with the same Adar and day-30 convention as bar_mitzvah_date."""
+    try:
+        return birth_date(value, today).add(years=12).to_pydate()
+    except (ValueError, TypeError, KeyError):
+        return None
+
+
 def months_before(day, months):
     """Gregorian calendar months, clamping to the last day of a shorter month."""
     index = day.year * 12 + day.month - 1 - months

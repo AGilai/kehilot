@@ -91,6 +91,11 @@ export type AdminFamily = {
   children: Array<{ firstName: string; gender: 'm' | 'f'; birthYear?: number }>;
 };
 
+/** Gabbai: one upcoming simcha (UX §17.14). First name, surname and date only; `manual` = the family chose the bar mitzvah Shabbat. */
+export type SimchaItem = { kind: 'bar' | 'bat'; firstName: string; surname: string; date: string; manual: boolean; label?: string };
+/** A week (Sunday `week` to Saturday `shabbat`, ISO days); `parasha` is '' on a holiday Shabbat. A quiet week has no items. */
+export type SimchaWeek = { week: string; shabbat: string; parasha: string; label: string; items: SimchaItem[] };
+
 export type ExportLink = { url: string; expiresAt: number };
 export type DismissCard = 'gabbai_link' | 'imported' | 'phone' | 'seat_link';
 

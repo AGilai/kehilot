@@ -1,9 +1,11 @@
 import React from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { ApiCodeError } from '../../client/errors.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
-import type { InviteRow } from '../../client/types.ts';
+import type { InviteRow, SimchaWeek } from '../../client/types.ts';
+import { nextSimcha, simchaTitle } from '../../client/simchasView.ts';
+import { ForwardIcon } from '../../kit/Icon.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
@@ -95,7 +97,34 @@ function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged
 }
 
 /** GM1 without the seating meters: pending count, member and listener counts, the cap, the invite links. */
-export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onSeatPrint, onSchedule, onSeatEditor, onSeatResponses, onSeatHolders, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; /** The seat-release preview (UX §15.5): only passed when the preview flag is on. */ onSeatPrint?: () => void; /** The prayer-schedule editor (UX §14.2). */ onSchedule?: () => void; /** The seating editor (UX §16): gabbaim only. */ onSeatEditor?: () => void; /** The old Form's responses upload (§16.6) and the holders without an account (§16.7): gabbaim only. */ onSeatResponses?: () => void; onSeatHolders?: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
+/** Overview card for P36 (UX §17.14): the nearest simcha and how many more. Best effort: nothing shows until the list loads or when it fails. */
+function SimchasCard({ onOpen }: { onOpen: () => void }) {
+  const { t } = useI18n();
+  const { api } = useAuth();
+  const { state } = useSession();
+  const k = useTokens();
+  const [weeks, setWeeks] = React.useState<SimchaWeek[] | null>(null);
+  React.useEffect(() => {
+    let live = true;
+    api.simchas(state.kehilaId!, 8).then(r => { if (live) setWeeks(r.weeks); }, () => {});
+    return () => { live = false; };
+  }, [api, state.kehilaId]);
+  if (!weeks) return null;
+  const next = nextSimcha(weeks);
+  const text = next ? `${simchaTitle(next.item, t)}${next.item.surname ? `, ${t('simchas.family', { surname: next.item.surname })}` : ''}` : '';
+  return (
+    <Card edgeColor={k.pomegranate}>
+      <Txt serif size="heading" accessibilityRole="header">{t('simchas.card.title')}</Txt>
+      {next ? <Txt bold>{t(next.thisWeek ? 'simchas.card.this' : 'simchas.card.later', { text })}</Txt> : <Txt color={k.muted}>{t('simchas.card.none')}</Txt>}
+      {next && next.more > 0 ? <Txt size="small" color={k.muted}>{t('simchas.card.more', { n: next.more })}</Txt> : null}
+      <Pressable accessibilityRole="button" onPress={onOpen} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Txt bold color={k.tekhelet}>{t('simchas.card.all')}</Txt><ForwardIcon size={16} color={k.tekhelet} />
+      </Pressable>
+    </Card>
+  );
+}
+
+export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onSeatPrint, onSchedule, onSeatEditor, onSeatResponses, onSeatHolders, onSimchas, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; /** The seat-release preview (UX §15.5): only passed when the preview flag is on. */ onSeatPrint?: () => void; /** The prayer-schedule editor (UX §14.2). */ onSchedule?: () => void; /** The seating editor (UX §16): gabbaim only. */ onSeatEditor?: () => void; /** The old Form's responses upload (§16.6) and the holders without an account (§16.7): gabbaim only. */ onSeatResponses?: () => void; onSeatHolders?: () => void; /** The upcoming simchas (UX §17.14): gabbaim only. Until the management restructure (§18) this card is where it lives. */ onSimchas?: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state, refreshKehila } = useSession();
@@ -148,6 +177,7 @@ export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport
             <Txt bold size="heading">{counts.pending > 0 ? t('admin.overview.pending', { n: counts.pending }) : t('admin.overview.pendingNone')}</Txt>
             {counts.pending > 0 ? <Button title={t('admin.overview.review')} onPress={onApprovals} /> : null}
           </Card>
+          {onSimchas ? <SimchasCard onOpen={onSimchas} /> : null}
           {onSchedule ? (
             <Card>
               <Txt serif size="heading" accessibilityRole="header">{t('editor.card.title')}</Txt>
