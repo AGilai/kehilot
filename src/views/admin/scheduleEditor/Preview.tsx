@@ -14,7 +14,7 @@ import type { SheetVariant } from '../../../schedule/sheetModel.ts';
 import { buildSheet } from '../../../schedule/sheetSource.ts';
 import type { ScheduleDoc, ScheduleWeek, ZmanimFor } from '../../../schedule/types.ts';
 import { addDays, computeWeek } from '../../../schedule/week.ts';
-import type { Message } from '../../../client/types.ts';
+import type { SheetItem } from '../../../client/types.ts';
 import { FullSections, WeekTitle } from '../../Schedule.tsx';
 import { ScheduleCard } from '../../ScheduleCard.tsx';
 import { FSeg, Select, TimeField } from './controls.tsx';
@@ -29,7 +29,8 @@ export type PreviewProps = {
   highlightId?: string;
   kehilaName: string;
   logoUri: string | null;
-  messages: Message[];
+  /** The week's sheet items (the server list). */
+  items: SheetItem[];
   mode: PreviewMode;
   onMode: (mode: PreviewMode) => void;
   /** Hide a row of the selected week (the too-long banner's suggestions). */
@@ -82,19 +83,19 @@ function PhonePreview({ doc, week, zmanimFor }: Pick<PreviewProps, 'doc' | 'week
   );
 }
 
-function SheetPreview({ doc, week, zmanimFor, highlightId, kehilaName, logoUri, messages, onHide, available }: Pick<PreviewProps, 'doc' | 'week' | 'zmanimFor' | 'highlightId' | 'kehilaName' | 'logoUri' | 'messages' | 'onHide'> & { available: number }) {
+function SheetPreview({ doc, week, zmanimFor, highlightId, kehilaName, logoUri, items, onHide, available }: Pick<PreviewProps, 'doc' | 'week' | 'zmanimFor' | 'highlightId' | 'kehilaName' | 'logoUri' | 'items' | 'onHide'> & { available: number }) {
   const { t, lang } = useI18n();
   const k = useTokens();
   const fonts = useSheetFonts();
   const [variant, setVariant] = React.useState<SheetVariant>('a4');
   const computed = React.useMemo(() => computeWeek(doc, week.friday, zmanimFor), [doc, week.friday, zmanimFor]);
-  const model = React.useMemo(() => buildSheet(doc, computed, { kehilaName, logoUri, messages }, variant), [doc, computed, kehilaName, logoUri, messages, variant]);
+  const model = React.useMemo(() => buildSheet(doc, computed, { kehilaName, logoUri, items }, variant), [doc, computed, kehilaName, logoUri, items, variant]);
   const fit = React.useMemo(() => fitSheet(model), [model]);
   const paper = variant === 'a4' ? { w: 595, h: 842 } : { w: 540, h: 540 };
   const scale = Math.min(1, Math.max(0.3, (available - 8) / paper.w));
   const long = fit.overflow || fit.dropped.length > 0;
   const suggestions = long ? hideSuggestions(computed, 3) : [];
-  const droppedText = fit.dropped.map(d => (d.kind === 'image' ? t('editor.droppedImage') : model.mazalTov.find(m => m.id === d.id)?.title.map(p => p.text).join('') ?? '')).filter(Boolean).join(', ');
+  const droppedText = fit.dropped.map(d => (d.kind === 'image' ? t('editor.droppedImage') : [...model.mazalTov, ...model.events].find(m => m.id === d.id)?.main.map(p => p.text).join('') ?? '')).filter(Boolean).join(', ');
   return (
     <View style={{ gap: 12 }}>
       <FSeg label={t('editor.sheetVariant')} value={variant} onChange={setVariant} style={{ alignSelf: 'flex-start', width: 300 }}

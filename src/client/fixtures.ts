@@ -15,7 +15,7 @@ import type { SeatTimes } from '../seats/times.ts';
 import type { Formula, Row, ScheduleDoc } from '../schedule/types.ts';
 import { fixtureMap, fixtureMapFamilies, fixtureSeatFamilies } from '../seats/fixturePaste.ts';
 import { createUploadFixture, fixtureHolderFamilies, fixtureHolderLayout, fixtureHolders, fixtureLinkSuggestions } from '../seats/fixtureUpload.ts';
-import type { Channel, Child, SimchaWeek, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag } from './types.ts';
+import type { Channel, Child, SimchaWeek, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag, SheetItem } from './types.ts';
 import { ROLES, isManagement } from './roles.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
@@ -465,6 +465,60 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     opens: OPENS, reminders: { '1': { ...DEFAULT_REMINDERS['1'], on: screen !== 'seat-times-off' }, '2': { ...DEFAULT_REMINDERS['2'], on: screen !== 'seat-times-off' } },
     deadline: '14:00', week: shabbatFriday(fixtureNow() ?? new Date()), layout: true, pending: 4, sent: { '1': false, '2': false },
   };
+  // Weekly sheet items (kept in memory per week, so a write shows on the next read): a mazal tov, a condolence and an event, plus (management only)
+  // one waiting for approval and one removed. Members read only what is in.
+  const sheetWeeks = new Map<string, SheetItem[]>();
+  const sheetSeed = (week: string): SheetItem[] => {
+    const msg = (id: string, type: Message['type'], templateId: 'mazal' | 'condolence' | 'event', fields: Record<string, string | boolean>): Message => ({
+      messageId: id, channelId: cAnn, type, title: '', body: '', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 0, templateId, fields,
+    });
+    const at = Math.floor(Date.parse(`${week}T08:00:00+02:00`) / 1000) - 3 * 86400;
+    const base = { week, kind: 'message' as const, source: 'auto' as const, postedAt: at };
+    return [
+      { ...base, itemId: 'SHFIXTURE0000000000000001', group: 'mazal', type: 'celebration', state: 'in', message: msg('SHFIXTURE0000000000000001', 'celebration', 'mazal', { occasion: 'birthDaughter', whose: 'grandparents', surname: 'דוגמה', firstNames: 'יוסף ומרים', name: 'נועה', parents: 'דוד ושרה', blessing: 'שיזכו לגדלה לתורה' }) },
+      { ...base, itemId: 'SHFIXTURE0000000000000002', group: 'mazal', type: 'celebration', state: 'pending', source: 'member', wasPending: true, postedBy: 'מיכל ניסיון', message: msg('SHFIXTURE0000000000000002', 'celebration', 'mazal', { occasion: 'barMitzvah', surname: 'ניסיון', firstNames: '', name: 'איתי', parents: 'אבי ורותי', blessing: '' }) },
+      { ...base, itemId: 'SHFIXTURE0000000000000003', group: 'condolence', type: 'condolence', state: 'in', message: msg('SHFIXTURE0000000000000003', 'condolence', 'condolence', { variant: 'only', surname: 'בדיוני', deceased: 'שרה', relation: 'אמו של יעקב' }) },
+      { ...base, itemId: 'SHFIXTURE0000000000000004', group: 'events', type: 'event', state: 'in', message: msg('SHFIXTURE0000000000000004', 'event', 'event', { name: 'ערב לימוד לנשים', date: addDays(week, 4), time: '20:30', place: 'בית הכנסת', for: 'women' }) },
+      { ...base, itemId: 'SHFIXTURE0000000000000005', group: 'events', type: 'event', state: 'removed', message: msg('SHFIXTURE0000000000000005', 'event', 'event', { name: 'טיול קהילתי', date: addDays(week, 5), time: '10:00', place: 'הפארק', for: 'all' }) },
+    ];
+  };
+  const sheetFixture = (method: string, path: string, body: unknown): unknown => {
+    const parts = path.split('?')[0]!.split('/');
+    const week = parts[parts.indexOf('sheet') + 1]!;
+    const items = sheetWeeks.get(week) ?? sheetSeed(week);
+    sheetWeeks.set(week, items);
+    const rest = parts.slice(parts.indexOf('sheet') + 2);
+    const ordered = () => (['mazal', 'condolence', 'events'] as const).flatMap(g => items.filter(i => i.group === g));
+    if (method === 'GET') return structuredClone({ week, items: isManagement(role) ? ordered() : ordered().filter(i => i.state === 'in') });
+    if (!isManagement(role)) throw new ApiCodeError(403, 'forbidden');
+    if (method === 'POST' && rest[0] === 'items' && rest.length === 1) {
+      const b = body as { type: 'celebration' | 'event' | 'notice'; text: string; bold?: string; source?: 'free' | 'byGabbai' };
+      const item: SheetItem = {
+        itemId: fixtureUlid(Date.now(), 40 + items.length), week, group: b.type === 'celebration' ? 'mazal' : 'events', kind: 'free', type: b.type, state: 'in',
+        source: b.source ?? 'free', postedAt: secs(Date.now()), line: { text: b.text, bold: b.bold ?? '' }, wasPending: false, postedBy: meName, approvedBy: '',
+      };
+      items.push(item);
+      return structuredClone(item);
+    }
+    const item = items.find(i => i.itemId === rest[1]);
+    if (!item) throw new ApiCodeError(404, 'not_found');
+    if (method === 'PUT') {
+      const b = body as { state?: SheetItem['state']; line?: { text: string; bold: string } | null };
+      if (b.state) { if (item.source === 'member' && b.state === 'in') { item.source = 'approved'; item.approvedBy = meName; } item.state = b.state; }
+      if (b.line === null) delete item.line; else if (b.line) item.line = b.line;
+      return structuredClone(item);
+    }
+    if (method === 'POST' && rest[2] === 'move') {
+      const group = items.filter(i => i.group === item.group && i.state !== 'removed');
+      const at = group.indexOf(item) + ((body as { direction: 'up' | 'down' }).direction === 'up' ? -1 : 1);
+      const other = group[at];
+      if (!other) throw new ApiCodeError(409, 'cannot_move');
+      const a = items.indexOf(item), b = items.indexOf(other);
+      [items[a], items[b]] = [other, item];
+      return structuredClone({ week, items: ordered() });
+    }
+    throw new ApiCodeError(404, 'not_found');
+  };
   const seatTimesFixture = (method: string, body: unknown): unknown => {
     if (method === 'GET') return structuredClone(seatTimes);
     const b = (body ?? {}) as { deadline?: string; reminders?: Partial<Record<'1' | '2', { on?: boolean; day?: 'thu' | 'fri'; time?: string }>> };
@@ -619,6 +673,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
         if (method === 'PUT') { scheduleDoc.weekOverrides[friday] = body as ScheduleDoc['weekOverrides'][string]; return {} as any; }
         if (method === 'DELETE') { delete scheduleDoc.weekOverrides[friday]; return undefined as any; }
       }
+      if (path.startsWith(`${K}/sheet/`) || path.startsWith(`${A}/sheet/`)) return sheetFixture(method, path, body) as any;
       if (uploadFx && path.startsWith(`${A}/seats/week/`)) {
         const p = path.split('?')[0]!;
         if (method === 'POST' && p.endsWith('/responses/undo')) return uploadFx.undoApply((body as { event: 'erev' | 'day' }).event) as any;

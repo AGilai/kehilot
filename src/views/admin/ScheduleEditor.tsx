@@ -4,6 +4,7 @@
 import React from 'react';
 import { Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
+import { useSheetItems } from '../../client/useSheetItems.ts';
 import { fixtureNow } from '../../client/fixtures.ts';
 import { ApiCodeError } from '../../client/errors.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
@@ -89,6 +90,8 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
   const zmanimFor = React.useMemo(() => zmanimForLocation(base?.location), [base]);
   const schedule: Schedule = React.useMemo(() => ({ version: 1, sections: draft.sections, weekOverrides: draft.weekOverrides }), [draft]);
   const computed = React.useMemo(() => computeWeek(schedule, friday, zmanimFor), [schedule, friday, zmanimFor]);
+  const sheetPage = useSheetItems(friday).page;
+  const sheetItems = React.useMemo(() => sheetPage?.items ?? [], [sheetPage]);
   const previewDoc: ScheduleDoc | null = React.useMemo(() => (base ? { ...base, ...schedule } : null), [base, schedule]);
   const editable = weekEditable(friday, today);
   const overrides = draft.weekOverrides[friday];
@@ -328,7 +331,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
     const kehila = session.state.kehila;
     if (!kehila) return;
     setPrinting(true);
-    try { await sharePdf(buildSheet({ ...base, ...schedule }, computed, { kehilaName: kehila.name, logoUri: logo.uri, messages: Object.values(session.state.feed.messages) })); }
+    try { await sharePdf(buildSheet({ ...base, ...schedule }, computed, { kehilaName: kehila.name, logoUri: logo.uri, items: sheetItems })); }
     catch { setBanner({ tone: 'error', text: t('schedule.printError') }); } finally { setPrinting(false); }
   }
   const soon = t('schedule.soon');
@@ -483,7 +486,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
 
   const preview = previewDoc ? (
     <Preview doc={previewDoc} week={week} zmanimFor={zmanimFor} dirty={dirty} highlightId={selected?.item.kind === 'row' ? selected.item.row.id : selected?.item.kind === 'extra' ? selected.item.extra.id : undefined}
-      kehilaName={session.state.kehila?.name ?? ''} logoUri={logo.uri} messages={Object.values(session.state.feed.messages)} mode={mode} onMode={setMode} onHide={hideForWeek} narrow={!wide} />
+      kehilaName={session.state.kehila?.name ?? ''} logoUri={logo.uri} items={sheetItems} mode={mode} onMode={setMode} onHide={hideForWeek} narrow={!wide} />
   ) : null;
 
   if (wide) {

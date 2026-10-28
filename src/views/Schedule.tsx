@@ -4,6 +4,7 @@ import { fixtureNow } from '../client/fixtures.ts';
 import { config } from '../config.ts';
 import { clockTime, israelDate } from '../dates.ts';
 import { useSchedule } from '../client/useSchedule.ts';
+import { useAuth } from '../auth/AuthProvider.tsx';
 import { useSession } from '../client/SessionProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
@@ -90,6 +91,7 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
   const model = React.useMemo(() => (doc && hasTimedRows(doc) ? fullModel(doc, israelNow(now), zmanimFor, weekIndex) : null), [doc, now, zmanimFor, weekIndex]);
 
   const session = useSession();
+  const { api } = useAuth();
   const [printing, setPrinting] = React.useState(false);
   const [printFailed, setPrintFailed] = React.useState(false);
   async function print() {
@@ -100,7 +102,9 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
     setPrinting(true);
     try {
       const logoUri = await session.logo(kehila.kehilaId, kehila.logoVersion).catch(() => null);
-      await sharePdf(buildSheet(doc, model.computed, { kehilaName: kehila.name, logoUri, messages: Object.values(session.state.feed.messages) }));
+      // The week's list from the server; offline the sheet prints without these lines rather than not at all.
+      const items = await api.sheetItems(kehila.kehilaId, model.computed.week.friday).then(p => p.items, () => []);
+      await sharePdf(buildSheet(doc, model.computed, { kehilaName: kehila.name, logoUri, items }));
     } catch { setPrintFailed(true); } finally { setPrinting(false); }
   }
 

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fixtureScheduleDoc } from '../src/client/fixtures.ts';
-import type { Message } from '../src/client/types.ts';
+import type { SheetGroup } from '../src/client/types.ts';
 import { esc, safeImage, sheetBodyHtml, sheetHtml } from '../src/schedule/sheetHtml.ts';
-import { BASE_FIT, fitSheet, innerBox, mazalParts, neededHeight, sheetLayout, sheetModel, textLines, weekCelebrations } from '../src/schedule/sheetModel.ts';
-import type { Celebration, SheetModel, SheetVariant } from '../src/schedule/sheetModel.ts';
+import { BASE_FIT, MAX_EVENTS, MAX_MAZAL, fitSheet, innerBox, mazalParts, neededHeight, placement, sheetLayout, sheetModel, squareBand, textLines } from '../src/schedule/sheetModel.ts';
+import type { SheetLineItem, SheetModel, SheetVariant } from '../src/schedule/sheetModel.ts';
 import type { Row, ScheduleDoc } from '../src/schedule/types.ts';
 import { computeWeek } from '../src/schedule/week.ts';
 import { offlineZmanimFor } from '../src/schedule/zmanim.ts';
@@ -12,15 +12,18 @@ import { offlineZmanimFor } from '../src/schedule/zmanim.ts';
 const FRIDAY = '2026-10-30';
 const zf = offlineZmanimFor();
 const doc = fixtureScheduleDoc(FRIDAY);
-const mazal: Celebration[] = [
-  { id: 'c1', title: 'מזל טוב למשה ורחל בדיוני', body: 'להולדת הנכדה, בת לשירה ואורי דוגמה. שתזכו לגדלה לתורה, לחופה ולמעשים טובים', family: 'בדיוני' },
-  { id: 'c2', title: 'מזל טוב לדני ונועה ניסיון', body: 'לרגל בר המצווה של הבן איתי', family: 'ניסיון' },
+const li = (id: string, group: SheetGroup, text: string, bold: string, over: Partial<SheetLineItem> = {}): SheetLineItem => ({
+  id, group, main: mazalParts(text, bold), sub: '', blessing: '', icon: group === 'mazal' ? 'heart' : null, cancelled: false, ...over,
+});
+const mazal: SheetLineItem[] = [
+  li('c1', 'mazal', 'מזל טוב למשפחת בדיוני', 'בדיוני', { sub: 'להולדת הנכדה, בת לשירה ואורי דוגמה', blessing: 'שתזכו לגדלה לתורה, לחופה ולמעשים טובים' }),
+  li('c2', 'mazal', 'מזל טוב למשפחת ניסיון', 'ניסיון', { sub: 'לרגל בר המצווה של הבן איתי' }),
 ];
-const build = (over: Partial<{ doc: ScheduleDoc; celebrations: Celebration[]; variant: SheetVariant; pinned: SheetModel['pinned'] }> = {}) => {
+const build = (over: Partial<{ doc: ScheduleDoc; items: SheetLineItem[]; variant: SheetVariant; pinned: SheetModel['pinned'] }> = {}) => {
   const d = over.doc ?? doc;
   return sheetModel({
     doc: d, week: computeWeek(d, FRIDAY, zf), kehilaName: 'קהילת אור הדוגמה', logoUri: null,
-    celebrations: over.celebrations ?? mazal, pinned: over.pinned ?? null, variant: over.variant ?? 'a4',
+    items: over.items ?? mazal, pinned: over.pinned ?? null, variant: over.variant ?? 'a4',
   });
 };
 const withRows = (extra: Row[], section = 1): ScheduleDoc => ({ ...doc, sections: doc.sections.map((s, i) => (i === section ? { ...s, rows: [...s.rows, ...extra] } : s)) });
@@ -83,30 +86,48 @@ test('model: text rows stay text; group gaps follow text lines and 3-hour jumps'
   assert.equal(m.shabbat!.rows.find(r => r.id === 's-gedola')!.gap, true); // after the text line
 });
 
-test('mazal tov: a guest with no celebration messages prints none; the block is the week\'s celebrations only', () => {
-  assert.equal(build({ celebrations: [] }).mazalTov.length, 0);
-  assert.doesNotMatch(sheetBodyHtml(build({ celebrations: [] })), /class="mt"/);
-  const id = (ms: number, n: number) => {
-    const C = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-    let t = ''; let v = ms;
-    for (let i = 0; i < 10; i++) { t = C[v % 32] + t; v = Math.floor(v / 32); }
-    return t + '0000000000000000'.slice(0, 15) + C[n % 32];
-  };
-  const msg = (date: string, type: Message['type'], n: number, title = 'מזל טוב'): Message => ({
-    messageId: id(Date.parse(`${date}T12:00:00+02:00`), n), channelId: 'c', type, title, body: '', authorId: 'a', authorName: 'a', authorKind: 'management', joinCount: 0, targetName: 'דוגמה',
-  });
-  const week = { friday: FRIDAY, thursday: '2026-11-05' };
-  const got = weekCelebrations([
-    msg('2026-10-24', 'celebration', 1, 'לפני השבוע'), msg('2026-10-25', 'celebration', 2, 'ראשון'), msg('2026-10-28', 'weekly', 3), msg('2026-10-29', 'celebration', 4, 'חמישי'), msg('2026-11-06', 'celebration', 5, 'אחרי'),
-  ], week);
-  assert.deepEqual(got.map(c => c.title), ['ראשון', 'חמישי']);
+test('mazal tov: no items prints none; mazal tov then condolences, events apart', () => {
+  assert.equal(build({ items: [] }).mazalTov.length, 0);
+  assert.doesNotMatch(sheetBodyHtml(build({ items: [] })), /class="mt"/);
+  const m = build({ items: [li('e1', 'events', 'ערב לימוד', 'ערב לימוד'), li('k1', 'condolence', 'משפחת ניסיון', 'ניסיון'), li('m1', 'mazal', 'מזל טוב למשפחת דוגמה', 'דוגמה')] });
+  assert.deepEqual(m.mazalTov.map(i => i.id), ['m1', 'k1']);
+  assert.deepEqual(m.events.map(i => i.id), ['e1']);
+  assert.deepEqual(build({ variant: 'square', items: [li('e1', 'events', 'ערב לימוד', 'ערב לימוד'), ...mazal] }).events, []);
 });
 
-test('mazal tov: the family name is bold; square drops the body', () => {
+test('mazal tov: the family name is bold; the sub and blessing stay on the line', () => {
   assert.deepEqual(mazalParts('מזל טוב למשה בדיוני היקר', 'בדיוני'), [{ text: 'מזל טוב למשה ', bold: false }, { text: 'בדיוני', bold: true }, { text: ' היקר', bold: false }]);
   assert.deepEqual(mazalParts('מזל טוב', 'אחר'), [{ text: 'מזל טוב', bold: false }]);
-  assert.equal(build({ variant: 'square' }).mazalTov[0]!.body, '');
-  assert.ok(build().mazalTov[0]!.body.length > 0);
+  assert.ok(build().mazalTov[0]!.sub.length > 0);
+  assert.ok(build().mazalTov[0]!.blessing.length > 0);
+});
+
+test('events head the start cell without a picture; mazal spans both columns without events or picture', () => {
+  const ev = li('e1', 'events', 'ערב לימוד', 'ערב לימוד');
+  const pic = { imageUri: 'data:image/png;base64,AAAA' };
+  assert.deepEqual(placement(build(), BASE_FIT('a4')), { note: false, events: false, mazalSpansBoth: true });
+  assert.deepEqual(placement(build({ items: [...mazal, ev] }), BASE_FIT('a4')), { note: false, events: true, mazalSpansBoth: false });
+  assert.deepEqual(placement(build({ pinned: pic }), BASE_FIT('a4')), { note: true, events: false, mazalSpansBoth: false });
+  assert.deepEqual(placement(build({ items: [...mazal, ev], pinned: pic }), BASE_FIT('a4')), { note: true, events: true, mazalSpansBoth: false });
+  assert.equal(placement(build({ items: [...mazal, ev], pinned: pic }), { ...BASE_FIT('a4'), dropImage: true }).note, false);
+  assert.equal(build({ items: [...mazal, ev] }).events.length, 1);
+});
+
+test('square band lists four families and the rest', () => {
+  const five = ['א', 'ב', 'ג', 'ד', 'ה'].map((n, i) => li(`s${i}`, 'mazal', `מזל טוב למשפחת ${n}דוגמה`, `${n}דוגמה`));
+  assert.equal(squareBand(five.slice(0, 2)), 'מזל טוב: משפחת אדוגמה · משפחת בדוגמה');
+  assert.equal(squareBand(five), 'מזל טוב: משפחת אדוגמה · משפחת בדוגמה · משפחת גדוגמה · משפחת דדוגמה · … ועוד 1');
+  assert.equal(squareBand([]), '');
+  assert.match(sheetBodyHtml(build({ variant: 'square', items: five })), /class="mtband"/);
+});
+
+test('a cancelled event keeps its line and is flagged', () => {
+  const cancelled = li('e1', 'events', 'ערב לימוד · ג׳ 20:30', 'ערב לימוד', { cancelled: true });
+  const m = build({ items: [...mazal, cancelled] });
+  assert.equal(m.events.length, 1);
+  assert.equal(m.events[0]!.cancelled, true);
+  assert.equal(m.events[0]!.main.map(p => p.text).join(''), 'ערב לימוד · ג׳ 20:30');
+  assert.deepEqual(fitSheet(m).out, []);
 });
 
 test('model: square has no pinned notice and a short candle label', () => {
@@ -145,8 +166,8 @@ test('fit: steps run in the stated order; the first that fits wins', () => {
 });
 
 test('fit: mazal tov goes to 12 first, then the picture shrinks (never below 30%)', () => {
-  const long: Celebration[] = Array.from({ length: 5 }, (_, i) => ({ id: `c${i}`, title: `מזל טוב למשפחת בדיוני מספר ${i} להולדת הנכד`, body: 'שתזכו לגדלו לתורה, לחופה ולמעשים טובים ולהרבה נחת', family: 'בדיוני' }));
-  const m = build({ celebrations: long, pinned: { imageUri: 'data:image/png;base64,AAAA' } });
+  const long = Array.from({ length: 5 }, (_, i) => li(`c${i}`, 'mazal', `מזל טוב למשפחת בדיוני מספר ${i} להולדת הנכד`, 'בדיוני', { sub: 'שתזכו לגדלו לתורה, לחופה ולמעשים טובים ולהרבה נחת' }));
+  const m = build({ items: long, pinned: { imageUri: 'data:image/png;base64,AAAA' } });
   const f = fitSheet(m);
   assert.ok(f.mazalFont === 12 || f.imageScale < 1 || f.rowFont < 14.5 || f.dropImage || f.droppedMazal > 0);
   assert.ok(f.imageScale >= 0.3);
@@ -159,6 +180,7 @@ test('fit: absurdly long labels and rows set overflow instead of a second page, 
   assert.equal(f.overflow, true);
   assert.equal(f.dropImage, true);
   assert.equal(f.droppedMazal, m.mazalTov.length);
+  assert.equal(f.more, f.out.length);
   assert.equal(f.rowFont, 12.5);
   assert.deepEqual(f.dropped.map(d => d.kind), ['image', ...m.mazalTov.map(() => 'mazal')]);
   assert.ok(f.scale >= 0.75);
@@ -193,7 +215,7 @@ test('html: labels, notes, mazal tov, kehila name, title and logo are escaped', 
   d.sections[0]!.title = { he: evil };
   const m = sheetModel({
     doc: d, week: computeWeek(d, FRIDAY, zf), kehilaName: evil, logoUri: 'javascript:alert(1)',
-    celebrations: [{ id: 'c', title: `מזל טוב ${evil}`, body: evil, family: evil }], pinned: { title: evil, line: evil, imageUri: '"><script>alert(1)</script>' }, variant: 'a4',
+    items: [li('c', 'mazal', `מזל טוב ${evil}`, evil, { sub: evil, blessing: evil }), li('ev', 'events', evil, evil)], pinned: { title: evil, line: evil, imageUri: '"><script>alert(1)</script>' }, variant: 'a4',
   });
   for (const html of [sheetHtml(m), sheetBodyHtml(m)]) {
     assert.doesNotMatch(html, /<img src=x/);
@@ -201,7 +223,7 @@ test('html: labels, notes, mazal tov, kehila name, title and logo are escaped', 
     assert.doesNotMatch(html, /javascript:/);
     assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;&quot;&amp;&#39;/);
   }
-  const sq = sheetHtml(sheetModel({ ...{ doc: d, week: computeWeek(d, FRIDAY, zf), kehilaName: evil, logoUri: null, celebrations: [{ id: 'c', title: evil }].map(c => ({ ...c, body: '' })), variant: 'square' as const } }));
+  const sq = sheetHtml(sheetModel({ ...{ doc: d, week: computeWeek(d, FRIDAY, zf), kehilaName: evil, logoUri: null, items: [li('c', 'mazal', evil, evil)], variant: 'square' as const } }));
   assert.doesNotMatch(sq, /<img src=x/);
 });
 
@@ -218,7 +240,7 @@ test('html: A4 page size, the footnote only with changes, the initial tile witho
   assert.match(html, /@page\{size:595px 842px;margin:0\}/);
   assert.match(html, /class="logo ph">א</);
   assert.match(html, /שבת פרשת <b>וירא<\/b>/);
-  const withLogo = sheetModel({ doc, week: computeWeek(doc, FRIDAY, zf), kehilaName: 'קהילה', logoUri: 'data:image/png;base64,AAAA', celebrations: [], variant: 'a4' });
+  const withLogo = sheetModel({ doc, week: computeWeek(doc, FRIDAY, zf), kehilaName: 'קהילה', logoUri: 'data:image/png;base64,AAAA', items: [], variant: 'a4' });
   assert.match(sheetHtml(withLogo), /<img src="data:image\/png;base64,AAAA"/);
   assert.match(sheetHtml(build({ variant: 'square' })), /size:540px 540px/);
 });
@@ -236,4 +258,57 @@ test('fit: too long for the steps shrinks everything uniformly instead of clippi
   assert.ok(Math.abs(box.h * f.scale - (L.h - L.padTop - L.padBottom)) < 1e-6);
   assert.match(sheetBodyHtml(m), /transform:scale\(/);
   assert.doesNotMatch(sheetBodyHtml(build()), /transform:scale/);
+});
+
+// ---- items beyond the max, blessings ---------------------------------------------------------------------------------
+
+test('blessings are dropped before anything else', () => {
+  const blessing = 'שתזכו לגדלו לתורה ולחופה';
+  const six = Array.from({ length: 6 }, (_, i) => li(`b${i}`, 'mazal', `מזל טוב למשפחת בדיוני ${i}`, 'בדיוני', { blessing }));
+  // Add rows until the base size no longer fits with the blessings but fits without them.
+  let found = false;
+  for (let n = 0; n <= 20 && !found; n++) {
+    const extra = Array.from({ length: n }, (_, i) => fixed(`e${i}`, `שורה נוספת מספר ${i + 1}`, `${(10 + i) % 24}:15`));
+    const m = build({ doc: withRows(extra), items: six });
+    const withB = neededHeight(m, BASE_FIT('a4'));
+    const without = neededHeight(m, { ...BASE_FIT('a4'), dropBlessings: true });
+    if (withB > 842 && without <= 842) {
+      found = true;
+      const f = fitSheet(m);
+      assert.equal(f.dropBlessings, true);
+      assert.equal(f.rowFont, 14.5);
+      assert.equal(f.mazalFont, 13);
+      assert.equal(f.imageScale, 1);
+      assert.equal(f.droppedMazal, 0);
+      assert.deepEqual(f.out, []);
+      assert.equal(f.more, 0);
+    }
+  }
+  assert.ok(found, 'a size exists where only the blessings need to go');
+  assert.equal(fitSheet(build({ items: six.slice(0, 1) })).dropBlessings, false);
+});
+
+test('over the max is out and counted', () => {
+  const eight = Array.from({ length: 8 }, (_, i) => li(`m${i}`, 'mazal', `מזל טוב למשפחת בדיוני ${i}`, 'בדיוני'));
+  const four = Array.from({ length: 4 }, (_, i) => li(`v${i}`, 'events', `אירוע מספר ${i}`, `אירוע מספר ${i}`));
+  assert.equal(MAX_MAZAL, 6);
+  assert.equal(MAX_EVENTS, 3);
+  const f = fitSheet(build({ items: [...eight, ...four] }));
+  assert.deepEqual(f.out, ['m6', 'm7', 'v3']);
+  assert.equal(f.more, 3);
+  assert.equal(f.droppedMazal, 0);
+  assert.equal(f.droppedEvents, 0);
+  assert.deepEqual(f.dropped, []);
+  assert.equal(fitSheet(build({ items: [...eight.slice(0, 6), ...four.slice(0, 3)] })).more, 0);
+});
+
+test('mazal tov is dropped before events, and both are listed', () => {
+  const six = Array.from({ length: 6 }, (_, i) => li(`m${i}`, 'mazal', `מזל טוב למשפחת בדיוני ${i}`, 'בדיוני'));
+  const three = Array.from({ length: 3 }, (_, i) => li(`v${i}`, 'events', `אירוע מספר ${i} עם שם ארוך מאוד שממלא שורה שלמה בגיליון`, `אירוע מספר ${i}`));
+  const rows = Array.from({ length: 40 }, (_, i) => fixed(`x${i}`, 'שיעור מיוחד בנושא ארוך מאוד של הלכות שבת ומועד לכל הקהל', `${String(6 + (i % 17)).padStart(2, '0')}:00`));
+  const f = fitSheet(build({ doc: withRows(rows), items: [...six, ...three] }));
+  assert.equal(f.droppedMazal, 6);
+  assert.equal(f.droppedEvents > 0 || f.scale < 1, true);
+  assert.deepEqual(f.out.slice(0, 6), ['m0', 'm1', 'm2', 'm3', 'm4', 'm5']);
+  assert.equal(f.more, f.out.length);
 });

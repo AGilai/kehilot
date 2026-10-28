@@ -1,7 +1,7 @@
 // The sheet as a standalone HTML document for the phone's PDF (expo-print). Same model, fit and layout numbers as Sheet.tsx, so the
 // two look alike. Every piece of text goes through `esc`; images only as data: or https: URLs.
-import { PAPER, SHEET_TEXT, fitSheet, innerBox, sheetLayout } from './sheetModel.ts';
-import type { MazalTovItem, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
+import { PAPER, SHEET_TEXT, fitSheet, innerBox, sheetLayout, shownItems } from './sheetModel.ts';
+import type { SheetLineItem, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
 
 export function esc(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -35,7 +35,7 @@ function columnHtml(column: SheetColumn | null): string {
   return `<div><h2>${esc(column.title)}</h2>${band}${column.rows.map(rowHtml).join('')}</div>`;
 }
 
-const mazalTitle = (item: MazalTovItem) => item.title.map(p => (p.bold ? `<b>${esc(p.text)}</b>` : esc(p.text))).join('');
+const mazalTitle = (item: SheetLineItem) => item.main.map(p => (p.bold ? `<b>${esc(p.text)}</b>` : esc(p.text))).join('');
 const ornament = '<div class="orn"><i></i><i></i><i></i></div>';
 
 function logoHtml(model: SheetModel): string {
@@ -48,7 +48,7 @@ export function sheetBodyHtml(model: SheetModel, fit: SheetFit = fitSheet(model)
   const L = sheetLayout(model.variant, fit);
   const inner = innerBox(model.variant, fit);
   const a = model.variant === 'a4';
-  const footTop = a ? '8px' : model.mazalTov.length - fit.droppedMazal > 0 ? '6px' : 'auto';
+  const footTop = a ? '8px' : shownItems(model, fit).mazal.length > 0 ? '6px' : 'auto';
   const css = `
 .sht{--tek:${PAPER.tek};--ink:${PAPER.ink};--soft:${PAPER.soft};--line:${PAPER.line};--pom:${PAPER.pom};--mute:${PAPER.mute};--paper:${PAPER.paper};
  width:${L.w}px;height:${L.h}px;background:var(--paper);color:var(--ink);font-family:${FONT_UI};position:relative;
@@ -102,7 +102,7 @@ h2{margin:0 0 4px;font-family:${FONT_SERIF};font-size:${L.h2Size}px;font-weight:
 .ft{display:flex;justify-content:space-between;font-size:${L.footFont}px;color:var(--mute);padding-top:${a ? 6 : 4}px;border-top:1px solid var(--line);margin-top:${footTop};flex:none}
 .ft .ovk{color:var(--tek)}`;
 
-  const items = model.mazalTov.slice(0, model.mazalTov.length - fit.droppedMazal);
+  const items = shownItems(model, fit).mazal;
   const pinned = model.pinned;
   const image = pinned && !fit.dropImage ? safeImage(pinned.imageUri) : '';
   let bottom = '';
@@ -110,7 +110,7 @@ h2{margin:0 0 4px;font-family:${FONT_SERIF};font-size:${L.h2Size}px;font-weight:
     const noteBox = pinned && (image || pinned.title || pinned.line)
       ? `<div class="note">${image ? `<div class="img" style="width:${fit.imageScale * 100}%;margin:0 auto"><img src="${image}" alt=""></div>` : ''}${pinned.title || pinned.line ? `<div class="cap">${pinned.title ? `<b>${esc(pinned.title)}</b>` : ''}${pinned.line ? esc(pinned.line) : ''}</div>` : ''}</div>`
       : '';
-    const mazalBox = items.map(i => `<div class="mt">${mazalTitle(i)}${i.body ? `<br>${esc(i.body)}` : ''}</div>`).join('');
+    const mazalBox = items.map(i => `<div class="mt">${mazalTitle(i)}${i.sub ? `<br>${esc(i.sub)}` : ''}</div>`).join('');
     if (noteBox && items.length) bottom = `<div class="bottom"><div>${ornament}${noteBox}</div><div></div><div>${ornament}${mazalBox}</div></div>`;
     else if (noteBox) bottom = `<div class="bottom"><div>${ornament}${noteBox}</div><div></div><div></div></div>`;
     else if (items.length) bottom = `<div class="bottom"><div class="span">${ornament}${mazalBox}</div></div>`;

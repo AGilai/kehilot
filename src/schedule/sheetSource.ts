@@ -1,16 +1,17 @@
 // Pure helpers around the sheet: building it from the session's data, and the print page's URL.
-import type { Message } from '../client/types.ts';
-import { sheetModel, weekCelebrations } from './sheetModel.ts';
+import { inItems, lineOf } from '../client/sheetItems.ts';
+import type { SheetItem } from '../client/types.ts';
+import { sheetModel } from './sheetModel.ts';
 import type { Pinned, SheetModel, SheetVariant } from './sheetModel.ts';
 import type { ComputedWeek, ScheduleDoc } from './types.ts';
 
-export type SheetSource = { kehilaName: string; logoUri: string | null; messages: Message[]; pinned?: Pinned | null };
+export type SheetSource = { kehilaName: string; logoUri: string | null; items: SheetItem[]; pinned?: Pinned | null };
 
-/** The sheet of a computed week. The mazal tov are the `celebration` messages in `source.messages`: a guest whose type rules hide them has none. */
+/** The sheet of a computed week. The lines are the week's sheet items in state `in` (the server list: a guest whose rules hide mazal tov gets none). */
 export function buildSheet(doc: ScheduleDoc, computed: ComputedWeek, source: SheetSource, variant: SheetVariant = 'a4'): SheetModel {
   return sheetModel({
     doc, week: computed, kehilaName: source.kehilaName, logoUri: source.logoUri, variant, pinned: source.pinned ?? null,
-    celebrations: weekCelebrations(source.messages, computed.week),
+    items: inItems({ week: computed.week.friday, items: source.items }).map(i => ({ id: i.itemId, group: i.group, ...lineOf(i) })),
   });
 }
 

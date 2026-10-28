@@ -7,7 +7,7 @@ import type {
   DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, RoleTag, TagRow, GroupMembership,
   GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
   MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
-  RequestRow, TargetFamily, UploadGrant,
+  RequestRow, SheetItem, SheetPage, TargetFamily, UploadGrant,
 } from './types.ts';
 import type { TreeDoc } from './tree.ts';
 import type { Person } from '../tree/types.ts';
@@ -54,6 +54,15 @@ export function endpoints(http: Http) {
     requestReportUpload: (o: { contentType: 'image/jpeg' | 'image/png'; bytes: number }) => r<UploadGrant>('POST', '/v1/reports/upload', o),
     postReport: (o: { text: string; context: ReportContext; imageUploadId?: string }) => r<{ reportId: string }>('POST', '/v1/reports', o),
     postAnonymousReport: (o: { text: string; context: ReportContext }) => r<{ reportId: string }>('POST', '/v1/reports/anonymous', o, { auth: false }),
+
+    // weekly sheet items (every role reads; management edits)
+    sheetItems: (k: string, week: string) => r<SheetPage>('GET', `${K(k)}/sheet/${week}`),
+    addSheetItem: (k: string, week: string, body: { type: 'celebration' | 'event' | 'notice'; text: string; bold?: string; source?: 'free' | 'byGabbai' }) =>
+      r<SheetItem>('POST', `${A(k)}/sheet/${week}/items`, body),
+    setSheetItem: (k: string, week: string, itemId: string, body: { state?: SheetItem['state']; line?: { text: string; bold: string } | null }) =>
+      r<SheetItem>('PUT', `${A(k)}/sheet/${week}/items/${e(itemId)}`, body),
+    moveSheetItem: (k: string, week: string, itemId: string, direction: 'up' | 'down') =>
+      r<SheetPage>('POST', `${A(k)}/sheet/${week}/items/${e(itemId)}/move`, { direction }),
 
     // kehila, invites, joining
     kehila: (k: string) => r<Kehila>('GET', K(k)),

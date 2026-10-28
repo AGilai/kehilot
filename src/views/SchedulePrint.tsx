@@ -3,6 +3,7 @@ import { View, useWindowDimensions } from 'react-native';
 import { fixtureNow, FIXTURE_PICTURE } from '../client/fixtures.ts';
 import { config } from '../config.ts';
 import { useSchedule } from '../client/useSchedule.ts';
+import { useSheetItems } from '../client/useSheetItems.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Txt, useTokens } from '../kit/components.tsx';
@@ -31,7 +32,7 @@ export function useLogoUri(): { uri: string | null; ready: boolean } {
 
 /**
  * The print page (web, opened in a new tab by Print on P22): only the sheet, exactly P23's A4, and the browser's print dialog.
- * Everyone who can see the schedule can open it; the mazal tov come from the person's own feed, so a guest whose type rules hide
+ * Everyone who can see the schedule can open it; the lines come from the server sheet list, so a guest whose rules hide
  * celebrations prints none.
  */
 export function SchedulePrintPage({ request }: { request: PrintRequest }) {
@@ -45,17 +46,17 @@ export function SchedulePrintPage({ request }: { request: PrintRequest }) {
   const now = React.useMemo(() => fixtureNow() ?? new Date(), []);
   const doc = state.status === 'ready' ? state.doc : null;
   const zmanimFor = React.useMemo(() => zmanimForLocation(doc?.location), [doc]);
+  // The week's lines come from the server list (the print page reads it as any other role does: a guest whose rules hide mazal tov gets none).
+  const computed = React.useMemo(() => (doc && hasTimedRows(doc) ? fullModel(doc, israelNow(now), zmanimFor, request.weekIndex).computed : null), [doc, now, zmanimFor, request.weekIndex]);
+  const sheet = useSheetItems(computed?.week.friday ?? null);
   const model = React.useMemo(() => {
-    if (!doc || !hasTimedRows(doc) || !session.kehila) return null;
-    // Limit: the mazal tov come from the feed the client holds (the newest page the API returned); the messages API has no type or date filter,
-    // so a celebration older than that page is missing from the sheet. A server-side filter would fix it.
-    const computed = fullModel(doc, israelNow(now), zmanimFor, request.weekIndex).computed;
+    if (!doc || !computed || !session.kehila) return null;
     // Fixtures only: ?logo=1 gives the sheet a logo, ?pin=1 gives the sheet a pinned notice (the editor that sets it is a later task).
     const pinned = config.fixtures && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pin') === '1'
       ? { title: 'ערב לימוד לנשים', line: 'יום שלישי · 20:30', imageUri: FIXTURE_PICTURE } : null;
-    return buildSheet(doc, computed, { kehilaName: session.kehila.name, logoUri: config.fixtures && new URLSearchParams(window.location.search).get('logo') === '1' ? FIXTURE_PICTURE : logo.uri, messages: Object.values(session.feed.messages), pinned }, request.variant);
-  }, [doc, now, zmanimFor, request, session.kehila, session.feed.messages, logo.uri]);
-  const ready = !!model && fonts && logo.ready && session.feed.loaded;
+    return buildSheet(doc, computed, { kehilaName: session.kehila.name, logoUri: config.fixtures && new URLSearchParams(window.location.search).get('logo') === '1' ? FIXTURE_PICTURE : logo.uri, items: sheet.page?.items ?? [], pinned }, request.variant);
+  }, [doc, computed, request.variant, session.kehila, sheet.page, logo.uri]);
+  const ready = !!model && fonts && logo.ready && sheet.status !== 'loading';
 
   // Open the print dialog once, when the sheet is complete (fonts, logo and the week's messages are in).
   const printed = React.useRef(false);

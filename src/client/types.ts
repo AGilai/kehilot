@@ -260,3 +260,23 @@ export type UploadGrant = {
   headers: Record<string, string>;
   expiresAt: number;
 };
+
+// Weekly sheet items (server `GET /sheet/{week}`): one list that the print, the PDF, Home and the management screen read.
+export type SheetGroup = 'mazal' | 'condolence' | 'events';
+export type SheetItem = {
+  itemId: string;
+  week: string;
+  group: SheetGroup;
+  kind: 'message' | 'free';
+  type: 'celebration' | 'condolence' | 'event' | 'notice';
+  state: 'in' | 'pending' | 'removed';
+  source: 'auto' | 'approved' | 'byGabbai' | 'free' | 'member';
+  postedAt: number;
+  /** A gabbai's override (message items) or the text of a free item: the first line is the main line, the second the sub. */
+  line?: { text: string; bold: string };
+  message?: Message;
+  wasPending?: boolean;
+  postedBy?: string;
+  approvedBy?: string;
+};
+export type SheetPage = { week: string; items: SheetItem[] };

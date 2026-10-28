@@ -6,8 +6,8 @@ import { useFonts } from 'expo-font';
 import { Heebo_400Regular, Heebo_700Bold, Heebo_800ExtraBold } from '@expo-google-fonts/heebo';
 import { NotoSerifHebrew_500Medium, NotoSerifHebrew_700Bold, NotoSerifHebrew_800ExtraBold } from '@expo-google-fonts/noto-serif-hebrew';
 import { allowedImage } from './sheetHtml.ts';
-import { PAPER, SHEET_TEXT, fitSheet, innerBox, sheetLayout } from './sheetModel.ts';
-import type { MazalTovItem, SheetBand, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
+import { PAPER, SHEET_TEXT, fitSheet, innerBox, sheetLayout, shownItems } from './sheetModel.ts';
+import type { SheetLineItem, SheetBand, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
 
 const F = { ui: 'Heebo_400Regular', bold: 'Heebo_700Bold', heavy: 'Heebo_800ExtraBold', serif: 'NotoSerifHebrew_500Medium', serifBold: 'NotoSerifHebrew_700Bold', serifHeavy: 'NotoSerifHebrew_800ExtraBold' } as const;
 
@@ -32,7 +32,7 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
   const L = sheetLayout(model.variant, f);
   const inner = innerBox(model.variant, f);
   const a = model.variant === 'a4';
-  const items = model.mazalTov.slice(0, model.mazalTov.length - f.droppedMazal);
+  const items = shownItems(model, f).mazal;
   const pinned = model.pinned;
   const image = pinned && !f.dropImage ? allowedImage(pinned.imageUri) : '';
   const hasNote = !!pinned && (!!image || !!pinned.title || !!pinned.line);
@@ -99,11 +99,11 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
     </View>
   );
 
-  const mazal = (list: MazalTovItem[]) => list.map((item, i) => (
+  const mazal = (list: SheetLineItem[]) => list.map((item, i) => (
     <View key={item.id} style={i > 0 ? { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: PAPER.line, borderStyle: 'dotted' } : undefined}>
       <Text style={t(L.mazalFont, F.ui, PAPER.ink, { textAlign: 'center', lineHeight: Math.round(L.mazalFont * 1.45 * 100) / 100, paddingVertical: 2, paddingHorizontal: 4 })}>
-        {item.title.map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.pom } : undefined}>{p.text}</Text>)}
-        {item.body ? `\n${item.body}` : ''}
+        {item.main.map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.pom } : undefined}>{p.text}</Text>)}
+        {item.sub ? `\n${item.sub}` : ''}
       </Text>
     </View>
   ));
@@ -135,7 +135,7 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
     bottom = (
       <View style={{ marginTop: 'auto', borderTopWidth: 2, borderTopColor: PAPER.tek, paddingTop: 6 }}>
         <Text style={t(L.mazalFont, F.ui, PAPER.ink, { textAlign: 'center', lineHeight: Math.round(L.mazalFont * 1.45 * 100) / 100 })}>
-          {items.map((item, i) => <Text key={item.id}>{i > 0 ? ' · ' : ''}{item.title.map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.pom } : undefined}>{p.text}</Text>)}</Text>)}
+          {items.map((item, i) => <Text key={item.id}>{i > 0 ? ' · ' : ''}{item.main.map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.pom } : undefined}>{p.text}</Text>)}</Text>)}
         </Text>
       </View>
     );
