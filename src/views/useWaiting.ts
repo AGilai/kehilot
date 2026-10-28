@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Api } from '../auth/AuthProvider.tsx';
+import { sheetPendingOf } from '../client/sheetItems.ts';
 import { waitingAny } from '../client/adminAreas.ts';
 import { createWaitingStore } from '../client/waitingStore.ts';
 import type { WaitingCounts } from '../client/waitingStore.ts';
@@ -23,12 +24,8 @@ async function load(api: Api, kehilaId: string, seats: boolean): Promise<Waiting
   if (req.status === 'rejected' && hints.status === 'rejected' && groups.status === 'rejected' && sheet0.status === 'rejected' && sheet1.status === 'rejected') throw new Error('waiting');
   const prev = waitingStore.get();
   // A failed week keeps the previous numbers for both (a half answer would show a wrong total).
-  let sheetPending = prev.sheetPending, sheetPendingWeek = prev.sheetPendingWeek;
-  if (sheet0.status === 'fulfilled' && sheet1.status === 'fulfilled') {
-    const n = [sheet0.value, sheet1.value].map(p => p.items.filter(i => i.state === 'pending').length);
-    sheetPending = n[0]! + n[1]!;
-    sheetPendingWeek = n[0]! > 0 ? weeks[0]! : n[1]! > 0 ? weeks[1]! : null;
-  }
+  const sheet = sheetPendingOf(weeks, [sheet0, sheet1].map(r => (r.status === 'fulfilled' ? r.value : null)), { n: prev.sheetPending, week: prev.sheetPendingWeek });
+  const sheetPending = sheet.n, sheetPendingWeek = sheet.week;
   return {
     sheetPending, sheetPendingWeek,
     requests: req.status === 'fulfilled' ? req.value.length : prev.requests,

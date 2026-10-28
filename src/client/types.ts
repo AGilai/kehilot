@@ -278,5 +278,7 @@ export type SheetItem = {
   wasPending?: boolean;
   postedBy?: string;
   approvedBy?: string;
+  /** The role of whoever added a `byGabbai` item (management: gabbai or tech). */
+  byRole?: 'gabbai' | 'tech';
 };
 export type SheetPage = { week: string; items: SheetItem[] };

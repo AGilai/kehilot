@@ -8,7 +8,7 @@ import { config } from '../../config.ts';
 import { ApiCodeError } from '../../client/errors.ts';
 import { fixtureNow, fixtureParams } from '../../client/fixtures.ts';
 import { isManagement } from '../../client/roles.ts';
-import { groupsForScreen, lineOf, meters } from '../../client/sheetItems.ts';
+import { groupsForScreen, lineOf, meters, patchItem } from '../../client/sheetItems.ts';
 import type { Row } from '../../client/sheetItems.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { SheetGroup, SheetItem, SheetPage } from '../../client/types.ts';
@@ -22,7 +22,7 @@ import { PadScroll } from '../../kit/PadScroll.tsx';
 import { Sheet as PaperSheet, useSheetFonts } from '../../schedule/Sheet.tsx';
 import { openPrintPage, sharePdf } from '../../schedule/printSheet.ts';
 import { parashaOf } from '../../schedule/parasha.ts';
-import { fitSheet, rangeParts } from '../../schedule/sheetModel.ts';
+import { BASE_FIT, fitSheet, rangeParts } from '../../schedule/sheetModel.ts';
 import { buildSheet } from '../../schedule/sheetSource.ts';
 import type { ScheduleDoc } from '../../schedule/types.ts';
 import { computeWeek, israelNow } from '../../schedule/week.ts';
@@ -86,7 +86,7 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
     return buildSheet(doc, computed, { kehilaName: kehila?.name ?? '', logoUri: logo.uri, items: page.items });
   }, [doc, page, friday, kehila?.name, logo.uri]);
   const fit = React.useMemo(() => (model ? fitSheet(model) : null), [model]);
-  const groups = React.useMemo(() => (page && fit ? groupsForScreen(page, fit) : page ? groupsForScreen(page, { out: [] } as never) : null), [page, fit]);
+  const groups = React.useMemo(() => (page && fit ? groupsForScreen(page, fit) : page ? groupsForScreen(page, BASE_FIT('a4')) : null), [page, fit]);
 
   const [open, setOpen] = React.useState<{ itemId: string } | null>(null);
   const [freeOpen, setFreeOpen] = React.useState(() => fixtureOpen() === 'free');
@@ -94,7 +94,11 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
   const [members, setMembers] = React.useState<'approve' | 'auto'>(kehila?.sheetMembers ?? 'approve');
   const [busy, setBusy] = React.useState(false);
   const [announce, setAnnounce] = React.useState('');
-  const [banner, setBanner] = React.useState<string | null>(null);
+  const [sheetError, setSheetError] = React.useState<string | null>(null);
+  const [ruleError, setRuleError] = React.useState<string | null>(null);
+  const itemsRef = React.useRef<SheetItem[]>([]);
+  const busyIds = React.useRef(new Set<string>());
+  const [busyIds_, setBusyIds] = React.useState<Set<string>>(new Set());
   const [expanded, setExpanded] = React.useState<Set<SheetGroup>>(new Set());
   const fixtureSheetDone = React.useRef(false);
   React.useEffect(() => {
@@ -108,68 +112,84 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
 
   if (!isManagement(kehila?.role) || !kehilaId) return null;
 
-  // ---- writes: optimistic, then what the server answered; a failure puts the page back ----
+  // ---- writes: optimistic on the latest list (never a copy from an older render), then what the server answered; a failure puts back only that item ----
   const items = page?.items ?? [];
-  const replace = (next: SheetItem[]) => sheetState.setPage({ week: friday, items: next } as SheetPage);
-  async function change(item: SheetItem, body: { state?: SheetItem['state']; line?: { text: string; bold: string } | null }): Promise<SheetItem | null> {
-    const before = items;
-    replace(items.map(i => (i.itemId === item.itemId ? { ...i, ...(body.state ? { state: body.state } : {}), ...(body.line ? { line: body.line } : {}) } : i)));
-    try {
-      const saved = await api.setSheetItem(kehilaId!, friday, item.itemId, body);
-      sheetState.setPage({ week: friday, items: before.map(i => (i.itemId === item.itemId ? saved : i)) });
-      waiting.refresh();
-      return saved;
-    } catch (e) {
-      replace(before);
-      if (e instanceof ApiCodeError && e.status === 404) void sheetState.reload();
-      setBanner(errText(e));
-      return null;
-    }
+  itemsRef.current = items;
+  const apply = (fn: (list: SheetItem[]) => SheetItem[]) => { itemsRef.current = fn(itemsRef.current); sheetState.setPage({ week: friday, items: itemsRef.current } as SheetPage); };
+  /** One write per item at a time: a second tap while it runs is ignored. */
+  async function guarded<T>(itemId: string, run: () => Promise<T>): Promise<T | null> {
+    if (busyIds.current.has(itemId)) return null;
+    busyIds.current.add(itemId); setBusyIds(new Set(busyIds.current));
+    try { return await run(); } finally { busyIds.current.delete(itemId); setBusyIds(new Set(busyIds.current)); }
+  }
+  /** Where an error is seen: inside the open sheet, else as a toast. */
+  const fail = (e: unknown, inSheet: boolean) => { if (inSheet) setSheetError(errText(e)); else onToast(errText(e)); };
+  async function change(item: SheetItem, body: { state?: SheetItem['state']; line?: { text: string; bold: string } | null }, inSheet = false): Promise<SheetItem | null> {
+    const current = itemsRef.current.find(i => i.itemId === item.itemId);
+    if (!current) return null;
+    const result = await guarded(item.itemId, async () => {
+      apply(list => patchItem(list, item.itemId, { ...(body.state ? { state: body.state } : {}), ...(body.line ? { line: body.line } : {}) }));
+      try {
+        const saved = await api.setSheetItem(kehilaId!, friday, item.itemId, body);
+        apply(list => patchItem(list, item.itemId, saved));
+        waiting.refresh();
+        return saved;
+      } catch (e) {
+        apply(list => patchItem(list, item.itemId, { state: current.state, ...(current.line ? { line: current.line } : {}) }));
+        if (e instanceof ApiCodeError && e.status === 404) void sheetState.reload();
+        fail(e, inSheet);
+        return null;
+      }
+    });
+    return result;
   }
   const undoTo = (item: SheetItem, state: SheetItem['state']) => () => { void change(item, { state }); };
   async function decide(item: SheetItem, add: boolean) {
-    setBanner(null);
     const saved = await change(item, { state: add ? 'in' : 'removed' });
     if (saved) onToast(t(add ? 'sheetItems.added' : 'sheetItems.skipped'), { title: t('sheetItems.undo'), onPress: undoTo(saved, 'pending') });
   }
   async function remove(item: SheetItem) {
-    setOpen(null); setBanner(null);
-    const saved = await change(item, { state: 'removed' });
-    if (saved) onToast(t('sheetItems.removedToast'), { title: t('sheetItems.undo'), onPress: undoTo(saved, 'in') });
+    if (busyIds.current.has(item.itemId)) return;
+    const saved = await change(item, { state: 'removed' }, true);
+    if (saved) { setOpen(null); onToast(t('sheetItems.removedToast'), { title: t('sheetItems.undo'), onPress: undoTo(saved, 'in') }); }
   }
   async function move(item: SheetItem, direction: 'up' | 'down') {
-    setBanner(null);
-    try {
-      const next = await api.moveSheetItem(kehilaId!, friday, item.itemId, direction);
-      sheetState.setPage(next);
-      const list = next.items.filter(i => i.group === item.group && i.state === 'in');
-      setAnnounce(t('sheetItems.moved', { i: list.findIndex(i => i.itemId === item.itemId) + 1, n: list.length }));
-    } catch (e) { setBanner(errText(e)); }
+    setSheetError(null);
+    await guarded(item.itemId, async () => {
+      try {
+        const next = await api.moveSheetItem(kehilaId!, friday, item.itemId, direction);
+        itemsRef.current = next.items;
+        sheetState.setPage(next);
+        const list = next.items.filter(i => i.group === item.group && i.state === 'in');
+        setAnnounce(t('sheetItems.moved', { i: list.findIndex(i => i.itemId === item.itemId) + 1, n: list.length }));
+      } catch (e) { fail(e, true); }
+    });
   }
   async function addFree(b: { type: FreeKind; text: string; bold: string }) {
-    setBusy(true); setBanner(null);
+    if (busy) return;
+    setBusy(true); setSheetError(null);
     try {
       await api.addSheetItem(kehilaId!, friday, { ...b, source: 'byGabbai' });
       await sheetState.reload();
       setFreeOpen(false);
       onToast(t('sheetItems.added'));
-    } catch (e) { setBanner(errText(e)); } finally { setBusy(false); }
+    } catch (e) { fail(e, true); } finally { setBusy(false); }
   }
   async function pickRule(v: 'approve' | 'auto') {
     const before = members;
     setMembers(v);
-    try { await api.putSettings(kehilaId!, { sheetMembers: v }); await session.refreshKehila(); } catch (e) { setMembers(before); setBanner(errText(e)); }
+    try { await api.putSettings(kehilaId!, { sheetMembers: v }); await session.refreshKehila(); } catch (e) { setMembers(before); setRuleError(errText(e)); }
   }
   async function saveLine(item: SheetItem, line: { text: string; bold: string }) {
-    setBusy(true);
-    const saved = await change(item, { line });
+    setBusy(true); setSheetError(null);
+    const saved = await change(item, { line }, true);
     setBusy(false);
     if (saved) { setOpen(null); onToast(t('sheetItems.saved')); }
   }
   const preview = async () => {
-    if (Platform.OS === 'web') { if (!openPrintPage(weekIndex)) setBanner(t('schedule.printError')); return; }
+    if (Platform.OS === 'web') { if (!openPrintPage(weekIndex)) onToast(t('schedule.printError')); return; }
     if (!model) return;
-    try { await sharePdf(model); } catch { setBanner(t('schedule.printError')); }
+    try { await sharePdf(model); } catch { onToast(t('schedule.printError')); }
   };
 
   // ---- pieces ----
@@ -197,7 +217,7 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
               {shown ? removed.map(item => (
                 <View key={item.itemId} style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 8, paddingStart: 12, paddingVertical: 6, borderTopWidth: 1, borderTopColor: k.line }}>
                   <View style={{ flex: 1 }}><Txt size="small" color={k.muted} content>{lineSummary(item)}</Txt></View>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`${t('sheetItems.restore')}: ${lineSummary(item)}`} onPress={() => { void change(item, { state: 'in' }); }} style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' }}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${t('sheetItems.restore')}: ${lineSummary(item)}`} onPress={() => { void change(item, { state: 'in' }); }} disabled={busyIds_.has(item.itemId)} style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' }}>
                     <Txt size="small" bold color={k.tekhelet}>{t('sheetItems.restore')}</Txt>
                   </Pressable>
                 </View>
@@ -212,7 +232,6 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
 
   const lists = (
     <View style={{ gap: 16 }}>
-      {banner ? <Banner tone="error" text={banner} /> : null}
       {sheetState.status === 'error' ? <Banner tone="error" text={t('editor.loadError')} action={{ title: t('common.retry'), onPress: () => { void sheetState.reload(); } }} /> : null}
       {sheetState.status === 'loading' && !page ? <Card><Txt color={k.muted}>{t('common.loading')}</Txt></Card> : null}
       {fit && groups ? <FitCard m={meters(model!, fit)} onPreview={() => { void preview(); }} /> : null}
@@ -223,7 +242,7 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
             <CountBadge n={groups.pending.length} />
           </View>
           <View style={{ borderWidth: 1, borderColor: k.line, borderStartWidth: 6, borderStartColor: k.pomegranate, borderRadius: 12, backgroundColor: k.surface, overflow: 'hidden' }}>
-            {groups.pending.map((item, i) => <PendingRow key={item.itemId} item={item} last={i === groups.pending.length - 1} onAdd={() => { void decide(item, true); }} onSkip={() => { void decide(item, false); }} />)}
+            {groups.pending.map((item, i) => <PendingRow key={item.itemId} item={item} disabled={busyIds_.has(item.itemId)} last={i === groups.pending.length - 1} onAdd={() => { void decide(item, true); }} onSkip={() => { void decide(item, false); }} />)}
           </View>
         </View>
       ) : null}
@@ -236,7 +255,7 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
           <Txt size="small" bold color={k.muted}>{meters(model!, fit).image ? t('sheetItems.meterHas') : t('sheetItems.meterNone')}</Txt>
         </View>
       ) : null}
-      <Pressable accessibilityRole="button" onPress={() => setFreeOpen(true)} style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: k.tekhelet, borderRadius: 12 }}>
+      <Pressable accessibilityRole="button" onPress={() => { setSheetError(null); setFreeOpen(true); }} style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: k.tekhelet, borderRadius: 12 }}>
         <Icon name="plus" size={20} color={k.tekhelet} />
         <Txt bold color={k.tekhelet}>{t('sheetItems.addFree')}</Txt>
       </Pressable>
@@ -265,11 +284,11 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
   const live = <View accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}><Txt>{announce}</Txt></View>;
   const sheets = (
     <>
-      <ItemSheet item={opened} index={openedRow?.index ?? 1} count={openedRow?.count ?? 1} busy={busy} onClose={() => setOpen(null)}
+      <ItemSheet error={sheetError} item={opened} index={openedRow?.index ?? 1} count={openedRow?.count ?? 1} busy={busy || (!!opened && busyIds_.has(opened.itemId))} onClose={() => { setOpen(null); setSheetError(null); }}
         onSave={line => { if (opened) void saveLine(opened, line); }} onMove={d => { if (opened) void move(opened, d); }}
         onOpen={() => { if (opened?.message) { setOpen(null); onOpenMessage(opened.message.messageId); } }} onRemove={() => { if (opened) void remove(opened); }} />
-      <FreeItemSheet visible={freeOpen} busy={busy} onClose={() => setFreeOpen(false)} onAdd={b => { void addFree(b); }} />
-      <RulesSheet visible={rulesOpen} value={members} onPick={v => { void pickRule(v); }} onClose={() => setRulesOpen(false)} />
+      <FreeItemSheet visible={freeOpen} busy={busy} error={sheetError} onClose={() => { setFreeOpen(false); setSheetError(null); }} onAdd={b => { void addFree(b); }} />
+      <RulesSheet error={ruleError} visible={rulesOpen} value={members} onPick={v => { void pickRule(v); }} onClose={() => { setRulesOpen(false); setRuleError(null); }} />
     </>
   );
 

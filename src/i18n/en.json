@@ -3071,6 +3071,7 @@
       "auto": "Automatic",
       "approved": "Approved",
       "byGabbai": "Added by a gabbai",
+        "byTech": "Added by tech",
       "free": "Free item",
       "out": "Doesn't fit",
       "postedBy": "Posted by {name}"

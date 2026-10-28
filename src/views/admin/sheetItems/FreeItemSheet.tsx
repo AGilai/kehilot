@@ -4,7 +4,7 @@ import React from 'react';
 import { View } from 'react-native';
 import type { SheetLine } from '../../../client/templates.ts';
 import { useI18n } from '../../../i18n/I18nProvider.tsx';
-import { Button, Field, Segmented, Sheet, Txt, useTokens } from '../../../kit/components.tsx';
+import { Banner, Button, Field, Segmented, Sheet, Txt, useTokens } from '../../../kit/components.tsx';
 import { PAPER, mazalParts } from '../../../schedule/sheetModel.ts';
 
 export type FreeKind = 'celebration' | 'event' | 'notice';
@@ -25,7 +25,7 @@ export function PaperLine({ line, label }: { line: Pick<SheetLine, 'main' | 'sub
   );
 }
 
-export function FreeItemSheet({ visible, onClose, onAdd, busy }: { visible: boolean; onClose: () => void; onAdd: (body: { type: FreeKind; text: string; bold: string }) => void; busy?: boolean }) {
+export function FreeItemSheet({ visible, onClose, onAdd, busy, error }: { visible: boolean; onClose: () => void; onAdd: (body: { type: FreeKind; text: string; bold: string }) => void; busy?: boolean; error?: string | null }) {
   const { t } = useI18n();
   const k = useTokens();
   const [kind, setKind] = React.useState<FreeKind>('celebration');
@@ -38,6 +38,7 @@ export function FreeItemSheet({ visible, onClose, onAdd, busy }: { visible: bool
   return (
     <Sheet visible={visible} title={t('sheetItems.addFree')} onClose={onClose} closeLabel={t('common.cancel')}
       footer={<Button title={t('sheetItems.addBtn')} busy={busy} disabled={!text.trim()} onPress={() => onAdd({ type: kind, text: text.trim(), bold })} />}>
+      {error ? <Banner tone="error" text={error} /> : null}
       <Segmented value={kind} onChange={setKind} options={[
         { key: 'celebration', label: t('sheetItems.freeMazal') }, { key: 'event', label: t('sheetItems.freeEvent') }, { key: 'notice', label: t('sheetItems.freeNotice') },
       ]} />

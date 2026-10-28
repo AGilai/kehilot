@@ -534,7 +534,8 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       { ...mazal('בדיוני', 'other', { state: 'pending', source: 'member', wasPending: true, postedBy: 'אבי בדיוני', postedAt: Date.now() / 1000 - 3600 * 3 }), group: 'events', type: 'event', kind: 'message',
         message: msg('SHFIXTURE0000000000000099', 'event', 'event', { name: 'הקפות שניות לילדים', date: addDays(week, 1), time: '19:00', place: 'החצר', for: 'kids' }) },
       mazal('ניסיון', 'birthDaughter', { postedBy: 'משה כהן' }, { name: 'נועה', whose: 'grandparents', parents: 'דוד ושרה' }),
-      mazal('בדיוני', 'barMitzvah', { source: 'byGabbai' }, { name: 'הלל' }),
+      mazal('בדיוני', 'barMitzvah', { source: 'byGabbai', byRole: 'gabbai' }, { name: 'הלל' }),
+      mazal('דוגמתי', 'birthDaughter', { source: 'byGabbai', byRole: 'tech' }, { name: 'מיכל' }),
       mazal('דוגמה', 'engagement', { source: 'approved', approvedBy: 'משה', postedBy: 'נעמה לוי' }),
       mazal('דוגמאי', 'batMitzvah', { source: 'approved', approvedBy: 'משה', postedBy: 'תמר דוגמאי' }, { name: 'שירה' }),
     ];
@@ -559,7 +560,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       const b = body as { type: 'celebration' | 'event' | 'notice'; text: string; bold?: string; source?: 'free' | 'byGabbai' };
       const item: SheetItem = {
         itemId: fixtureUlid(Date.now(), 40 + items.length), week, group: b.type === 'celebration' ? 'mazal' : 'events', kind: 'free', type: b.type, state: 'in',
-        source: b.source ?? 'free', postedAt: secs(Date.now()), line: { text: b.text, bold: b.bold ?? '' }, wasPending: false, postedBy: meName, approvedBy: '',
+        source: b.source ?? 'free', postedAt: secs(Date.now()), line: { text: b.text, bold: b.bold ?? '' }, byRole: role === 'tech' ? 'tech' : 'gabbai', wasPending: false, postedBy: meName, approvedBy: '',
       };
       items.push(item);
       return structuredClone(item);

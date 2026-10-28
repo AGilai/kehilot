@@ -127,5 +127,31 @@ test('relativeWhen: today and yesterday in words with the Israel clock, older as
   const now = Date.parse('2026-10-29T10:00:00+02:00');
   assert.equal(relativeWhen(Date.parse('2026-10-28T21:10:00+02:00') / 1000, now, 'he'), 'אתמול 21:10');
   assert.equal(relativeWhen(Date.parse('2026-10-29T08:40:00+02:00') / 1000, now, 'he'), 'היום 08:40');
-  assert.match(relativeWhen(Date.parse('2026-10-20T08:40:00+03:00') / 1000, now, 'he'), /^20\.10 08:40$/);
+  assert.equal(relativeWhen(Date.parse('2026-10-20T08:40:00+03:00') / 1000, now, 'he'), 'ט׳ בחשוון (20.10) 08:40');
+});
+
+test('sourceTag: a line added by tech says tech, by a gabbai says gabbai', () => {
+  const t = (key: string) => key;
+  assert.equal(sourceTag(item('a', 'mazal', { source: 'byGabbai', byRole: 'tech' }), t).label, 'sheetItems.src.byTech');
+  assert.equal(sourceTag(item('a', 'mazal', { source: 'byGabbai', byRole: 'gabbai' }), t).label, 'sheetItems.src.byGabbai');
+});
+
+test('patchItem on the latest list: approve A, approve B, undo A leaves B approved', async () => {
+  const { patchItem } = await import('../src/client/sheetItems.ts');
+  const l0 = [item('A', 'mazal', { state: 'pending' }), item('B', 'mazal', { state: 'pending' })];
+  const l1 = patchItem(l0, 'A', { state: 'in' });
+  const l2 = patchItem(l1, 'B', { state: 'in' });
+  const l3 = patchItem(l2, 'A', { state: 'pending' });
+  assert.deepEqual(l3.map(i => [i.itemId, i.state]), [['A', 'pending'], ['B', 'in']]);
+  assert.equal(l0[0]!.state, 'pending');
+});
+
+test('sheetPendingOf: sums the weeks, names the first with any, and a failed week keeps the previous numbers', async () => {
+  const { sheetPendingOf } = await import('../src/client/sheetItems.ts');
+  const page = (week: string, n: number): SheetPage => ({ week, items: Array.from({ length: n }, (_, i) => item(`${week}${i}`, 'mazal', { state: 'pending' })) });
+  const prev = { n: 9, week: '2026-10-23' };
+  assert.deepEqual(sheetPendingOf(['w1', 'w2'], [page('w1', 0), page('w2', 2)], prev), { n: 2, week: 'w2' });
+  assert.deepEqual(sheetPendingOf(['w1', 'w2'], [page('w1', 1), page('w2', 2)], prev), { n: 3, week: 'w1' });
+  assert.deepEqual(sheetPendingOf(['w1', 'w2'], [page('w1', 0), page('w2', 0)], prev), { n: 0, week: null });
+  assert.deepEqual(sheetPendingOf(['w1', 'w2'], [page('w1', 1), null], prev), prev);
 });

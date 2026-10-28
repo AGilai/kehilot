@@ -65,18 +65,18 @@ export function SheetItemRow({ row, onMore, last }: { row: Row; onMore: () => vo
 }
 
 /** A 40-high button (primary or secondary) for the pending row. */
-function Small({ title, label, primary, onPress }: { title: string; label?: string; primary?: boolean; onPress: () => void }) {
+function Small({ title, label, primary, onPress, disabled }: { title: string; label?: string; primary?: boolean; onPress: () => void; disabled?: boolean }) {
   const k = useTokens();
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label ?? title} onPress={onPress}
-      style={{ flex: 1, minHeight: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, backgroundColor: primary ? k.tekhelet : k.surface, borderWidth: 1, borderColor: primary ? k.tekhelet : k.line }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label ?? title} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}
+      style={{ opacity: disabled ? 0.5 : 1, flex: 1, minHeight: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, backgroundColor: primary ? k.tekhelet : k.surface, borderWidth: 1, borderColor: primary ? k.tekhelet : k.line }}>
       <Txt size="small" bold color={primary ? k.surface : k.ink}>{title}</Txt>
     </Pressable>
   );
 }
 
 /** A line waiting for approval: icon, line, "ממתין" Tag, who posted it and when, and the two buttons. */
-export function PendingRow({ item, onAdd, onSkip, last }: { item: SheetItem; onAdd: () => void; onSkip: () => void; last?: boolean }) {
+export function PendingRow({ item, onAdd, onSkip, last, disabled }: { item: SheetItem; onAdd: () => void; onSkip: () => void; last?: boolean; disabled?: boolean }) {
   const { t, lang } = useI18n();
   const k = useTokens();
   const plain = lineOf(item).main.map(p => p.text).join('');
@@ -94,8 +94,8 @@ export function PendingRow({ item, onAdd, onSkip, last }: { item: SheetItem; onA
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Small primary title={t('sheetItems.add')} label={t('sheetItems.addLabel', { line: plain })} onPress={onAdd} />
-        <Small title={t('sheetItems.skip')} label={t('sheetItems.skipLabel', { line: plain })} onPress={onSkip} />
+        <Small primary title={t('sheetItems.add')} label={t('sheetItems.addLabel', { line: plain })} onPress={onAdd} disabled={disabled} />
+        <Small title={t('sheetItems.skip')} label={t('sheetItems.skipLabel', { line: plain })} onPress={onSkip} disabled={disabled} />
       </View>
     </View>
   );

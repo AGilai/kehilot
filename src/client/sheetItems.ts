@@ -1,4 +1,5 @@
 // Pure helpers over the server's weekly sheet items (docs/UX-DESIGN.md §19.3): an item as a sheet line, the printed list, Home's rows.
+import { dualDate } from '../dates.ts';
 import { MAX_EVENTS, MAX_MAZAL, mazalParts, shownItems } from '../schedule/sheetModel.ts';
 import type { SheetFit, SheetModel } from '../schedule/sheetModel.ts';
 import { buildSheetLine } from './templates.ts';
@@ -61,7 +62,7 @@ export function sourceTag(item: SheetItem, t: (key: string, params?: Record<stri
   switch (item.source) {
     case 'auto': return { label: t('sheetItems.src.auto'), tone: 'olive' };
     case 'approved': return { label: item.approvedBy ? `${t('sheetItems.src.approved')} · ${item.approvedBy}` : t('sheetItems.src.approved'), tone: 'olive' };
-    case 'byGabbai': return { label: t('sheetItems.src.byGabbai'), tone: 'tekhelet' };
+    case 'byGabbai': return { label: t(item.byRole === 'tech' ? 'sheetItems.src.byTech' : 'sheetItems.src.byGabbai'), tone: 'tekhelet' };
     case 'free': return { label: t('sheetItems.src.free'), tone: 'plain' };
     default: return { label: t('sheetItems.tagPending'), tone: 'gold' };
   }
@@ -88,5 +89,18 @@ export function relativeWhen(seconds: number, nowMs: number, lang: 'he' | 'en'):
   const clock = new Intl.DateTimeFormat(loc, { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(seconds * 1000));
   const diff = Math.round((Date.parse(day(nowMs)) - Date.parse(day(seconds * 1000))) / 86_400_000);
   if (diff >= 0 && diff <= 1) return `${new Intl.RelativeTimeFormat(loc, { numeric: 'auto' }).format(-diff, 'day')} ${clock}`;
-  return `${new Intl.DateTimeFormat(loc, { timeZone: tz, day: 'numeric', month: 'numeric' }).format(new Date(seconds * 1000))} ${clock}`;
+  return `${dualDate(day(seconds * 1000), lang)} ${clock}`;
+}
+
+/** The list after one item changed (state and/or line); the other items are untouched. Used on the latest list, never on a copy from an older render. */
+export function patchItem(items: SheetItem[], itemId: string, patch: Partial<SheetItem>): SheetItem[] {
+  return items.map(i => (i.itemId === itemId ? { ...i, ...patch } : i));
+}
+
+/** Waiting items over the weeks shown (current, next): the total and the first week that has any. A failed week (`null`) keeps `prev` for both. */
+export function sheetPendingOf(weeks: string[], pages: Array<SheetPage | null>, prev: { n: number; week: string | null }): { n: number; week: string | null } {
+  if (pages.length !== weeks.length || pages.some(p => !p)) return prev;
+  const counts = pages.map(p => p!.items.filter(i => i.state === 'pending').length);
+  const first = counts.findIndex(c => c > 0);
+  return { n: counts.reduce((a, b) => a + b, 0), week: first >= 0 ? weeks[first]! : null };
 }
