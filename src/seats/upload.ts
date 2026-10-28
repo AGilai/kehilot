@@ -71,7 +71,7 @@ export type PlanRow = {
   seats: number; lines: PrayerLine[]; requests: Record<string, number>;
   status: RowStatus;
   /** `above` released more than held; `noSeats` has no seats on the map this week; `request-only` would only carry requests. */
-  reason?: 'above' | 'noSeats' | 'noSeatsRequest' | 'duplicate' | 'skip';
+  reason?: 'above' | 'noSeats' | 'duplicate' | 'skip';
   /** An earlier answer of this household replaced by this one. */
   earlier: number;
   /** The file differs from an app answer: offers "use the file's answer". */
@@ -132,11 +132,12 @@ export function planUpload(inp: PlanInput): UploadPlan {
     const row: Omit<PlanRow, 'status'> = { ...base, ref, refName, seats, lines, conflict, overridden };
     const hasRequests = Object.keys(a.requests).length > 0;
     if (lines.some((l) => l.file > seats) && seats > 0) rowsOut.push({ ...row, status: 'error', reason: 'above' });
-    else if (seats === 0) {
+    else if (seats === 0 && (lines.some((l) => l.file > 0) || !hasRequests)) {
       const wants = lines.some((l) => l.file > 0);
-      rowsOut.push({ ...row, status: wants ? 'error' : 'skipped', reason: wants ? 'noSeats' : hasRequests ? 'noSeatsRequest' : 'noSeats' });
+      rowsOut.push({ ...row, status: wants ? 'error' : 'skipped', reason: 'noSeats' });
     } else {
-      const changed = lines.some((l) => l.file !== l.now && !l.kept);
+      // a household with no seats still gets its requests stored (ruling): a request-only row is applied
+      const changed = seats === 0 || lines.some((l) => l.file !== l.now && !l.kept);
       const out: PlanRow = { ...row, status: changed ? 'change' : 'same' };
       // two names for one household: the later answer wins, here as on the server
       const prev = winner.get(ref);

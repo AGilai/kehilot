@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AREAS, areaTotals, formTemplateCsv, latestPerName, parseFormCsv, parseStamp, splitCsv, weekWindow, inWeek } from '../src/seats/formCsv.ts';
+import { AREAS, deadlineHm, areaTotals, formTemplateCsv, latestPerName, parseFormCsv, parseStamp, splitCsv, weekWindow, inWeek } from '../src/seats/formCsv.ts';
 import type { FormAnswer } from '../src/seats/formCsv.ts';
 
 const HEADER = 'Timestamp,שם,ערב שבת: כמה מקומות לא אצטרך,יום שבת: כמה מקומות לא אצטרך,חג: כמה מהמקומות יתפנו,קריאת מגילה: כמה יתפנו,בקשה לשמירת מקומות נשים · בית הכנסת,בקשה לשמירת מקומות גברים · אולם,בקשה לשמירת מקומות נשים · אולם';
@@ -65,16 +65,27 @@ test('parseFormCsv: dates day-first when any row says so; skips blank-name rows;
   assert.deepEqual(parseFormCsv('חותמת זמן,שם\n10/29/2026 1:00:00,א'), { ok: false, problem: 'no-counts' });
 });
 
-test('week window: Sunday 00:00 after the last Shabbat until the Sunday after this one; older and later rows are counted, not read', () => {
-  const w = weekWindow('2026-10-30');
-  assert.equal(w.from, Date.UTC(2026, 9, 25));
-  assert.equal(w.to, Date.UTC(2026, 10, 1));
+test('week window: previous Friday deadline to this Friday deadline (wall clock), so a Saturday-night answer counts for the coming Shabbat', () => {
+  const w = weekWindow('2026-10-30', '12:00');
+  assert.equal(w.from, Date.UTC(2026, 9, 23, 12, 0)); // the week crosses the end of Israeli DST (Oct 25): wall clock, no hour shift
+  assert.equal(w.to, Date.UTC(2026, 9, 30, 12, 0));
+  assert.equal(weekWindow('2026-10-30').to, Date.UTC(2026, 9, 30, 12, 0));
+  assert.equal(weekWindow('2026-03-27', '09:30').from, Date.UTC(2026, 2, 20, 9, 30)); // DST starts Mar 27 2026
   const mk = (name: string, at: number | null): FormAnswer => ({ line: 2, at, name, counts: { erev: 1 }, requests: {} });
-  const r = inWeek([mk('א', Date.UTC(2026, 9, 25)), mk('ב', Date.UTC(2026, 9, 24, 23, 59)), mk('ג', Date.UTC(2026, 10, 1)), mk('ד', Date.UTC(2026, 9, 30, 8)), mk('ה', null)], '2026-10-30');
-  assert.deepEqual(r.rows.map((x) => x.name), ['א', 'ד']);
+  const r = inWeek([
+    mk('א', Date.UTC(2026, 9, 23, 12, 0)), mk('ב', Date.UTC(2026, 9, 23, 11, 59)), mk('ג', Date.UTC(2026, 9, 30, 12, 0)),
+    mk('ד', Date.UTC(2026, 9, 24, 21, 0)), mk('ה', null), mk('ו', Date.UTC(2026, 9, 30, 11, 59)),
+  ], '2026-10-30', '12:00');
+  assert.deepEqual(r.rows.map((x) => x.name), ['א', 'ד', 'ו']); // Saturday night (Oct 24) is in
   assert.equal(r.older, 1);
   assert.equal(r.later, 1);
   assert.equal(r.undated, 1);
+});
+
+test('deadlineHm reads the Israel wall clock of the server deadline, summer and winter', () => {
+  assert.equal(deadlineHm('2026-10-30T10:00:00Z'), '12:00'); // IST, UTC+2
+  assert.equal(deadlineHm('2026-06-26T09:00:00Z'), '12:00'); // IDT, UTC+3
+  assert.equal(deadlineHm('garbage'), '12:00');
 });
 
 test('latestPerName: the latest answer wins, the earlier ones are counted; a tie goes to the later line', () => {

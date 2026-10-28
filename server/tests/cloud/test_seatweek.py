@@ -332,6 +332,23 @@ class SeatWeekTest(test_messages.MessagesTest):
             self.assertEqual((status, body['error']), (400, 'unknown_household'))
         self.assertEqual(self.released(), set())
 
+    def test_requests_are_stored_for_a_household_without_seats(self):
+        self.three()
+        rows = [{'household': f'family:{self.other}', 'released': 0, 'requests': {'נשים · אולם': 2}},
+                {'household': f'holder:{self.holder}', 'released': 0, 'requests': {'גברים · אולם': 1}},
+                {'household': f'family:{self.fam}', 'released': 1, 'requests': {'נשים · אולם': 1}}]
+        status, out = self.respond(rows)
+        self.assertEqual(status, 200, out)
+        self.assertEqual(out['requestTotals'], {'נשים · אולם': 3, 'גברים · אולם': 1})
+        self.assertEqual(out['released'], 1)
+        self.assertEqual({w['household']: w['code'] for w in out['warnings']}, {f'family:{self.other}': 'no_seats', f'holder:{self.holder}': 'no_seats'})
+        reqs = self.admin_week()['prayers']['erev']['requests']
+        self.assertEqual(reqs[f'family:{self.other}'], {'נשים · אולם': 2})
+        self.assertEqual(reqs[f'holder:{self.holder}'], {'גברים · אולם': 1})
+        status, out = self.undo()
+        self.assertEqual(status, 200, out)
+        self.assertEqual(self.admin_week()['prayers']['erev']['requests'], {})
+
     def test_apply_validation_and_permissions(self):
         self.three()
         ref = f'family:{self.fam}'

@@ -162,17 +162,26 @@ export function parseFormTable(table: string[][]): FormParse {
 // ---------------------------------------------------------------- the week
 
 /**
- * The answers of the Shabbat whose Friday is `friday`: from Sunday 00:00 after the previous Shabbat until Sunday 00:00 after this one
- * (the server's own day boundary for events).
+ * The answers of the Shabbat whose Friday is `friday`: after the previous Friday's deadline (`hm`, the Kehila's `seatDeadline`, Israel
+ * wall clock) up to this Friday's deadline, so a Saturday-night answer counts for the coming Shabbat. Wall clock on both sides, so a week
+ * that crosses a clock change needs no hour arithmetic.
  */
-export function weekWindow(friday: string): { from: number; to: number } {
+export function weekWindow(friday: string, hm = '12:00'): { from: number; to: number } {
   const [y, m, d] = friday.split('-').map(Number) as [number, number, number];
-  const f = Date.UTC(y, m - 1, d);
-  return { from: f - 5 * 86_400_000, to: f + 2 * 86_400_000 };
+  const [h, mi] = hm.split(':').map(Number) as [number, number];
+  return { from: Date.UTC(y, m - 1, d - 7, h, mi), to: Date.UTC(y, m - 1, d, h, mi) };
 }
 
-export function inWeek(answers: FormAnswer[], friday: string): { rows: FormAnswer[]; older: number; later: number; undated: number } {
-  const { from, to } = weekWindow(friday);
+/** "HH:MM" in Israel of the server's ISO deadline; noon when it cannot be read. */
+export function deadlineHm(iso: string): string {
+  const t = new Date(iso);
+  if (Number.isNaN(t.getTime())) return '12:00';
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' }).formatToParts(t);
+  return `${p.find((x) => x.type === 'hour')!.value}:${p.find((x) => x.type === 'minute')!.value}`;
+}
+
+export function inWeek(answers: FormAnswer[], friday: string, hm = '12:00'): { rows: FormAnswer[]; older: number; later: number; undated: number } {
+  const { from, to } = weekWindow(friday, hm);
   const out = { rows: [] as FormAnswer[], older: 0, later: 0, undated: 0 };
   for (const a of answers) {
     if (a.at === null) out.undated++;

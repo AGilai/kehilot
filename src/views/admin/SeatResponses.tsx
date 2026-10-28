@@ -15,7 +15,7 @@ import { PadScroll } from '../../kit/PadScroll.tsx';
 import { decodeCsv, MAX_FILE_BYTES, readXlsx } from '../../import/parse.ts';
 import { exactDecisions, initialMatchState, matchReducer } from '../../seats/decisions.ts';
 import { fixtureResponsesCsv } from '../../seats/fixtureUpload.ts';
-import { formTemplateCsv, inWeek, latestPerName, parseFormCsv, parseFormTable } from '../../seats/formCsv.ts';
+import { deadlineHm, formTemplateCsv, inWeek, latestPerName, parseFormCsv, parseFormTable } from '../../seats/formCsv.ts';
 import type { FormParse } from '../../seats/formCsv.ts';
 import { normalizeName } from '../../seats/match.ts';
 import { familiesForMatch } from '../../seats/savePlan.ts';
@@ -99,11 +99,12 @@ export function SeatResponses({ onBack, onEditor, onToast }: { onBack: () => voi
   }
 
   // The week's answers: this week only, the latest per household.
-  const win = React.useMemo(() => (parsed ? inWeek(parsed.answers, friday) : null), [parsed, friday]);
-  const latest = React.useMemo(() => latestPerName(win?.rows ?? [], normalizeName), [win]);
-  const answers = latest.latest;
 
   const ready = load.status === 'ready' ? load : null;
+  const hm = ready ? deadlineHm(ready.week.deadline) : '12:00';
+  const win = React.useMemo(() => (parsed ? inWeek(parsed.answers, friday, hm) : null), [parsed, friday, hm]);
+  const latest = React.useMemo(() => latestPerName(win?.rows ?? [], normalizeName), [win]);
+  const answers = latest.latest;
   const holding = React.useMemo(() => new Set(Object.keys(ready?.week.households ?? {}).filter((r) => r.startsWith('family:')).map((r) => r.slice(7))), [ready]);
   const kehilaFamilies = React.useMemo(() => (ready ? familiesForMatch(ready.families, holding) : []), [ready, holding]);
   const holderList = React.useMemo(() => (ready ? ready.holders.map((h) => ({ id: h.holderId, name: h.name, phone: h.phone ?? undefined })) : []), [ready]);
@@ -156,7 +157,11 @@ export function SeatResponses({ onBack, onEditor, onToast }: { onBack: () => voi
       }
       const done = [];
       try { for (const call of p.calls) done.push(await api.applySeatResponses(kehilaId, friday, call)); } finally { await fetchAll(true); }
-      setResult({ summary: combineResults(done), plan: p, undone: false });
+      const sum = combineResults(done);
+      // a request-only household with no seats carries a release of zero: the server's no_seats there is not a problem
+      const seatless = new Set(p.rows.filter((r) => r.seats === 0 && r.status === 'change').map((r) => r.ref));
+      sum.warnings = sum.warnings.filter((w) => !(w.code === 'no_seats' && seatless.has(w.household)));
+      setResult({ summary: sum, plan: p, undone: false });
     } catch (e) { setApplyError(errText(e)); await fetchAll(true); }
     finally { setBusy(false); }
   }

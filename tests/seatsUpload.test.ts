@@ -85,12 +85,12 @@ test('plan: an app answer that equals the file is no conflict; a gabbai answer i
   assert.equal(g.rows[0]!.status, 'change');
 });
 
-test('plan: above the seats is an error and is not sent; a household with no seats is refused or skipped', () => {
-  const p = planUpload(input({ answers: [ans('דוגמה', { erev: 5 }, { [AREAS[0]]: 2 }), ans('ריק', { erev: 1 }), ans('ריק שניה', {}, { [AREAS[1]]: 1 })], decisions: dec({ דוגמה: 'family:B', ריק: 'family:Z', 'ריק שניה': 'family:Z' }) }));
-  assert.deepEqual(p.rows.map((r) => [r.status, r.reason]), [['error', 'above'], ['error', 'noSeats'], ['skipped', 'noSeatsRequest']]);
+test('plan: above the seats is an error; a household with no seats is refused for a release, skipped without anything, and applied for requests only', () => {
+  const p = planUpload(input({ answers: [ans('דוגמה', { erev: 5 }, { [AREAS[0]]: 2 }), ans('ריק', { erev: 1 }), ans('ריק שניה', {}, { [AREAS[1]]: 1 }), ans('ריק שלישי', {})], decisions: dec({ דוגמה: 'family:B', ריק: 'family:Z', 'ריק שניה': 'family:Z', 'ריק שלישי': 'family:Y' }) }));
+  assert.deepEqual(p.rows.map((r) => [r.status, r.reason]), [['error', 'above'], ['error', 'noSeats'], ['change', undefined], ['skipped', 'noSeats']]);
   assert.equal(p.summary.errors, 2);
-  assert.deepEqual(p.calls, []);
-  assert.deepEqual(p.requests, []);
+  assert.deepEqual(p.calls, [{ event: 'erev', rows: [{ household: 'family:Z', released: 0, requests: { [AREAS[1]]: 1 } }] }]);
+  assert.deepEqual(p.requests, [{ area: AREAS[1], seats: 1, households: 1 }]);
 });
 
 test('plan: a request-only row of a household with seats is sent with its requests on the first call only; totals per area', () => {

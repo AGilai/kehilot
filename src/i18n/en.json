@@ -2091,7 +2091,7 @@
     },
     "released": "The Form asks how many seats are not needed. This is the released count, not the number coming.",
     "window": {
-      "main": "{n} rows from this week (since the last Shabbat ended). {old} older rows were not read.",
+      "main": "{n} rows from this week (after last week's deadline). {old} older rows were not read.",
       "later": "{n} later rows were not read.",
       "undated": "{n} rows without a readable date were not read.",
       "unreadable": "{n} cells that are not numbers were left out.",
@@ -2127,7 +2127,6 @@
       "notApplied": "Not applied.",
       "above": "Releasing {what}, and it has {max} seats.",
       "noSeats": "It has no seats on the map this week, so there is nothing to release.",
-      "noSeatsRequest": "It has no seats on the map this week, so the request is not saved.",
       "duplicate": "There is a later answer for the same household.",
       "skip": "Skipped.",
       "kept": "Also answered in the app ({n})",

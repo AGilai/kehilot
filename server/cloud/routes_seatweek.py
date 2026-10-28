@@ -281,7 +281,8 @@ def apply_responses(ctx, params):
         for ref, (count, requests, override) in by_household.items():
             ordered = wk.family_order(layout, seats_of.get(ref, []))
             if not ordered:
-                warnings.append({'household': ref, 'code': 'no_seats'})
+                warnings.append({'household': ref, 'code': 'no_seats'})  # about the release only
+                store_requests(ref, requests)  # requests are kept for any valid household, seats or not
                 continue
             if not override and any((eff.get(sid) or {}).get('by') == 'm' for sid in ordered):
                 warnings.append({'household': ref, 'code': 'app_answer_kept'})

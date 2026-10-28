@@ -30,7 +30,6 @@ export function PreviewStep({ plan, undoFirst, busy, error, onOverride, onApply,
     switch (r.reason) {
       case 'above': return t('seatUpload.preview.above', { max: r.seats, what: r.lines.filter((l) => l.file > r.seats).map((l) => `${prayerName(l.prayer)} ${l.file}`).join(' · ') });
       case 'noSeats': return t('seatUpload.preview.noSeats');
-      case 'noSeatsRequest': return t('seatUpload.preview.noSeatsRequest');
       case 'duplicate': return t('seatUpload.preview.duplicate');
       default: return t('seatUpload.preview.skip');
     }
