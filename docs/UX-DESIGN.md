@@ -4158,3 +4158,6 @@ Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P48 
 state panels at 390 × 844 in light and dark, and the page at 390 wide (no horizontal scroll). Not checked: real
 devices, 360-wide Android, English, screen readers, the long-press gesture itself, web fonts, and the wide layout (the
 mailbox follows the 680 content column of M3; not drawn).
+
+**Owner decision (2026-10-28, supersedes the §22 call that management messages take replies):** messages written by
+management (gabbai or tech) get **no** private-reply button and no count. Only messages written by a member qualify.
