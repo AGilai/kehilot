@@ -60,6 +60,7 @@ DynamoDB single table, moto tests), Expo push via SQS worker, `expo-image-manipu
   `server/API.md`, `src/i18n/*.json` and `src/client/fixtures.ts` are shared: before editing one, run `git status`; if
   it has uncommitted changes you did not make, stop and tell the controller. Stage files by name only
   (`git add <path>`), never `-A` or `.`.
+- **Roles (tech-role plan, 2026-10-28):** from now on "gabbai", "gabbai-only" and "gabbaim only" in Tasks 4–18 mean the management role set (`authz.MANAGEMENT` on the server, `isManagement` from `src/client/roles.ts` on the client, gabbai and tech) and "members and gabbaim" means `authz.ADULTS`, except what `docs/UX-DESIGN.md` §20.1 marks ✗ for tech, which stays `authz.GABBAI_ONLY`: message `history` and updating someone else's message as staff (Task 4 `_may_update`), simchas to the sheet (Task 15); use the named sets once `docs/superpowers/plans/2026-10-28-tech-role.md` Task 1 has landed, and give every new route a row in `server/tests/cloud/test_tech_inventory.py` once it exists.
 - **Commits:** one per task, message as in the task, ending with
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and
   `Claude-Session: https://claude.ai/code/session_01FRubJBqpXEVMb7vLFxbfwk`. The repo identity is Asaf Gilai
