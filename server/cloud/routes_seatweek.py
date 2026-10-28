@@ -238,7 +238,8 @@ def put_times(ctx, params):
     changed = f"reminders.{next(iter(d['reminders']))}" if 'reminders' in d and d['reminders'] else 'deadline'
     seat_times.check(reminders, deadline, changed)
     ctx.repo.set_settings(k, seat_deadline=deadline if 'deadline' in d else None,
-                          seat_reminders=reminders if 'reminders' in d else None)
+                          seat_reminders=reminders if 'reminders' in d else None,
+                          expect={'seatReminders': settings.get('seatReminders'), 'seatDeadline': settings.get('seatDeadline')})
     return 200, _times_out(ctx, k)
 
 

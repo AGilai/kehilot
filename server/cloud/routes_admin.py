@@ -258,9 +258,11 @@ def set_settings(ctx, params):
     sheet = schedule_rules.validate_sheet(d['sheet']) if 'sheet' in d else None
     new_rules = _type_rules(d['typeRules']) if 'typeRules' in d else None
     seat_deadline = seating_week.valid_deadline(d['seatDeadline']) if 'seatDeadline' in d else None
+    expect = None
     if seat_deadline is not None:
-        seat_times.check(seat_times.reminders_of(ctx.repo.get_kehila(params['k']).get('settings')), seat_deadline,
-                         'deadline')
+        stored = ctx.repo.get_kehila(params['k']).get('settings') or {}
+        seat_times.check(seat_times.reminders_of(stored), seat_deadline, 'deadline')
+        expect = {'seatReminders': stored.get('seatReminders'), 'seatDeadline': stored.get('seatDeadline')}
     sheet_members = d['sheetMembers'] if 'sheetMembers' in d else None
     if 'sheetMembers' in d and sheet_members not in sheet_rules.SHEET_MEMBERS:
         raise ApiError(400, 'invalid_sheet_members')
@@ -273,7 +275,8 @@ def set_settings(ctx, params):
         contact = contact.strip()
         if len(contact) > PRIVACY_CONTACT_MAX:
             raise ApiError(400, 'invalid_privacy_contact')
-    ctx.repo.set_settings(params['k'], limit, contact, new_rules, location, sheet, seat_deadline, sheet_members)
+    ctx.repo.set_settings(params['k'], limit, contact, new_rules, location, sheet, seat_deadline, sheet_members,
+                          expect=expect)
     return 200, {}
 
 

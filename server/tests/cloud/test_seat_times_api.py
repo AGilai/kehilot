@@ -1,5 +1,12 @@
-from server.cloud import routes_seatweek, seating_rules as rules
+import json
+from unittest import mock
+
+from moto import mock_aws
+
+from server.cloud import handler as handler_module, routes_seatweek, seat_times, seating_rules as rules
 from server.tests.cloud import test_seatweek
+from server.tests.cloud.test_groups import own_tests_only
+from server.tests.cloud.test_handler import Context, event
 
 DEFAULTS = {'opens': {'day': 'thu', 'time': '08:00'},
             'reminders': {'1': {'on': True, 'day': 'thu', 'time': '20:00'},
@@ -7,6 +14,8 @@ DEFAULTS = {'opens': {'day': 'thu', 'time': '08:00'},
             'deadline': '14:00'}
 
 
+@own_tests_only
+@mock_aws
 class SeatTimesApiTest(test_seatweek.SeatWeekTest):
     def path(self):
         return f'{self.base()}/admin/seats/times'
@@ -62,3 +71,58 @@ class SeatTimesApiTest(test_seatweek.SeatWeekTest):
         self.mine((5, 1))
         self.assertEqual(self.times({'deadline': '16:00'})[0], 200)
         self.assertIn('T16:00', self.me()[1]['deadline'])
+
+    def test_listener_other_kehila_and_anonymous(self):
+        self.assertEqual(self.times(sub='listener-sub')[0], 403)
+        self.assertEqual(self.times({'deadline': '15:00'}, sub='listener-sub')[0], 403)
+        other = self.repo.create_kehila('Other', {})
+        status, _ = self.call('GET', f'/v1/kehilot/{other}/admin/seats/times')
+        self.assertIn(status, (403, 404))
+        self.assertEqual(self.call('GET', f'/v1/kehilot/{"0" * 26}/admin/seats/times')[0], 404)
+        # Anonymous callers never reach the Lambda: the API Gateway JWT authorizer rejects them (no handler-level 401).
+        evt = event('GET', self.path())
+        del evt['requestContext']['authorizer']
+        self.assertNotEqual(handler_module.handler(evt, Context())['statusCode'], 200)
+
+    def test_sent_marker(self):
+        self.repo.table.put_item(Item={'pk': f'K#{self.k}', 'sk': f'SEATREM#{self.times()[1]["week"]}#2'})
+        self.assertEqual(self.times()[1]['sent'], {'1': False, '2': True})
+
+    def test_rejected_put_keeps_stored_values(self):
+        self.assertEqual(self.times({'deadline': '11:15'})[0], 400)
+        self.assertEqual(self.times()[1]['deadline'], '14:00')
+        self.assertEqual(self.times({'reminders': {'1': {'day': 'fri', 'time': '12:00'}}}),
+                         (400, {'error': 'seat_times_order', 'field': 'reminders.1'}))
+
+    def race(self, other_body_call):
+        """Run `other_body_call` after PUT's check, before its write."""
+        real, fired = seat_times.check, []
+
+        def check(*args):
+            real(*args)
+            if not fired:
+                fired.append(1)
+                other_body_call()
+        return mock.patch.object(seat_times, 'check', side_effect=check)
+
+    def test_concurrent_reminder_and_deadline_conflict(self):
+        with self.race(lambda: self.repo.set_settings(self.k, seat_deadline='12:15')):
+            status, out = self.times({'reminders': {'2': {'time': '12:00'}}})
+        self.assertEqual((status, out), (409, {'error': 'try_again'}))
+        settings = self.repo.get_kehila(self.k)['settings']
+        self.assertNotIn('seatReminders', settings)
+        seat_times.check(seat_times.reminders_of(settings), seat_times.deadline_hm(settings), 'deadline')
+
+    def test_concurrent_deadline_vs_reminder_conflict(self):
+        later = {'1': {'on': True, 'day': 'thu', 'time': '20:00'}, '2': {'on': True, 'day': 'fri', 'time': '13:00'}}
+        for route in ('times', 'settings'):
+            with self.race(lambda: self.repo.set_settings(self.k, seat_reminders=later)):
+                if route == 'times':
+                    status, out = self.times({'deadline': '13:30'})
+                else:
+                    status, out = self.call('PUT', f'{self.base()}/admin/settings', body={'seatDeadline': '13:30'})
+            self.assertEqual((status, out), (409, {'error': 'try_again'}), route)
+            settings = self.repo.get_kehila(self.k)['settings']
+            self.assertNotEqual(settings.get('seatDeadline'), '13:30')
+            seat_times.check(seat_times.reminders_of(settings), seat_times.deadline_hm(settings), 'deadline')
+            self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': 'META'}, UpdateExpression='REMOVE settings.seatReminders')

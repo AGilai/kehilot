@@ -320,11 +320,20 @@ class MembersRepo:
                                ExpressionAttributeValues={':v': value})
 
     def set_settings(self, k, max_listeners=None, privacy_contact=None, type_rules=None, location=None, sheet=None, seat_deadline=None,
-                     sheet_members=None, seat_reminders=None):
+                     sheet_members=None, seat_reminders=None, expect=None):
         """Set the given settings only (None = leave); privacy_contact '' removes it. `type_rules` is a validated
         partial `{type: {post, listeners}}`: those types are replaced, the other type keeps its (normalized) rule.
-        `location` / `sheet` (validated) replace those settings whole. Other settings are kept."""
+        `location` / `sheet` (validated) replace those settings whole. Other settings are kept.
+        `expect` `{'seatReminders'|'seatDeadline': value read, or None for absent}`: the write only happens while
+        those settings still hold what was read, else 409 `try_again`."""
         sets, removes, values = [], [], {}
+        conditions = ['attribute_exists(settings)']
+        for i, (name, was) in enumerate(sorted((expect or {}).items())):
+            if was is None:
+                conditions.append(f'attribute_not_exists(settings.{name})')
+            else:
+                conditions.append(f'settings.{name} = :x{i}')
+                values[f':x{i}'] = was
         if location is not None:
             sets.append('settings.kehilaLocation = :loc')
             values[':loc'] = schedule_rules.stored(location)
@@ -355,9 +364,14 @@ class MembersRepo:
             sets.append('settings.privacyContact = :p')
             values[':p'] = privacy_contact
         expression = ('SET ' + ', '.join(sets) if sets else '') + (' REMOVE ' + ', '.join(removes) if removes else '')
-        self.table.update_item(Key=self._key(k, 'META'), UpdateExpression=expression.strip(),
-                               ConditionExpression='attribute_exists(settings)',
-                               **({'ExpressionAttributeValues': values} if values else {}))
+        try:
+            self.table.update_item(Key=self._key(k, 'META'), UpdateExpression=expression.strip(),
+                                   ConditionExpression=' AND '.join(conditions),
+                                   **({'ExpressionAttributeValues': values} if values else {}))
+        except ClientError as error:
+            if expect and error.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                raise ApiError(409, 'try_again') from error
+            raise
 
     def accept_terms(self, k, user_id, version, now):
         """The Kehila terms are accepted: the consent record first, then the META marker (no name stored)."""
