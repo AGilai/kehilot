@@ -1,7 +1,7 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
 from datetime import datetime, timezone
 
-from . import families, inputs, media, push, type_rules, visibility
+from . import families, inputs, media, message_fields, push, schedule_rules, type_rules, visibility
 from .authz import require
 from .errors import ApiError
 from .families import family_name
@@ -29,6 +29,9 @@ def _message_json(item, read=None):
         if item.get('targetFamilyId'):
             out['targetFamilyId'] = item['targetFamilyId']
         out['replierCount'] = int(item.get('replierCount', 0))  # a count only: never who or what
+    if item.get('templateId'):
+        out['templateId'] = item['templateId']
+        out['fields'] = schedule_rules.plain(item.get('fields', {}))
     if item.get('image'):  # metadata only: the URL comes from GET .../image after a visibility check
         out['image'] = {'contentType': item['image']['contentType'], 'bytes': int(item['image']['bytes'])}
     if read is not None:
@@ -91,6 +94,7 @@ def post_message(ctx, params):
     type_ = inputs.choice(d, 'type', TYPES)
     title = inputs.text(d, 'title', 120, required=True)
     body = inputs.text(d, 'body', 4000)
+    template_id, fields = _template(d, type_)
     target = d.get('targetMemberId')
     target_membership = None
     if target is not None:
@@ -116,11 +120,22 @@ def post_message(ctx, params):
     item = ctx.repo.put_message(k, channel_id, type_, title, body, ctx.user_id, membership.get('displayName', ''),
                                 'management' if membership['role'] == 'gabbai' else 'member', target,
                                 target_membership.get('displayName', '') if target else '',
-                                message_id=message_id, image=image, target_family_id=target_family_id)
+                                message_id=message_id, image=image, target_family_id=target_family_id,
+                                template_id=template_id, fields=fields)
     message = _message_json(item)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
     return 201, message
+
+
+def _template(d, type_):
+    """(templateId, fields) or (None, None). templateId must be the template of the type, and fields come with it."""
+    if 'templateId' not in d and 'fields' not in d:
+        return None, None
+    template_id = inputs.choice(d, 'templateId', message_fields.TEMPLATE_IDS) if 'templateId' in d else None
+    if template_id is None or template_id != message_fields.TEMPLATE_OF_TYPE.get(type_) or 'fields' not in d:
+        raise ApiError(400, 'invalid_template_id')
+    return template_id, message_fields.validate_fields(template_id, d['fields'])
 
 
 def _target_family_id(ctx, k, d, target):

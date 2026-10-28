@@ -189,7 +189,8 @@ class MessagesRepo:
 
     # messages
     def put_message(self, k, channel_id, type_, title, body, author_id, author_name, author_kind, target,
-                    target_name='', message_id=None, image=None, target_family_id=None):
+                    target_name='', message_id=None, image=None, target_family_id=None,
+                    template_id=None, fields=None):
         item = {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id or new_id()}', 'channelId': channel_id, 'type': type_,
                 'title': title, 'body': body, 'authorId': author_id, 'authorName': author_name,
                 'authorKind': author_kind, 'joinCount': 0, 'removed': False}
@@ -200,6 +201,9 @@ class MessagesRepo:
                 item['targetFamilyId'] = target_family_id
         if image:
             item['image'] = {'contentType': image['contentType'], 'bytes': image['bytes']}
+        if template_id:
+            item['templateId'] = template_id
+            item['fields'] = fields or {}
         self.table.put_item(Item=item)
         return item
 
@@ -235,8 +239,9 @@ class MessagesRepo:
         """Blank title and body and set the postsScrubbed marker (account deletion with "delete everything I posted"). Idempotent."""
         try:
             self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
-                                   UpdateExpression='SET title = :e, body = :e, postsScrubbed = :t',
-                                   ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':e': '', ':t': True})
+                                   UpdateExpression='SET title = :e, body = :e, postsScrubbed = :t REMOVE #f, templateId',
+                                   ConditionExpression='attribute_exists(sk)', ExpressionAttributeNames={'#f': 'fields'},
+                                   ExpressionAttributeValues={':e': '', ':t': True})
         except ClientError as error:
             if not _failed(error, 'ConditionalCheckFailedException'):
                 raise  # a message that is gone needs no scrub

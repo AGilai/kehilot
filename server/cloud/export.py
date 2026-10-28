@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 
-from . import media, tags, tree_rules
+from . import media, schedule_rules, tags, tree_rules
 from .posts import _split
 from .repo_families import MEMBER_ROLES
 
@@ -93,6 +93,9 @@ def build(repo, user_id, email, remaining_ms=None):
                          'removed': bool(item.get('removed')), 'photo': photo}
                 if item.get('targetName'):
                     entry['targetName'] = item['targetName']
+                if item.get('templateId'):
+                    entry['templateId'] = item['templateId']
+                    entry['fields'] = schedule_rules.plain(item.get('fields', {}))
                 messages.append(entry)
             profile = repo.get_profile(user_id) or {}
             data = {'exportedAt': datetime.now(timezone.utc).isoformat(timespec='seconds'), 'userId': user_id,
