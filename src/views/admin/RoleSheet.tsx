@@ -17,7 +17,7 @@ export function RoleSheet({ row, self, onClose, onSave }: { row: MemberRow | nul
   const leaves = self && isManagement(row?.role) && !isManagement(chosen);
   return (
     <Sheet visible={!!row} title={t('admin.role.title', { name: row?.displayName ?? '' })} onClose={onClose}
-      footer={<Button title={t(roleChangeKey(chosen))} disabled={same} busy={busy}
+      footer={<Button title={t(same ? 'admin.role.pickOther' : roleChangeKey(chosen))} disabled={same} busy={busy}
         onPress={() => { setBusy(true); setError(null); void onSave(chosen).then(e => { setBusy(false); if (e) setError(e); }); }} />}>
       <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
         {PICKER_ROLES.map(r => <Choice key={r} label={t(`admin.role.${r}`)} note={t(`admin.role.${r}Note`)} selected={chosen === r} onPress={() => { setChosen(r); setError(null); }} />)}

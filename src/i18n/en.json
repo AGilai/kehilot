@@ -162,6 +162,9 @@
     "invalid_holder": "The seat holder details are not valid.",
     "layout_in_past": "A map of a past Shabbat cannot be changed.",
     "invalid_seat_deadline": "The deadline time is not valid.",
+    "invalid_seat_reminders": "The reminder settings are not valid.",
+    "seat_times_order": "That time is out of order between the opening, the reminders and the deadline.",
+    "seat_reminder_after_deadline": "A reminder would be after the deadline. Change the reminder first.",
     "generations_limit": "The tree goes up to 6 generations. Remove some distant figures and save again.",
     "grandchildren_limit": "Up to 20 grandchildren per child. Remove some and save again.",
     "account_figure": "You can't remove or mark as deceased the figure of someone with an account in this family.",
@@ -630,7 +633,7 @@
       "phone": "Phone",
       "inList": "In the phone list",
       "toAll": "Shown to everyone",
-      "gabbaimOnly": "Gabbaim only",
+      "gabbaimOnly": "Gabbaim and techs only",
       "none": "Not added",
       "aliyah": "Aliyah name",
       "mi": "Mi Sheberach name",
@@ -802,12 +805,12 @@
       "familyWith": "Family with {name}",
       "familyAlone": "No partner",
       "children": "Children: {n}",
-      "readOnly": "Gabbaim see the family details and phones and do not edit them. The family updates them in the family tree.",
+      "readOnly": "Gabbaim and techs see the family details and phones and do not edit them. The family updates them in the family tree.",
       "link": "Link to a partner",
       "tree": "Family tree",
       "phone": {
         "listAll": "In the list: everyone",
-        "listGabbaim": "In the list: gabbaim only",
+        "listGabbaim": "In the list: gabbaim and techs only",
         "none": "No number"
       }
     },
@@ -825,7 +828,7 @@
       "ready": "The link is ready. You can share it.",
       "invalid": "Enter values within the allowed range",
       "tech": "Tech",
-      "techNote": "Sets up the Kehila and has every gabbai permission. Use this link only for someone you trust."
+      "techNote": "Every gabbai permission, shown to members as a tech. Use this link only for someone you trust."
     },
     "left": "You left management: you no longer have management access",
     "groups": {
@@ -870,7 +873,7 @@
       "reject": "Reject",
       "approved": "Request approved",
       "rejected": "Request rejected",
-      "onlyGabbai": "Only a gabbai can remove a group admin",
+      "onlyGabbai": "Only a gabbai or tech can remove a group admin",
       "noRights": "You no longer have admin rights for this group"
     },
     "pushTexts": {
@@ -1014,7 +1017,7 @@
       "rowSeen": "Seen by: {who}",
       "seenAll": "Everyone, guests included",
       "membersSeeAll": "Members see every message type.",
-      "channelClosed": "Only gabbaim post in the Announcements channel, so members can't post any type. You can change this by editing the channel.",
+      "channelClosed": "Only gabbaim and techs post in the Announcements channel, so members can't post any type. You can change this by editing the channel.",
       "saved": "Setting saved",
       "groupLabel": "{type}, who may post"
     },
@@ -1150,14 +1153,15 @@
       "member": "Member",
       "memberNote": "Uses the app as usual, without management.",
       "tech": "Tech",
-      "techNote": "Sets up the Kehila: times, sheet, hall layout, channels, groups, invites and approving members. Doesn't see phones, families or who sits where.",
+      "techNote": "Every gabbai permission: times, sheet, seats, members and their details. Shown to members as a tech, not a gabbai.",
       "gabbai": "Gabbai",
-      "gabbaiNote": "Runs the Kehila and also sees members' details: phones, families and names on the seat map.",
+      "gabbaiNote": "Runs the Kehila: times, sheet, seats, members and their details.",
       "toTech": "Make tech",
       "toGabbai": "Make gabbai",
       "toMember": "Back to member",
       "self": "You'll leave management right away.",
-      "saved": "Role updated"
+      "saved": "Role updated",
+      "pickOther": "Choose another role"
     }
   },
   "phoneList": {
@@ -1262,7 +1266,7 @@
   "cards": {
     "phone": {
       "title": "Appear in the phone list?",
-      "body": "The gabbaim of {kehila} always see your number. This switch decides only whether other members see it too: on, members and gabbaim of {kehila} see it; off, only the gabbaim of {kehila} see it. You can change this any time in the family tree.",
+      "body": "The gabbaim and techs of {kehila} always see your number. This switch decides only whether other members see it too: on, members, gabbaim and techs of {kehila} see it; off, only the gabbaim and techs of {kehila} see it. You can change this any time in the family tree.",
       "yes": "Yes, show it",
       "saveShow": "Save and show",
       "notNow": "Not now"
@@ -1826,7 +1830,7 @@
       "fallback": "Or paste text into the box (no merged cells)",
       "fallbackHint": "Paste the table here",
       "read": "Read the table",
-      "privacy": "Family names on the map are visible to gabbaim only. A member sees only his own block, two rows each way, with no names."
+      "privacy": "Family names on the map are visible to gabbaim and techs only. A member sees only his own block, two rows each way, with no names."
     },
     "problem": {
       "empty": "The paste is empty.",
@@ -2365,7 +2369,7 @@
     "empty": "No seat holders without an account.",
     "created": "Created {date}",
     "edit": "Edit",
-    "privacy": "Personal data: only gabbaim see it; deleted on request; never in notifications or logs.",
+    "privacy": "Personal data: only gabbaim and techs see it; deleted on request; never in notifications or logs.",
     "card": {
       "hints": "{n} link suggestions: families who registered and look like seat holders."
     },
@@ -2397,7 +2401,7 @@
       "save": "Save",
       "badName": "Enter a name (up to 60 characters).",
       "badPhone": "The phone number is not valid.",
-      "privacy": "After saving, choose its seats on the map. Personal data: only gabbaim see it; deleted on request; never in notifications or logs."
+      "privacy": "After saving, choose its seats on the map. Personal data: only gabbaim and techs see it; deleted on request; never in notifications or logs."
     },
     "delete": {
       "open": "Delete the record",
@@ -2475,8 +2479,8 @@
     "noSiblings": "Siblings aren't recorded. Only people whose names your names need.",
     "start": "Start with you",
     "startBody": "Tap a person and fill in the Hebrew name. A father's name passes to the children, building the aliyah name.",
-    "privacy": "You, {partner} and the Kehila's gabbaim see the tree and details.",
-    "privacyAlone": "You and the Kehila's gabbaim see the tree and details.",
+    "privacy": "You, {partner} and the Kehila's gabbaim and techs see the tree and details.",
+    "privacyAlone": "You and the Kehila's gabbaim and techs see the tree and details.",
     "readOnly": "Read only. You can see the tree but not change it.",
     "me": "Me",
     "pair": "{a} and {b}",
@@ -2560,8 +2564,8 @@
       "phonePh": "050-0000000",
       "remove": "Remove",
       "switch": "My number in {kehila}'s phone list",
-      "switchOn": "Members and gabbaim of {kehila} can see it.",
-      "switchOff": "Only the gabbaim of {kehila} can see it.",
+      "switchOn": "Members, gabbaim and techs of {kehila} can see it.",
+      "switchOff": "Only the gabbaim and techs of {kehila} can see it.",
       "invalid": "Check \"My details in the Kehila\": a field needs fixing.",
       "firstRequired": "Write a first name.",
       "nameLong": "The name is too long.",
@@ -2770,7 +2774,7 @@
     "quietWeeks": "No simchas: {parashot}.",
     "toSheetNote": "Mazal tov messages appear in the weekly sheet. Each simcha is sent on its own, to its own family.",
     "draftTitle": "Mazal tov",
-    "privacy": "Only first name, surname and date. Gabbaim only.",
+    "privacy": "Only first name, surname and date. Gabbaim and techs only.",
     "card": {
       "this": "This Shabbat: {text}",
       "later": "Next: {text}"
