@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, View, useColorScheme } from '
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Hit } from '../search/hit.ts';
 import { canReply, joinLabel, replierChip, timeOfDay, ulidTime, visibleReplies } from '../client/messageView.ts';
+import { dualDateAt } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
@@ -63,7 +64,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const copy = hit?.kind === 'copy' ? hit.copy : null;
   if (!message && copy) {
     const date = Number.isFinite(ulidTime(messageId))
-      ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ulidTime(messageId))) : '';
+      ? dualDateAt(ulidTime(messageId), lang, { year: true }) : '';
     return (
       <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {back}

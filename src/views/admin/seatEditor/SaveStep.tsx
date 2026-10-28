@@ -29,7 +29,7 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, sessio
   parsed: ParsedHall; state: MatchState; blockNames: string[]; layouts: SeatLayoutRow[]; onLayouts: (rows: SeatLayoutRow[]) => void;
   /** Partial-save state, kept by SeatEditor. */ session: SaveSession; dispatch: React.Dispatch<SaveSessionAction>; onBack: () => void; onDone: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
   const kehilaId = useSession().state.kehilaId!;
@@ -43,9 +43,9 @@ export function SaveStep({ parsed, state, blockNames, layouts, onLayouts, sessio
     return (list.includes(from) ? list : [from, ...list]).map((f) => {
       const w = scheduleWeekOf(f);
       const exists = layouts.some((l) => l.effectiveFrom === f);
-      return { key: f, label: title({ friday: w.friday, shabbat: w.shabbat, weekdays: [], thursday: w.thursday }), side: dateRange(w.friday, w.thursday), hint: [f === defaultEffectiveFrom(now) ? t('seatEditor.save.default') : '', exists ? t('seatEditor.save.hasVersion') : ''].filter(Boolean).join(' · ') || undefined };
+      return { key: f, label: title({ friday: w.friday, shabbat: w.shabbat, weekdays: [], thursday: w.thursday }), side: dateRange(w.friday, w.thursday, lang), hint: [f === defaultEffectiveFrom(now) ? t('seatEditor.save.default') : '', exists ? t('seatEditor.save.hasVersion') : ''].filter(Boolean).join(' · ') || undefined };
     });
-  }, [now, from, layouts, title, t]);
+  }, [now, from, layouts, title, t, lang]);
   const built = React.useMemo(() => buildLayout(parsed, blockNames, state.cells), [parsed, blockNames, state.cells]);
   const holders = React.useMemo(() => holdersToCreate(parsed, state), [parsed, state]);
   const households = effectiveFamilies(parsed, state.cells).filter((f) => state.decisions[f.familyKey] && state.decisions[f.familyKey]!.kind !== 'skip').length;

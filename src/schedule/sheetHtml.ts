@@ -31,7 +31,7 @@ function columnHtml(column: SheetColumn | null): string {
   const b = column.band;
   const band = !b ? '' : b.kind === 'candles'
     ? `<div class="cand">${esc(b.label)} · ${b.cities.map(c => `${c.name ? `${esc(c.name)} ` : ''}<b dir="ltr">${esc(c.time)}</b>`).join(' · ')}</div>`
-    : `<div class="cand">${esc(b.days)} · <b dir="ltr">${esc(b.range)}</b></div>`;
+    : `<div class="cand">${esc(b.days)} · <b>${esc(b.range)}</b></div>`;
   return `<div><h2>${esc(column.title)}</h2>${band}${column.rows.map(rowHtml).join('')}</div>`;
 }
 
@@ -122,7 +122,7 @@ h2{margin:0 0 4px;font-family:${FONT_SERIF};font-size:${L.h2Size}px;font-weight:
   const title = model.parasha ? `${esc(SHEET_TEXT.title)} <b>${esc(model.parasha)}</b>` : esc(SHEET_TEXT.titleNoParasha);
   const kn = model.kehilaName ? `<div class="kn">${esc(SHEET_TEXT.kehila)}<br><b>${esc(model.kehilaName.replace(/^קהילת\s+/, ''))}</b></div>` : '<div class="kn"></div>';
   return `<style>${css}</style><div class="sht" data-variant="${model.variant}"><div class="in">
-<div class="shd">${logoHtml(model)}<div class="tt"><h1>${title}</h1><div class="hdate">${esc(model.hebrewDate)} · ${esc(model.civilDate)}</div></div>${kn}</div>
+<div class="shd">${logoHtml(model)}<div class="tt"><h1>${title}</h1><div class="hdate">${esc(model.hebrewDate)}</div></div>${kn}</div>
 <div class="rule"></div>
 <div class="cols">${columnHtml(model.shabbat)}<div class="spine"><i></i><i></i><i></i></div>${columnHtml(model.weekday)}</div>
 ${bottom}

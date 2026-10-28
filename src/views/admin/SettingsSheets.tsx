@@ -3,6 +3,7 @@ import { Linking, Pressable } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
 import { config } from '../../config.ts';
+import { dualDateAt } from '../../dates.ts';
 import { textStart } from '../../i18n/direction.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Field, Sheet, Txt, useTokens } from '../../kit/components.tsx';
@@ -71,7 +72,7 @@ export function PrivacyContactSheet({ visible, contact, onClose, onSaved }: { vi
   );
 }
 
-export const termsDate = (lang: string, at: number): string => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' }).format(new Date(at * 1000));
+export const termsDate = (lang: string, at: number): string => dualDateAt(at * 1000, lang === 'he' ? 'he' : 'en', { year: true });
 
 /** P12: who accepted the Kehila terms and when, with the link to the text. */
 export function TermsSheet({ visible, accepted, onClose }: { visible: boolean; accepted: { name: string; at: number } | null | undefined; onClose: () => void }) {

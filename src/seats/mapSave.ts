@@ -7,7 +7,7 @@ import type { SeatLayout, SeatLayoutRow } from '../client/endpoints.ts';
 import { draftFromVersion, layoutBodyOf, assignmentsOf, rebaseOnto, usedHolders } from './editModel.ts';
 import type { Draft, Overlap } from './editModel.ts';
 import { currentShabbatFriday } from './effectiveFrom.ts';
-import { israelDate } from '../dates.ts';
+import { clockTime, dualDateAt, israelDate } from '../dates.ts';
 import { runSave } from './runSave.ts';
 import type { MadeHolder, SaveApi, SaveCarry, SaveProgress, SaveResult } from './runSave.ts';
 
@@ -104,9 +104,7 @@ export async function rebaseLatest(api: Pick<MapApi, 'layout' | 'assignments'>, 
   return { version, draft: r.draft, overlaps: r.overlaps };
 }
 
-/** "27/10 19:42" in Israel time. */
+/** "י״ז בחשוון (27.10) 19:42" in Israel time (Hebrew date first, the Gregorian one in brackets; owner rule). */
 export function whenLabel(ms: number): string {
-  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ms));
-  const g = (t: string) => p.find((x) => x.type === t)?.value ?? '';
-  return `⁦${g('day')}/${g('month')} ${g('hour')}:${g('minute')}⁩`;
+  return `${dualDateAt(ms, 'he')} ${clockTime(new Date(ms).toISOString())}`;
 }

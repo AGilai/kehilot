@@ -21,13 +21,13 @@ import { ScheduleRow } from './ScheduleRow.tsx';
 
 /** The week's name and dates, centred: the header of the full schedule (P22) and of the editor's phone preview. */
 export function WeekTitle({ week, current }: { week: ScheduleWeek; current?: boolean }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const title = useShabbatTitle();
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <Txt bold style={{ textAlign: 'center' }}>{title(week)}</Txt>
-      <Txt size="caption" color={k.muted} style={{ textAlign: 'center' }}>{dateRange(week.friday, week.thursday)}{current ? ` · ${t('schedule.thisWeek')}` : ''}</Txt>
+      <Txt size="caption" color={k.muted} style={{ textAlign: 'center' }}>{dateRange(week.friday, week.thursday, lang)}{current ? ` · ${t('schedule.thisWeek')}` : ''}</Txt>
     </View>
   );
 }
@@ -41,7 +41,7 @@ export function FullSections({ doc, model }: { doc: ScheduleDoc; model: FullMode
     <>
       {model.sections.map(section => {
         const shabbat = section.kind === 'shabbat';
-        const days = shabbat ? `${t('schedule.daysShabbat')} · ${dateRange(model.week.friday, model.week.shabbat, true)}` : `${t('schedule.daysWeekday')} · ${dateRange(model.week.weekdays[0]!, model.week.weekdays[4]!)}`;
+        const days = shabbat ? `${t('schedule.daysShabbat')} · ${dateRange(model.week.friday, model.week.shabbat, lang)}` : `${t('schedule.daysWeekday')} · ${dateRange(model.week.weekdays[0]!, model.week.weekdays[4]!, lang)}`;
         const rows = section.rows.filter((row: ComputedRow) => row.role !== 'candles');
         return (
           <Card key={section.id} edgeColor={shabbat ? k.gold : k.tekhelet}>
@@ -65,7 +65,7 @@ export function FullSections({ doc, model }: { doc: ScheduleDoc; model: FullMode
         );
       })}
       <Txt size="caption" color={k.muted}>
-        {t('schedule.updated', { city: isDefaultPlace(doc.location) ? t('home.petahTikva') : t('schedule.cityFallback'), date: doc.updatedAt ? shortDate(israelDate(new Date(doc.updatedAt))) : '' })}
+        {t('schedule.updated', { city: isDefaultPlace(doc.location) ? t('home.petahTikva') : t('schedule.cityFallback'), date: doc.updatedAt ? shortDate(israelDate(new Date(doc.updatedAt)), lang) : '' })}
       </Txt>
     </>
   );

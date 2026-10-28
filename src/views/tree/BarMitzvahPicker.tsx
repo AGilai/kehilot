@@ -4,15 +4,15 @@ import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Field, Segmented, Txt, useTokens } from '../../kit/components.tsx';
 import type { ShabbatInfo } from '../../tree/dates.ts';
 import { fromGregorian } from '../../tree/dates.ts';
-import { gregText, hebrewText, parseGreg } from '../../tree/format.ts';
+import { dualGreg, gregText, hebrewText, parseGreg } from '../../tree/format.ts';
 import { isoOfHebrew, patchPart, pickShabbat } from '../../tree/sheet.ts';
 import type { DatePart } from '../../tree/sheet.ts';
 import type { HebDate } from '../../tree/types.ts';
 import { HebrewDateField } from './HebrewDateField.tsx';
 
-/** "שבת פרשת וישב · כ״א בכסלו תשפ״ט · 9.12.2028" */
+/** "שבת פרשת וישב · כ״א בכסלו תשפ״ט (9.12.2028)" */
 export function shabbatLine(info: ShabbatInfo): string {
-  return `${info.label} · ${hebrewText(fromGregorian(info.date))} · ${gregText(info.date)}`;
+  return `${info.label} · ${dualGreg(info.date)}`;
 }
 
 type Mode = 'heb' | 'greg';

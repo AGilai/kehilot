@@ -59,7 +59,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
   families: AdminFamily[]; holders: SeatHolder[]; layouts: SeatLayoutRow[]; /** No version exists: start from an empty grid. */ scratch: boolean; phone: boolean;
   onLayouts: (rows: SeatLayoutRow[]) => void; onHolders: (h: SeatHolder[]) => void; onBack: () => void; onPaste: () => void; onDirty: (dirty: boolean) => void; onToast: (text: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
   const sessionState = useSession().state;
@@ -377,7 +377,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
 
   // ---- history ----
   const hist = React.useMemo(() => historyRows(layouts, now), [layouts, now]);
-  const dateLabel = (from: string) => { const w = scheduleWeekOf(from); return `${title({ friday: w.friday, shabbat: w.shabbat, weekdays: [], thursday: w.thursday })} · ${shortDate(from)}`; };
+  const dateLabel = (from: string) => { const w = scheduleWeekOf(from); return `${title({ friday: w.friday, shabbat: w.shabbat, weekdays: [], thursday: w.thursday })} · ${shortDate(from, lang)}`; };
   const viewVersion = async (from: string) => {
     try { const v = await loadVersion(mapApi, from); const h = hist.find((x) => x.from === from)!; setViewing({ n: h.n, from, until: h.until, version: v }); setDlg(null); setMode('assign'); clearSel(); setMoving(null); }
     catch (e) { setInfo(errText(e)); setDlg(null); }
@@ -466,7 +466,7 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
         <View accessibilityRole="summary" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingStart: 12, paddingEnd: 4, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: k.tekhelet, borderStartWidth: 6, backgroundColor: k.surface, flexWrap: 'wrap' }}>
           <Txt size="small" style={{ flex: 1, minWidth: 260 }}>{t('seatMap.band.note', { later: dateLabel(later.from) })}</Txt>
           <Pressable accessibilityRole="button" onPress={() => askDiscard(() => { void openVersion(later.from); })} style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: 8 }}>
-            <Txt size="small" bold color={k.tekhelet}>{t('seatMap.band.noteOpen', { later: shortDate(later.from) })}</Txt>
+            <Txt size="small" bold color={k.tekhelet}>{t('seatMap.band.noteOpen', { later: shortDate(later.from, lang) })}</Txt>
           </Pressable>
           <IconBtn icon="x" label={t('seatMap.band.noteClose')} size={40} onPress={() => { dismissNote(noteStore(), laterKey); setHiddenNotes((h) => [...h, laterKey]); }} />
         </View>

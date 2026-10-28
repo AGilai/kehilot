@@ -1,5 +1,6 @@
 import React from 'react';
 import { fromEpochSeconds } from '../client/time.ts';
+import { dualDateAt } from '../dates.ts';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { ApiCodeError } from '../client/errors.ts';
@@ -48,7 +49,7 @@ export function Join({ code, onRegister, onSignIn, onAccept, onClose }: {
     setBusy(true); setError(null);
     try { await onAccept(); } catch (e) { setError(errText(e)); setBusy(false); }
   }
-  const date = (seconds: number) => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { dateStyle: 'long' }).format(fromEpochSeconds(seconds));
+  const date = (seconds: number) => dualDateAt(fromEpochSeconds(seconds).getTime(), lang, { year: true });
   return (
     <AuthFrame title={t('join.title')} error={error}>
       {load.s === 'loading' ? (

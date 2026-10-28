@@ -74,10 +74,10 @@ export function ResultBox({ time, week, zmanimFor, thisWeek }: { time: Time; wee
 export function WeekOnlyBox({ editable, week, override, usual, canTime, onChange, error }: {
   editable: boolean; week: ScheduleWeek; override: RowOverride | undefined; usual: Clock | null; canTime: boolean; onChange: (o: RowOverride | null) => void; error?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const on = !!override;
-  const range = dateRange(week.friday, week.thursday);
+  const range = dateRange(week.friday, week.thursday, lang);
   return (
     <View style={{ padding: 12, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: k.gold, backgroundColor: k.surface, gap: 8 }}>
       <Check disabled={!editable} value={on} onChange={v => onChange(v ? (canTime && usual ? { kind: 'time', at: usual } : { kind: 'hide' }) : null)}

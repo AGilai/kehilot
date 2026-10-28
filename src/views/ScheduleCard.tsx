@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Card, Txt, useTokens } from '../kit/components.tsx';
 import { ForwardIcon, Icon } from '../kit/Icon.tsx';
-import { civilDate, clockTime, hebrewDate } from '../dates.ts';
+import { civilDate, clockTime } from '../dates.ts';
 import { candleLine, clockLabel, countdownText, shortDate, textIn } from '../schedule/memberView.ts';
 import type { CardModel, Countdown } from '../schedule/memberView.ts';
 import { parashaOf } from '../schedule/parasha.ts';
@@ -67,7 +67,6 @@ export function ScheduleCard({ model, doc, cachedAt, onFull }: { model: CardMode
     : [changed && next.row.usual ? t('schedule.usually', { time: clockLabel(next.row.usual) }) : null, countText].filter(Boolean).join(' · ') || null;
   const edge = shabbat ? k.gold : k.tekhelet;
   const date = model.week.shabbat;
-  const hebrew = hebrewDate(date, lang).split(' ').slice(0, -1).join(' ');
   return (
     <Card edgeColor={edge}>
       <View accessible accessibilityRole="header" accessibilityLabel={shabbat ? `${overline}. ${title(model.week)}` : overline}>
@@ -77,7 +76,7 @@ export function ScheduleCard({ model, doc, cachedAt, onFull }: { model: CardMode
       {shabbat ? (
         <View>
           <Txt serif size="heading">{title(model.week)}</Txt>
-          <Txt size="small" color={k.muted}>{hebrew} · <Txt size="small" color={k.muted} style={time}>{shortDate(date)}</Txt></Txt>
+          <Txt size="small" color={k.muted}>{shortDate(date, lang)}</Txt>
         </View>
       ) : null}
       {shabbat ? <CandleLine doc={doc} week={model.week} fallback={model.candles} /> : null}

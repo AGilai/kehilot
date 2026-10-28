@@ -26,11 +26,26 @@ siddur and notice board, not like a SaaS dashboard.
 | Home | **The day arc**: the day's zmanim drawn as a sun path. Runs right to left, like reading: sunrise on the right, nightfall on the left. Passed zmanim turn gold, "now" is a blue dot, next zman is outlined below. | Replaces a list of seven times with one glance: where in the day am I, what is next. |
 | Type | **Noto Serif Hebrew** (titles, Hebrew date, greeting) and **Heebo** (UI, numerals, tabular). Scale: 28 / 21 / 19 / 16 body / 14 secondary / 12.5 minimum. | Serif Hebrew gives the look of a printed book; Heebo is sturdy and readable for older eyes. Both are Google Fonts. |
 | Shape | Cards 14 to 16 px, sheets 26 px, chips pill. Hairlines before shadows. | Quiet; the stripe and the arc carry the personality. |
-| Tone | Plain, warm, short. Sentence case, active verbs, one name per action ("פרסום" everywhere, toast says "פורסם"). Hebrew dates in letters (ט״ו בחשוון תשפ״ז). | Members are mixed ages and tech comfort. |
+| Tone | Plain, warm, short. Sentence case, active verbs, one name per action ("פרסום" everywhere, toast says "פורסם"). Hebrew dates in letters (ט״ו בחשוון תשפ״ז); dates follow the rule below. | Members are mixed ages and tech comfort. |
 | Accessibility | Touch targets 48 dp, 12.5 px minimum text, contrast checked against both palettes, status never by colour alone (icons and words), full dark mode following the device. | |
 | Direction | Logical properties throughout. Back arrow points right, forward points left. Switches slide toward the end (left). Timelines and meters fill from the right. Phone numbers and times stay LTR inside RTL text. | |
 
 Not copied from the current app: its palette, its category symbols and its plain list layout.
+
+**Dates: Hebrew first, Gregorian in brackets (owner, 2026-10-28).** A Gregorian date is never shown alone. Day letters
+and year are in gematria. Formats (`dualDate` and `dualRange` in `src/dates.ts`, used by every screen):
+
+| Case | Hebrew UI | English UI |
+|---|---|---|
+| Single day | י״א בחשוון (23.10) | 11 Cheshvan (23.10) |
+| With weekday (where one is shown today) | יום ו׳, י״א בחשוון (23.10) | Friday, 11 Cheshvan (23.10) |
+| Range in one Hebrew month | י״א–י״ז בחשוון (23.10–29.10) | 11–17 Cheshvan (23.10–29.10) |
+| Range across Hebrew months | כ״ח בתשרי–ד׳ בחשוון (17.10–23.10) | 28 Tishrei–4 Cheshvan (17.10–23.10) |
+| With a year (only where a year is shown today) | י״א בחשוון תשפ״ז (23.10.2026) | 11 Cheshvan 5787 (23.10.2026) |
+
+"היום", "אתמול" and "היום, 14:05" stay as they are; only an actual date is replaced. Clock times alone are unchanged.
+The Hebrew calendar is computed with `@hebcal/hdate`, never with `Intl` `-u-ca-hebrew` (not dependable on Hermes). The
+numbers inside the brackets of a Hebrew range are isolated left to right. A Hebrew date alone (no Gregorian) is allowed.
 
 ## 3. Roles and what each sees
 

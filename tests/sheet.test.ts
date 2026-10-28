@@ -31,8 +31,7 @@ const fixed = (id: string, label: string, at = '21:00'): Row => ({ id, label: { 
 test('model: parasha title, dates, columns with Shabbat first, candle band with both cities', () => {
   const m = build();
   assert.equal(m.parasha, 'וירא');
-  assert.equal(m.civilDate, '31.10.2026');
-  assert.match(m.hebrewDate, /חשוון/);
+  assert.equal(m.hebrewDate, 'כ׳ בחשוון תשפ״ז (31.10.2026)');
   assert.equal(m.shabbat!.title, 'שבת קודש');
   assert.equal(m.weekday!.title, 'תפילות ימי החול');
   const band = m.shabbat!.band!;

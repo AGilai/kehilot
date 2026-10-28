@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider.tsx';
 import { ApiCodeError } from '../client/errors.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { fromEpochSeconds } from '../client/time.ts';
+import { dualDateAt } from '../dates.ts';
 import type { InviteRow } from '../client/types.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Txt, useTokens } from '../kit/components.tsx';
@@ -39,7 +40,7 @@ function MyLinks({ kehilaId, version, onToast }: { kehilaId: string; version: nu
       if (e instanceof ApiCodeError && e.code === 'invite_not_found') { setAsking(null); await load(); } else setError(errText(e));
     } finally { setBusy(false); }
   }
-  const date = (seconds: number) => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'short' }).format(fromEpochSeconds(seconds));
+  const date = (seconds: number) => dualDateAt(fromEpochSeconds(seconds).getTime(), lang);
 
   return (
     <Card>

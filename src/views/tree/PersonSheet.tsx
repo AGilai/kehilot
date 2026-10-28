@@ -6,7 +6,7 @@ import { ForwardIcon } from '../../kit/Icon.tsx';
 import { Figure } from '../../tree/Figure.tsx';
 import { fromGregorian } from '../../tree/dates.ts';
 import type { ShabbatInfo } from '../../tree/dates.ts';
-import { gregOf, gregText, hebrewText } from '../../tree/format.ts';
+import { dualGreg, gregOf, gregText, hebrewText } from '../../tree/format.ts';
 import { isMe, relationLabel, roleWord, nameOrRole } from '../../tree/labels.ts';
 import { aliyahName, prayerName } from '../../tree/names.ts';
 import { childrenOf, fatherNameOf, motherNameOf } from '../../tree/relations.ts';
@@ -329,7 +329,7 @@ export function PersonSheet({ myId, people, target, newId, readOnly, mine, unlin
           ) : null}
           {bm?.manual && suggestion ? (
             <Pressable testID="bm-reset" accessibilityRole="button" onPress={() => dispatch({ type: 'takeSuggestion' })} style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}>
-              <Txt bold color={k.tekhelet} style={{ textDecorationLine: 'underline' }}>{t('tree.bm.reset', { parasha: suggestion.label, date: gregText(suggestion.date) })}</Txt>
+              <Txt bold color={k.tekhelet} style={{ textDecorationLine: 'underline' }}>{t('tree.bm.reset', { parasha: suggestion.label, date: dualGreg(suggestion.date) })}</Txt>
             </Pressable>
           ) : null}
         </Card>
@@ -342,7 +342,7 @@ export function PersonSheet({ myId, people, target, newId, readOnly, mine, unlin
       {hasBatMitzvah(d) && bat ? (
         <Card edgeColor={k.tekhelet}>
           <Txt size="small" bold>{t('tree.batm.title')}</Txt>
-          <Txt serif size="heading" content>{`${hebrewText(fromGregorian(bat))} · ${gregText(bat)}`}</Txt>
+          <Txt serif size="heading" content>{dualGreg(bat)}</Txt>
           <Txt size="caption" color={k.muted}>{t('tree.batm.note')}</Txt>
         </Card>
       ) : null}
@@ -448,7 +448,7 @@ function ReadOnly({ tree, p }: { tree: Person[]; p: Person }) {
     [t('tree.f.first'), p.hebrewFirst ?? ''], [t('tree.f.surname'), p.surname ?? ''],
     [t('tree.f.father'), fatherNameOf(tree, p.id) ?? ''], [t('tree.f.mother'), motherNameOf(tree, p.id) ?? ''],
     ...(p.gender === 'm' ? [[t('tree.f.tribe'), p.tribe ? t(`tree.f.${p.tribe}`) : '']] as [string, string][] : []),
-    [t('tree.f.birth'), p.birth ? [hebrewText(p.birth), gregOf(p.birth) ? gregText(gregOf(p.birth)!) : ''].filter(Boolean).join(' · ') : ''],
+    [t('tree.f.birth'), p.birth ? gregOf(p.birth) ? `${hebrewText(p.birth)} (${gregText(gregOf(p.birth)!)})` : hebrewText(p.birth) : ''],
     ...(p.deceased ? [[t('tree.f.deceased'), p.death ? hebrewText(p.death) : '—']] as [string, string][] : []),
   ];
   return (

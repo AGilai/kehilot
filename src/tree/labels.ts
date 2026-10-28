@@ -1,3 +1,4 @@
+import { dualDateAt } from '../dates.ts';
 import { missingParts } from './layout.ts';
 import type { FamilyStatus } from './layout.ts';
 import type { Person } from './types.ts';
@@ -98,9 +99,7 @@ export function statusLine(s: FamilyStatus, t: T): { text: string; tone: 'reques
   }
 }
 
-/** "27.10": the Israel calendar day of a Unix time in seconds (the Me row's "עודכן ב־…"). */
-export function israelDayMonth(seconds: number): string {
-  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'numeric' }).formatToParts(new Date(seconds * 1000));
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
-  return `${Number(get("day"))}.${Number(get("month"))}`;
+/** "י״ז בחשוון (27.10)": the Israel calendar day of a Unix time in seconds (the Me row's "עודכן ב־…"). */
+export function israelDayMonth(seconds: number, lang: 'he' | 'en' = 'he'): string {
+  return dualDateAt(seconds * 1000, lang);
 }

@@ -8,7 +8,7 @@ import { useSchedule } from '../client/useSchedule.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { visibleList } from '../client/messageView.ts';
 import { config } from '../config.ts';
-import { clockTime, dayOfWeek, displayDate, hebrewDate, israelDate, upcomingFriday } from '../dates.ts';
+import { clockTime, dayOfWeek, displayDate, dualDate, israelDate, upcomingFriday } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, CollapsibleCard, Tag, Txt, useTokens } from '../kit/components.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
@@ -118,7 +118,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
     <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <View style={{ gap: 4 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <Txt size="small" color={k.muted} style={{ flexShrink: 1 }}>{displayDate(date, lang)} · {hebrewDate(date, lang)}</Txt>
+          <Txt size="small" color={k.muted} style={{ flexShrink: 1 }}>{dualDate(date, lang, { weekday: true, year: true })}</Txt>
           {config.testBuild ? <Tag label={t('testBuild.tag', { version: String(config.buildNumber) })} /> : null}
         </View>
         <Txt serif size="display" accessibilityRole="header">{first ? t('home.greeting', { name: first }) : t('home.greetingAnon')}</Txt>

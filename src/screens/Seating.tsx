@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { loadShabbat } from '../api';
-import { civilDate, displayDate, TZ } from '../dates';
+import { civilDate, clockTime, displayDate, dualDateAt } from '../dates';
 import type { PrayerSeats } from '../types';
 import { initialSeatValue, seatContextKey, seatOptions } from '../seating';
 import { useCommunity } from '../state';
@@ -61,7 +61,7 @@ export function Seating({ onClose }: { onClose: () => void }) {
         <View style={s.card}>
           <Text style={s.heading}>{allocation === 1 ? 'למשפחה מוקצה מקום אחד' : `למשפחה מוקצים ${allocation} מקומות`}</Text>
           {!unused && <Text style={s.muted}>ללא דיווח לא יישמרו מקומות.</Text>}
-          {status.event.closesAt && <Text style={s.muted}>סיום קבלת הדיווחים: {new Intl.DateTimeFormat('he-IL', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(status.event.closesAt))}</Text>}
+          {status.event.closesAt && <Text style={s.muted}>סיום קבלת הדיווחים: {`${dualDateAt(Date.parse(status.event.closesAt), 'he', { year: true })}, ${clockTime(status.event.closesAt)}`}</Text>}
           {!status.event.reportingOpen && <Text style={[s.text, { color: C.red }]}>קבלת הדיווחים לאירוע זה נסגרה. לשינוי יש לפנות לגבאי.</Text>}
           {status.reportInvalidated && <Text style={[s.text, { color: C.red }]}>מכסת המקומות או פרטי האירוע השתנו. יש לבחור ולשלוח דיווח חדש.</Text>}
           {prayers.map(prayer => <Choice key={prayer.key} labelSize={19}

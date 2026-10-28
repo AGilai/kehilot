@@ -1,6 +1,6 @@
 // Member-facing logic for the prayer schedule (docs/UX-DESIGN.md §14.3-14.4): which mode the Home card is in, what it
 // shows, the countdown, and the full-schedule week. Pure: no React, no clock (the caller passes `now`).
-import { dayOfWeek, upcomingFriday } from '../dates.ts';
+import { dayOfWeek, dualDate, dualRange, upcomingFriday } from '../dates.ts';
 import { parseClock } from './formula.ts';
 import type { Clock, ComputedRow, ComputedSection, ComputedWeek, Schedule, ScheduleDoc, ScheduleWeek, Text, ZmanimFor } from './types.ts';
 import { addDays, computeWeek, scheduleWeekOf, timedRowsOn } from './week.ts';
@@ -167,14 +167,10 @@ export function fullModel(schedule: Schedule, now: Now, zmanimFor: ZmanimFor, we
 
 /** "08:30" -> "8:30" (the frames write times without a leading zero). */
 export const clockLabel = (clock: Clock): string => clock.replace(/^0/, '');
-/** "2026-10-30" -> "30.10". */
-export const shortDate = (date: string): string => `${Number(date.slice(8, 10))}.${Number(date.slice(5, 7))}`;
-/** "30–31.10" within a month (compact), else "30.10–1.11". */
-export function dateRange(from: string, to: string, compact = false): string {
-  // Isolated left-to-right so the dash does not reorder the numbers inside a Hebrew line.
-  const range = compact && from.slice(5, 7) === to.slice(5, 7) ? `${Number(from.slice(8, 10))}–${shortDate(to)}` : `${shortDate(from)}–${shortDate(to)}`;
-  return `\u2066${range}\u2069`;
-}
+/** "2026-10-30" -> "י״ט בחשוון (30.10)": the Hebrew date first, the Gregorian one in brackets (owner rule). */
+export const shortDate = (date: string, lang: 'he' | 'en' = 'he'): string => dualDate(date, lang);
+/** "י״ב–י״ח בחשוון (23.10–29.10)", across Hebrew months "כ״ח בתשרי–ד׳ בחשוון (9.10–15.10)". */
+export const dateRange = (from: string, to: string, lang: 'he' | 'en' = 'he'): string => dualRange(from, to, lang);
 export const textIn = (text: Text, lang: 'he' | 'en'): string => (lang === 'en' && text.en ? text.en : text.he);
 
 /** The place name for "times are calculated for ...": the server stores no name, so only the default place is named. */

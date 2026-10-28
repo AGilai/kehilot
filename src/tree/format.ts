@@ -1,5 +1,5 @@
 import { HDate } from '@hebcal/hdate';
-import { monthsOf, toGregorian } from './dates.ts';
+import { fromGregorian, monthsOf, toGregorian } from './dates.ts';
 import type { HebDate } from './types.ts';
 
 /** "כ״ג בשבט תשע״ח" (year left out when unknown). In a leap year Adar is "אדר א׳" or "אדר ב׳". */
@@ -21,6 +21,8 @@ export function monthName(month: HebDate['month'], year?: number): string {
 }
 /** "2.12.2028" from an ISO day. */
 export function gregText(iso: string): string { const [y, m, d] = iso.split('-').map(Number); return `${d}.${m}.${y}`; }
+/** "כ״א בכסלו תשפ״ט (9.12.2028)": an ISO day, Hebrew first and the Gregorian date in brackets (owner rule). */
+export function dualGreg(iso: string): string { return `${hebrewText(fromGregorian(iso))} (${gregText(iso)})`; }
 /** The day-of-month, month and year typed as "d.m.yyyy" (or an ISO day) -> ISO; undefined when it is not a real day. */
 export function parseGreg(text: string): string | undefined {
   const m = /^\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})\s*$/.exec(text) ?? undefined;

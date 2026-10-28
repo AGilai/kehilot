@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadShabbat, loadZmanim } from '../api';
-import { clockTime, dayOfWeek, displayDate, hebrewDate, israelDate } from '../dates';
+import { clockTime, dayOfWeek, displayDate, dualDate, israelDate } from '../dates';
 import { useCommunity } from '../state';
 import { Shabbat, Zmanim } from '../types';
 import { Button, C, ErrorText, s } from '../ui';
@@ -62,7 +62,7 @@ export function Home({ onMessage, onMessages, onProfile, onSeating, onMembership
   const seatingNeedsReport = data.seating?.eligible && data.seating.event.mode === 'needed' && !data.seating.reported;
   function reload() { setRevision(n => n + 1); void refresh().catch(() => {}); }
   return <ScrollView style={s.page} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={busy} onRefresh={reload} tintColor={C.green} />}>
-    <View style={{ gap: 6 }}><Text style={s.muted}>{displayDate(date)} · {hebrewDate(date)}</Text><Text style={s.title}>{firstName ? `שלום, ${firstName}` : 'טוב להיות בקהילה'}</Text><Text style={s.muted}>התפילות, הרגעים והאנשים שמחברים בינינו.</Text></View>
+    <View style={{ gap: 6 }}><Text style={s.muted}>{dualDate(date, 'he', { weekday: true, year: true })}</Text><Text style={s.title}>{firstName ? `שלום, ${firstName}` : 'טוב להיות בקהילה'}</Text><Text style={s.muted}>התפילות, הרגעים והאנשים שמחברים בינינו.</Text></View>
     {data.role === 'gabbai' && <Pressable accessibilityRole="button" accessibilityLabel="מתפללים חדשים לסיווג" onPress={onMembership} style={[s.card, { backgroundColor: C.pale }]}><Text style={s.heading}>מתפללים חדשים לסיווג</Text><Text style={s.muted}>ממתינים לסיווג: {data.membershipRequests?.length || 0}</Text></Pressable>}
     {!isDemo && !data.seating?.eligible && !data.profile.tribe && <Text style={s.muted}>יש להשלים ולשמור את הפרטים שלי כדי להעבירם לגבאי לסיווג.</Text>}
     {!isDemo && data.classification === '' && !!data.profile.tribe && <Text style={s.muted}>הפרטים נשלחו לגבאי. ממתינים לסיווג החברות.</Text>}

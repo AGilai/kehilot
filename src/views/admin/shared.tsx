@@ -1,5 +1,6 @@
 import React from 'react';
 import { fromEpochSeconds } from '../../client/time.ts';
+import { dualDateAt } from '../../dates.ts';
 import { Pressable } from 'react-native';
 import { useErrorText } from '../auth/Frame.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
@@ -9,7 +10,7 @@ import { TOUCH } from '../../kit/theme.ts';
 /** Short local date in the current language. */
 export function useShortDate(): (seconds: number) => string {
   const { lang } = useI18n();
-  return seconds => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { day: 'numeric', month: 'short' }).format(fromEpochSeconds(seconds));
+  return seconds => dualDateAt(fromEpochSeconds(seconds).getTime(), lang);
 }
 
 /** A radio-like option with its consequence written under it. */

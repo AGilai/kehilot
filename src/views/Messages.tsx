@@ -8,7 +8,7 @@ import { archiveBase, clearFilters, facetRows, mutedCount, showMutedFromStored, 
 import { showCompose } from '../client/roleView.ts';
 import { filterMessages, filterTypeChips, mergeArchive, messageMeta, showChannelChips } from '../client/typesView.ts';
 import type { Message, MessageType } from '../client/types.ts';
-import { israelDate } from '../dates.ts';
+import { dualDate, israelDate } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { textStart } from '../i18n/direction.ts';
 import { Button, Chip, Txt, useTokens } from '../kit/components.tsx';
@@ -96,7 +96,7 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
   const mutedAny = mutedCount(base, { ...facet, text: '', channelId: null }, []) > 0;
   const today = israelDate();
   const dayLabel = (day: string) => day === today ? t('messages.today')
-    : day ? new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${day}T12:00:00+02:00`)) : '';
+    : day ? dualDate(day, lang, { weekday: true }) : '';
   const canPostSomewhere = !!onNew && showCompose(kehila.role, channels);
   // A mouse cannot drag a horizontal scroller: on wide web windows the chips wrap.
   const wrapChips = Platform.OS === 'web' && width >= 600;

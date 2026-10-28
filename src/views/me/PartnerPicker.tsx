@@ -5,7 +5,7 @@ import { fixtureParams } from '../../client/fixtures.ts';
 import { config } from '../../config.ts';
 import type { Candidate } from '../../client/types.ts';
 import { fromEpochSeconds } from '../../client/time.ts';
-import { TZ } from '../../dates.ts';
+import { dualDateAt } from '../../dates.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, PickList, Sheet, Txt, useTokens } from '../../kit/components.tsx';
 import { normalize, queryWords } from '../../search/normalize.ts';
@@ -13,7 +13,7 @@ import { useErrorText } from '../auth/Frame.tsx';
 
 export function useShortDate() {
   const { lang } = useI18n();
-  return (seconds: number) => new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: TZ, day: 'numeric', month: 'short' }).format(fromEpochSeconds(seconds));
+  return (seconds: number) => dualDateAt(fromEpochSeconds(seconds).getTime(), lang);
 }
 
 /** P2 picker: members and gabbaim of this Kehila with no partner; one choice, then "send request". */

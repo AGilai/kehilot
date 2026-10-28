@@ -56,9 +56,9 @@ test('statusLine: text and tone per state', () => {
 });
 
 test('israelDayMonth uses the Israel calendar day', () => {
-  assert.equal(israelDayMonth(Date.parse('2026-10-27T22:30:00Z') / 1000), '28.10'); // 00:30 on the 28th in Israel (UTC+2)
-  assert.equal(israelDayMonth(Date.parse('2026-10-27T12:00:00Z') / 1000), '27.10');
-  assert.equal(israelDayMonth(Date.parse('2026-03-05T10:00:00Z') / 1000), '5.3');
+  assert.equal(israelDayMonth(Date.parse('2026-10-27T22:30:00Z') / 1000), 'י״ז בחשוון (28.10)'); // 00:30 on the 28th in Israel (UTC+2)
+  assert.equal(israelDayMonth(Date.parse('2026-10-27T12:00:00Z') / 1000), 'ט״ז בחשוון (27.10)');
+  assert.equal(israelDayMonth(Date.parse('2026-03-05T10:00:00Z') / 1000), 'ט״ז באדר (5.3)');
 });
 
 test('ill: a state word and the label says so; deceased wins', () => {

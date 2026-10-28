@@ -23,7 +23,7 @@ export function SaveDialog({ shifts, visible, cs, issues, layouts, openedFrom, n
   /** Ruling 6: that Shabbat already takes answers. */ isOpen: boolean; phase: SavePhase; newHolders: number; onGo: () => void; onClose: () => void;
   /** The partial-save card (holders made so far, retry/discard), shown after a failed write. */ partial: React.ReactNode;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const title = useShabbatTitle();
   const busy = phase.name === 'running';
@@ -32,9 +32,9 @@ export function SaveDialog({ shifts, visible, cs, issues, layouts, openedFrom, n
     return (list.includes(from) ? list : [from, ...list]).map((f) => {
       const w = scheduleWeekOf(f);
       const hint = [f === defaultEffectiveFrom(now) ? t('seatMap.save.default') : '', f === openedFrom ? t('seatMap.save.opened') : layouts.some((l) => l.effectiveFrom === f) ? t('seatMap.save.hasVersion') : ''].filter(Boolean).join(' · ');
-      return { key: f, label: title({ friday: w.friday, shabbat: w.shabbat, weekdays: [], thursday: w.thursday }), side: dateRange(w.friday, w.thursday), hint: hint || undefined };
+      return { key: f, label: title({ friday: w.friday, shabbat: w.shabbat, weekdays: [], thursday: w.thursday }), side: dateRange(w.friday, w.thursday, lang), hint: hint || undefined };
     });
-  }, [now, from, layouts, openedFrom, title, t]);
+  }, [now, from, layouts, openedFrom, title, t, lang]);
   const s = summarize(cs);
   const n = Object.keys(cs.cells).length + Object.keys(cs.assign).filter((p) => !(p in cs.cells)).length + (s.names ? 1 : 0) + (s.size ? 1 : 0);
   const parts = [s.assigned ? t('seatMap.save.assigned', { n: s.assigned }) : '', s.freed ? t('seatMap.save.freed', { n: s.freed }) : '', s.cells ? t('seatMap.save.cells', { n: s.cells }) : '', s.names ? t('seatMap.save.names') : '', s.size && !s.cells ? t('seatMap.save.size') : ''].filter(Boolean);

@@ -8,7 +8,7 @@ import { familyStatus } from '../tree/layout.ts';
 
 /** The family tree and the §18.2 status line for a member or gabbai (Me card and Kehila menu). Nothing until the tree is here. */
 export function useFamilyLine(kehilaId: string | undefined, enabled: boolean): { doc: TreeDoc | null; line: { text: string; tone: 'request' | 'missing' | 'muted' } | null } {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { api } = useAuth();
   const [doc, setDoc] = React.useState<TreeDoc | null>(null);
   const [view, setView] = React.useState<FamilyView | null>(null);
@@ -22,6 +22,6 @@ export function useFamilyLine(kehilaId: string | undefined, enabled: boolean): {
   if (!doc) return { doc: null, line: null };
   const request = view?.received[0];
   const sent = view?.sent?.state === 'pending' ? view.sent : null;
-  const line = statusLine(familyStatus({ tree: doc.people, updated: doc.updatedAt ? israelDayMonth(doc.updatedAt) : null, request: request ? { name: request.fromName } : null, sent: sent ? { name: sent.toName } : null }), t);
+  const line = statusLine(familyStatus({ tree: doc.people, updated: doc.updatedAt ? israelDayMonth(doc.updatedAt, lang) : null, request: request ? { name: request.fromName } : null, sent: sent ? { name: sent.toName } : null }), t);
   return { doc, line };
 }

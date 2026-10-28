@@ -192,13 +192,13 @@ test('parasha of a Shabbat in Hebrew and English, null on a holiday Shabbat', ()
 
 // ---- labels, cache, fixture clock -------------------------------------------------------------------------------
 
-test('labels: times lose the leading zero, ranges are isolated left to right', () => {
+test('labels: times lose the leading zero, dates are Hebrew first with the Gregorian one in brackets', () => {
   assert.equal(clockLabel('08:30'), '8:30');
   assert.equal(clockLabel('16:05'), '16:05');
-  assert.equal(shortDate('2026-11-01'), '1.11');
-  assert.equal(dateRange('2026-10-30', '2026-11-05'), '⁦30.10–5.11⁩');
-  assert.equal(dateRange('2026-10-30', '2026-10-31', true), '⁦30–31.10⁩');
-  assert.equal(dateRange('2026-10-31', '2026-11-01', true), '⁦31.10–1.11⁩');
+  assert.equal(shortDate('2026-11-01'), 'כ״א בחשוון (1.11)');
+  assert.equal(dateRange('2026-10-30', '2026-11-05'), 'י״ט–כ״ה בחשוון (⁦30.10–5.11⁩)');
+  assert.equal(dateRange('2026-10-30', '2026-10-31'), 'י״ט–כ׳ בחשוון (⁦30.10–31.10⁩)');
+  assert.equal(dateRange('2026-10-23', '2026-10-29', 'en'), '12–18 Cheshvan (23.10–29.10)');
 });
 
 test('a saved schedule copy is used only when it looks like one', () => {

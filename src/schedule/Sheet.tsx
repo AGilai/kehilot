@@ -164,7 +164,7 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
           <Text accessibilityRole="header" style={t(L.titleSize, F.serif, PAPER.tek, { textAlign: 'center', lineHeight: Math.round(L.titleSize * 1.1) })}>
             {model.parasha ? <>{SHEET_TEXT.title} <Text style={{ fontFamily: F.serifHeavy }}>{model.parasha}</Text></> : SHEET_TEXT.titleNoParasha}
           </Text>
-          <Text style={t(L.hdateSize, F.ui, PAPER.mute, { marginTop: a ? 4 : 2, textAlign: 'center' })}>{model.hebrewDate} · {ltr(model.civilDate)}</Text>
+          <Text style={t(L.hdateSize, F.ui, PAPER.mute, { marginTop: a ? 4 : 2, textAlign: 'center' })}>{model.hebrewDate}</Text>
         </View>
         <View style={{ width: L.logo }}>
           {model.kehilaName ? <Text style={t(a ? 10 : 9, F.ui, PAPER.mute, { textAlign: 'center', lineHeight: a ? 13 : 12 })}>{SHEET_TEXT.kehila}{'\n'}<Text style={{ fontFamily: F.bold }}>{kehilaShort}</Text></Text> : null}

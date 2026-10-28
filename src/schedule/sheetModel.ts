@@ -1,7 +1,7 @@
 // The weekly sheet "Classic two columns" (docs/UX-DESIGN.md §14.5, frame P23): the pure model both renderers use
 // (Sheet.tsx on screen and the web print page, sheetHtml.ts for the phone's PDF) and the fitting rules. No React.
 // The sheet is a printed Hebrew paper by design: its wording is fixed Hebrew, not the app's language.
-import { hebrewDate } from '../dates.ts';
+import { dualDate } from '../dates.ts';
 import { messageDay } from '../client/messageView.ts';
 import type { Message } from '../client/types.ts';
 import { candleLine, candleRowTime, clockLabel, dateRange } from './memberView.ts';
@@ -36,7 +36,6 @@ export type SheetModel = {
   variant: SheetVariant;
   parasha: string | null;
   hebrewDate: string;
-  civilDate: string;
   kehilaName: string;
   initial: string;
   logoUri: string | null;
@@ -130,13 +129,11 @@ export function sheetModel(input: SheetInput): SheetModel {
   };
   const shabbat = column('shabbat');
   const weekday = column('weekday');
-  const [y, m, d] = week.week.shabbat.split('-');
   const name = input.kehilaName.trim();
   return {
     variant,
     parasha: parashaOf(week.week.shabbat, 'he'),
-    hebrewDate: hebrewDate(week.week.shabbat, 'he'),
-    civilDate: `${d}.${m}.${y}`,
+    hebrewDate: dualDate(week.week.shabbat, 'he', { year: true }),
     kehilaName: name,
     initial: [...name.replace(/^קהילת\s+/, '')][0] ?? '',
     logoUri: input.logoUri,
