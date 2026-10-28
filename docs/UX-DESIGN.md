@@ -1996,8 +1996,12 @@ content is a side panel (§17.6).
 
 **Bar mitzvah (boys).** Once the birth date is in, the form suggests the **Shabbat of, or after, the 13th Hebrew
 birthday** with its parasha and date — e.g. "שבת פרשת וישלח · י״ד בכסלו תשפ״ט · 2.12.2028" — in a card marked with a
-Tag **"הצעה"** and a link "שינוי השבת ‹". Changing it lists the suggested Shabbat and the next three (each with parasha,
-Hebrew and Gregorian date; "שבת אחרת…" opens a full Shabbat list). A changed choice shows the Tag **"נקבע ידנית"** and
+Tag **"הצעה"** and a link "שינוי השבת ‹". **Changing it: the family picks the date itself** (owner) — no list of
+suggested Shabbatot. A Segmented "תאריך עברי / תאריך לועזי" switches between a Hebrew picker (day, month, year selects)
+and a Gregorian date picker. After picking, the chosen Shabbat's parasha and both dates show in a success Banner
+("✓ שבת פרשת וישב · כ״א בכסלו תשפ״ט · 9.12.2028") and "קביעת השבת" saves it. If a weekday is picked, a Banner says so
+and offers the Shabbat of that week ("זה יום ד׳ (י״ח בכסלו), לא שבת. השבת של אותו שבוע: שבת פרשת וישב … לקבוע
+אותה?") with "כן, שבת פרשת {parasha}" and "בחירת תאריך אחר". A changed choice shows the Tag **"נקבע ידנית"** and
 "חזרה להצעה: וישלח, 2.12.2028". If the birth date changes later, a manual choice is kept and a Banner asks whether to
 take the new suggestion. Parashot follow the Israeli reading cycle. **Girls:** the bat mitzvah date (12th Hebrew
 birthday) is shown as information only, no Shabbat picker (designer's call — flag: add a picker if the Kehila marks a
@@ -2092,7 +2096,9 @@ candle / empty / selected / path), **`FaceIcon`** (`oldman`, `oldwoman`, `man`, 
 | `tree.save` / `.add` | שמירה / הוספה לעץ | Save / Add to the tree |
 | `tree.bm.title` / `.suggested` / `.manual` | בר מצווה / הצעה / נקבע ידנית | Bar mitzvah / Suggested / Set by hand |
 | `tree.bm.shabbat` / `.why` | שבת פרשת {parasha} · {hdate} · {date} / ההצעה: השבת שבה, או אחרי, יום ההולדת ה־13 העברי. משפחות מזיזות לפעמים; אפשר לשנות. | Shabbat {parasha} · … / Suggested: the Shabbat of or after the 13th Hebrew birthday. Families sometimes move it; you can change it. |
-| `tree.bm.change` / `.pick` / `.other` / `.reset` | שינוי השבת / באיזו שבת? / שבת אחרת… / חזרה להצעה: {parasha}, {date} | Change Shabbat / Which Shabbat? / Another Shabbat… / Back to the suggestion: … |
+| `tree.bm.change` / `.pick` / `.reset` | שינוי השבת / באיזו שבת? / חזרה להצעה: {parasha}, {date} | Change Shabbat / Which Shabbat? / Back to the suggestion: … |
+| `tree.bm.hebrew` / `.greg` / `.set` | תאריך עברי / תאריך לועזי / קביעת השבת | Hebrew date / Gregorian date / Set this Shabbat |
+| `tree.bm.weekday` / `.useShabbat` / `.other` | זה יום {day} ({hdate}), לא שבת. השבת של אותו שבוע: שבת פרשת {parasha} · {hdate} · {date}. לקבוע אותה? / כן, שבת פרשת {parasha} / בחירת תאריך אחר | That's a {day} ({hdate}), not Shabbat. That week's Shabbat: … Set it? / Yes, Shabbat {parasha} / Pick another date |
 | `tree.bm.afterBirthDate` | אחרי תאריך הלידה תופיע הצעה לשבת בר המצווה. | After the birth date, a bar mitzvah Shabbat is suggested. |
 | `tree.batm.title` | בת מצווה | Bat mitzvah |
 
