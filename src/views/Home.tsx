@@ -128,7 +128,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
       <TestBuildCard />
 
       {seatCard && onSeats ? (
-        <SeatCard byRole={seatCard.byRole} count={seatCard.count} state={seatCard.state} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
+        <SeatCard byRole={seatCard.byRole} count={seatCard.count} state={seatCard.state === 'closed' ? 'done' : seatCard.state} free={seatCard.free} preview={config.seatsPreview} deadline={whenParts(seatCard.deadline, lang)}
           busy={seatBusy}
           onYes={() => {
             // "Yes, everyone's coming" is an answer: his current released set (usually none) is saved for both prayers.

@@ -6,7 +6,7 @@ import type { Channel, Message, NotifyPrefs, Reply } from '../src/client/types.t
 
 // All names are invented.
 const notify = (over: Partial<NotifyPrefs> = {}): NotifyPrefs =>
-  ({ mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], ...over });
+  ({ mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], seatReminders: true, ...over });
 const channel = (id: string, over: Partial<Channel> = {}): Channel =>
   ({ channelId: id, name: id, listenersCanRead: true, postPolicy: 'management', canPost: false, inAudience: true, conversation: false, chatHourlyLimit: 0, isAdmin: false, ...over });
 const msg = (id: string, over: Partial<Message> = {}): Message =>

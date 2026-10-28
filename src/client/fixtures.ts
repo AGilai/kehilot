@@ -155,8 +155,8 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     canBroadcast: isManagement(role), pendingRequest: false,
     // ?screen=m5 shows M5 with some choices already made (one muted channel, type and member).
     notify: screen === 'm5'
-      ? { mutedChannels: ['01FIXTURECHANNEL00000002'], mutedTypes: ['event'], membersBroadcasts: 'management_only', mutedMembers: ['m1'], chatChannels: [] }
-      : { mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [] },
+      ? { mutedChannels: ['01FIXTURECHANNEL00000002'], mutedTypes: ['event'], membersBroadcasts: 'management_only', mutedMembers: ['m1'], chatChannels: [], seatReminders: true }
+      : { mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], seatReminders: true },
     // A listener admitted to the youth group reads its channel and posts in its chat (spec §3c).
     groups: role === 'listener' ? ['01FIXTUREGROUP00000000001'] : [], adminGroups: [], tags: [] as RoleTag[], settings: { pollSeconds: 60 },
     privacyContact: screen === 'kehila-info' || screen === 'overview-privacy' || screen === 'privacy' || screen === 'privacy-ready' ? PRIVACY_CONTACT : '',
@@ -462,7 +462,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     const week = /\/seats\/week\//.test(p);
     if (p === `${K}/seats/me`) {
       if (method === 'PUT') { if (!seatsFx) throw new ApiCodeError(404, 'no_seats'); return seatsFx.putMine(body as never); }
-      return seatsFx ? seatsFx.memberWire() : { week: shabbatFriday(new Date()), deadline: new Date().toISOString(), open: true, seats: 0 };
+      return seatsFx ? seatsFx.memberWire() : { week: shabbatFriday(new Date()), deadline: new Date().toISOString(), open: true, remindable: true, hadSeats: false, seats: 0 };
     }
     if (week) {
       if (!seatsFx) throw new ApiCodeError(404, 'layout_not_found');

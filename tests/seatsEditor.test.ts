@@ -193,11 +193,11 @@ test('assignments cover every seat: family/holder refs, null for free and skippe
   assert.equal(at(free.row, free.col), null);
 });
 
-test('effectiveFrom: first Shabbat not yet open (Thursday 12:00 Israel opens it)', () => {
-  // 2026-10-27 is a Tuesday: Friday 2026-10-30 opens Thursday 2026-10-29 12:00.
+test('effectiveFrom: first Shabbat not yet open (Thursday 08:00 Israel opens it)', () => {
+  // 2026-10-27 is a Tuesday: Friday 2026-10-30 opens Thursday 2026-10-29 08:00.
   assert.equal(defaultEffectiveFrom(new Date('2026-10-27T10:00:00Z')), '2026-10-30');
-  assert.equal(defaultEffectiveFrom(new Date('2026-10-29T09:00:00Z')), '2026-10-30'); // Thu 11:00 Israel, not yet open
-  assert.equal(defaultEffectiveFrom(new Date('2026-10-29T10:30:00Z')), '2026-11-06'); // Thu 12:30 Israel: open
+  assert.equal(defaultEffectiveFrom(new Date('2026-10-29T05:00:00Z')), '2026-10-30'); // Thu 07:00 Israel, not yet open
+  assert.equal(defaultEffectiveFrom(new Date('2026-10-29T07:30:00Z')), '2026-11-06'); // Thu 09:30 Israel: open
   assert.equal(defaultEffectiveFrom(new Date('2026-10-30T07:00:00Z')), '2026-11-06'); // Friday
   assert.equal(defaultEffectiveFrom(new Date('2026-10-31T10:00:00Z')), '2026-11-06'); // Saturday
   assert.equal(defaultEffectiveFrom(new Date('2026-11-01T10:00:00Z')), '2026-11-06'); // Sunday
@@ -430,20 +430,20 @@ test('runSave reuses a holder made earlier in the session (same name and phone) 
   assert.equal(g.calls.filter((c) => c.startsWith('holder:')).length, 2);
 });
 
-test('open for answers: not before Thursday 12:00, then the server week state (deadline rule as fallback)', () => {
+test('open for answers: not before Thursday 08:00, then the server week state (deadline rule as fallback)', () => {
   const fri = '2026-10-30';
   assert.equal(openForAnswers(new Date('2026-10-28T10:00:00Z'), fri, true), false, 'Wednesday: not open even if the server says open');
   assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, true), true);
   assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, false), false);
   assert.equal(openForAnswers(new Date('2026-10-29T11:00:00Z'), fri, null), true);
-  assert.equal(openForAnswers(new Date('2026-10-30T11:00:00Z'), fri, null), false, 'Friday 13:00 Israel: past the deadline');
+  assert.equal(openForAnswers(new Date('2026-10-30T12:00:00Z'), fri, null), false, 'Friday 14:00 Israel: at the deadline');
 });
 
-test('answers started: the save warning shows from Thursday 12:00 through Shabbat, past the deadline too', () => {
+test('answers started: the save warning shows from Thursday 08:00 through Shabbat, past the deadline too', () => {
   const fri = '2026-10-30';
   assert.equal(answersStarted(new Date('2026-10-28T10:00:00Z'), fri), false, 'Wednesday');
   assert.equal(answersStarted(new Date('2026-10-29T11:00:00Z'), fri), true, 'Thursday 13:00 Israel');
-  assert.equal(answersStarted(new Date('2026-10-30T11:00:00Z'), fri), true, 'Friday 13:00 Israel: past the deadline, answers are final');
+  assert.equal(answersStarted(new Date('2026-10-30T12:30:00Z'), fri), true, 'Friday 14:30 Israel: past the deadline, answers are final');
   assert.equal(answersStarted(new Date('2026-10-31T12:00:00Z'), fri), true, 'during Shabbat');
 });
 

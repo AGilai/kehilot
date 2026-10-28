@@ -18,6 +18,8 @@ export type NotifyPrefs = {
   membersBroadcasts: 'all' | 'management_only';
   mutedMembers: string[];
   chatChannels: string[];
+  /** Seat-form reminder pushes (Thursday and Friday). */
+  seatReminders: boolean;
 };
 
 /** Gabbaim only: who may post a type and whether guests (listeners) see it. */

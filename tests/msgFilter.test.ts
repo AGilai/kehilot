@@ -4,7 +4,7 @@ import { clearFilters, facetRows, mutedCount, normalizeTypes, rowDisabled, showL
 import type { Channel, Message, MessageType, NotifyPrefs } from '../src/client/types.ts';
 
 // All names are invented.
-const notify = (over: Partial<NotifyPrefs> = {}): NotifyPrefs => ({ mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], ...over });
+const notify = (over: Partial<NotifyPrefs> = {}): NotifyPrefs => ({ mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], seatReminders: true, ...over });
 const channel = (id: string): Channel => ({ channelId: id, name: id, listenersCanRead: true, postPolicy: 'management', canPost: false, inAudience: true, conversation: false, chatHourlyLimit: 0, isAdmin: false });
 const msg = (id: string, type: MessageType, over: Partial<Message> = {}): Message =>
   ({ messageId: id, channelId: 'c1', type, title: 'כותרת', body: 'גוף', authorId: 'a1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 0, ...over });

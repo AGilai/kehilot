@@ -70,7 +70,7 @@ test('week window: previous Friday deadline to this Friday deadline (wall clock)
   const w = weekWindow('2026-10-30', '12:00');
   assert.equal(w.from, Date.UTC(2026, 9, 23, 12, 0)); // the week crosses the end of Israeli DST (Oct 25): wall clock, no hour shift
   assert.equal(w.to, Date.UTC(2026, 9, 30, 12, 0));
-  assert.equal(weekWindow('2026-10-30').to, Date.UTC(2026, 9, 30, 12, 0));
+  assert.equal(weekWindow('2026-10-30').to, Date.UTC(2026, 9, 30, 14, 0)); // the default deadline is 14:00
   assert.equal(weekWindow('2026-03-27', '09:30').from, Date.UTC(2026, 2, 20, 9, 30)); // DST starts Mar 27 2026
   const mk = (name: string, at: number | null): FormAnswer => ({ line: 2, at, name, counts: { erev: 1 }, requests: {} });
   const r = inWeek([
@@ -86,7 +86,7 @@ test('week window: previous Friday deadline to this Friday deadline (wall clock)
 test('deadlineHm reads the Israel wall clock of the server deadline, summer and winter', () => {
   assert.equal(deadlineHm('2026-10-30T10:00:00Z'), '12:00'); // IST, UTC+2
   assert.equal(deadlineHm('2026-06-26T09:00:00Z'), '12:00'); // IDT, UTC+3
-  assert.equal(deadlineHm('garbage'), '12:00');
+  assert.equal(deadlineHm('garbage'), '14:00');
 });
 
 test('latestPerName: the latest answer wins, the earlier ones are counted; a tie goes to the later line', () => {

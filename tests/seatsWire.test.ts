@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ApiCodeError } from '../src/client/errors.ts';
 import {
-  cardModel, conflictOutcome, householdsOf, kindRects, layoutPrint, lastBy, memberFromWire, memberPutBody, onBehalfBody,
+  answerSummary, cardModel, conflictOutcome, homeSeatSlot, householdsOf, rowModel, kindRects, layoutPrint, lastBy, memberFromWire, memberPutBody, onBehalfBody,
   printGeometry, saveRelease, yesChoices, holdsSeats, sameOwnSeats,
 } from '../src/seats/wire.ts';
 import type { CellKind, MemberSeats, MemberWire, WeekWire } from '../src/seats/wire.ts';
@@ -10,7 +10,7 @@ import type { CellKind, MemberSeats, MemberWire, WeekWire } from '../src/seats/w
 const mine = (k: number, n: number, erev: 'kept' | 'released' = 'kept', day: 'kept' | 'released' = 'kept') => ({ kind: 'mine' as const, k, n, state: { erev, day } });
 function wire(over: Partial<MemberWire> = {}, states: Array<['kept' | 'released', 'kept' | 'released']> = [['kept', 'kept'], ['kept', 'kept'], ['kept', 'kept']]): MemberWire {
   return {
-    week: '2026-10-30', deadline: '2026-10-30T10:00:00+00:00', open: true, seats: 3, updatedByGabbai: false, updatedAt: { erev: 5, day: null },
+    week: '2026-10-30', deadline: '2026-10-30T12:00:00+00:00', open: true, remindable: true, seats: 3, updatedByGabbai: false, updatedAt: { erev: 5, day: null },
     frames: [{ blockName: 'מרכז', cols: 4, rowFrom: '5', rowTo: '8', rows: [
       { label: '5', mine: false, bimah: false, cells: [{ kind: 'other' }, { kind: 'other' }, { kind: 'gap' }, { kind: 'other' }] },
       { label: '6', mine: true, bimah: false, cells: [{ kind: 'gap' }, mine(1, 3, ...states[0]!), mine(2, 3, ...states[1]!), mine(3, 3, ...states[2]!)] },
@@ -86,21 +86,62 @@ test('member payload: his frames, orders as keys, released states per prayer, bi
   assert.deepEqual(row.cells.map((c) => c.kind), ['bimah', 'bimah', 'gap', 'other']);
   assert.equal(memberPutBody('w', 'shacharit', m.released.shacharit, null).prayer, 'day');
 });
-test('member with no seats: nothing to show, no card', () => {
-  const none = memberFromWire({ week: 'w', deadline: '2026-10-30T10:00:00+00:00', open: true, seats: 0 });
+test('member with no seats: nothing to show, no card, no row', () => {
+  const none = memberFromWire({ week: 'w', deadline: '2026-10-30T12:00:00+00:00', open: true, remindable: true, seats: 0 });
   assert.equal(holdsSeats(none), false);
   assert.equal(cardModel(none, new Date('2026-10-30T08:00:00Z')), null);
   assert.equal(cardModel(none, new Date('2026-10-30T08:00:00Z'), true), null);
   assert.equal(cardModel(null, new Date()), null);
+  assert.equal(homeSeatSlot(none, new Date('2026-10-30T08:00:00Z'), true), null);
+  assert.equal(rowModel(none), null);
 });
-test('card window: a day before the server deadline until the deadline', () => {
+test('card window: from Thursday 08:00 Israel time, only for a remindable member; after the deadline it is closed', () => {
   const m = member();
-  assert.equal(cardModel(m, new Date('2026-10-29T09:59:59Z')), null);
-  assert.equal(cardModel(m, new Date('2026-10-29T10:00:00Z'))?.state, 'ask');
-  assert.equal(cardModel(m, new Date('2026-10-30T09:59:59Z'))?.state, 'ask');
-  assert.equal(cardModel(m, new Date('2026-10-30T10:00:00Z')), null);
-  assert.equal(cardModel(member({ open: false }), new Date('2026-10-30T09:00:00Z')), null);
+  assert.equal(cardModel(m, new Date('2026-10-29T05:59:59Z')), null);
+  assert.equal(cardModel(m, new Date('2026-10-29T06:00:00Z'))?.state, 'ask');
+  assert.equal(cardModel(m, new Date('2026-10-30T11:59:59Z'))?.state, 'ask');
+  const closed = cardModel(member({ open: false }), new Date('2026-10-30T12:00:00Z'))!;
+  assert.equal(closed.state, 'closed');
+  assert.deepEqual(closed.summary, { kind: 'kept' });
+  assert.equal(cardModel(member({ remindable: false }), new Date('2026-10-30T09:00:00Z')), null);
   assert.equal(cardModel(m, new Date('2026-11-20T09:00:00Z'), true)?.state, 'ask', 'preview ignores the timer');
+});
+test('homeSeatSlot and rowModel', () => {
+  const wed = new Date('2026-10-28T10:00:00Z');
+  const thu = new Date('2026-10-29T06:00:00Z');
+  const thu9 = new Date('2026-10-29T07:00:00Z');
+  const afterDeadline = new Date('2026-10-30T13:00:00Z');
+  assert.equal(homeSeatSlot(member(), wed), 'row');
+  assert.equal(rowModel(member())?.state, 'open');
+  assert.equal(homeSeatSlot(member(), thu), 'card');
+  assert.equal(cardModel(member(), thu)?.state, 'ask');
+  assert.equal(homeSeatSlot(member({ open: false }), afterDeadline), 'card');
+  assert.equal(cardModel(member({ open: false }), afterDeadline)?.state, 'closed');
+  assert.equal(homeSeatSlot(member({ remindable: false }), thu9), 'row');
+  assert.equal(homeSeatSlot(member(), wed, true), 'card');
+  const gab = member({ updatedByGabbai: true, answered: { erev: true, day: true } });
+  assert.equal(rowModel(gab)?.state, 'byGabbai');
+  assert.equal(rowModel(member({ answered: { erev: true, day: false } }))?.state, 'answered');
+  assert.equal(rowModel(member({ open: false }))?.state, 'closed');
+  assert.equal(rowModel(member())?.pressable, true);
+  assert.equal(rowModel(member())?.deadline.toISOString(), '2026-10-30T12:00:00.000Z');
+  const had = memberFromWire({ week: 'w', deadline: '2026-10-30T12:00:00+00:00', open: true, remindable: true, seats: 0, hadSeats: true });
+  assert.equal(homeSeatSlot(had, thu), 'row');
+  assert.equal(rowModel(had)?.state, 'none');
+  assert.equal(rowModel(had)?.pressable, false);
+  const never = memberFromWire({ week: 'w', deadline: '2026-10-30T12:00:00+00:00', open: true, remindable: true, seats: 0, hadSeats: false });
+  assert.equal(homeSeatSlot(never, thu), null);
+  assert.equal(homeSeatSlot(null, thu), null);
+});
+test('answerSummary: none, all, free (the larger of the two prayers) and kept', () => {
+  const answered = { erev: true, day: true };
+  const rel = (...p: Array<['kept' | 'released', 'kept' | 'released']>) => p;
+  assert.deepEqual(answerSummary(member()), { kind: 'kept' });
+  assert.deepEqual(answerSummary(member({ answered })), { kind: 'all' });
+  assert.deepEqual(answerSummary(member({ answered }, rel(['released', 'released'], ['released', 'released'], ['released', 'released']))), { kind: 'none' });
+  assert.deepEqual(answerSummary(member({ answered }, rel(['released', 'kept'], ['kept', 'released'], ['kept', 'released']))), { kind: 'free', n: 2 });
+  assert.deepEqual(answerSummary(member({ answered }, rel(['released', 'kept'], ['kept', 'kept'], ['kept', 'kept']))), { kind: 'free', n: 1 });
+  assert.deepEqual(answerSummary(member({ answered }, rel(['released', 'released'], ['released', 'released'], ['kept', 'kept']))), { kind: 'free', n: 2 });
 });
 test('card state: ask until the server says both prayers are answered; a gabbai change shows its own state', () => {
   const now = new Date('2026-10-30T08:00:00Z');
@@ -121,7 +162,7 @@ test('"yes, everyone\'s coming" saves the current released set for both prayers'
   assert.deepEqual(memberPutBody(m.week, 'shacharit', y.shacharit, m.updatedAt.shacharit), { week: '2026-10-30', prayer: 'day', released: [], ifUpdatedAt: null });
 });
 test('seats: 0 payload (deep link, push) is the no-seats state', () => {
-  const none = memberFromWire({ week: 'w', deadline: '2026-10-30T10:00:00+00:00', open: true, seats: 0 });
+  const none = memberFromWire({ week: 'w', deadline: '2026-10-30T10:00:00+00:00', open: true, remindable: true, seats: 0 });
   assert.equal(none.seatCount, 0);
   assert.deepEqual(none.frames, []);
   assert.deepEqual(none.answered, { arvit: false, shacharit: false });

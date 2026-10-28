@@ -8,7 +8,7 @@ import type { Prayer } from './release.ts';
 export type MemberSeatsState = { status: 'loading' } | { status: 'error'; code: unknown } | { status: 'ready'; data: MemberSeats };
 
 /** The member's own cut of the week (`GET …/seats/me`), reloadable, with the save that follows the 409 rule. Only his frames ever arrive. */
-export function useMemberSeats(enabled = true): { state: MemberSeatsState; reload: () => void; save: (choices: Partial<Record<Prayer, ReadonlySet<string>>>) => Promise<SaveResult | null> } {
+export function useMemberSeats(enabled = true, week?: string): { state: MemberSeatsState; reload: () => void; save: (choices: Partial<Record<Prayer, ReadonlySet<string>>>) => Promise<SaveResult | null> } {
   const { api } = useAuth();
   const kehilaId = useSession().state.kehilaId;
   const [state, setState] = React.useState<MemberSeatsState>({ status: 'loading' });
@@ -17,10 +17,10 @@ export function useMemberSeats(enabled = true): { state: MemberSeatsState; reloa
   React.useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
 
   const load = React.useCallback(async (): Promise<MemberSeats> => {
-    const data = memberFromWire(await api.seatsMe(kehilaId!));
+    const data = memberFromWire(await api.seatsMe(kehilaId!, week));
     current.current = data;
     return data;
-  }, [api, kehilaId]);
+  }, [api, kehilaId, week]);
 
   const reload = React.useCallback(() => {
     if (!enabled || !kehilaId) return;

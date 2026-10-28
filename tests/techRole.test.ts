@@ -64,7 +64,7 @@ test('staffRole: tech stays tech, anything else (legacy, missing) is a gabbai', 
   assert.equal(staffRole(null), 'gabbai');
 });
 
-const mw = (over: Partial<MemberWire>): MemberWire => ({ week: '2026-10-30', deadline: '2026-10-30T10:00:00+00:00', open: true, seats: 2, updatedByGabbai: true, updatedAt: { erev: 1, day: null }, frames: [], ...over });
+const mw = (over: Partial<MemberWire>): MemberWire => ({ week: '2026-10-30', deadline: '2026-10-30T10:00:00+00:00', open: true, remindable: true, seats: 2, updatedByGabbai: true, updatedAt: { erev: 1, day: null }, frames: [], ...over });
 
 test('a member seat view keeps updatedByRole; no role on an old answer means gabbai', () => {
   assert.equal(memberFromWire(mw({ updatedByRole: 'tech' })).updatedByRole, 'tech');

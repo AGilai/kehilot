@@ -5,7 +5,7 @@ import type { Allocation, MemberSeats } from './frame.ts';
 import type { Prayer } from './release.ts';
 import { ApiCodeError } from '../client/errors.ts';
 import { parseSeatKey } from './hall.ts';
-import { israelInstant } from './window.ts';
+import { DEFAULT_WINDOW, israelInstant } from './window.ts';
 import type { MemberWire, OnBehalfBody, WeekWire, WireFrame, WireLayout, WirePrayer } from './wire.ts';
 
 // --- Seat-release preview (UX-DESIGN §15; the seats are the gabbai-side data, the member only ever gets memberView's cut) ---
@@ -106,16 +106,16 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
   if (card === 'seats-done' || card === 'seats-gabbai' || variant === 'gabbai') for (const p of ['erev', 'day'] as const) answered[p].set('family:me', 1_790_000_100_000);
 
   const open = variant !== 'closed';
-  const deadline = () => (open ? israelInstant(friday, '12:00') : new Date(Date.now() - 3_600_000)).toISOString();
+  const deadline = () => (open ? israelInstant(friday, DEFAULT_WINDOW.deadline.time) : new Date(Date.now() - 3_600_000)).toISOString();
   const myIds = () => new Set(mine.map(fixtureSeatId));
   const cut = () => memberView(h.hall, allocations, 'me');
   const idOfKey = (key: string): string => fixtureSeatId(parseSeatKey(key)!);
   const stateOf = (p: WirePrayer, id: string): 'kept' | 'released' => (state[p].has(id) ? 'released' : 'kept');
 
   function memberWire(): MemberWire {
-    const base = { week: friday, deadline: deadline(), open };
+    const base = { week: friday, deadline: deadline(), open, remindable: true };
     const view = cut();
-    if (!view.seatCount) return { ...base, seats: 0 };
+    if (!view.seatCount) return { ...base, seats: 0, hadSeats: false };
     const frames: WireFrame[] = view.frames.map((f) => ({
       blockName: f.blockName, cols: f.cols, rowFrom: rowLabel(f.rowFrom), rowTo: rowLabel(f.rowTo),
       rows: f.rows.map((r) => ({

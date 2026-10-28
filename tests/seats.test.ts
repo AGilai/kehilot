@@ -4,7 +4,7 @@ import { ARK_SIDE, BLOCK_NAMES, FRONT_ROW, HALL, HALL_GRID, allSeats, seatKey } 
 import type { SeatRef } from '../src/seats/hall.ts';
 import { blockFrames, memberView } from '../src/seats/frame.ts';
 import type { Allocation } from '../src/seats/frame.ts';
-import { cardWindow, israelInstant, seatCardState, shabbatFriday } from '../src/seats/window.ts';
+import { cardWindow, dayTime, israelInstant, shabbatFriday } from '../src/seats/window.ts';
 import { printModel } from '../src/seats/printModel.ts';
 import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, legendItems, parsePrintStyle, pendingNotch, seatFill } from '../src/seats/printStyle.ts';
 import he from '../src/i18n/he.json' with { type: 'json' };
@@ -225,39 +225,38 @@ test('release: toggling and counting', () => {
   assert.deepEqual(releaseCounts(3, new Set()), { need: 3, free: 0 });
 });
 
-test('window: Thu 12:00 to Fri 12:00 Israel time (winter, UTC+2)', () => {
+test('window: Thu 08:00 to Fri 14:00 Israel time, winter, summer and the DST Friday', () => {
   const w = cardWindow('2026-12-18');
-  assert.equal(w.opensAt.toISOString(), '2026-12-17T10:00:00.000Z');
-  assert.equal(w.closesAt.toISOString(), '2026-12-18T10:00:00.000Z');
-  const at = (iso: string) => seatCardState(new Date(iso), '2026-12-18');
-  assert.equal(at('2026-12-17T09:59:59Z'), 'before');
-  assert.equal(at('2026-12-17T10:00:00Z'), 'open');
-  assert.equal(at('2026-12-18T09:59:59Z'), 'open');
-  assert.equal(at('2026-12-18T10:00:00Z'), 'closed');
-});
-
-test('window: summer time (UTC+3) and the DST-change week (Fri 26 Mar 2027, clocks forward at 02:00)', () => {
+  assert.equal(w.opensAt.toISOString(), '2026-12-17T06:00:00.000Z');
+  assert.equal(w.closesAt.toISOString(), '2026-12-18T12:00:00.000Z');
   const summer = cardWindow('2026-07-10');
-  assert.equal(summer.opensAt.toISOString(), '2026-07-09T09:00:00.000Z');
-  assert.equal(summer.closesAt.toISOString(), '2026-07-10T09:00:00.000Z');
+  assert.equal(summer.opensAt.toISOString(), '2026-07-09T05:00:00.000Z');
+  assert.equal(summer.closesAt.toISOString(), '2026-07-10T11:00:00.000Z');
   const dst = cardWindow('2027-03-26');
-  assert.equal(dst.opensAt.toISOString(), '2027-03-25T10:00:00.000Z'); // Thursday still UTC+2
-  assert.equal(dst.closesAt.toISOString(), '2027-03-26T09:00:00.000Z'); // Friday already UTC+3
-  assert.equal(seatCardState(new Date('2027-03-26T08:59:00Z'), '2027-03-26'), 'open');
-  assert.equal(seatCardState(new Date('2027-03-26T09:00:00Z'), '2027-03-26'), 'closed');
+  assert.equal(dst.opensAt.toISOString(), '2027-03-25T06:00:00.000Z'); // Thursday still UTC+2
+  assert.equal(dst.closesAt.toISOString(), '2027-03-26T11:00:00.000Z'); // Friday already UTC+3
   assert.equal(israelInstant('2027-03-26', '01:30').toISOString(), '2027-03-25T23:30:00.000Z');
   // Clocks go back on Sunday 25 Oct 2026; the Friday after is plain winter time.
-  assert.equal(cardWindow('2026-10-30').closesAt.toISOString(), '2026-10-30T10:00:00.000Z');
+  assert.equal(cardWindow('2026-10-30').closesAt.toISOString(), '2026-10-30T12:00:00.000Z');
 });
 
-test('window: which Shabbat a moment belongs to (Israel date, not UTC)', () => {
-  assert.equal(shabbatFriday(new Date('2026-10-27T08:00:00Z')), '2026-10-30'); // Tuesday
-  assert.equal(shabbatFriday(new Date('2026-10-30T20:30:00Z')), '2026-10-30'); // Friday night, Israel is already Friday 22:30
-  assert.equal(shabbatFriday(new Date('2026-10-30T22:30:00Z')), '2026-11-06'); // Saturday 00:30 Israel
+test('shabbatFriday: Saturday before and after Shabbat ends', () => {
+  const sat = (hm: string) => israelInstant('2026-10-31', hm);
+  assert.equal(shabbatFriday(sat('17:00'), sat('17:40')), '2026-10-30');
+  assert.equal(shabbatFriday(sat('17:41'), sat('17:40')), '2026-11-06');
+  assert.equal(shabbatFriday(sat('23:00')), '2026-10-30'); // no end known: the server's rule
+  assert.equal(shabbatFriday(israelInstant('2026-10-28', '10:00')), '2026-10-30');
+  assert.equal(shabbatFriday(new Date('2026-10-30T20:30:00Z')), '2026-10-30'); // Friday night
+  assert.equal(shabbatFriday(new Date('2026-10-27T08:00:00Z')), '2026-10-30'); // Tuesday, Israel date not UTC
 });
 
-test('window: custom reminder and deadline', () => {
-  const w = cardWindow('2026-12-18', { reminder: { daysBefore: 2, time: '18:00' }, deadline: { daysBefore: 0, time: '09:30' } });
+test('dayTime never breaks between day and time', () => {
+  assert.equal(dayTime(israelInstant('2026-10-30', '14:00'), 'he'), 'יום ו׳\u00a014:00');
+  assert.equal(dayTime(israelInstant('2026-10-30', '14:00'), 'en'), 'Fri\u00a014:00');
+});
+
+test('window: custom opening and deadline', () => {
+  const w = cardWindow('2026-12-18', { opens: { daysBefore: 2, time: '18:00' }, deadline: { daysBefore: 0, time: '09:30' } });
   assert.equal(w.opensAt.toISOString(), '2026-12-16T16:00:00.000Z');
   assert.equal(w.closesAt.toISOString(), '2026-12-18T07:30:00.000Z');
 });

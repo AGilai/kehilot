@@ -5,6 +5,7 @@
  */
 import { MAX_FILE_BYTES } from '../import/parse.ts';
 import { normalizeName } from './match.ts';
+import { DEFAULT_DEADLINE_HM } from './window.ts';
 
 export type FormEvent = 'erev' | 'day' | 'hag' | 'megila';
 /** The Form's three request columns, in this order. Keys of `requests` on the wire. */
@@ -167,16 +168,16 @@ export function parseFormTable(table: string[][]): FormParse {
  * wall clock) up to and including this Friday's deadline (an answer exactly at a deadline belongs to the earlier week), so a Saturday-night answer counts for the coming Shabbat. Wall clock on both sides, so a week
  * that crosses a clock change needs no hour arithmetic.
  */
-export function weekWindow(friday: string, hm = '12:00'): { from: number; to: number } {
+export function weekWindow(friday: string, hm = DEFAULT_DEADLINE_HM): { from: number; to: number } {
   const [y, m, d] = friday.split('-').map(Number) as [number, number, number];
   const [h, mi] = hm.split(':').map(Number) as [number, number];
   return { from: Date.UTC(y, m - 1, d - 7, h, mi), to: Date.UTC(y, m - 1, d, h, mi) };
 }
 
-/** "HH:MM" in Israel of the server's ISO deadline; noon when it cannot be read. */
+/** "HH:MM" in Israel of the server's ISO deadline; the default deadline when it cannot be read. */
 export function deadlineHm(iso: string): string {
   const t = new Date(iso);
-  if (Number.isNaN(t.getTime())) return '12:00';
+  if (Number.isNaN(t.getTime())) return DEFAULT_DEADLINE_HM;
   const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' }).formatToParts(t);
   return `${p.find((x) => x.type === 'hour')!.value}:${p.find((x) => x.type === 'minute')!.value}`;
 }
@@ -184,7 +185,7 @@ export function deadlineHm(iso: string): string {
 /** True when pasted text is over the file limit (UTF-8 bytes), like the file picker. */
 export const textTooBig = (text: string): boolean => new TextEncoder().encode(text).length > MAX_FILE_BYTES;
 
-export function inWeek(answers: FormAnswer[], friday: string, hm = '12:00'): { rows: FormAnswer[]; older: number; later: number; undated: number } {
+export function inWeek(answers: FormAnswer[], friday: string, hm = DEFAULT_DEADLINE_HM): { rows: FormAnswer[]; older: number; later: number; undated: number } {
   const { from, to } = weekWindow(friday, hm);
   const out = { rows: [] as FormAnswer[], older: 0, later: 0, undated: 0 };
   for (const a of answers) {

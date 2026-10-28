@@ -3,6 +3,7 @@
 // server's cells) and the on-behalf payload. Nothing here touches the network or React.
 import type { Prayer } from './release.ts';
 import { staffRole } from '../client/roles.ts';
+import { cardWindow } from './window.ts';
 
 export type WirePrayer = 'erev' | 'day';
 /** The client says arvit/shacharit, the server erev/day. */
@@ -18,7 +19,7 @@ export type WireRow = { label: string | null; mine: boolean; bimah: boolean; cel
 export type WireFrame = { blockName: string; cols: number; rowFrom: string | null; rowTo: string | null; rows: WireRow[] };
 /** `GET/PUT …/seats/me`. A family with no seats gets `seats: 0` and nothing else. */
 export type MemberWire = {
-  week: string; deadline: string; open: boolean; seats: number;
+  week: string; deadline: string; open: boolean; /** He is among the people the reminders go to. */ remindable: boolean; seats: number; /** Only with `seats: 0`: his family held a seat the week before. */ hadSeats?: boolean;
   updatedByGabbai?: boolean; /** The role of the latest staff edit: `gabbai` or `tech`. */ updatedByRole?: 'gabbai' | 'tech' | null; updatedAt?: Record<WirePrayer, number | null>; /** His family has answered that prayer (any successful save, even with no seat change, or a gabbai's on-behalf save). */ answered?: Record<WirePrayer, boolean>; frames?: WireFrame[];
 };
 
@@ -30,6 +31,10 @@ export type MemberSeats = {
   week: string;
   deadline: Date;
   open: boolean;
+  /** He is among the people the seat-form reminders (and the Thursday card) go to. */
+  remindable: boolean;
+  /** His family held a seat last week (matters only with no seats now). */
+  hadSeats: boolean;
   seatCount: number;
   updatedByGabbai: boolean;
   /** Who made the latest staff edit; null when none. */
@@ -64,6 +69,8 @@ export function memberFromWire(w: MemberWire): MemberSeats {
     week: w.week,
     deadline: new Date(w.deadline),
     open: w.open,
+    remindable: w.remindable,
+    hadSeats: !!w.hadSeats,
     seatCount: w.seats,
     updatedByGabbai: !!w.updatedByGabbai,
     updatedByRole: w.updatedByGabbai ? staffRole(w.updatedByRole) : null,
@@ -122,21 +129,46 @@ export async function saveRelease(deps: SaveDeps, base: MemberSeats, prayer: Pra
 
 // ---------------------------------------------------------------- Home card
 
-export type CardModel = { state: 'ask' | 'done' | 'byGabbai'; /** For `byGabbai`: who edited. */ byRole: 'gabbai' | 'tech'; count: number; deadline: Date; free: Record<Prayer, number> };
-const DAY_MS = 86_400_000;
+/** What the family answered, in one word for the card and the row. Not answered yet is `kept` (the seats stay as they are). */
+export type Summary = { kind: 'all' } | { kind: 'none' } | { kind: 'free'; n: number } | { kind: 'kept' };
+export function answerSummary(m: MemberSeats): Summary {
+  if (!m.answered.arvit && !m.answered.shacharit) return { kind: 'kept' };
+  const n = Math.max(m.released.arvit.size, m.released.shacharit.size);
+  if (n === 0) return { kind: 'all' };
+  return PRAYER_LIST.every((p) => m.released[p].size >= m.seatCount) ? { kind: 'none' } : { kind: 'free', n };
+}
 
 /**
- * The Home card: only to a family that holds seats, from a day before the server's deadline (the reminder, default Thursday
- * 12:00 for a Friday 12:00 deadline) until the deadline. `always` is the fixtures preview (UX §15.4: no timer).
- * Done when the server says both prayers are answered (a saved "yes" counts); a gabbai's change shows "a gabbai updated".
+ * Home's seat slot: the card (top) for a remindable member who holds seats from the opening on (Thursday 08:00 by default),
+ * through the deadline and after it; the quiet row (bottom) for anyone who holds or held seats. `always` is the fixtures preview
+ * (UX §15.4: no timer).
+ */
+export function homeSeatSlot(m: MemberSeats | null, now: Date, always = false): 'card' | 'row' | null {
+  if (!m) return null;
+  if (m.seatCount > 0 && (always || (m.remindable && now >= cardWindow(m.week).opensAt))) return 'card';
+  return m.seatCount > 0 || m.hadSeats ? 'row' : null;
+}
+
+export type CardModel = { state: 'ask' | 'done' | 'byGabbai' | 'closed'; /** For `byGabbai`: who edited. */ byRole: 'gabbai' | 'tech'; count: number; deadline: Date; free: Record<Prayer, number>; summary: Summary };
+
+/**
+ * The Home card model, or null unless `homeSeatSlot` says card. `closed` once the server says the week is closed (the answer stays
+ * in view). Done when both prayers are answered (a saved "yes" counts); a gabbai's change shows "a gabbai updated".
  */
 export function cardModel(m: MemberSeats | null, now: Date, always = false): CardModel | null {
-  if (!m || m.seatCount <= 0) return null;
-  const t = now.getTime();
-  if (!always && !(m.open && t < m.deadline.getTime() && t >= m.deadline.getTime() - DAY_MS)) return null;
+  if (!m || homeSeatSlot(m, now, always) !== 'card') return null;
   const free = { arvit: m.released.arvit.size, shacharit: m.released.shacharit.size };
-  const state = m.updatedByGabbai ? 'byGabbai' : m.answered.arvit && m.answered.shacharit ? 'done' : 'ask';
-  return { state, byRole: m.updatedByRole ?? 'gabbai', count: m.seatCount, deadline: m.deadline, free };
+  const state = !m.open ? 'closed' : m.updatedByGabbai ? 'byGabbai' : m.answered.arvit && m.answered.shacharit ? 'done' : 'ask';
+  return { state, byRole: m.updatedByRole ?? 'gabbai', count: m.seatCount, deadline: m.deadline, free, summary: answerSummary(m) };
+}
+
+export type RowState = 'open' | 'answered' | 'byGabbai' | 'closed' | 'none';
+/** The bottom row's model: `none` (not pressable) for a family with no seats this week that had some last week. */
+export function rowModel(m: MemberSeats): { state: RowState; summary: Summary; deadline: Date; pressable: boolean } | null {
+  const summary = answerSummary(m);
+  if (m.seatCount <= 0) return m.hadSeats ? { state: 'none', summary, deadline: m.deadline, pressable: false } : null;
+  const state: RowState = !m.open ? 'closed' : m.updatedByGabbai ? 'byGabbai' : m.answered.arvit || m.answered.shacharit ? 'answered' : 'open';
+  return { state, summary, deadline: m.deadline, pressable: true };
 }
 
 /** "Yes, everyone's coming": the current released set for both prayers, saved as the answer (usually nothing is released). */

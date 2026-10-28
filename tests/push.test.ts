@@ -5,7 +5,7 @@ import { createStore } from '../src/client/store.ts';
 import { localSignOut } from '../src/auth/signout.ts';
 import type { Channel, Kehila, NotifyPrefs } from '../src/client/types.ts';
 
-const notify = (over: Partial<NotifyPrefs> = {}): NotifyPrefs => ({ mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], ...over });
+const notify = (over: Partial<NotifyPrefs> = {}): NotifyPrefs => ({ mutedChannels: [], mutedTypes: [], membersBroadcasts: 'all', mutedMembers: [], chatChannels: [], seatReminders: true, ...over });
 const ch = (channelId: string, over: Partial<Channel> = {}): Channel => ({ channelId, name: `ערוץ ${channelId}`, listenersCanRead: true, postPolicy: 'management', canPost: false, inAudience: true, conversation: false, chatHourlyLimit: 0, isAdmin: false, ...over });
 
 test('routeFromPush accepts only kehila, messageId, screen', () => {

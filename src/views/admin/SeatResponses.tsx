@@ -23,6 +23,7 @@ import { EVENT_PRAYERS, UPLOAD_STEPS, combineResults, initialUpload, planUpload,
 import type { ApplySummary, UploadPlan } from '../../seats/upload.ts';
 import { useShabbat } from '../../seats/useShabbat.ts';
 import { isNoLayout } from '../../seats/wire.ts';
+import { DEFAULT_DEADLINE_HM } from '../../seats/window.ts';
 import type { WeekWire } from '../../seats/wire.ts';
 import { WIDE, useAdminErrText } from './shared.tsx';
 import { StepRow } from './seatEditor/bits.tsx';
@@ -101,7 +102,7 @@ export function SeatResponses({ onBack, onEditor, onToast }: { onBack: () => voi
   // The week's answers: this week only, the latest per household.
 
   const ready = load.status === 'ready' ? load : null;
-  const hm = ready ? deadlineHm(ready.week.deadline) : '12:00';
+  const hm = ready ? deadlineHm(ready.week.deadline) : DEFAULT_DEADLINE_HM;
   const win = React.useMemo(() => (parsed ? inWeek(parsed.answers, friday, hm) : null), [parsed, friday, hm]);
   const latest = React.useMemo(() => latestPerName(win?.rows ?? [], normalizeName), [win]);
   const answers = latest.latest;

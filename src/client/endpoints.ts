@@ -17,6 +17,7 @@ import type { LinkSuggestions } from '../seats/holders.ts';
 import type { HolderSeats } from '../seats/holderActions.ts';
 import type { ApplyResult, ResponseCall } from '../seats/upload.ts';
 import type { memberPutBody } from '../seats/wire.ts';
+import type { ReminderSetting, SeatTimes } from '../seats/times.ts';
 
 const e = encodeURIComponent;
 
@@ -175,6 +176,9 @@ export function endpoints(http: Http) {
     // weekly release: the member's own cut (his frames only) and his answer for one prayer
     seatsMe: (k: string, week?: string) => r<MemberWire>('GET', `${K(k)}/seats/me${query([['week', week]])}`),
     putSeatsMe: (k: string, body: ReturnType<typeof memberPutBody>) => r<MemberWire>('PUT', `${K(k)}/seats/me`, body),
+    seatTimes: (k: string) => r<SeatTimes>('GET', `${A(k)}/seats/times`),
+    putSeatTimes: (k: string, body: { deadline?: string; reminders?: Partial<Record<'1' | '2', Partial<ReminderSetting>>> }) =>
+      r<SeatTimes>('PUT', `${A(k)}/seats/times`, body),
     dismissCard: (k: string, card: DismissCard) => r<void>('POST', `${K(k)}/me/cards/${e(card)}/dismiss`),
     putPhoneList: (k: string, show: boolean) => r<{ show: boolean }>('PUT', `${K(k)}/me/phone-list`, { show }),
     phoneList: (k: string) => r<PhoneListFamily[]>('GET', `${K(k)}/phone-list`),

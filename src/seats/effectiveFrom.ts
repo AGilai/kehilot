@@ -7,7 +7,7 @@ export function currentShabbatFriday(today: string): string {
   return dayOfWeek(today) === 6 ? addDays(today, -1) : upcomingFriday(today);
 }
 
-/** UX §16.5: the first Shabbat that is not yet open for release (the member card opens Thursday 12:00 by default). */
+/** UX §16.5: the first Shabbat that is not yet open for release (the member card opens Thursday 08:00 by default). */
 export function defaultEffectiveFrom(now: Date): string {
   let friday = currentShabbatFriday(israelDate(now));
   while (cardWindow(friday, DEFAULT_WINDOW).opensAt <= now) friday = addDays(friday, 7);
@@ -35,7 +35,7 @@ export function effectiveOptions(now: Date, count = 14): string[] {
 
 /**
  * Ruling 6: is that Shabbat already open for answers? The server's week `open` (null when it could not be read) must be true, and the
- * member card must have opened (Thursday 12:00); without the server's word, the deadline rule alone decides.
+ * member card must have opened (Thursday 08:00); without the server's word, the deadline rule alone decides.
  */
 export function openForAnswers(now: Date, friday: string, weekOpen: boolean | null): boolean {
   const { opensAt, closesAt } = cardWindow(friday, DEFAULT_WINDOW);
@@ -44,7 +44,7 @@ export function openForAnswers(now: Date, friday: string, weekOpen: boolean | nu
 }
 
 /**
- * The save dialogs' open-week warning: from the member card's opening (Thursday 12:00) on, through the deadline and Shabbat, members
+ * The save dialogs' open-week warning: from the member card's opening (Thursday 08:00) on, through the deadline and Shabbat, members
  * may have answered, so a save into that Shabbat changes seats they already see (seat-fix review I1).
  */
 export function answersStarted(now: Date, friday: string): boolean {
