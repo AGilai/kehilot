@@ -1,12 +1,13 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
-import { counts, filterWeeks, mazalDraft, quietNames, simchaSub, simchaTag, simchaTitle, weekHeader } from '../../client/simchasView.ts';
+import { counts, filterWeeks, mazalDraft, needsCheck, quietNames, simchaSub, simchaTag, simchaTitle, weekHeader } from '../../client/simchasView.ts';
 import type { SimchaFilter } from '../../client/simchasView.ts';
 import type { SimchaItem, SimchaWeek } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Chip, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Chip, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { ForwardIcon } from '../../kit/Icon.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import { Figure } from '../../tree/Figure.tsx';
 import { fromGregorian } from '../../tree/dates.ts';
@@ -20,24 +21,33 @@ function avatarPerson(i: SimchaItem, key: string): Person {
   return { id: key, relation: 'child', gender: i.kind === 'bar' ? 'm' : 'f', birth: { day: h.day, month: h.month, year: (h.year ?? 5787) - (i.kind === 'bar' ? 13 : 12) } };
 }
 
-function Row({ item, id }: { item: SimchaItem; id: string }) {
+type Draft = { title: string; body: string; familyId?: string; note?: string };
+function Row({ item, id, onMazalTov }: { item: SimchaItem; id: string; onMazalTov: (draft: Draft) => void }) {
   const { t } = useI18n();
   const k = useTokens();
   const tag = simchaTag(item, t);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingVertical: 8, backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, paddingHorizontal: 12 }}>
-      <Figure person={avatarPerson(item, id)} size={44} style="B" />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Txt bold>{simchaTitle(item, t)}</Txt>
-        <Txt size="small" color={k.muted}>{simchaSub(item, t)}</Txt>
+    <View style={{ backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, paddingHorizontal: 12, paddingVertical: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 }}>
+        <Figure person={avatarPerson(item, id)} size={44} style="B" />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Txt bold>{simchaTitle(item, t)}</Txt>
+          <Txt size="small" color={k.muted}>{simchaSub(item, t)}</Txt>
+        </View>
+        {tag ? <Tag label={tag.text} tone={tag.manual ? 'plain' : 'strong'} /> : null}
       </View>
-      {tag ? <Tag label={tag.text} tone={tag.manual ? 'plain' : 'strong'} /> : null}
+      {needsCheck(item) ? <Txt size="small" color={k.muted}>{t('simchas.suggestedNote')}</Txt> : null}
+      {item.familyId ? (
+        <Pressable accessibilityRole="button" onPress={() => onMazalTov(mazalDraft(item, t))} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Txt bold color={k.tekhelet}>{t('simchas.mazal')}</Txt><ForwardIcon size={16} color={k.tekhelet} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
 /** P36 (UX §17.14): the next 8 weeks of bar and bat mitzvahs from the family trees; gabbaim only. Minimal data: first name, surname, date. */
-export function Simchas({ onBack, onMazalTov }: { onBack: () => void; /** Starts a mazal tov message for this week's simchas; the weekly sheet lists the week's celebration messages. */ onMazalTov: (draft: { title: string; body: string }) => void }) {
+export function Simchas({ onBack, onMazalTov }: { onBack: () => void; /** Starts a mazal tov message for ONE simcha, for that family only (the weekly sheet lists the week's celebration messages). */ onMazalTov: (draft: Draft) => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -56,7 +66,6 @@ export function Simchas({ onBack, onMazalTov }: { onBack: () => void; /** Starts
   const n = weeks ? counts(weeks) : { all: 0, bar: 0, bat: 0 };
   const shown = weeks ? filterWeeks(weeks, filter) : [];
   const quiet = weeks ? quietNames(weeks, filter) : '';
-  const draft = weeks ? mazalDraft(weeks, t) : undefined;
   return (
     <PadScroll contentContainerStyle={{ padding: 16, gap: 12, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       <BackLink onPress={onBack} />
@@ -78,17 +87,12 @@ export function Simchas({ onBack, onMazalTov }: { onBack: () => void; /** Starts
               <Txt bold accessibilityRole="header" style={{ flexShrink: 1 }}>{head.title}</Txt>
               <Txt size="small" color={k.muted}>{head.greg}</Txt>
             </View>
-            {w.items.map((item, i) => <Row key={`${item.kind}-${item.firstName}-${item.date}-${i}`} item={item} id={`${w.week}-${i}`} />)}
+            {w.items.map((item, i) => <Row key={`${item.kind}-${item.firstName}-${item.date}-${i}`} item={item} id={`${w.week}-${i}`} onMazalTov={onMazalTov} />)}
           </View>
         );
       })}
       {weeks && n.all > 0 && quiet ? <Txt size="small" color={k.muted}>{t('simchas.quietWeeks', { parashot: quiet })}</Txt> : null}
-      {draft ? (
-        <View style={{ gap: 4 }}>
-          <Button kind="secondary" title={t('simchas.toSheet')} onPress={() => onMazalTov(draft)} />
-          <Txt size="small" color={k.muted}>{t('simchas.toSheetNote')}</Txt>
-        </View>
-      ) : null}
+      {n.all > 0 ? <Txt size="small" color={k.muted}>{t('simchas.toSheetNote')}</Txt> : null}
       <Txt size="small" color={k.muted}>{t('simchas.privacy')}</Txt>
     </PadScroll>
   );

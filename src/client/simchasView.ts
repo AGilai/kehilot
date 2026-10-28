@@ -61,10 +61,10 @@ export function nextSimcha(weeks: SimchaWeek[]): { item: SimchaItem; more: numbe
   return { item: weeks[index]!.items[0]!, more: total - 1, thisWeek: index === 0 };
 }
 
-/** What the gabbai starts a mazal tov message from (the weekly sheet lists the week's `celebration` messages). The current week only. */
-export function mazalDraft(weeks: SimchaWeek[], t: T): { title: string; body: string } | undefined {
-  const items = weeks[0]?.items ?? [];
-  if (items.length === 0) return undefined;
-  const lines = items.map(i => `${simchaTitle(i, t)}${i.surname ? `, ${t('simchas.family', { surname: i.surname })}` : ''}`);
-  return { title: t('simchas.draftTitle'), body: lines.join('\n') };
+/** A suggested (not family-set) bar mitzvah date: the draft and the row say to check it with the family. */
+export const needsCheck = (i: SimchaItem): boolean => i.kind === 'bar' && !i.manual;
+
+/** The mazal tov message for ONE simcha, for that child's family only (the weekly sheet lists the week's celebration messages). */
+export function mazalDraft(i: SimchaItem, t: T): { title: string; body: string; familyId?: string; note?: string } {
+  return { title: `${t('simchas.draftTitle')} · ${simchaTitle(i, t)}`, body: '', ...(i.familyId ? { familyId: i.familyId } : {}), ...(needsCheck(i) ? { note: t('simchas.suggestedNote') } : {}) };
 }

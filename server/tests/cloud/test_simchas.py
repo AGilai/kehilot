@@ -181,11 +181,36 @@ class SimchasRouteTest(test_messages.MessagesTest):
         self.assertEqual(status, 200)
         self.assertEqual(len(body['weeks']), 8)
         items = [i for w in body['weeks'] for i in w['items']]
-        self.assertEqual(items, [{'kind': 'bar', 'firstName': 'הלל', 'surname': 'דוגמה', 'date': '2026-10-31', 'manual': True},
-                                 {'kind': 'bat', 'firstName': 'נגה', 'surname': 'דוגמה', 'date': '2026-11-09', 'manual': False}])
+        fid = self.repo.ensure_family(self.k, self.member)
+        self.assertEqual(items, [{'kind': 'bar', 'firstName': 'הלל', 'surname': 'דוגמה', 'date': '2026-10-31', 'manual': True, 'familyId': fid},
+                                 {'kind': 'bat', 'firstName': 'נגה', 'surname': 'דוגמה', 'date': '2026-11-09', 'manual': False, 'familyId': fid}])
         text = json.dumps(body, ensure_ascii=False)
         self.assertNotIn(self.member, text)
         self.assertNotIn(pid(1), text)
+
+    def test_reads_do_not_grow_with_the_number_of_families(self):
+        def reads(extra):
+            for n in range(extra):
+                sub = f'extra{n}-sub'
+                uid = self.add(sub, 'member', f'Extra {n}')
+                self.save(sub, tree(girl(1, 'נגה', born(date(2026, 11, 9), 12))))
+            calls = []
+            real = self.repo.table.meta.client
+            table = self.repo.table
+            orig_query, orig_get, orig_batch = table.query, table.get_item, real.batch_get_item
+            def count(fn, name):
+                def wrapper(*a, **kw):
+                    calls.append(name)
+                    return fn(*a, **kw)
+                return wrapper
+            with patch.object(table, 'query', count(orig_query, 'query')), patch.object(table, 'get_item', count(orig_get, 'get')), \
+                    patch.object(real, 'batch_get_item', count(orig_batch, 'batch')):
+                self.assertEqual(self.call('GET', self.path(), sub='gabbai-sub')[0], 200)
+            return len(calls)
+        few = reads(1)
+        many = reads(4)
+        self.assertGreater(few, 0)
+        self.assertEqual(few, many)
 
     def test_weeks_query(self):
         self.assertEqual(len(self.call('GET', self.path(), sub='gabbai-sub', query={'weeks': '4'})[1]['weeks']), 4)

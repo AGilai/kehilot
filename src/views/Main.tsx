@@ -275,7 +275,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintRole(state.kehila?.role) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onSeatEditor={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatEditor' }) : undefined} onSeatResponses={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatResponses' }) : undefined} onSeatHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} onSimchas={kehila?.role === 'gabbai' ? () => setNav({ tab: 'simchas' }) : undefined} onCount={setPending} onToast={showToast} />;
       break;
     case 'simchas':
-      body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <Simchas onBack={() => setNav({ tab: 'overview' })} onMazalTov={draft => { setComposeInitial({ type: 'celebration', ...draft }); setNav({ tab: 'compose' }); }} />;
+      body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <Simchas onBack={() => setNav({ tab: 'overview' })} onMazalTov={({ familyId, ...draft }) => { setComposeInitial({ type: 'celebration', ...draft, ...(familyId ? { targetFamilyId: familyId } : {}) }); setNav({ tab: 'compose' }); }} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} onHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} />;

@@ -52,7 +52,7 @@ def _surname(child, people):
     return ''
 
 
-def _entries(people, today):
+def _entries(people, today, family_id=None):
     """[(kind, firstName, surname, date, manual, label)] for each living child with a bar/bat mitzvah date."""
     out = []
     for child in people:
@@ -63,17 +63,17 @@ def _entries(people, today):
         if child.get('gender') == 'f':
             day = bat_mitzvah_date(child.get('birth'), today)
             if day:
-                out.append(('bat', first, surname, day, False, None))
+                out.append(('bat', first, surname, day, False, None, family_id))
             continue
         stored = child.get('barMitzvah')
         if stored:
             day = _iso(stored.get('date'))
             if day:
-                out.append(('bar', first, surname, day, bool(stored.get('manual')), stored.get('label') or None))
+                out.append(('bar', first, surname, day, bool(stored.get('manual')), stored.get('label') or None, family_id))
             continue
         day = bar_mitzvah_date(child.get('birth'), today)
         if day:
-            out.append(('bar', first, surname, next_shabbat(day), False, None))
+            out.append(('bar', first, surname, next_shabbat(day), False, None, family_id))
     return out
 
 
@@ -89,17 +89,20 @@ def upcoming_simchas(families, today, weeks=8):
                        'parasha': parasha, 'label': label, 'items': []})
     last = shabbat_of(start + timedelta(days=7 * (weeks - 1)))
     found = []
-    for people in families:
-        found += _entries(people, today)
-    for kind, first, surname, day, manual, label in sorted(found, key=lambda e: (e[3], e[1], e[0])):
+    for entry in families:
+        family_id, people = entry if isinstance(entry, tuple) else (None, entry)
+        found += _entries(people, today, family_id)
+    for kind, first, surname, day, manual, label, family_id in sorted(found, key=lambda e: (e[3], e[1], e[0])):
         if day < today or day > last:
             continue
         item = {'kind': kind, 'firstName': first, 'surname': surname, 'date': day.isoformat(), 'manual': manual}
         if label:
             item['label'] = label
+        if family_id:
+            item['familyId'] = family_id  # gabbai-only: pre-selects the family of a mazal tov message
         result[(day - start).days // 7]['items'].append(item)
     return result
 
 
 def families_people(families):
-    return [people_of(family) for family in families]
+    return [(family['familyId'], people_of(family)) for family in families]

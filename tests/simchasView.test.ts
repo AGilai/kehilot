@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { counts, filterWeeks, mazalDraft, nextSimcha, quietNames, simchaSub, simchaTag, simchaTitle, weekHeader } from '../src/client/simchasView.ts';
+import { counts, filterWeeks, mazalDraft, needsCheck, nextSimcha, quietNames, simchaSub, simchaTag, simchaTitle, weekHeader } from '../src/client/simchasView.ts';
 import type { SimchaWeek } from '../src/client/types.ts';
 
 // All names are invented.
@@ -47,7 +47,12 @@ test('overview summary: nearest simcha, the rest, this week or later', () => {
   assert.equal(nextSimcha(weeks.slice(1))?.thisWeek, false);
 });
 
-test('mazal tov draft is this week only', () => {
-  assert.deepEqual(mazalDraft(weeks, t), { title: 'מזל טוב', body: 'בר מצווה · הלל, משפחת דוגמה' });
-  assert.equal(mazalDraft(weeks.slice(1), t), undefined);
+test('mazal tov draft is for one simcha and one family only', () => {
+  const d = mazalDraft({ ...hillel, familyId: 'F1' }, t);
+  assert.deepEqual(d, { title: 'מזל טוב · בר מצווה · הלל', body: '', familyId: 'F1', note: 'simchas.suggestedNote' });
+  assert.equal(JSON.stringify(d).includes('נגה'), false);
+  assert.deepEqual(mazalDraft({ ...hillel, manual: true }, t), { title: 'מזל טוב · בר מצווה · הלל', body: '' });
+  assert.equal(mazalDraft({ ...noga, familyId: 'F2' }, t).note, undefined);
+  assert.equal(needsCheck(hillel), true);
+  assert.equal(needsCheck(noga), false);
 });

@@ -21,7 +21,7 @@ import { BackIcon } from '../kit/Icon.tsx';
 import { channelLabel } from '../client/channelsView.ts';
 import { composeTypes, refusalBanner } from '../client/typesView.ts';
 
-export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked; /** A draft to start from (the gabbai's mazal tov from P36). */ title?: string; body?: string };
+export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked; /** A draft to start from (the gabbai's mazal tov from P36). */ title?: string; body?: string; /** Shown above the form (a suggested bar mitzvah date: check it with the family). */ note?: string };
 
 /**
  * M4 (members) and GM3 (gabbaim): one screen. Type cards, channel, title, text, an optional image, and for a
@@ -100,6 +100,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('common.back')}</Txt></View>
       </Pressable>
       <Txt serif size="title" accessibilityRole="header">{t(gabbai ? 'compose.titleGabbai' : 'compose.titleMember')}</Txt>
+      {initial?.note ? <Banner text={initial.note} /> : null}
 
       {types.length > 1 ? (
         <View style={{ gap: 8 }}>

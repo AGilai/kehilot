@@ -2551,8 +2551,7 @@
     "none": "No bar or bat mitzvahs in the next 8 weeks.",
     "noneNote": "The list is built from the birth dates in family trees. A family without a date does not appear.",
     "quietWeeks": "No simchas: {parashot}.",
-    "toSheet": "Add to mazal tov in the weekly sheet",
-    "toSheetNote": "Opens a ready mazal tov message. The weekly sheet shows the week's mazal tov messages; confirm it there.",
+    "toSheetNote": "Mazal tov messages appear in the weekly sheet. Each simcha is sent on its own, to its own family.",
     "draftTitle": "Mazal tov",
     "privacy": "Only first name, surname and date. Gabbaim only.",
     "card": {
@@ -2562,6 +2561,8 @@
       "more": "And {n} more in the next 8 weeks",
       "all": "All simchas",
       "none": "No bar or bat mitzvahs in the next 8 weeks."
-    }
+    },
+    "mazal": "Mazal tov",
+    "suggestedNote": "Suggested date: check with the family"
   }
 }

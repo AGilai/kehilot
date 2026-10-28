@@ -62,5 +62,9 @@ def admin_simchas(ctx, params):
     if not (raw.isascii() and raw.isdigit()) or not 1 <= int(raw) <= simchas.MAX_WEEKS:
         raise ApiError(400, 'invalid_weeks')
     today = date.fromisoformat(repo_messages.local_date())
-    live = [family for family in ctx.repo.list_families(k) if ctx.repo.live_adults(k, family)]
+    # Two queries in all (members, families): a family counts when one of its adults is still a member or gabbai of it.
+    live_ids = {(m.get('familyId'), m['sk'][2:]) for m in ctx.repo.list_members(k)
+                if m.get('role') in ('member', 'gabbai') and m.get('familyId')}
+    live = [family for family in ctx.repo.list_families(k)
+            if any((family['familyId'], u) in live_ids for u in family.get('adults', []))]
     return 200, {'weeks': simchas.upcoming_simchas(simchas.families_people(live), today, int(raw))}

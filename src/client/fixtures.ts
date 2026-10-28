@@ -381,7 +381,8 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { week: '2026-12-06', shabbat: '2026-12-12', parasha: 'מקץ', label: 'שבת פרשת מקץ', items: [] },
     { week: '2026-12-13', shabbat: '2026-12-19', parasha: 'ויגש', label: 'שבת פרשת ויגש', items: [] },
   ];
-  routes[`GET ${A}/simchas`] = { weeks: screen === 'simchas-empty' || screen === 'simchas-card-empty' ? simchaWeeks.map(w => ({ ...w, items: [] })) : simchaWeeks };
+  const withFamily = simchaWeeks.map(w => ({ ...w, items: w.items.map(i => ({ ...i, familyId: '01FIXTUREFAMILY0000000003' })) }));
+  routes[`GET ${A}/simchas`] = { weeks: screen === 'simchas-empty' || screen === 'simchas-card-empty' ? simchaWeeks.map(w => ({ ...w, items: [] })) : withFamily };
   routes[`GET ${K}/family/candidates`] = [
     { userId: partner.userId, displayName: 'יוסי בדיוני' },
     { userId: '01FIXTUREUSER00000000006', displayName: 'יונתן דוגמה' },
