@@ -9,7 +9,7 @@ from .schedule_rules import Checker
 TEMPLATE_OF_TYPE = {'event': 'event', 'celebration': 'mazal', 'condolence': 'condolence'}
 TEMPLATE_IDS = ('event', 'mazal', 'condolence')
 
-_DATE = re.compile(r'\d{4}-\d{2}-\d{2}')
+_DATE = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}')
 _checker = Checker('invalid_fields')
 
 # key -> (kind, argument); kinds: text(max), date, clock, enum(options), bool

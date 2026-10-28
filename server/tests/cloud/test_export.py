@@ -102,6 +102,19 @@ class ExportTest(test_conversation.ConversationTest):
         self.assertEqual(by_id[self.own_blessing]['targetName'], 'Olly Other')
         self.assertNotIn(self.other, text)
 
+    def test_templated_message_exports_template_id_and_plain_fields(self):
+        self.seed()
+        fields = {'name': 'ערב לימוד', 'date': '2026-11-03', 'time': '20:30', 'place': 'בית הכנסת', 'for': 'all',
+                  'cancelled': True}
+        item = self.repo.put_message(self.k, self.channels['chat-all'], 'event', 'ערב', '', self.quiet, 'Quinn Quiet',
+                                     'member', None, template_id='event', fields=fields)
+        self.assertEqual(self.post()[0], 200)
+        data = json.loads(self.open_zip().read('data.json').decode('utf-8'))
+        entry = {m['messageId']: m for m in data['messages']}[item['sk'][4:]]
+        self.assertEqual((entry['templateId'], entry['fields']), ('event', fields))
+        plain = [m for m in data['messages'] if m['messageId'] != item['sk'][4:]]
+        self.assertTrue(plain and all('templateId' not in m and 'fields' not in m for m in plain))
+
     def test_muted_member_is_a_count_only(self):
         self.repo.put_profile(self.quiet, 'Quinn', 'Quiet', 'en')
         self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.quiet}'},

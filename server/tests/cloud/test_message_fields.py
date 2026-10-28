@@ -48,6 +48,53 @@ class ValidateTest(unittest.TestCase):
                 validate_fields('event', bad)
         self.assertIs(validate_fields('event', {**EVENT, 'cancelled': True})['cancelled'], True)
 
+    def test_every_required_key_is_required(self):
+        full_condolence = {'variant': 'full', 'surname': 'ניסיון', 'deceased': 'יוסף', 'relation': 'אביו',
+                           'address': 'רחוב', 'hours': '9-12', 'until': '2026-11-05'}
+        valid = [('event', EVENT, ['name', 'date', 'time', 'place', 'for']),
+                 ('mazal', {'occasion': 'other', 'occasionOther': 'ברית', 'whose': 'other', 'whoseOther': 'חברים',
+                            'surname': 'דוגמה'}, ['occasion', 'occasionOther', 'whose', 'whoseOther', 'surname']),
+                 ('condolence', full_condolence, ['variant', 'surname', 'deceased', 'relation', 'address', 'hours', 'until'])]
+        for template, base, required in valid:
+            self.assertEqual(validate_fields(template, base), base)
+            for key in required:
+                with self.subTest(template=template, key=key):
+                    with self.assertRaises(ApiError) as e:
+                        validate_fields(template, {k: v for k, v in base.items() if k != key})
+                    self.assertEqual((e.exception.code, e.exception.field), ('invalid_fields', key))
+                    if key in ('name', 'place', 'surname', 'occasionOther', 'address'):  # blank text counts as missing
+                        with self.assertRaises(ApiError):
+                            validate_fields(template, {**base, key: '   '})
+
+    def test_optional_keys_and_shiva_fields_kept_for_other_variants(self):
+        base = {'variant': 'only', 'surname': 'ניסיון', 'deceased': 'יוסף', 'relation': 'אביו'}
+        shiva = {'address': 'רחוב', 'hours': '9-12', 'until': '2026-11-05', 'prayers': 'שחרית'}
+        self.assertEqual(validate_fields('condolence', {**base, **shiva}), {**base, **shiva})
+        mazal = {'occasion': 'wedding', 'whose': 'parents', 'surname': 'דוגמה', 'firstNames': 'א', 'name': 'ב',
+                 'parents': 'ג', 'blessing': 'ד'}
+        self.assertEqual(validate_fields('mazal', mazal), mazal)
+        more = {**EVENT, 'organisers': 'ה', 'more': 'ו', 'cancelled': False}
+        self.assertEqual(validate_fields('event', more), more)
+
+    def test_every_text_limit(self):
+        limits = {'event': {'name': 120, 'place': 120, 'organisers': 200, 'more': 1000},
+                  'mazal': {'occasionOther': 60, 'whoseOther': 60, 'surname': 60, 'firstNames': 120, 'name': 60,
+                            'parents': 120, 'blessing': 200},
+                  'condolence': {'surname': 60, 'deceased': 80, 'relation': 80, 'address': 200, 'hours': 120,
+                                 'prayers': 200}}
+        bases = {'event': EVENT,
+                 'mazal': {'occasion': 'other', 'occasionOther': 'ב', 'whose': 'other', 'whoseOther': 'ח',
+                           'surname': 'ד'},
+                 'condolence': {'variant': 'only', 'surname': 'ד', 'deceased': 'י', 'relation': 'א'}}
+        for template, keys in limits.items():
+            for key, maximum in keys.items():
+                with self.subTest(template=template, key=key):
+                    ok = {**bases[template], key: 'א' * maximum}
+                    self.assertEqual(validate_fields(template, ok)[key], 'א' * maximum)
+                    with self.assertRaises(ApiError) as e:
+                        validate_fields(template, {**bases[template], key: 'א' * (maximum + 1)})
+                    self.assertEqual(e.exception.field, key)
+
     def test_type_map(self):
         self.assertEqual(TEMPLATE_OF_TYPE, {'event': 'event', 'celebration': 'mazal', 'condolence': 'condolence'})
 
