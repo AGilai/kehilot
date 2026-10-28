@@ -133,7 +133,7 @@ function MyLinks({ kehilaId, version, onToast }: { kehilaId: string; version: nu
  * M7, the cloud part: name, language, invites (member, gabbai), notification preferences, leaving, sign out and
  * account deletion. A listener sees the name, the language, groups, notification preferences, sign out and delete.
  */
-export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, onGroup }: { onPrefs?: () => void; /** Opens the phone list (members and gabbaim). */ onPhoneList?: () => void; /** A group admin opens one group's screen. */ onGroup?: (g: { groupId: string; name: string }) => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
+export function Me({ onPrefs, onPhoneList, onTree, onBack, onToast, onLeft, onManage, onGroup }: { onPrefs?: () => void; /** Opens the phone list (members and gabbaim). */ onPhoneList?: () => void; /** Opens the family tree. */ onTree?: () => void; /** A group admin opens one group's screen. */ onGroup?: (g: { groupId: string; name: string }) => void; /** Gabbai: opens management mode. */ onManage?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const { signOut, api } = useAuth();
   const { state, editProfile, leaveKehila } = useSession();
@@ -239,7 +239,7 @@ export function Me({ onPrefs, onPhoneList, onBack, onToast, onLeft, onManage, on
 
       {roleFeatures(role).phoneList && onPhoneList ? <PhoneCard onOpenList={onPhoneList} onToast={onToast} /> : null}
 
-      {roleFeatures(role).family ? <FamilyCard onToast={onToast} /> : null}
+      {roleFeatures(role).family ? <FamilyCard onToast={onToast} onOpenTree={onTree} /> : null}
 
       <Card>
         <Txt serif size="heading" accessibilityRole="header">{t('me.lang.title')}</Txt>

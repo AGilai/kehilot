@@ -12,11 +12,12 @@ import { Banner, Button, Card, Tag, Txt, useTokens } from '../../kit/components.
 import { TOUCH } from '../../kit/theme.ts';
 import { useErrorText } from '../auth/Frame.tsx';
 import { ChildSheet } from './ChildSheet.tsx';
+import { FamilyTreeRow } from './FamilyTreeRow.tsx';
 import { PartnerPicker, useShortDate } from './PartnerPicker.tsx';
 import { ForwardIcon } from '../../kit/Icon.tsx';
 
 /** P2: "המשפחה שלי". Adults, the action for the state, then the children. Members and gabbaim only. */
-export function FamilyCard({ onToast }: { onToast: (text: string) => void }) {
+export function FamilyCard({ onToast, onOpenTree }: { onToast: (text: string) => void; /** Opens the family tree (the §18 row above the card). */ onOpenTree?: () => void }) {
   const { t, lang, dir } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -81,6 +82,8 @@ export function FamilyCard({ onToast }: { onToast: (text: string) => void }) {
   const addPartner = <Button title={t('family.addPartner')} onPress={() => setPicking(true)} disabled={busy} />;
 
   return (
+    <>
+    {onOpenTree ? <FamilyTreeRow view={view} kehilaId={kehila.kehilaId} onOpen={onOpenTree} /> : null}
     <Card>
       {header}
       {st === 'linked' ? <Txt size="small" color={k.muted}>{t('family.intro', { kehila: kehila.name })}</Txt> : null}
@@ -160,5 +163,6 @@ export function FamilyCard({ onToast }: { onToast: (text: string) => void }) {
         initial={screen === 'child-sheet' ? { firstName: 'נועה', gender: 'f', birth: '12.3.2015' } : undefined}
         onClose={() => setSheet(null)} onDone={() => { setSheet(null); void load(); }} onToast={onToast} />
     </Card>
+    </>
   );
 }

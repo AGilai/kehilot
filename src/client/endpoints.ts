@@ -9,6 +9,8 @@ import type {
   MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
   RequestRow, TargetFamily, UploadGrant,
 } from './types.ts';
+import type { TreeDoc } from './tree.ts';
+import type { Person } from '../tree/types.ts';
 import type { LayoutBody } from '../seats/savePlan.ts';
 import type { MemberWire, OnBehalfBody, WeekWire } from '../seats/wire.ts';
 import type { LinkSuggestions } from '../seats/holders.ts';
@@ -179,6 +181,11 @@ export function endpoints(http: Http) {
     declinePartner: (k: string, fromUserId: string) =>
       r<void>('POST', `${K(k)}/family/requests/${e(fromUserId)}/decline`),
     unlink: (k: string) => r<FamilyView>('POST', `${K(k)}/family/unlink`),
+    /** The family tree (UX-DESIGN §17). A save with a stale `ifVersion` answers 409 `version_conflict`: reload, nothing was written. */
+    familyTree: (k: string) => r<TreeDoc>('GET', `${K(k)}/family/tree`),
+    putFamilyTree: (k: string, body: { people: Person[]; ifVersion: number }) => r<{ version: number }>('PUT', `${K(k)}/family/tree`, body),
+    /** Gabbai, read only: one family's tree. */
+    adminFamilyTree: (k: string, familyId: string) => r<TreeDoc>('GET', `${A(k)}/families/${e(familyId)}/tree`),
     targetFamilies: (k: string, channelId: string) =>
       r<TargetFamily[]>('GET', `${K(k)}/families${query([['channelId', channelId]])}`),
 

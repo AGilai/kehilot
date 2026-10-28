@@ -584,6 +584,16 @@
     "tags": {
       "label": "My roles in the community",
       "note": "The gabbaim set these tags."
+    },
+    "family": {
+      "title": "My family",
+      "request": "{name} asked to link with you · confirm",
+      "missing": "Details missing for {n}",
+      "empty": "Not filled in · start with you",
+      "sent": "Request sent to {name}",
+      "updated": "Updated {date}",
+      "complete": "All filled in",
+      "a11y": "My family, open the family tree"
     }
   },
   "deleteAccount": {
@@ -751,7 +761,8 @@
       "familyAlone": "No partner",
       "children": "Children: {n}",
       "readOnly": "Gabbaim see family details but don't edit them. The family updates them in Me.",
-      "link": "Link to a partner"
+      "link": "Link to a partner",
+      "tree": "Family tree"
     },
     "invite": {
       "title": "Invite with a role",
@@ -2264,6 +2275,98 @@
       "more": "and {n} more",
       "after": "The suggestion also appears after approval, in the seat holders list, where you link. Nothing is linked by itself.",
       "open": "Seat holders without an account"
+    }
+  },
+  "tree": {
+    "title": "Family tree",
+    "titleOf": "The {name} family tree",
+    "view": {
+      "label": "View",
+      "tree": "Tree",
+      "list": "List"
+    },
+    "legend": {
+      "missing": "Details missing",
+      "candle": "z\"l",
+      "tap": "Tap a person to open their details"
+    },
+    "up": "Their parents",
+    "upA11y": "Show the parents of {name}",
+    "crumb": "{name}'s parents",
+    "crumbA11y": "Location",
+    "backTo": "Back to {couple}",
+    "fromHere": "You come from here",
+    "kids": "Children · {n}",
+    "kidsOf": "Their children in the tree",
+    "addChild": "Child",
+    "addChildA11y": "Add a child",
+    "noSiblings": "Siblings aren't recorded. Only people whose names your names need.",
+    "start": "Start with you",
+    "startBody": "Tap a person and fill in the Hebrew name. A father's name passes to the children, building the aliyah name.",
+    "privacy": "You, {partner} and the Kehila's gabbaim see the tree and details.",
+    "privacyAlone": "You and the Kehila's gabbaim see the tree and details.",
+    "readOnly": "Read only. You can see the tree but not change it.",
+    "me": "Me",
+    "pair": "{a} and {b}",
+    "coupleName": "{a} and {b} {surname}",
+    "open": "Open details",
+    "loading": "Loading the tree…",
+    "soon": "Editing details is coming soon.",
+    "role": {
+      "self": "Me",
+      "father": "Father",
+      "mother": "Mother",
+      "spouseM": "Husband",
+      "spouseF": "Wife",
+      "son": "Son",
+      "daughter": "Daughter",
+      "grandchild": "Grandchild"
+    },
+    "rel": {
+      "father": "{name}'s father",
+      "mother": "{name}'s mother",
+      "husband": "{name}'s husband",
+      "wife": "{name}'s wife",
+      "daughter": "Our daughter",
+      "son": "Our son",
+      "spouseOf": "{name}'s spouse",
+      "grandchild": "Grandchild",
+      "married": "{kind} and spouse",
+      "self": "Me",
+      "formerSpouse": "Former spouse",
+      "ofMe": "My {kind}"
+    },
+    "state": {
+      "deceased": "Deceased",
+      "unfilled": "Not filled in yet",
+      "missing": "Details missing",
+      "missFirst": "First name missing",
+      "missFather": "Father's name missing",
+      "missMother": "Mother's name missing",
+      "missTribe": "Tribe missing",
+      "ok": "Filled in",
+      "empty": "Not filled in",
+      "missMany": "Missing: {list}"
+    },
+    "list": {
+      "empty": "No one is in the tree yet.",
+      "you": "You",
+      "parents": "Parents",
+      "grandparents": "Parents' parents",
+      "earlier": "Earlier generations",
+      "children": "Children",
+      "formerSpouse": "Former spouse",
+      "details": "Details"
+    },
+    "zl": "z\"l",
+    "zlA11y": "of blessed memory, deceased",
+    "dotA11y": "Details missing",
+    "emptySlotA11y": "{role}, not filled in",
+    "part": {
+      "first": "first name",
+      "father": "father's name",
+      "mother": "mother's name",
+      "tribe": "tribe"
     }
   }
 }

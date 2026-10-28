@@ -45,9 +45,9 @@ function GroupsSheet({ row, groups, onClose, onSave }: { row: MemberRow | null; 
 }
 
 /** Actions of one person: role, classification, groups, remove (confirmed). */
-function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, onRemove }: {
+function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, onRemove, onTree }: {
   row: MemberRow; error: string | null; busy: boolean; family: AdminFamily | undefined; alone: boolean;
-  onFields: (f: MemberFields) => void; onGroups: () => void; onLink: () => void; onRemove: () => Promise<void>;
+  onFields: (f: MemberFields) => void; onGroups: () => void; onLink: () => void; onRemove: () => Promise<void>; onTree?: () => void;
 }) {
   const { t } = useI18n();
   const [asking, setAsking] = React.useState(false);
@@ -57,7 +57,7 @@ function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, 
       {error ? <Banner tone="error" text={error} /> : null}
       {row.role !== 'listener' ? (
         <>
-          <FamilyBlock family={family} />
+          <FamilyBlock family={family} onTree={onTree} />
           {alone ? <Button kind="secondary" title={t('admin.members.link')} onPress={onLink} /> : null}
           <Button kind="secondary" title={row.role === 'gabbai' ? t('admin.members.makeMember') : t('admin.members.makeGabbai')} busy={busy} onPress={() => onFields({ role: flip })} />
           <Txt size="small" bold>{t('admin.members.class.label')}</Txt>
@@ -81,7 +81,7 @@ function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, 
 }
 
 /** GM4 (cards) below 1024 px, GD1 (table) from 1024 px: members, roles and the broadcast right. */
-export function Members({ onToast }: { onToast: (text: string) => void }) {
+export function Members({ onToast, onTree }: { onToast: (text: string) => void; /** Opens one family's tree, read only. */ onTree?: (familyId: string, name: string) => void }) {
   const { t, lang, dir } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -196,7 +196,8 @@ export function Members({ onToast }: { onToast: (text: string) => void }) {
   };
   const actions = (r: MemberRow) => open === r.userId ? (
     <Actions row={r} family={familyOf(r.userId)} alone={(familyOf(r.userId)?.adults.length ?? 1) < 2} onLink={() => setLinkFor(r.userId)} busy={busy === r.userId} error={rowError?.id === r.userId ? rowError.text : null}
-      onFields={f => void update(r.userId, f)} onGroups={() => setGroupsFor(r.userId)} onRemove={() => remove(r.userId)} />
+      onFields={f => void update(r.userId, f)} onGroups={() => setGroupsFor(r.userId)} onRemove={() => remove(r.userId)}
+      onTree={onTree && familyOf(r.userId) ? () => onTree(familyOf(r.userId)!.familyId, familyOf(r.userId)!.name) : undefined} />
   ) : null;
   const toggleOpen = (r: MemberRow) => { setOpen(o => (o === r.userId ? null : r.userId)); setRowError(null); };
 

@@ -3,6 +3,7 @@ import { ApiCodeError } from './errors.ts';
 import { endpoints } from './endpoints.ts';
 import type { Http } from './http.ts';
 import type { Shabbat, Zmanim } from '../types.ts';
+import { fixtureTreeFor } from '../tree/fixtureTree.ts';
 import { createSeatsFixture, seatVariantOf } from '../seats/fixtureSeats.ts';
 export { fixtureMemberSeats, fixtureSeatHall, seatVariantOf } from '../seats/fixtureSeats.ts';
 export type { FixtureMemberSeats, SeatVariant } from '../seats/fixtureSeats.ts';
@@ -24,10 +25,10 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
 /** Screens for the P-frames. `me-linked` is P2's main state and P6's member-with-a-partner check;
  *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
-export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family'];
+export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -365,6 +366,10 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     notice: null,
   };
   routes[`GET ${K}/family`] = familyView;
+  // The family tree (UX-DESIGN §17): `?screen=tree | tree-married | tree-solo | tree-empty` (tree-admin is the gabbai's read-only view).
+  routes[`GET ${K}/family/tree`] = { people: fixtureTreeFor(screen), version: 1 };
+  routes[`PUT ${K}/family/tree`] = { version: 2 };
+  for (const f of ['3', '4', '5', '6']) routes[`GET ${A}/families/01FIXTUREFAMILY000000000${f}/tree`] = { people: fixtureTreeFor(screen === 'tree-admin' ? 'tree' : screen), version: 1 };
   routes[`GET ${K}/family/candidates`] = [
     { userId: partner.userId, displayName: 'יוסי בדיוני' },
     { userId: '01FIXTUREUSER00000000006', displayName: 'יונתן דוגמה' },

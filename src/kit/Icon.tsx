@@ -39,6 +39,7 @@ const PATHS = {
   eyeoff: '<path d="M2 12s4-7 10-7c2 0 3.8.8 5.3 1.8M22 12s-4 7-10 7c-2 0-3.8-.8-5.3-1.8M4 4l16 16"/>',
   minus: '<path d="M5 12h14"/>',
   up: '<path d="M6 15l6-6 6 6"/>',
+  tree: '<circle cx="12" cy="9" r="6"/><path d="M12 15v6M9 21h6M12 13l-2.5-2.5M12 12l2.5-2.5"/>',
   image: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17l5-4 4 3 3-2 4 3"/>',
   undo: '<path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-4"/>',
   redo: '<path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h4"/>',
