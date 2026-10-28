@@ -1952,8 +1952,10 @@ One inline-SVG line set, 32 × 32, stroke `currentColor` 1.6, soft parts (hair, 
 
 The icon follows the role (generation) and the gender field; an empty slot already shows the right face. Deceased =
 the same icon in ash + candle + "ז״ל" (never the candle alone). The head-covering and kippah convention suits this
-Kehila (owner decision 5: keep it). **P31–P33 still draw these line icons; the owner asked for illustrated figures,
-which §17.13 / P34 proposes. Once a direction is chosen, P31–P33 are redrawn with it.**
+Kehila (owner decision 5: keep it). **Superseded (2026-10-28):** the line icons above are replaced by the illustrated
+figures of §17.13. **Decision: direction B (head and shoulders in a disc) for every tree tile, the parents rows, list
+rows and pickers; direction A (full body) only in the person-sheet header and the age-growth strip.** Both are drawn
+from the same parts and palette, so they read as one family. P31–P33 are redrawn this way.
 
 ### 17.4 The person sheet (P32)
 
@@ -2177,8 +2179,7 @@ daughter with her husband (she in a tichel, he behind).
 **Deceased**: the same figure in greyscale at 62% (no black, no red), the candle badge and "ז״ל". **Empty / add**: a
 dashed outline (body in A, head-and-shoulders in a dashed circle in B) and the tekhelet "+".
 
-**For the owner to choose:**
-1. Direction **A** (full body) or **B** (head and shoulders).
+**Chosen:** B in the tree, A in the sheet header and growth strip (see §17.3). Still open:
 2. The default options per generation (as listed) — confirm, or change a default.
 3. Default skin tone for a new family (three are drawn; each person can change it).
 4. The children's age bands (bat mitzvah at 12 starts "נערה").
@@ -2201,4 +2202,26 @@ The frames generate every figure from such parameters, so the component can foll
 
 Verification: P34 rendered with headless Chromium at 390 (light and dark) and 1280; no horizontal scroll at 390. Not
 checked: real devices, the 360 width, and how small A reads in the parents row on a real phone.
+
+### 17.14 Upcoming simchas for gabbaim (P36)
+
+The bar mitzvah Shabbat (suggested or set by the family) and the bat mitzvah date (12th Hebrew birthday; information
+only, no Shabbat for girls) feed the gabbaim's mazal-tov preparation. **Gabbai › Overview › "שמחות קרובות"**: the next
+8 weeks, grouped by week (Shabbat, parasha, Hebrew and Gregorian date), one row per simcha: the child's B figure,
+"בר מצווה · {first name}" / "בת מצווה · {first name}", "משפחת {surname}", and for bar mitzvahs the Shabbat's state
+Tag ("הצעה" = the family kept the suggestion, "נקבע ידנית" = the family chose it); bat mitzvahs show their weekday
+date. Filter Chips הכול / בר מצווה / בת מצווה. Weeks with nothing are listed in one muted line. A secondary Button
+"הוספה למזל טוב בגיליון השבועי" marks this week's simchas in the weekly sheet (P23), where the gabbai confirms.
+**Minimal data:** first name, surname and date only — no age, phone or other details; gabbaim only; never in a push.
+Overview gets one card ("השבת: …", "ועוד n ב־8 השבועות הבאים", "לכל השמחות ‹"). Empty state: "אין בר או בת מצווה
+ב־8 השבועות הבאים." Families without a birth date don't appear.
+
+| Key | Hebrew | English |
+|---|---|---|
+| `simchas.title` / `.intro` | שמחות קרובות / בר ובת מצווה ב־8 השבועות הבאים, מעצי המשפחה. | Upcoming simchas / Bar and bat mitzvahs in the next 8 weeks, from family trees. |
+| `simchas.bar` / `.bat` / `.family` | בר מצווה · {name} / בת מצווה · {name} / משפחת {surname} | Bar mitzvah · {name} / Bat mitzvah · {name} / The {surname} family |
+| `simchas.none` / `.quietWeeks` | אין בר או בת מצווה ב־8 השבועות הבאים. / בלי שמחות: {parashot}. | No bar or bat mitzvahs in the next 8 weeks. / No simchas: {parashot}. |
+| `simchas.toSheet` / `.privacy` | הוספה למזל טוב בגיליון השבועי / מוצגים רק שם פרטי, שם משפחה ותאריך. לגבאים בלבד. | Add to mazal tov in the weekly sheet / Only first name, surname and date. Gabbaim only. |
+
+Verification (P31–P33 redraw, P36): rendered at 390 light and dark and at 1280. Not checked on devices.
 

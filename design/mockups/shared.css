@@ -677,4 +677,24 @@ svg.fi .solid{fill:currentColor;stroke:none}
 .fweb .wbody{display:grid;grid-template-columns:1fr 400px;min-height:760px}
 .fweb .wmain{padding:20px 32px 32px;display:flex;flex-direction:column;gap:14px;max-width:760px;width:100%;justify-self:center}
 .fweb .wside{border-inline-start:1px solid var(--k-line);background:var(--k-stone);padding:16px;display:flex;flex-direction:column;gap:10px}
+/* §17 figures (decision 2026-10-28): B busts in the tree, A full body in the sheet header and growth strip */
+:root{--disc:#EAEDE2;--spot:rgba(42,63,148,.2)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--disc:#283058;--spot:rgba(143,162,240,.38)}}
+:root[data-theme="dark"]{--disc:#283058;--spot:rgba(143,162,240,.38)}
+.fig .av>svg.fgB,.fmini .av>svg.fgB{width:100%;height:100%}
+.fig .av:has(>svg.fgB){border-width:1px;overflow:visible}
+.fkids .fig .av{width:60px;height:60px}
+.fpair .fig .av{width:52px;height:52px}
+.fig.big .av{width:72px;height:72px}
+.fig.dec .av>svg,.fhA.dec>svg{filter:grayscale(1) contrast(.85);opacity:.62}
+.fhA{position:relative;flex:none;height:84px;width:64px;display:flex;align-items:flex-end;justify-content:center}
+.fhA>svg{height:100%;width:auto}
+.fhA .cdl{position:absolute;bottom:-2px;inset-inline-start:-4px;width:24px;height:24px;border-radius:50%;background:var(--k-surface);border:1px solid var(--k-line);display:grid;place-items:center;color:var(--k-gold)}
+.fhA .cdl svg{width:16px;height:16px}
+.fmini .av{width:44px;height:44px}
+/* P36 upcoming simchas */
+.swk{margin:4px 0 0;font-size:12.5px;font-weight:700;color:var(--k-muted);display:flex;justify-content:space-between}
+.srow{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 10px;border:1px solid var(--k-line);border-radius:12px;background:var(--k-surface)}
+.srow .av{width:44px;height:44px;flex:none}.srow .av svg{width:100%;height:100%}
+.srow .g{flex:1;min-width:0}
 @media print{.bar,.notes{display:none}}
