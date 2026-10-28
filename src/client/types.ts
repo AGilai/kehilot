@@ -3,6 +3,9 @@ export type Role = 'listener' | 'member' | 'gabbai' | 'tech';
 export type Classification = '' | 'א' | 'קבוע';
 export type Lang = 'he' | 'en';
 export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'general' | 'chat';
+export type TemplateId = 'event' | 'mazal' | 'condolence';
+/** Template values, keyed as the server's `message_fields` schema: texts and chip values are strings, `cancelled` is a boolean. */
+export type TemplateFields = Record<string, string | boolean>;
 export type PostPolicy = 'management' | 'broadcasters';
 export type ImageType = 'image/jpeg' | 'image/png';
 
@@ -150,6 +153,8 @@ export type Message = {
   targetFamilyId?: string;
   targetName?: string;
   replierCount?: number;
+  templateId?: TemplateId;
+  fields?: TemplateFields;
 };
 
 export type PostMessageBody = {
@@ -160,6 +165,8 @@ export type PostMessageBody = {
   targetMemberId?: string;
   targetFamilyId?: string;
   imageUploadId?: string;
+  templateId?: TemplateId;
+  fields?: TemplateFields;
 };
 
 export type Reply = { replyId: string; authorId: string; authorName: string; body: string; createdAt: number };

@@ -381,7 +381,12 @@
     "signOut": "Sign out",
     "phoneList": "Phone list",
     "phoneListSub": "Numbers of families in the Kehila",
-    "zmanimNext": "Next: {zman} {time}"
+    "zmanimNext": "Next: {zman} {time}",
+    "week": {
+      "title": "This week · Shabbat {parasha}",
+      "more": "{n} more",
+      "print": "Printable sheet"
+    }
   },
   "zmanim": {
     "sunrise": "Sunrise",
@@ -524,7 +529,20 @@
     "familyAnd": "{a} and {b}",
     "refused": "The settings changed and you can no longer post this type of message. What you wrote is kept.",
     "refusedAll": "You can't post in this community right now. Your message was not sent.",
-    "asGeneral": "Change to a regular message"
+    "asGeneral": "Change to a regular message",
+    "tpl": {
+      "mode": "How to write",
+      "template": "Fill a template",
+      "free": "Free text",
+      "optional": "(optional)",
+      "preview": "How the message will look",
+      "previewSheet": "On the weekly sheet",
+      "sheetAuto": "Goes on the sheet now (posted by a gabbai)",
+      "sheetPending": "Goes on the sheet once a gabbai approves",
+      "required": "Please fill in {field}",
+      "copied": "The template text was copied here. Edit it freely. Your template details are kept if you switch back.",
+      "choose": "Template"
+    }
   },
   "viewer": {
     "close": "Close",
@@ -1088,7 +1106,9 @@
       "termsSub": "Needed before using management",
       "linkHints": "{n} link suggestions for seat holders",
       "linkHintsSub": "Families that signed up and look like a match",
-      "groupRequests": "{n} group join requests"
+      "groupRequests": "{n} group join requests",
+      "sheet": "{n} items waiting for the sheet",
+      "sheetCaption": "{types} · Shabbat {parasha} sheet"
     },
     "row": {
       "schedule": "Edit prayer times",
@@ -1376,7 +1396,9 @@
   },
   "push": {
     "familyRequest": "New family link request",
-    "familyGabbai": "Your family details were updated by the management team"
+    "familyGabbai": "Your family details were updated by the management team",
+    "shivaUpdated": "Shiva details updated · {surname} family",
+    "eventChanged": "Change to {event}: {what}"
   },
   "testBuild": {
     "title": "New test version",
@@ -2868,5 +2890,257 @@
       "waitingOther": "{n} things need attention",
       "prefs": "Notifications"
     }
+  },
+  "tpl": {
+    "event": {
+      "name": "Event name",
+      "date": "Day and date",
+      "time": "Time",
+      "place": "Place",
+      "for": "For whom",
+      "organisers": "Organisers",
+      "more": "More details",
+      "forAll": "Everyone",
+      "men": "Men",
+      "women": "Women",
+      "youth": "Youth",
+      "kids": "Children",
+      "bodyLine": "{day}, {hdate}, at {time} · {place} · {for}.",
+      "organisersLine": "Organisers: {names}"
+    },
+    "mazal": {
+      "occasion": "Occasion",
+      "whose": "Whose simcha",
+      "name": "{who}'s name",
+      "parents": "Parents",
+      "blessing": "Blessing line",
+      "other": "Which simcha",
+      "birthSon": "Birth of a son",
+      "birthDaughter": "Birth of a daughter",
+      "barMitzvah": "Bar mitzvah",
+      "batMitzvah": "Bat mitzvah",
+      "engagement": "Engagement",
+      "wedding": "Wedding",
+      "otherChip": "Other",
+      "parentsChip": "Parents",
+      "grandparentsChip": "Grandparents",
+      "blessingHint": "Suggested for this occasion. Change or delete it.",
+      "title": "Mazal tov to the {surname} family",
+      "whoseOther": "Whose",
+      "phrase": {
+        "birthSon": {
+          "parents": {
+            "name": "On the birth of a son, {name}",
+            "plain": "On the birth of a son"
+          },
+          "grandparents": {
+            "name": "On the birth of a grandson, {name}",
+            "plain": "On the birth of a grandson"
+          }
+        },
+        "birthDaughter": {
+          "parents": {
+            "name": "On the birth of a daughter, {name}",
+            "plain": "On the birth of a daughter"
+          },
+          "grandparents": {
+            "name": "On the birth of a granddaughter, {name}",
+            "plain": "On the birth of a granddaughter"
+          }
+        },
+        "barMitzvah": {
+          "parents": {
+            "name": "On the bar mitzvah of {name}",
+            "plain": "On the bar mitzvah"
+          },
+          "grandparents": {
+            "name": "On the bar mitzvah of the grandson {name}",
+            "plain": "On the bar mitzvah of the grandson"
+          }
+        },
+        "batMitzvah": {
+          "parents": {
+            "name": "On the bat mitzvah of {name}",
+            "plain": "On the bat mitzvah"
+          },
+          "grandparents": {
+            "name": "On the bat mitzvah of the granddaughter {name}",
+            "plain": "On the bat mitzvah of the granddaughter"
+          }
+        },
+        "engagement": {
+          "parents": {
+            "name": "On the engagement of {name}",
+            "plain": "On the engagement"
+          }
+        },
+        "wedding": {
+          "parents": {
+            "name": "On the wedding of {name}",
+            "plain": "On the wedding"
+          }
+        },
+        "other": {
+          "parents": {
+            "name": "On the {other} of {name}",
+            "plain": "On the {other}"
+          }
+        }
+      },
+      "childOf": {
+        "m": "son of {parents}",
+        "f": "daughter of {parents}"
+      },
+      "nameLabel": {
+        "birthSon": "Baby's name",
+        "birthDaughter": "Baby girl's name",
+        "barMitzvah": "Bar mitzvah boy's name",
+        "batMitzvah": "Bat mitzvah girl's name",
+        "engagement": "Groom's or bride's name",
+        "wedding": "Groom's or bride's name",
+        "other": "Name of the one celebrating"
+      },
+      "blessingDefault": {
+        "birth": "May they raise him/her to Torah, the chuppah and good deeds",
+        "barMitzvah": "May he grow in Torah and mitzvot",
+        "batMitzvah": "May she grow in Torah and good deeds",
+        "couple": "May they build a faithful home in Israel"
+      }
+    },
+    "condolence": {
+      "deceased": "The deceased",
+      "relation": "Relation",
+      "address": "Shiva address",
+      "hours": "Visiting hours",
+      "until": "Shiva until",
+      "prayers": "Prayer times at the shiva house",
+      "variant": "What the notice includes",
+      "vOnly": "Passing only",
+      "vLater": "Shiva details later",
+      "vFull": "With shiva details",
+      "laterLine": "Shiva details will follow.",
+      "closing": "May the Almighty comfort you among the mourners of Zion and Jerusalem.",
+      "title": "The {surname} family",
+      "bodyStart": "We share in the grief of the {surname} family at the passing of {deceased}, {relation}.",
+      "fullLine": "Shiva at {address}, until {until}. Visiting hours {hours}.",
+      "prayersLine": "Prayers: {prayers}.",
+      "sheetLater": "Shiva details to follow",
+      "sheetFull": "Shiva at {address} until {dayShort}"
+    },
+    "family": "Family"
+  },
+  "msg": {
+    "update": {
+      "only": "Only you and the gabbaim see this",
+      "shiva": "Update shiva details",
+      "event": "Update event details",
+      "save": "Save the update",
+      "back": "The message",
+      "notify": "Let members know",
+      "notifyHelp": "One quiet notification: \"Shiva details updated · {surname} family\"",
+      "cancelEvent": "The event is cancelled",
+      "saved": "Update saved",
+      "savedQuiet": "Update saved. A notification for this message went out in the last 12 hours, so none was sent again."
+    },
+    "updated": "Updated {time}",
+    "changed": "Changed {time}",
+    "updatedLine": "Updated {time}: shiva details added · first posted {first}",
+    "cancelled": "Cancelled"
+  },
+  "sheetItems": {
+    "title": "Weekly sheet",
+    "caption": "Shabbat {parasha} · {date} · what goes under the times",
+    "fits": "Fits on one page",
+    "over": "{n} items don't fit",
+    "preview": "Preview",
+    "meter": {
+      "mazal": "Mazal tov",
+      "events": "Events",
+      "image": "Pinned image",
+      "of": "{n} of {max}"
+    },
+    "pending": "Waiting for approval",
+    "add": "Add to the sheet",
+    "skip": "Not on the sheet",
+    "added": "Added to the sheet",
+    "skipped": "Won't go on the sheet",
+    "undo": "Undo",
+    "src": {
+      "auto": "Automatic",
+      "approved": "Approved",
+      "byGabbai": "Added by a gabbai",
+      "free": "Free item",
+      "out": "Doesn't fit",
+      "postedBy": "Posted by {name}"
+    },
+    "groupMazal": "Mazal tov on the sheet",
+    "groupEvents": "Events on the sheet",
+    "groupImage": "Pinned image",
+    "removed": "Removed this week ({n})",
+    "addFree": "Item for this week",
+    "freeNote": "This week only. No message or notification is sent.",
+    "freeSurname": "Family name (bold)",
+    "freeText": "Text",
+    "addBtn": "Add to the sheet",
+    "item": {
+      "title": "Sheet item",
+      "line": "Line on the sheet",
+      "lineHelp": "Changes only the sheet and \"This week\". The message itself stays.",
+      "up": "Move up",
+      "down": "Move down",
+      "open": "Open the message",
+      "remove": "Remove from the sheet"
+    },
+    "rule": {
+      "members": "What members post",
+      "approve": "After approval",
+      "auto": "Automatic",
+      "condolence": "Condolences",
+      "onlyAdded": "Only when added",
+      "approveNote": "Default. One tap \"Add to the sheet\" in Needs attention.",
+      "autoNote": "Like gabbai posts. You can always remove an item."
+    },
+    "empty": "No mazal tov or events on the sheet this week.",
+    "groupCondolence": "Condolences on the sheet"
+  },
+  "logo": {
+    "row": "Community logo",
+    "rowSet": "Uploaded {date} · top bar, sheet and invites",
+    "rowNone": "No logo · showing the letter {letter}",
+    "current": "Current logo",
+    "meta": "Uploaded by {name} on {date}",
+    "where": {
+      "top": "Top bar",
+      "sheet": "Weekly sheet",
+      "menu": "Community menu",
+      "invite": "Invite (link and join page)"
+    },
+    "none": "For now, the first letter of the community's name is shown.",
+    "upload": "Upload a logo",
+    "replace": "Replace the logo",
+    "remove": "Remove the logo",
+    "rules": "PNG or JPEG, up to 10MB. You crop it to a square here. Saved as a square PNG, 64 to 512 pixels, up to 64KB (we shrink it for you). Best: a simple mark on white or transparent, no small text.",
+    "source": {
+      "photos": "From photos",
+      "files": "From files",
+      "drop": "Drop a PNG or JPEG here"
+    },
+    "crop": {
+      "title": "Crop to a square",
+      "zoom": "Zoom",
+      "rotate": "Rotate",
+      "note": "Saved as a {size}×{size} PNG.",
+      "area": "Crop area. Drag to move, pinch to zoom"
+    },
+    "saving": "Saving",
+    "saved": "Logo updated. Everyone will see it within a few minutes.",
+    "removeConfirm": "Remove the logo? It will be removed from the top bar, sheet and invites, and the letter {letter} shown instead. You can upload again any time.",
+    "err": {
+      "format": "Please upload a PNG or JPEG.",
+      "small": "The image is too small: at least 64×64 pixels after cropping.",
+      "big": "The logo is too detailed for the size limit. Try a simpler version.",
+      "save": "We couldn't save the logo. The previous one stays."
+    },
+    "whereTitle": "Where it appears"
   }
 }
