@@ -16,7 +16,7 @@ export const PAPER = {
 
 export const SHEET_TEXT = {
   title: 'שבת פרשת', titleNoParasha: 'שבת קודש', candles: 'הדלקת נרות', candlesShort: 'נרות', weekdaysDefault: 'ימי החול', shabbatDefault: 'שבת קודש',
-  weekdayDays: 'א׳–ה׳', footnote: '* שינוי לשבוע זה', blessing: 'שבת שלום ומבורך', kehila: 'קהילת', mazalTov: 'מזל טוב', more: 'ועוד {n} ברכות באפליקציה', squareFamily: 'משפחת', squareMore: '… ועוד {n}',
+  weekdayDays: 'א׳–ה׳', footnote: '* שינוי לשבוע זה', blessing: 'שבת שלום ומבורך', kehila: 'קהילת', mazalTov: 'מזל טוב', more: 'ועוד {n} ברכות באפליקציה', squareFamily: 'משפחת', squareMore: '… ועוד {n}', cancelled: 'בוטל',
 } as const;
 
 /** Lines the sheet holds: at most this many mazal tov (condolences count with them) and events; the rest is "ועוד n". */
@@ -251,17 +251,24 @@ const plain = (parts: MazalPart[]) => parts.map(p => p.text).join('');
 
 /** The square sheet's one band: "מזל טוב: משפחת א · משפחת ב · … ועוד n" (four families at most; no events). */
 export function squareBand(items: SheetLineItem[]): string {
-  if (!items.length) return '';
+  return squareBandParts(items).map(p => p.text).join('');
+}
+/** The same band in parts, the family names bold (the renderers draw them in `PAPER.pom`). */
+export function squareBandParts(items: SheetLineItem[]): MazalPart[] {
+  if (!items.length) return [];
   const name = (i: SheetLineItem) => i.main.find(p => p.bold)?.text ?? plain(i.main);
   const rest = items.length - 4;
-  return `${SHEET_TEXT.mazalTov}: ${items.slice(0, 4).map(i => `${SHEET_TEXT.squareFamily} ${name(i)}`).join(' · ')}${rest > 0 ? ` · ${SHEET_TEXT.squareMore.replace('{n}', String(rest))}` : ''}`;
+  const parts: MazalPart[] = [{ text: `${SHEET_TEXT.mazalTov}: `, bold: false }];
+  items.slice(0, 4).forEach((i, k) => { parts.push({ text: `${k ? ' · ' : ''}${SHEET_TEXT.squareFamily} `, bold: false }, { text: name(i), bold: true }); });
+  if (rest > 0) parts.push({ text: ` · ${SHEET_TEXT.squareMore.replace('{n}', String(rest))}`, bold: false });
+  return parts;
 }
 
 function linesHeight(items: SheetLineItem[], L: SheetLayout, width: number, dropBlessings: boolean): number {
   let h = 0;
   items.forEach((item, i) => {
     const lines = textLines(plain(item.main), L.mazalFont, width - 8) + textLines(item.sub, L.mazalFont, width - 8) + (dropBlessings ? 0 : textLines(item.blessing, L.mazalFont, width - 8));
-    h += lines * L.mazalFont * 1.45 + 4 + (i > 0 ? 17 : 0);
+    h += lines * L.mazalFont * 1.45 + 4 + (item.icon ? 18 : 0) + (i > 0 ? 17 : 0);
   });
   return h;
 }

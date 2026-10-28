@@ -1,6 +1,6 @@
 // The sheet as a standalone HTML document for the phone's PDF (expo-print). Same model, fit and layout numbers as Sheet.tsx, so the
 // two look alike. Every piece of text goes through `esc`; images only as data: or https: URLs.
-import { PAPER, SHEET_TEXT, fitSheet, innerBox, sheetLayout, shownItems } from './sheetModel.ts';
+import { PAPER, SHEET_TEXT, fitSheet, innerBox, placement, sheetLayout, shownItems, squareBandParts } from './sheetModel.ts';
 import type { SheetLineItem, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
 
 export function esc(value: string): string {
@@ -35,12 +35,22 @@ function columnHtml(column: SheetColumn | null): string {
   return `<div><h2>${esc(column.title)}</h2>${band}${column.rows.map(rowHtml).join('')}</div>`;
 }
 
-const mazalTitle = (item: SheetLineItem) => item.main.map(p => (p.bold ? `<b>${esc(p.text)}</b>` : esc(p.text))).join('');
+const partsHtml = (parts: Array<{ text: string; bold: boolean }>) => parts.map(p => (p.bold ? `<b>${esc(p.text)}</b>` : esc(p.text))).join('');
+const mazalTitle = (item: SheetLineItem) => partsHtml(item.main);
+const ICON = {
+  heart: '<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/>',
+  star: '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5l-5.3 2.9 1.2-6-4.5-4.1 6-.7z"/>',
+} as const;
+/** A mazal tov or condolence line: main (surname bold), sub and blessing on their own lines, the icon under them (none for a condolence). */
+const mazalLine = (i: SheetLineItem, blessings: boolean) =>
+  `<div class="mt mz">${mazalTitle(i)}${i.sub ? `<br>${esc(i.sub)}` : ''}${blessings && i.blessing ? `<br><span class="bl">${esc(i.blessing)}</span>` : ''}${i.icon ? `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[i.icon]}</svg>` : ''}</div>`;
+/** An event line: tekhelet-bold name; a cancelled one is struck and followed by the word "בוטל". */
+const eventLine = (i: SheetLineItem) => `<div class="mt ev">${i.cancelled ? `<span class="cx">${mazalTitle(i)}</span> <span class="cxw">${esc(SHEET_TEXT.cancelled)}</span>` : mazalTitle(i)}</div>`;
 const ornament = '<div class="orn"><i></i><i></i><i></i></div>';
 
 function logoHtml(model: SheetModel): string {
   const src = safeImage(model.logoUri);
-  return src ? `<div class="logo"><img src="${src}" alt=""></div>` : `<div class="logo ph">${esc(model.initial)}</div>`;
+  return src ? `<div class="logo" style="background:#fff;padding:2px;border:1px solid ${PAPER.line}"><img src="${src}" alt=""></div>` : `<div class="logo ph">${esc(model.initial)}</div>`;
 }
 
 /** The sheet's own markup and style. `fit` defaults to the fitting rules applied to `model`. */
@@ -90,8 +100,14 @@ h2{margin:0 0 4px;font-family:${FONT_SERIF};font-size:${L.h2Size}px;font-weight:
 .bottom{flex:1;min-height:0;margin-top:4px;align-content:start}
 .span{grid-column:1 / 4}
 .mt{font-size:${L.mazalFont}px;text-align:center;line-height:1.45;padding:2px 4px}
-.mt b{font-weight:800;color:var(--pom)}
+.mt b{font-weight:800}
+.mz b{color:var(--pom)}.ev b{color:var(--tek)}
+.mt .bl{color:var(--mute)}
+.mt .ic{display:block;margin:2px auto 0;width:16px;height:16px;color:var(--pom);fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .mt+.mt{margin-top:8px;padding-top:8px;border-top:1px dotted var(--line)}
+.note+.mt{margin-top:8px}
+.mt.mo{font-size:9.5px;color:var(--mute);border-top:0;margin-top:4px;padding-top:0}
+.cx{text-decoration:line-through}.cxw{font-weight:700;color:var(--pom)}
 .note{border:1.5px solid var(--tek);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;align-self:start}
 .note .img{aspect-ratio:4/3;background:var(--soft);display:grid;place-items:center;overflow:hidden}
 .note .img img{width:100%;height:100%;object-fit:cover}
@@ -102,21 +118,23 @@ h2{margin:0 0 4px;font-family:${FONT_SERIF};font-size:${L.h2Size}px;font-weight:
 .ft{display:flex;justify-content:space-between;font-size:${L.footFont}px;color:var(--mute);padding-top:${a ? 6 : 4}px;border-top:1px solid var(--line);margin-top:${footTop};flex:none}
 .ft .ovk{color:var(--tek)}`;
 
-  const items = shownItems(model, fit).mazal;
+  const shown = shownItems(model, fit);
+  const items = shown.mazal;
   const pinned = model.pinned;
   const image = pinned && !fit.dropImage ? safeImage(pinned.imageUri) : '';
   let bottom = '';
   if (a) {
-    const noteBox = pinned && (image || pinned.title || pinned.line)
+    const place = placement(model, fit);
+    const noteBox = place.note && pinned
       ? `<div class="note">${image ? `<div class="img" style="width:${fit.imageScale * 100}%;margin:0 auto"><img src="${image}" alt=""></div>` : ''}${pinned.title || pinned.line ? `<div class="cap">${pinned.title ? `<b>${esc(pinned.title)}</b>` : ''}${pinned.line ? esc(pinned.line) : ''}</div>` : ''}</div>`
       : '';
-    const mazalBox = items.map(i => `<div class="mt">${mazalTitle(i)}${i.sub ? `<br>${esc(i.sub)}` : ''}</div>`).join('');
-    if (noteBox && items.length) bottom = `<div class="bottom"><div>${ornament}${noteBox}</div><div></div><div>${ornament}${mazalBox}</div></div>`;
-    else if (noteBox) bottom = `<div class="bottom"><div>${ornament}${noteBox}</div><div></div><div></div></div>`;
-    else if (items.length) bottom = `<div class="bottom"><div class="span">${ornament}${mazalBox}</div></div>`;
-    else bottom = `<div class="bottom"><div class="span">${ornament}</div></div>`;
+    const startBox = noteBox + shown.events.map(eventLine).join('');
+    const more = fit.more > 0 ? `<div class="mt mo">${esc(SHEET_TEXT.more.replace('{n}', String(fit.more)))}</div>` : '';
+    const mazalBox = items.map(i => mazalLine(i, !fit.dropBlessings)).join('') + more;
+    if (!place.mazalSpansBoth) bottom = `<div class="bottom"><div>${ornament}${startBox}</div><div></div><div>${mazalBox ? ornament + mazalBox : ''}</div></div>`;
+    else bottom = `<div class="bottom"><div class="span">${ornament}${mazalBox}</div></div>`;
   } else if (items.length) {
-    bottom = `<div class="mtband">${items.map(i => mazalTitle(i)).join(' · ')}</div>`;
+    bottom = `<div class="mtband">${partsHtml(squareBandParts(items))}</div>`;
   }
 
   const title = model.parasha ? `${esc(SHEET_TEXT.title)} <b>${esc(model.parasha)}</b>` : esc(SHEET_TEXT.titleNoParasha);

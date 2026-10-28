@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { fixtureScheduleDoc } from '../src/client/fixtures.ts';
+import { fixtureScheduleDoc, printItemsFixture } from '../src/client/fixtures.ts';
 import type { SheetGroup } from '../src/client/types.ts';
+import { buildSheet } from '../src/schedule/sheetSource.ts';
 import { esc, safeImage, sheetBodyHtml, sheetHtml } from '../src/schedule/sheetHtml.ts';
 import { BASE_FIT, MAX_EVENTS, MAX_MAZAL, fitSheet, innerBox, mazalParts, neededHeight, placement, sheetLayout, sheetModel, squareBand, textLines } from '../src/schedule/sheetModel.ts';
 import type { SheetLineItem, SheetModel, SheetVariant } from '../src/schedule/sheetModel.ts';
@@ -264,7 +265,7 @@ test('fit: too long for the steps shrinks everything uniformly instead of clippi
 
 test('blessings are dropped before anything else', () => {
   const blessing = 'שתזכו לגדלו לתורה ולחופה';
-  const six = Array.from({ length: 6 }, (_, i) => li(`b${i}`, 'mazal', `מזל טוב למשפחת בדיוני ${i}`, 'בדיוני', { blessing }));
+  const six = Array.from({ length: 6 }, (_, i) => li(`b${i}`, 'mazal', `מזל טוב למשפחת בדיוני ${i}`, 'בדיוני', { blessing, icon: null }));
   // Add rows until the base size no longer fits with the blessings but fits without them.
   let found = false;
   for (let n = 0; n <= 20 && !found; n++) {
@@ -311,4 +312,56 @@ test('mazal tov is dropped before events, and both are listed', () => {
   assert.equal(f.droppedEvents > 0 || f.scale < 1, true);
   assert.deepEqual(f.out.slice(0, 6), ['m0', 'm1', 'm2', 'm3', 'm4', 'm5']);
   assert.equal(f.more, f.out.length);
+});
+
+// ---- renderers: the bottom cells from the item list (Task 12) ----------------------------------------------------------
+
+const PIC = 'data:image/png;base64,AAAA';
+const fixtureModel = (kind: 'items' | 'many', variant: SheetVariant = 'a4') => {
+  const items = printItemsFixture(FRIDAY, kind).filter(i => i.state === 'in');
+  return buildSheet(doc, computeWeek(doc, FRIDAY, zf), { kehilaName: 'קהילת אור הדוגמה', logoUri: PIC, items, pinned: kind === 'items' ? { title: 'ערב לימוד לנשים', imageUri: PIC } : null }, variant);
+};
+const countOf = (html: string, needle: string) => html.split(needle).length - 1;
+
+test('html: print-items puts events in the start cell before mazal tov, bold surnames, one "בוטל", the logo on a white tile', () => {
+  const m = fixtureModel('items');
+  for (const html of [sheetBodyHtml(m), sheetHtml(m)]) {
+    const mazalAt = html.indexOf('class="mt mz"');
+    const eventAt = html.indexOf('class="mt ev"');
+    assert.ok(eventAt > 0 && mazalAt > eventAt, 'events before mazal tov in document order');
+    for (const item of m.mazalTov) {
+      const surname = item.main.find(p => p.bold)!.text;
+      assert.ok(html.includes(`<b>${surname}</b>`), surname);
+    }
+    assert.equal(countOf(html, 'בוטל'), 1);
+    assert.match(html, /<div class="logo"[^>]*style="[^"]*background:#fff[^"]*padding:2px[^"]*"[^>]*><img src="data:image\/png;base64,AAAA"/);
+    assert.match(html, /class="ic"/);
+    assert.doesNotMatch(html, /ועוד \d+ ברכות/);
+  }
+});
+
+test('html: print-items-many says "ועוד 3 ברכות באפליקציה" and holds 6 mazal tov and 3 events', () => {
+  const html = sheetBodyHtml(fixtureModel('many'));
+  assert.equal(countOf(html, 'ועוד 3 ברכות באפליקציה'), 1);
+  assert.equal(countOf(html, 'class="mt mz"'), 6);
+  assert.equal(countOf(html, 'class="mt ev"'), 3);
+});
+
+test('html: a condolence has no icon; with no events and no picture mazal tov spans both columns; the square shows the band', () => {
+  const m = fixtureModel('items');
+  assert.equal(countOf(sheetBodyHtml(m), 'class="ic"'), m.mazalTov.filter(i => i.icon).length);
+  const bare = sheetModel({ doc, week: computeWeek(doc, FRIDAY, zf), kehilaName: 'ק', logoUri: null, items: mazal, variant: 'a4' });
+  assert.match(sheetBodyHtml(bare), /class="span"/);
+  const sq = sheetBodyHtml(fixtureModel('items', 'square'));
+  assert.match(sq, /class="mtband"/);
+  assert.match(sq, /<b>[^<]+<\/b>/);
+  assert.doesNotMatch(sq, /class="mt ev"/);
+});
+
+test('print gate: only a loaded item list prints (loading and failed both wait for a retry); the failure text exists in both languages', async () => {
+  const { canPrintSheet, ITEMS_LOAD_ERROR } = await import('../src/schedule/sheetSource.ts');
+  assert.equal(canPrintSheet('ready'), true);
+  assert.equal(canPrintSheet('loading'), false);
+  assert.equal(canPrintSheet('error'), false);
+  assert.ok(ITEMS_LOAD_ERROR.he && ITEMS_LOAD_ERROR.en);
 });

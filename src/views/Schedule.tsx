@@ -13,6 +13,7 @@ import { PadScroll } from '../kit/PadScroll.tsx';
 import { candleRowTime, clockLabel, dateRange, fullModel, hasTimedRows, isDefaultPlace, shortDate, textIn } from '../schedule/memberView.ts';
 import type { FullModel } from '../schedule/memberView.ts';
 import { openPrintPage, sharePdf } from '../schedule/printSheet.ts';
+import { ITEMS_LOAD_ERROR } from '../schedule/sheetSource.ts';
 import { buildSheet } from '../schedule/sheetSource.ts';
 import { israelNow } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
@@ -94,16 +95,18 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
   const { api } = useAuth();
   const [printing, setPrinting] = React.useState(false);
   const [printFailed, setPrintFailed] = React.useState(false);
+  const [itemsFailed, setItemsFailed] = React.useState(false);
   async function print() {
-    setPrintFailed(false);
+    setPrintFailed(false); setItemsFailed(false);
     if (Platform.OS === 'web') { if (!openPrintPage(weekIndex)) setPrintFailed(true); return; }
     const kehila = session.state.kehila;
     if (!doc || !model || !kehila) return;
     setPrinting(true);
     try {
       const logoUri = await session.logo(kehila.kehilaId, kehila.logoVersion).catch(() => null);
-      // The week's list from the server; offline the sheet prints without these lines rather than not at all.
-      const items = await api.sheetItems(kehila.kehilaId, model.computed.week.friday).then(p => p.items, () => []);
+      // The week's list from the server. Without it the sheet would print silently missing lines, so a failure blocks the PDF and says so.
+      const items = await api.sheetItems(kehila.kehilaId, model.computed.week.friday).then(p => p.items, () => null);
+      if (!items) { setItemsFailed(true); return; }
       await sharePdf(buildSheet(doc, model.computed, { kehilaName: kehila.name, logoUri, items }));
     } catch { setPrintFailed(true); } finally { setPrinting(false); }
   }
@@ -131,6 +134,7 @@ export function Schedule({ onBack, onToast }: { onBack: () => void; onToast: (te
       {state.status === 'loading' ? <Card><Txt color={k.muted}>{t('common.loading')}</Txt></Card> : null}
       {state.status === 'error' ? <Banner tone="error" text={t('schedule.error')} action={{ title: t('common.retry'), onPress: retry }} /> : null}
       {state.status === 'ready' && state.cachedAt !== null ? <Banner text={t('schedule.offline', { time: clockLabel(clockTime(new Date(state.cachedAt).toISOString())) })} /> : null}
+      {itemsFailed ? <Banner tone="error" text={ITEMS_LOAD_ERROR[lang]} action={{ title: t('common.retry'), onPress: () => { void print(); } }} /> : null}
       {printFailed ? <Banner tone="error" text={t('schedule.printError')} action={{ title: t('common.retry'), onPress: () => { void print(); } }} /> : null}
       {doc && !model ? <Card><Txt color={k.muted}>{t('schedule.empty')}</Txt></Card> : null}
       {doc && model ? (

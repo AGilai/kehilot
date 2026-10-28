@@ -6,7 +6,7 @@ import { useFonts } from 'expo-font';
 import { Heebo_400Regular, Heebo_700Bold, Heebo_800ExtraBold } from '@expo-google-fonts/heebo';
 import { NotoSerifHebrew_500Medium, NotoSerifHebrew_700Bold, NotoSerifHebrew_800ExtraBold } from '@expo-google-fonts/noto-serif-hebrew';
 import { allowedImage } from './sheetHtml.ts';
-import { PAPER, SHEET_TEXT, fitSheet, innerBox, sheetLayout, shownItems } from './sheetModel.ts';
+import { PAPER, SHEET_TEXT, fitSheet, innerBox, placement, sheetLayout, shownItems, squareBandParts } from './sheetModel.ts';
 import type { SheetLineItem, SheetBand, SheetColumn, SheetFit, SheetModel, SheetRow } from './sheetModel.ts';
 
 const F = { ui: 'Heebo_400Regular', bold: 'Heebo_700Bold', heavy: 'Heebo_800ExtraBold', serif: 'NotoSerifHebrew_500Medium', serifBold: 'NotoSerifHebrew_700Bold', serifHeavy: 'NotoSerifHebrew_800ExtraBold' } as const;
@@ -21,6 +21,12 @@ export function useSheetFonts(): boolean {
 export const SHEET_DATA = { dataSet: { sheetPage: '1' } } as object;
 
 const t = (size: number, family: string, color: string, extra: TextStyle = {}): TextStyle => ({ fontSize: size, lineHeight: Math.round(size * 1.35 * 100) / 100, fontFamily: family, color, writingDirection: 'rtl', ...extra });
+const ICON_PATH = {
+  heart: 'M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z',
+  star: 'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5l-5.3 2.9 1.2-6-4.5-4.1 6-.7z',
+} as const;
+/** The line icon (the same paths as the HTML renderer), drawn in `PAPER.pom` as an SVG image. */
+const iconUri = (name: 'heart' | 'star') => `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${PAPER.pom}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${ICON_PATH[name]}"/></svg>`)}`;
 const ltr = (value: string) => `⁦${value}⁩`;
 
 /**
@@ -32,7 +38,9 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
   const L = sheetLayout(model.variant, f);
   const inner = innerBox(model.variant, f);
   const a = model.variant === 'a4';
-  const items = shownItems(model, f).mazal;
+  const shown = shownItems(model, f);
+  const items = shown.mazal;
+  const place = placement(model, f);
   const pinned = model.pinned;
   const image = pinned && !f.dropImage ? allowedImage(pinned.imageUri) : '';
   const hasNote = !!pinned && (!!image || !!pinned.title || !!pinned.line);
@@ -99,14 +107,28 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
     </View>
   );
 
+  const lineStyle = (i: number, extra: object = {}) => (i > 0 ? { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: PAPER.line, borderStyle: 'dotted', ...extra } as object : extra);
   const mazal = (list: SheetLineItem[]) => list.map((item, i) => (
-    <View key={item.id} style={i > 0 ? { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: PAPER.line, borderStyle: 'dotted' } : undefined}>
+    <View key={item.id} style={lineStyle(i)}>
       <Text style={t(L.mazalFont, F.ui, PAPER.ink, { textAlign: 'center', lineHeight: Math.round(L.mazalFont * 1.45 * 100) / 100, paddingVertical: 2, paddingHorizontal: 4 })}>
         {item.main.map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.pom } : undefined}>{p.text}</Text>)}
         {item.sub ? `\n${item.sub}` : ''}
+        {!f.dropBlessings && item.blessing ? <Text style={{ color: PAPER.mute }}>{`\n${item.blessing}`}</Text> : null}
+      </Text>
+      {item.icon ? <Image accessibilityLabel="" source={{ uri: iconUri(item.icon) }} contentFit="contain" style={{ width: 16, height: 16, alignSelf: 'center', marginTop: 2 }} /> : null}
+    </View>
+  ));
+  const events = (list: SheetLineItem[], afterNote: boolean) => list.map((item, i) => (
+    <View key={item.id} style={lineStyle(afterNote ? 1 : i)}>
+      <Text style={t(L.mazalFont, F.ui, PAPER.ink, { textAlign: 'center', lineHeight: Math.round(L.mazalFont * 1.45 * 100) / 100, paddingVertical: 2, paddingHorizontal: 4 })}>
+        <Text style={item.cancelled ? { textDecorationLine: 'line-through' } : undefined}>
+          {item.main.map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.tek } : undefined}>{p.text}</Text>)}
+        </Text>
+        {item.cancelled ? <Text style={{ fontFamily: F.bold, color: PAPER.pom }}>{` ${SHEET_TEXT.cancelled}`}</Text> : null}
       </Text>
     </View>
   ));
+  const moreLine = f.more > 0 ? <Text style={t(9.5, F.ui, PAPER.mute, { textAlign: 'center', marginTop: items.length ? 4 : 0 })}>{SHEET_TEXT.more.replace('{n}', String(f.more))}</Text> : null;
 
   const note = pinned && hasNote ? (
     <View style={{ borderWidth: 1.5, borderColor: PAPER.tek, borderRadius: 8, overflow: 'hidden', alignSelf: 'flex-start', width: '100%' }}>
@@ -128,14 +150,16 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
   if (a) {
     const cell = (child: React.ReactNode) => <View style={{ flex: 1 }}>{child}</View>;
     const gap = <View style={{ width: L.spine }} />;
-    if (note && items.length) bottom = <View style={{ flexDirection: 'row', gap: L.colGap, marginTop: 4 }}>{cell(<>{ornament}{note}</>)}{gap}{cell(<>{ornament}{mazal(items)}</>)}</View>;
-    else if (note) bottom = <View style={{ flexDirection: 'row', gap: L.colGap, marginTop: 4 }}>{cell(<>{ornament}{note}</>)}{gap}{cell(null)}</View>;
-    else bottom = <View style={{ marginTop: 4 }}>{ornament}{mazal(items)}</View>;
+    const mazalBox = <>{mazal(items)}{moreLine}</>;
+    if (!place.mazalSpansBoth) {
+      const start = <>{ornament}{place.note ? note : null}{events(shown.events, place.note)}</>;
+      bottom = <View style={{ flexDirection: 'row', gap: L.colGap, marginTop: 4 }}>{cell(start)}{gap}{cell(items.length || moreLine ? <>{ornament}{mazalBox}</> : null)}</View>;
+    } else bottom = <View style={{ marginTop: 4 }}>{ornament}{mazalBox}</View>;
   } else if (items.length) {
     bottom = (
       <View style={{ marginTop: 'auto', borderTopWidth: 2, borderTopColor: PAPER.tek, paddingTop: 6 }}>
         <Text style={t(L.mazalFont, F.ui, PAPER.ink, { textAlign: 'center', lineHeight: Math.round(L.mazalFont * 1.45 * 100) / 100 })}>
-          {items.map((item, i) => <Text key={item.id}>{i > 0 ? ' · ' : ''}{item.main.map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.pom } : undefined}>{p.text}</Text>)}</Text>)}
+          {squareBandParts(items).map((p, j) => <Text key={j} style={p.bold ? { fontFamily: F.heavy, color: PAPER.pom } : undefined}>{p.text}</Text>)}
         </Text>
       </View>
     );
@@ -144,7 +168,7 @@ export function Sheet({ model, fit, highlightId }: { model: SheetModel; fit?: Sh
   const logo = allowedImage(model.logoUri);
   const tile = { width: L.logo, height: L.logo, borderRadius: 10, overflow: 'hidden' as const, alignItems: 'center' as const, justifyContent: 'center' as const };
   const logoBox = logo ? (
-    <View style={[tile, { backgroundColor: '#FFFFFF' }]}><Image accessibilityLabel="" source={{ uri: logo }} contentFit="contain" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} /></View>
+    <View style={[tile, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: PAPER.line }]}><Image accessibilityLabel="" source={{ uri: logo }} contentFit="contain" style={{ position: 'absolute', top: 2, left: 2, right: 2, bottom: 2 }} /></View>
   ) : (
     <View style={[tile, { borderWidth: 1.5, borderColor: PAPER.tek }]}>
       {[a ? 9 : 6, undefined].map((top, i) => <View key={i} style={{ position: 'absolute', left: a ? 10 : 7, right: a ? 10 : 7, height: 2, backgroundColor: PAPER.tek, opacity: 0.5, ...(top !== undefined ? { top } : { bottom: a ? 9 : 6 }) }} />)}

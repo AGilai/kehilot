@@ -25,6 +25,11 @@ export function printPageUrl(search: string, pathname: string, weekIndex: 0 | 1,
   return `${pathname}?${q.toString()}`;
 }
 
+/** Printing waits for the week's lines: it is blocked while they load and after they failed to load (the person retries), so a sheet never prints silently without them. */
+export const canPrintSheet = (status: 'loading' | 'ready' | 'error'): boolean => status === 'ready';
+// TODO(i18n): move to src/i18n/{he,en}.json (`schedule.itemsError`) once the other agent's uncommitted changes there are in.
+export const ITEMS_LOAD_ERROR = { he: 'לא הצלחנו לטעון את שורות מזל טוב והאירועים של השבוע, ולכן לא הדפסנו. נסו שוב.', en: "Couldn't load this week's mazal tov and event lines, so nothing was printed. Try again." } as const;
+
 export type PrintRequest = { weekIndex: 0 | 1; variant: SheetVariant };
 export function parsePrintRequest(search: string): PrintRequest | null {
   const q = new URLSearchParams(search);

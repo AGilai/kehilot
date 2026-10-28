@@ -31,7 +31,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'compose-tpl-event', 'compose-tpl-mazal', 'compose-tpl-condolence', 'compose-tpl-missing', 'compose-tpl-free', 'm5', 'prefs-seats', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'print-items', 'print-items-many', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -52,6 +52,38 @@ export function fixtureShabbat(friday: string): Shabbat {
   return { friday, parasha: 'פרשת נח', petahTikva: new Date(`${friday}T16:17:00+02:00`).toISOString(), telAviv: new Date(`${friday}T16:36:00+02:00`).toISOString() };
 }
 
+
+/** Fixture mode: the print page's week lists (`?screen=print-items`, `print-items-many`). Invented content. `items`: 4 mazal tov, a condolence, 2 events (one
+ *  cancelled); `many`: 8 mazal tov and 4 events, so the sheet says "ועוד 3". */
+export function printItemsFixture(week: string, kind: 'items' | 'many'): SheetItem[] {
+  const at = Math.floor(Date.parse(`${week}T08:00:00+02:00`) / 1000) - 3 * 86400;
+  let n = 0;
+  const make = (group: SheetItem['group'], templateId: 'mazal' | 'condolence' | 'event', fields: Record<string, string | boolean>): SheetItem => {
+    n += 1;
+    const id = `SHPRINT${String(n).padStart(17, '0')}`;
+    const type = templateId === 'mazal' ? 'celebration' : templateId;
+    return {
+      itemId: id, week, group, kind: 'message', type, state: 'in', source: 'auto', postedAt: at + n,
+      message: { messageId: id, channelId: 'fixture-announcements', type, title: '', body: '', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 0, templateId, fields } as Message,
+    };
+  };
+  const mazal = (surname: string, firstNames: string, name: string, occasion: string, blessing = ''): SheetItem =>
+    make('mazal', 'mazal', { occasion, whose: 'grandparents', surname, firstNames, name, parents: 'דוד ושרה', blessing });
+  const event = (name: string, day: number, time: string, place: string, cancelled = false): SheetItem =>
+    make('events', 'event', { name, date: addDays(week, day), time, place, for: 'all', ...(cancelled ? { cancelled: true } : {}) });
+  const list = [
+    mazal('דוגמה', 'יוסף ומרים', 'נועה', 'birthDaughter', 'שיזכו לגדלה לתורה'),
+    mazal('ניסיון', 'אבי ורותי', 'איתי', 'barMitzvah'),
+    mazal('בדיוני', 'משה ורחל', 'הלל', 'birthSon'),
+    mazal('לדוגמה', 'דנה', 'מאיה', 'birthDaughter'),
+  ];
+  const cond = make('condolence', 'condolence', { variant: 'only', surname: 'בדיוני', deceased: 'שרה', relation: 'אמו של יעקב' });
+  if (kind === 'items') return [...list, cond, event('ערב לימוד לנשים', 4, '20:30', 'עזרת הנשים'), event('שיעור פתוח', 5, '19:30', 'בית הכנסת', true)];
+  return [
+    ...list, mazal('אורי', 'עמית', 'דור', 'barMitzvah'), mazal('נווה', 'רונית', 'שיר', 'batMitzvah'), mazal('שדמי', 'גדעון', 'ליאור', 'birthSon'), mazal('כרמי', 'חנה', 'אור', 'birthDaughter'),
+    event('ערב לימוד לנשים', 4, '20:30', 'עזרת הנשים'), event('שיעור פתוח', 5, '19:30', 'בית הכנסת'), event('סעודה שלישית', 5, '18:00', 'אולם הקהילה'), event('מפגש נוער', 6, '21:00', 'מועדון הנוער'),
+  ];
+}
 
 /** Fixture mode only: `?now=2026-10-30T15:40` (Israel time) fixes the clock Home and the schedule use. */
 export function fixtureNow(search: string = typeof window !== 'undefined' && window.location ? window.location.search : ''): Date | null {
@@ -469,6 +501,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   // one waiting for approval and one removed. Members read only what is in.
   const sheetWeeks = new Map<string, SheetItem[]>();
   const sheetSeed = (week: string): SheetItem[] => {
+    if (screen === 'print-items' || screen === 'print-items-many') return printItemsFixture(week, screen === 'print-items' ? 'items' : 'many');
     const msg = (id: string, type: Message['type'], templateId: 'mazal' | 'condolence' | 'event', fields: Record<string, string | boolean>): Message => ({
       messageId: id, channelId: cAnn, type, title: '', body: '', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 0, templateId, fields,
     });

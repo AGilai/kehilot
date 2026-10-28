@@ -19,6 +19,7 @@ import {
 import type { Draft, FormulaPatch, Issue, IssueControl, RowItem } from '../../schedule/editor.ts';
 import { fullModel, textIn } from '../../schedule/memberView.ts';
 import { openPrintPage, sharePdf } from '../../schedule/printSheet.ts';
+import { ITEMS_LOAD_ERROR, canPrintSheet } from '../../schedule/sheetSource.ts';
 import { buildSheet } from '../../schedule/sheetSource.ts';
 import type { Formula, Schedule, ScheduleDoc, Section, Text, Time } from '../../schedule/types.ts';
 import { computeWeek, israelNow, scheduleWeekOf } from '../../schedule/week.ts';
@@ -90,7 +91,8 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
   const zmanimFor = React.useMemo(() => zmanimForLocation(base?.location), [base]);
   const schedule: Schedule = React.useMemo(() => ({ version: 1, sections: draft.sections, weekOverrides: draft.weekOverrides }), [draft]);
   const computed = React.useMemo(() => computeWeek(schedule, friday, zmanimFor), [schedule, friday, zmanimFor]);
-  const sheetPage = useSheetItems(friday).page;
+  const sheetState = useSheetItems(friday);
+  const sheetPage = sheetState.page;
   const sheetItems = React.useMemo(() => sheetPage?.items ?? [], [sheetPage]);
   const previewDoc: ScheduleDoc | null = React.useMemo(() => (base ? { ...base, ...schedule } : null), [base, schedule]);
   const editable = weekEditable(friday, today);
@@ -338,7 +340,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
   const shareItems = [
     { key: 'square', label: t('editor.shareSquare'), icon: 'image' as const, onPress: () => {}, disabled: true, hint: soon },
     { key: 'a4', label: t('editor.shareA4'), icon: 'image' as const, onPress: () => {}, disabled: true, hint: soon },
-    { key: 'pdf', label: t('editor.sharePdf'), icon: 'print' as const, onPress: () => { void printSheet(); }, disabled: dirty || printWeekIndex === null || printing },
+    { key: 'pdf', label: t('editor.sharePdf'), icon: 'print' as const, onPress: () => { void printSheet(); }, disabled: dirty || printWeekIndex === null || printing || !canPrintSheet(sheetState.status) },
     { key: 'notice', label: t('editor.shareNotice'), icon: 'image' as const, onPress: () => {}, disabled: true, hint: soon },
     { key: 'link', label: t('editor.shareLink'), icon: 'link' as const, onPress: () => {}, disabled: true, hint: soon },
   ];
@@ -433,6 +435,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
         </View>
       ) : null}
       {banner ? <Banner tone={banner.tone} text={banner.text} /> : null}
+      {sheetState.status === 'error' ? <Banner tone="error" text={ITEMS_LOAD_ERROR[lang]} action={{ title: t('common.retry'), onPress: () => { void sheetState.reload(); } }} /> : null}
       {pendingDelete ? (
         <View accessibilityRole="alert" style={{ gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: k.danger, borderStartWidth: 6, backgroundColor: k.surface }}>
           <Txt bold>{t('editor.deleteAskNamed', { row: rowName(pendingDelete) })}</Txt>

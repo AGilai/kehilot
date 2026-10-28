@@ -11,7 +11,7 @@ import { fullModel, hasTimedRows } from '../schedule/memberView.ts';
 import { printSheetPage } from '../schedule/printSheet.ts';
 import type { PrintRequest } from '../schedule/printSheet.ts';
 import { Sheet, useSheetFonts } from '../schedule/Sheet.tsx';
-import { buildSheet } from '../schedule/sheetSource.ts';
+import { ITEMS_LOAD_ERROR, buildSheet, canPrintSheet } from '../schedule/sheetSource.ts';
 import { israelNow } from '../schedule/week.ts';
 import { zmanimForLocation } from '../schedule/zmanim.ts';
 
@@ -36,7 +36,7 @@ export function useLogoUri(): { uri: string | null; ready: boolean } {
  * celebrations prints none.
  */
 export function SchedulePrintPage({ request }: { request: PrintRequest }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
   const { state, retry } = useSchedule();
   const session = useSession().state;
@@ -56,7 +56,7 @@ export function SchedulePrintPage({ request }: { request: PrintRequest }) {
       ? { title: 'ערב לימוד לנשים', line: 'יום שלישי · 20:30', imageUri: FIXTURE_PICTURE } : null;
     return buildSheet(doc, computed, { kehilaName: session.kehila.name, logoUri: config.fixtures && new URLSearchParams(window.location.search).get('logo') === '1' ? FIXTURE_PICTURE : logo.uri, items: sheet.page?.items ?? [], pinned }, request.variant);
   }, [doc, computed, request.variant, session.kehila, sheet.page, logo.uri]);
-  const ready = !!model && fonts && logo.ready && sheet.status !== 'loading';
+  const ready = !!model && fonts && logo.ready && canPrintSheet(sheet.status);
 
   // Open the print dialog once, when the sheet is complete (fonts, logo and the week's messages are in).
   const printed = React.useRef(false);
@@ -74,13 +74,14 @@ export function SchedulePrintPage({ request }: { request: PrintRequest }) {
     <View style={{ flex: 1, backgroundColor: '#E9E9E9', alignItems: 'center', padding: 16, gap: 12, overflow: 'scroll' as 'scroll' }}>
       {state.status === 'error' ? <Banner tone="error" text={t('schedule.error')} action={{ title: t('common.retry'), onPress: retry }} /> : null}
       {state.status === 'loading' ? <Txt color={k.muted}>{t('common.loading')}</Txt> : null}
+      {sheet.status === 'error' ? <Banner tone="error" text={ITEMS_LOAD_ERROR[lang]} action={{ title: t('common.retry'), onPress: () => { void sheet.reload(); } }} /> : null}
       {doc && !model ? <Txt color={k.muted}>{t('schedule.empty')}</Txt> : null}
       {model ? (
         <>
           <View style={{ width: w * scale, height: h * scale, shadowColor: '#14183C', shadowOpacity: 0.18, shadowRadius: 12 }}>
             <View style={{ width: w, height: h, transformOrigin: 'top left', transform: [{ scale }] } as object}><Sheet model={model} /></View>
           </View>
-          <Button kind="secondary" icon="print" title={t('schedule.print')} onPress={() => { printSheetPage(); }} />
+          <Button kind="secondary" icon="print" title={t('schedule.print')} disabled={!ready} onPress={() => { printSheetPage(); }} />
         </>
       ) : null}
     </View>
