@@ -1,4 +1,5 @@
 import { normalize } from '../search/normalize.ts';
+import { formatPhone, telUrl, whatsappUrl } from './phone.ts';
 import type { AdminFamily, MemberRow, Role } from './types.ts';
 
 export type MemberFilter = { query: string; role?: Role; canBroadcast?: boolean; group?: string };
@@ -50,4 +51,19 @@ export function familyLine(userId: string, families: AdminFamily[]): { partnerNa
 export function linkCandidates(members: MemberRow[], families: AdminFamily[], exceptUserId: string): MemberRow[] {
   return members.filter(m => m.role !== 'listener' && m.userId !== exceptUserId
     && !families.some(f => f.adults.length > 1 && f.adults.some(a => a.userId === m.userId)));
+}
+
+/** P11 / §18.3: one adult's phone as the gabbai sees it: the number, `tel:`, the wa.me link (digits only) and the list state. */
+export type PhoneRow = { display: string; tel: string; wa: string; list: 'all' | 'gabbaim' };
+export function phoneRow(phone: string | null | undefined, showPhone: boolean | undefined): PhoneRow | null {
+  if (!phone) return null;
+  return { display: formatPhone(phone), tel: telUrl(phone), wa: whatsappUrl(phone), list: showPhone ? 'all' : 'gabbaim' };
+}
+
+/** The adults of a family with their phone rows, joined to the member list by userId (no member or no number: `phone` is null). */
+export function adultPhones(family: AdminFamily, members: Array<Pick<MemberRow, 'userId' | 'phone' | 'showPhone'>>): Array<{ userId: string; displayName: string; phone: PhoneRow | null }> {
+  return family.adults.map(a => {
+    const m = members.find(x => x.userId === a.userId);
+    return { userId: a.userId, displayName: a.displayName, phone: phoneRow(m?.phone, m?.showPhone) };
+  });
 }

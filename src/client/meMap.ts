@@ -24,8 +24,8 @@ export function meLayout(role: Role | undefined): MeLayout {
   };
 }
 
-export type MenuRowId = 'manage' | 'tree' | 'phoneList' | 'invite' | 'about';
-export type MenuAction = 'manage' | 'tree' | 'phoneList' | 'invite';
+export type MenuRowId = 'manage' | 'tree' | 'phoneList' | 'invite' | 'prefs' | 'about';
+export type MenuAction = 'manage' | 'tree' | 'phoneList' | 'invite' | 'prefs';
 
 /** The rows of the Kehila menu's first card, in order, for a role. */
 export function menuRows(role: Role | undefined): MenuRowId[] {
@@ -35,15 +35,16 @@ export function menuRows(role: Role | undefined): MenuRowId[] {
   if (f.family) rows.push('tree');
   if (f.phoneList) rows.push('phoneList');
   if (role === 'member' || role === 'gabbai') rows.push('invite');
+  rows.push('prefs'); // notification settings (was the bell in the top bar): every role
   rows.push('about');
   return rows;
 }
 
 /** Where the Kehila menu's screen rows go (Main reads the request once). */
-export function menuTarget(a: MenuAction, role: Role | undefined): 'overview' | 'tree' | 'phoneList' | 'myInvite' | null {
+export function menuTarget(a: MenuAction, role: Role | undefined): 'overview' | 'tree' | 'phoneList' | 'myInvite' | 'prefs' | null {
   const ok = menuRows(role).includes(a);
   if (!ok) return null;
-  return a === 'manage' ? 'overview' : a === 'tree' ? 'tree' : a === 'phoneList' ? 'phoneList' : 'myInvite';
+  return a === 'manage' ? 'overview' : a === 'tree' ? 'tree' : a === 'phoneList' ? 'phoneList' : a === 'prefs' ? 'prefs' : 'myInvite';
 }
 
 /** §18.1 Me items (rows 1-19 and the switcher): where each one lives now. */

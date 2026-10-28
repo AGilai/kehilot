@@ -194,6 +194,10 @@ export type MemberRow = {
   canBroadcast: boolean;
   groups: string[];
   tags: RoleTag[];
+  /** E.164, the adult's own number whatever the list switch says (gabbaim only); null for listeners and for no number. */
+  phone?: string | null;
+  /** Whether the member shows the number in the phone list. */
+  showPhone?: boolean;
 };
 export type MemberFields = Partial<{ role: Role; classification: Classification; canBroadcast: boolean; groups: string[] }>;
 

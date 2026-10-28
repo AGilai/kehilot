@@ -21,12 +21,12 @@ import { PrivacySheet } from './me/PrivacySheet.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 import { BackIcon } from '../kit/Icon.tsx';
 
-export function BackLink({ onPress }: { onPress: () => void }) {
+export function BackLink({ onPress, label }: { onPress: () => void; /** Where it goes (default "חזרה"): "סקירה" on a management group screen. */ label?: string }) {
   const { t, dir } = useI18n();
   const k = useTokens();
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={t('me.back')} onPress={onPress} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('me.back')}</Txt></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={label ?? t('me.back')} onPress={onPress} style={{ minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{label ?? t('me.back')}</Txt></View>
     </Pressable>
   );
 }
@@ -162,7 +162,7 @@ export function Me({ onPrefs, onTree, onGroups, onBack, onToast, onLeft }: { onP
   return (
     <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
       {onBack ? <BackLink onPress={onBack} /> : null}
-      <Txt serif size="title" accessibilityRole="header">{t('me.title')}</Txt>
+      <View accessible accessibilityRole="header" accessibilityLabel={t('me.title')} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
       <DetailsCard onTree={layout.card.tree ? onTree : undefined} />
       {layout.sections.map(s => <ListGroup key={s.id} label={t(`me.${s.id}.title`)}>{s.rows.map(r => rowOf(r.id))}</ListGroup>)}
       {privacy ? <PrivacySheet onClose={() => setPrivacy(false)} onName={role === 'listener' ? () => { setPrivacy(false); setNaming(true); } : undefined} /> : null}

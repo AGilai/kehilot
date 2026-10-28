@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
 import { keyedFlight } from '../../client/singleFlight.ts';
-import { familyLine, existingGroups } from '../../client/membersView.ts';
+import { familyLine, existingGroups, adultPhones } from '../../client/membersView.ts';
 import { config } from '../../config.ts';
 import { fixtureParams } from '../../client/fixtures.ts';
 import { useAuth } from '../../auth/AuthProvider.tsx';
@@ -45,8 +45,8 @@ function GroupsSheet({ row, groups, onClose, onSave }: { row: MemberRow | null; 
 }
 
 /** Actions of one person: role, classification, groups, remove (confirmed). */
-function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, onRemove, onTree }: {
-  row: MemberRow; error: string | null; busy: boolean; family: AdminFamily | undefined; alone: boolean;
+function Actions({ row, error, busy, family, phones, alone, onFields, onGroups, onLink, onRemove, onTree }: {
+  row: MemberRow; error: string | null; busy: boolean; family: AdminFamily | undefined; phones: ReturnType<typeof adultPhones> | undefined; alone: boolean;
   onFields: (f: MemberFields) => void; onGroups: () => void; onLink: () => void; onRemove: () => Promise<void>; onTree?: () => void;
 }) {
   const { t } = useI18n();
@@ -57,7 +57,7 @@ function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, 
       {error ? <Banner tone="error" text={error} /> : null}
       {row.role !== 'listener' ? (
         <>
-          <FamilyBlock family={family} onTree={onTree} />
+          <FamilyBlock family={family} phones={phones} onTree={onTree} />
           {alone ? <Button kind="secondary" title={t('admin.members.link')} onPress={onLink} /> : null}
           <Button kind="secondary" title={row.role === 'gabbai' ? t('admin.members.makeMember') : t('admin.members.makeGabbai')} busy={busy} onPress={() => onFields({ role: flip })} />
           <Txt size="small" bold>{t('admin.members.class.label')}</Txt>
@@ -81,7 +81,7 @@ function Actions({ row, error, busy, family, alone, onFields, onGroups, onLink, 
 }
 
 /** GM4 (cards) below 1024 px, GD1 (table) from 1024 px: members, roles and the broadcast right. */
-export function Members({ onToast, onTree }: { onToast: (text: string) => void; /** Opens one family's tree, read only. */ onTree?: (familyId: string, name: string) => void }) {
+export function Members({ onToast, onTree, openTags }: { onToast: (text: string) => void; /** The "תגיות תפקיד" row of management: opens the role-tags sheet at once. */ openTags?: boolean; /** Opens one family's tree, read only. */ onTree?: (familyId: string, name: string) => void }) {
   const { t, lang, dir } = useI18n();
   const { api } = useAuth();
   const { state } = useSession();
@@ -107,7 +107,7 @@ export function Members({ onToast, onTree }: { onToast: (text: string) => void; 
   const [linkFor, setLinkFor] = React.useState<string | null>(fxScreen === 'admin-link' ? '01FIXTUREUSER00000000023' : null);
   const [tagRows, setTagRows] = React.useState<TagRow[]>([]);
   const [tagsError, setTagsError] = React.useState<string | null>(null);
-  const [manageTags, setManageTags] = React.useState(fxScreen === 'tags-manage' || fxScreen === 'tags-empty');
+  const [manageTags, setManageTags] = React.useState(!!openTags || fxScreen === 'tags-manage' || fxScreen === 'tags-empty');
   const [tagsFor, setTagsFor] = React.useState<string | null>(fxScreen === 'tags-assign' ? 'm1' : null);
   const flight = React.useRef(keyedFlight()).current;
 
@@ -189,13 +189,15 @@ export function Members({ onToast, onTree }: { onToast: (text: string) => void; 
     </View>
   );
   const familyOf = (u: string) => families.find(f => f.adults.some(a => a.userId === u));
+  /** A member with no family yet: just themselves, so their phone still shows. */
+  const alone1 = (r: MemberRow): AdminFamily => ({ familyId: '', name: r.displayName, adults: [{ userId: r.userId, displayName: r.displayName }], children: [] });
   const famText = (r: MemberRow) => {
     if (r.role === 'listener') return null;
     const l = familyLine(r.userId, families);
     return `${l.partnerName ? t('admin.members.familyWith', { name: l.partnerName }) : t('admin.members.familyAlone')} · ${t('admin.members.children', { n: l.children })}`;
   };
   const actions = (r: MemberRow) => open === r.userId ? (
-    <Actions row={r} family={familyOf(r.userId)} alone={(familyOf(r.userId)?.adults.length ?? 1) < 2} onLink={() => setLinkFor(r.userId)} busy={busy === r.userId} error={rowError?.id === r.userId ? rowError.text : null}
+    <Actions row={r} family={familyOf(r.userId) ?? (r.role === 'listener' ? undefined : alone1(r))} phones={adultPhones(familyOf(r.userId) ?? alone1(r), all)} alone={(familyOf(r.userId)?.adults.length ?? 1) < 2} onLink={() => setLinkFor(r.userId)} busy={busy === r.userId} error={rowError?.id === r.userId ? rowError.text : null}
       onFields={f => void update(r.userId, f)} onGroups={() => setGroupsFor(r.userId)} onRemove={() => remove(r.userId)}
       onTree={onTree && familyOf(r.userId) ? () => onTree(familyOf(r.userId)!.familyId, familyOf(r.userId)!.name) : undefined} />
   ) : null;
@@ -295,7 +297,6 @@ export function Members({ onToast, onTree }: { onToast: (text: string) => void; 
   return (
     <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1200 : 680, alignSelf: 'center' }}>
       <Txt serif size="title" accessibilityRole="header">{t('admin.members.title')}</Txt>
-      <Button kind="secondary" icon="edit" title={t('admin.tags.button')} onPress={() => setManageTags(true)} />
       {error ? <Banner tone="error" text={error} /> : null}
       {tagsError ? <Banner tone="error" text={tagsError} action={{ title: t('common.retry'), onPress: () => void load() }} /> : null}
       {filters}

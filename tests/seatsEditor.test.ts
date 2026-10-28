@@ -349,7 +349,7 @@ test('every static seatEditor.* key used by the editor exists in he and en, and 
 test('Main opens the seating editor only for a gabbai, and a dirty editor asks before leaving', () => {
   const main = read('src/views/Main.tsx');
   assert.match(main, /case 'seatEditor':\s*body = seatEditorAllowed\(kehila\?\.role\) \? <SeatEditor/);
-  assert.match(main, /onSeatEditor=\{seatEditorAllowed\(state\.kehila\?\.role\)/);
+  assert.match(read('src/client/adminAreas.ts'), /id: 'editor'.*when: seatEditorAllowed\(role\)/); // the row exists only for a gabbai
   assert.match(main, /seat-editor.*seatEditorAllowed\(state\.kehila\?\.role\)/);
   assert.equal(editorLeaveAsk('seatEditor', true), true);
   assert.equal(editorLeaveAsk('seatEditor', false), false);

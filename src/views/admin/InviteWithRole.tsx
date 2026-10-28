@@ -2,11 +2,12 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
-import type { Classification } from '../../client/types.ts';
+import type { Classification, InviteRow } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Txt, useTokens } from '../../kit/components.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import { BackLink, LinkShare } from '../Me.tsx';
+import { InviteList } from './InviteList.tsx';
 import { Choice, useAdminErrText } from './shared.tsx';
 
 const int = (s: string, lo: number, hi: number): number | null => (/^\d+$/.test(s.trim()) && +s >= lo && +s <= hi ? +s : null);
@@ -25,6 +26,12 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [code, setCode] = React.useState<string | null>(null);
+  const [invites, setInvites] = React.useState<InviteRow[] | null>(null);
+  const loadInvites = React.useCallback(async () => {
+    if (!state.kehilaId) return;
+    try { setInvites(await api.invites(state.kehilaId)); } catch (e) { setError(errText(e)); setInvites(prev => prev ?? []); }
+  }, [api, state.kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { void loadInvites(); }, [loadInvites]);
   const u = int(uses, 1, 50);
   const d = int(days, 1, 30);
 
@@ -34,6 +41,7 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
     try {
       const r = await api.createInvite(state.kehilaId, { role, uses: u, days: d, ...(role === 'member' ? { classification } : {}) });
       setCode(r.code);
+      void loadInvites();
     } catch (e) { setError(errText(e)); } finally { setBusy(false); }
   }
 
@@ -68,6 +76,7 @@ export function InviteWithRole({ onBack, onToast, initialRole = 'listener' }: { 
           <LinkShare code={code} onToast={onToast} />
         </Card>
       ) : null}
+      {invites ? <InviteList rows={invites} onChanged={loadInvites} onToast={onToast} /> : null}
     </PadScroll>
   );
 }

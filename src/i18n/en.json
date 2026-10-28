@@ -301,8 +301,6 @@
     "noChannels": "No channels to show."
   },
   "topbar": {
-    "switch": "Switch community",
-    "bell": "Notifications",
     "logo": "Community logo",
     "menu": "Community menu",
     "waiting": "Something is waiting"
@@ -523,8 +521,6 @@
     "tab": "Me",
     "back": "Back",
     "profile": {
-      "title": "Profile",
-      "edit": "Edit name",
       "save": "Save",
       "cancel": "Cancel",
       "saved": "Details saved",
@@ -593,28 +589,11 @@
       "statusAdmin": "managing {name}"
     },
     "phone": {
-      "title": "Phone list",
       "label": "My phone number",
-      "none": "No number entered.",
-      "add": "Add a number",
-      "edit": "Change number",
       "remove": "Remove number",
       "placeholder": "050-0000000",
       "hint": "The number is used only for the phone list.",
-      "invalid": "That number doesn't look right. Use an Israeli number, e.g. 050-0000000, or an international one starting with +.",
-      "saved": "Number saved",
-      "removed": "Number removed. It no longer shows in any list",
-      "switch": "Show my phone in {kehila}'s list",
-      "switchOff": "Off: your number is not shown to anyone in {kehila}.",
-      "who": "Only members and gabbaim of {kehila} see the list. Listeners and other Kehilot don't.",
-      "needNumber": "To appear in the list, add a phone number first.",
-      "open": "Open the phone list",
-      "shown": "Your number is in the list",
-      "hidden": "Your number is hidden from the list"
-    },
-    "tags": {
-      "label": "My roles in the community",
-      "note": "The gabbaim set these tags."
+      "invalid": "That number doesn't look right. Use an Israeli number, e.g. 050-0000000, or an international one starting with +."
     },
     "family": {
       "title": "My family",
@@ -695,17 +674,10 @@
     "back": "Back",
     "overview": {
       "title": "Overview",
-      "pending": "Pending requests: {n}",
-      "pendingNone": "No pending requests",
-      "review": "Go to approvals",
-      "counts": "Members and listeners",
-      "members": "Members: {n}",
-      "listeners": "Listeners: {n}",
       "cap": {
         "title": "Listener cap",
         "body": "The most listeners the community accepts. 0 closes joining as a listener. The cap is soft: a few simultaneous joins may pass it.",
         "value": "{n} of {max}",
-        "edit": "Change the cap",
         "field": "Cap (0 to 5000)",
         "save": "Save",
         "saved": "Cap updated",
@@ -720,18 +692,11 @@
           "listener": "Guest worshipper",
           "member": "Member",
           "gabbai": "Gabbai"
-        },
-        "new": "Invite with a role"
+        }
       },
-      "groupsLink": "Groups",
-      "channelsLink": "Channels",
-      "importLink": "Import list",
-      "pushTextsLink": "Notification texts",
       "privacy": {
         "title": "Privacy contact",
         "body": "Who members contact about their data: a name, phone or email. Shown to everyone in the Kehila.",
-        "none": "Not set",
-        "edit": "Edit",
         "field": "Privacy contact",
         "saved": "Contact saved"
       },
@@ -820,9 +785,14 @@
       "familyWith": "Family with {name}",
       "familyAlone": "No partner",
       "children": "Children: {n}",
-      "readOnly": "Gabbaim see family details but don't edit them. The family updates them in the family tree.",
+      "readOnly": "Gabbaim see the family details and phones and do not edit them. The family updates them in the family tree.",
       "link": "Link to a partner",
-      "tree": "Family tree"
+      "tree": "Family tree",
+      "phone": {
+        "listAll": "In the list: everyone",
+        "listGabbaim": "In the list: gabbaim only",
+        "none": "No number"
+      }
     },
     "invite": {
       "title": "Invite with a role",
@@ -1029,7 +999,6 @@
       "groupLabel": "{type}, who may post"
     },
     "tags": {
-      "button": "Role tags",
       "title": "Role tags",
       "intro": "Names for roles in the community, such as Rabbi or Tech. Tags show next to a name and grant no permissions.",
       "listTitle": "Tags in this community",
@@ -1074,6 +1043,86 @@
       "discardYes": "Close without saving",
       "back": "Back to editing",
       "peopleOne": "1 person"
+    },
+    "area": {
+      "label": "Areas",
+      "back": "Overview",
+      "prayers": "Prayers and times",
+      "seats": "Seating",
+      "messages": "Messages and channels",
+      "simchas": "Simchas and aliyot",
+      "people": "Members and families",
+      "settings": "Community settings"
+    },
+    "todo": {
+      "title": "Needs attention",
+      "none": "Nothing is waiting for you.",
+      "requests": "{n} join requests",
+      "terms": "The terms are not accepted yet",
+      "termsSub": "Needed before using management",
+      "linkHints": "{n} link suggestions for seat holders",
+      "linkHintsSub": "Families that signed up and look like a match",
+      "groupRequests": "{n} group join requests"
+    },
+    "row": {
+      "schedule": "Edit prayer times",
+      "sheet": "The weekly sheet",
+      "print": "Hall map to print",
+      "behalf": "Update for a family",
+      "responses": "Upload the form responses",
+      "editor": "Edit the seat map",
+      "holders": "Seat holders without an account",
+      "compose": "New message",
+      "channels": "Channels",
+      "types": "Message types",
+      "pushTexts": "Notification texts",
+      "simchas": "Upcoming simchas",
+      "aliyot": "Torah aliyot",
+      "approvals": "Join requests",
+      "members": "Member book",
+      "tags": "Role tags",
+      "groups": "Groups",
+      "invite": "Invitations",
+      "import": "Import a list",
+      "cap": "Listener cap",
+      "privacy": "Privacy contact",
+      "terms": "Terms between the community and communities"
+    },
+    "rowSub": {
+      "schedule": "Times, formulas and changes for the week",
+      "sheet": "Print, PDF and WhatsApp square",
+      "print": "Taken, released and free for each prayer",
+      "behalf": "Even after the deadline",
+      "responses": "Answers from the old form",
+      "editor": "Easier on a computer",
+      "compose": "To the whole community or a channel",
+      "types": "Who posts mazal tov and who sees it",
+      "pushTexts": "The text of fixed notifications",
+      "aliyot": "Coming (separate design)",
+      "members": "Families, phones, class and the right to post",
+      "tags": "Rabbi, technical, simcha committee",
+      "import": "From a sheet or a file",
+      "simchas": "Bar and bat mitzvah in the next 8 weeks"
+    },
+    "status": {
+      "prayers": "Shabbat {parasha}",
+      "prayersNone": "No times set yet",
+      "updated": "Updated {date}",
+      "channels": "{n} channels",
+      "members": "{m} members · {l} guest worshippers",
+      "settings": "Listener cap, privacy, terms",
+      "groups": "{n} groups",
+      "invites": "{n} active links",
+      "privacyNone": "Not set",
+      "terms": "Accepted {date} · {name}",
+      "simchaNone": "No simchas in the next 8 weeks"
+    },
+    "section": {
+      "week": "This week",
+      "hall": "Setting up the hall"
+    },
+    "sidebar": {
+      "label": "Management"
     }
   },
   "phoneList": {
@@ -1161,8 +1210,7 @@
     "title": "Privacy and data",
     "contact": "Questions about your data in {kehila}:",
     "contactNone": "The Kehila hasn't set a privacy contact yet. You can ask the gabbaim.",
-    "policy": "Privacy policy",
-    "about": "About this Kehila"
+    "policy": "Privacy policy"
   },
   "export": {
     "title": "Download my data",
@@ -1362,7 +1410,6 @@
     "seatLabelComing": "{block}, row {row}, place {k} of {n}, coming",
     "seatLabelFree": "{block}, row {row}, place {k} of {n}, not coming",
     "print": {
-      "link": "Hall map to print",
       "title": "Print the hall map",
       "sub": "Shabbat {parasha} · current state",
       "prayer": "Prayer",
@@ -1677,11 +1724,6 @@
     "leaveBody": "If you leave now, the changes to the prayer times are lost.",
     "leaveStay": "Keep editing",
     "leaveDiscard": "Discard changes and leave",
-    "card": {
-      "title": "Prayer times",
-      "body": "Edit the times, the formulas and the weekly sheet. Members only see what is saved.",
-      "open": "Edit prayer times"
-    },
     "tabEdit": "Edit",
     "tabPreview": "Preview",
     "previewPhone": "Phone",
@@ -1714,11 +1756,6 @@
     "block": "Block {n}",
     "show": "Show",
     "repaste": "Paste again",
-    "card": {
-      "title": "Seat map",
-      "body": "Paste the hall from your spreadsheet, check how it was read, and match every name to a household.",
-      "open": "Seat map"
-    },
     "phone": {
       "banner": "Editing is on the web only.",
       "title": "Please open on a computer",
@@ -2251,9 +2288,6 @@
     "empty": {
       "title": "No hall map saved yet",
       "body": "To upload answers you first need a hall map with families. Paste or draw it in the map editor."
-    },
-    "card": {
-      "open": "Upload the Form's responses"
     }
   },
   "seatHolders": {
@@ -2265,7 +2299,6 @@
     "edit": "Edit",
     "privacy": "Personal data: only gabbaim see it; deleted on request; never in notifications or logs.",
     "card": {
-      "open": "Seat holders without an account",
       "hints": "{n} link suggestions: families who registered and look like seat holders."
     },
     "suggest": {
@@ -2667,12 +2700,8 @@
     "draftTitle": "Mazal tov",
     "privacy": "Only first name, surname and date. Gabbaim only.",
     "card": {
-      "title": "Upcoming simchas",
       "this": "This Shabbat: {text}",
-      "later": "Next: {text}",
-      "more": "And {n} more in the next 8 weeks",
-      "all": "All simchas",
-      "none": "No bar or bat mitzvahs in the next 8 weeks."
+      "later": "Next: {text}"
     },
     "mazal": "Mazal tov",
     "suggestedNote": "Suggested date: check with the family"
@@ -2690,7 +2719,9 @@
       "aboutSub": "My role, the privacy contact",
       "mine": "My communities",
       "open": "open now",
-      "join": "Join another community"
+      "join": "Join another community",
+      "waitingOther": "{n} things need attention",
+      "prefs": "Notifications"
     }
   }
 }

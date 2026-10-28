@@ -27,29 +27,31 @@ export function KehilaLogo({ kehilaId, name, logoVersion, size = 32 }: { kehilaI
   );
 }
 
-/** Top bar of every signed-in screen: [Kehila chip v] [bell]. The chip always opens the Kehila menu (§18.2a); a pomegranate dot sits on the logo when something waits for a gabbai. */
-export function TopBar({ onOpenMenu, onBell }: { onOpenMenu: () => void; onBell?: () => void }) {
+/** The Kehila logo in the top bar: 160% of the former 32 px. */
+export const TOPBAR_LOGO = 52;
+
+/**
+ * Top bar of every signed-in screen (RTL): the Kehila name with a chevron on the start side (the trigger of the Kehila menu, §18.2a),
+ * the Kehila logo on the end side (also opens the menu). A pomegranate dot sits on the logo when something waits for a gabbai.
+ * Notification settings are a row of the Kehila menu.
+ */
+export function TopBar({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { state } = useSession();
   const { t } = useI18n();
   const k = useTokens();
   const waiting = useWaiting();
   const kehila = state.kehila;
+  if (!kehila) return <View style={{ minHeight: TOUCH }} />;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: TOUCH }}>
-      {kehila ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`${kehila.name}. ${t('topbar.menu')}${waiting.any ? `. ${t('topbar.waiting')}` : ''}`}
-          onPress={onOpenMenu} style={{ flex: 1, minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View>
-            <KehilaLogo kehilaId={kehila.kehilaId} name={kehila.name} logoVersion={kehila.logoVersion} />
-            {waiting.any ? <View testID="kehila-dot" style={{ position: 'absolute', top: -3, end: -3, width: 10, height: 10, borderRadius: 5, backgroundColor: k.pomegranate, borderWidth: 2, borderColor: k.stone }} /> : null}
-          </View>
-          <Txt bold content numberOfLines={1} style={{ flexShrink: 1 }}>{kehila.name}</Txt>
-          <Icon name="chev" size={16} color={k.muted} />
-        </Pressable>
-      ) : <View style={{ flex: 1 }} />}
-      <Pressable accessibilityRole="button" accessibilityLabel={t('topbar.bell')} onPress={onBell}
-        style={{ minWidth: TOUCH, minHeight: TOUCH, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="bell" size={24} color={k.ink} />
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: TOPBAR_LOGO + 8 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${kehila.name}. ${t('topbar.menu')}${waiting.any ? `. ${t('topbar.waiting')}` : ''}`}
+        onPress={onOpenMenu} style={{ flex: 1, minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Txt bold content numberOfLines={1} style={{ flexShrink: 1 }}>{kehila.name}</Txt>
+        <Icon name="chev" size={16} color={k.muted} />
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('topbar.menu')} onPress={onOpenMenu} style={{ paddingVertical: 4 }}>
+        <KehilaLogo kehilaId={kehila.kehilaId} name={kehila.name} logoVersion={kehila.logoVersion} size={TOPBAR_LOGO} />
+        {waiting.any ? <View testID="kehila-dot" style={{ position: 'absolute', top: 1, end: -3, width: 12, height: 12, borderRadius: 6, backgroundColor: k.pomegranate, borderWidth: 2, borderColor: k.stone }} /> : null}
       </Pressable>
     </View>
   );

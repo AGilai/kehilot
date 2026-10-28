@@ -1,219 +1,244 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View, useWindowDimensions } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
-import { ApiCodeError } from '../../client/errors.ts';
+import { AREA_IDS, areas, todoItems } from '../../client/adminAreas.ts';
+import type { Area, AreaId, AreaRow, AreaTarget, TodoItem } from '../../client/adminAreas.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
-import type { InviteRow, SimchaWeek } from '../../client/types.ts';
+import type { SimchaWeek } from '../../client/types.ts';
 import { nextSimcha, simchaTitle } from '../../client/simchasView.ts';
-import { ForwardIcon } from '../../kit/Icon.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
-import { Banner, Button, Card, Field, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Card, Txt, useTokens } from '../../kit/components.tsx';
+import { Icon } from '../../kit/Icon.tsx';
+import type { IconName } from '../../kit/Icon.tsx';
+import { ListGroup, NavRow } from '../../kit/NavRows.tsx';
+import { CountBadge } from '../../kit/NavRows.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
-import { LinkShare } from '../Me.tsx';
-import { PrivacyContactCard, TermsCard } from './PrivacyContactCard.tsx';
-import { useShortDate, useAdminErrText } from './shared.tsx';
+import { useShabbat } from '../../seats/useShabbat.ts';
+import { BackLink } from '../Me.tsx';
+import { useWaiting } from '../useWaiting.ts';
+import { CapSheet, PrivacyContactSheet, TermsSheet, termsDate } from './SettingsSheets.tsx';
+import { WIDE, useAdminErrText, useShortDate } from './shared.tsx';
 
-type Counts = { pending: number; members: number; listeners: number };
+/** Screens a row can open (the settings rows open Sheets here instead). */
+export type GoTarget = Exclude<AreaTarget, `sheet:${string}`>;
 
-/** The listener cap with an edit (PUT settings, 0 to 5000). */
-function CapCard({ cap, listeners, onSaved }: { cap: number | undefined; listeners: number | undefined; onSaved: (n: number) => void }) {
-  const { t } = useI18n();
+export const AREA_ICON: Record<AreaId, IconName> = { prayers: 'clock', seats: 'chair', messages: 'msg', simchas: 'cal', people: 'users', settings: 'sliders' };
+const ROW_ICON: Record<string, IconName> = {
+  schedule: 'clock', sheet: 'print', print: 'print', behalf: 'edit', responses: 'up', editor: 'grid', holders: 'users', compose: 'send', channels: 'msg', types: 'sliders', pushTexts: 'bell',
+  simchas: 'cal', aliyot: 'book', approvals: 'check', members: 'users', tags: 'pin', groups: 'users', invite: 'link', import: 'up', cap: 'sliders', privacy: 'shield', terms: 'book',
+};
+
+type Data = {
+  members: number; listeners: number; groups: number | null; channels: number | null; invites: number | null;
+  cap: number | undefined; contact: string; terms: { name: string; at: number } | null | undefined;
+  schedule: { saved: boolean; updatedAt: number | null } | null; weeks: SimchaWeek[] | null;
+};
+
+/** The numbers behind the status lines. Every call is best effort: a failure leaves that line out. */
+function useAreaData(): { data: Data | null; error: string | null; reload: () => Promise<void> } {
   const { api } = useAuth();
   const { state } = useSession();
-  const k = useTokens();
-  const errText = useAdminErrText();
-  const [editing, setEditing] = React.useState(false);
-  const [text, setText] = React.useState('');
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const n = /^\d+$/.test(text.trim()) && +text <= 5000 ? +text : null;
-  async function save() {
-    if (n === null || busy || !state.kehilaId) return;
-    setBusy(true); setError(null);
-    try { await api.putSettings(state.kehilaId, { maxListeners: n }); onSaved(n); setEditing(false); }
-    catch (e) { setError(errText(e)); } finally { setBusy(false); }
-  }
-  return (
-    <Card>
-      <Txt serif size="heading" accessibilityRole="header">{t('admin.overview.cap.title')}</Txt>
-      <Txt size="small" color={k.muted}>{t('admin.overview.cap.body')}</Txt>
-      {cap !== undefined ? <Txt bold>{t('admin.overview.cap.value', { n: listeners ?? 0, max: cap })}</Txt> : null}
-      {editing ? (
-        <>
-          <Field label={t('admin.overview.cap.field')} value={text} onChangeText={setText} keyboardType="number-pad" error={n === null ? t('admin.overview.cap.invalid') : null} />
-          {error ? <Banner tone="error" text={error} /> : null}
-          <Button title={t('admin.overview.cap.save')} onPress={() => void save()} busy={busy} disabled={n === null} />
-          <Button kind="secondary" title={t('common.cancel')} onPress={() => { setEditing(false); setError(null); }} disabled={busy} />
-        </>
-      ) : <Button kind="secondary" title={t('admin.overview.cap.edit')} onPress={() => { setText(String(cap ?? 0)); setEditing(true); }} />}
-    </Card>
-  );
-}
-
-/** Every unexpired invite of the Kehila (a gabbai sees all), with share and revoke. */
-function InviteList({ rows, onChanged, onToast }: { rows: InviteRow[]; onChanged: () => Promise<void>; onToast: (text: string) => void }) {
-  const { t } = useI18n();
-  const { api } = useAuth();
-  const { state } = useSession();
-  const k = useTokens();
-  const errText = useAdminErrText();
-  const date = useShortDate();
-  const [asking, setAsking] = React.useState<string | null>(null);
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  async function revoke(code: string) {
-    if (!state.kehilaId) return;
-    setBusy(true); setError(null);
-    try { await api.revokeInvite(state.kehilaId, code); onToast(t('me.links.revoked')); setAsking(null); await onChanged(); }
-    catch (e) {
-      if (e instanceof ApiCodeError && e.code === 'invite_not_found') { setAsking(null); await onChanged(); } else setError(errText(e));
-    } finally { setBusy(false); }
-  }
-  return (
-    <Card>
-      <Txt serif size="heading" accessibilityRole="header">{t('admin.overview.invites.title')}</Txt>
-      {error ? <Banner tone="error" text={error} /> : null}
-      {rows.length === 0 ? <Txt color={k.muted}>{t('admin.overview.invites.empty')}</Txt> : null}
-      {rows.map(r => (
-        <View key={r.code} style={{ gap: 8, paddingVertical: 8, borderTopWidth: 1, borderTopColor: k.line }}>
-          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Tag label={t(`admin.overview.invites.role.${r.role}`)} tone="strong" />
-            <Tag label={r.mine ? t('admin.overview.invites.mine') : t('admin.overview.invites.other')} />
-          </View>
-          <Txt>{t('me.links.usesLeft', { n: r.usesLeft })}</Txt>
-          <Txt size="small" color={k.muted}>{t('me.links.expires', { date: date(r.expiresAt) })}</Txt>
-          <LinkShare code={r.code} onToast={onToast} />
-          {asking === r.code ? (
-            <View style={{ gap: 8 }}>
-              <Txt size="small">{t('me.links.revokeConfirm')}</Txt>
-              <Button kind="danger" title={t('me.links.revokeYes')} onPress={() => void revoke(r.code)} busy={busy} />
-              <Button kind="secondary" title={t('me.links.keep')} onPress={() => setAsking(null)} disabled={busy} />
-            </View>
-          ) : <Button kind="secondary" title={t('me.links.revoke')} onPress={() => setAsking(r.code)} />}
-        </View>
-      ))}
-    </Card>
-  );
-}
-
-/** GM1 without the seating meters: pending count, member and listener counts, the cap, the invite links. */
-/** Overview card for P36 (UX §17.14): the nearest simcha and how many more. Best effort: nothing shows until the list loads or when it fails. */
-function SimchasCard({ onOpen }: { onOpen: () => void }) {
-  const { t } = useI18n();
-  const { api } = useAuth();
-  const { state } = useSession();
-  const k = useTokens();
-  const [weeks, setWeeks] = React.useState<SimchaWeek[] | null>(null);
-  React.useEffect(() => {
-    let live = true;
-    api.simchas(state.kehilaId!, 8).then(r => { if (live) setWeeks(r.weeks); }, () => {});
-    return () => { live = false; };
-  }, [api, state.kehilaId]);
-  if (!weeks) return null;
-  const next = nextSimcha(weeks);
-  const text = next ? `${simchaTitle(next.item, t)}${next.item.surname ? `, ${t('simchas.family', { surname: next.item.surname })}` : ''}` : '';
-  return (
-    <Card edgeColor={k.pomegranate}>
-      <Txt serif size="heading" accessibilityRole="header">{t('simchas.card.title')}</Txt>
-      {next ? <Txt bold>{t(next.thisWeek ? 'simchas.card.this' : 'simchas.card.later', { text })}</Txt> : <Txt color={k.muted}>{t('simchas.card.none')}</Txt>}
-      {next && next.more > 0 ? <Txt size="small" color={k.muted}>{t('simchas.card.more', { n: next.more })}</Txt> : null}
-      <Pressable accessibilityRole="button" onPress={onOpen} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <Txt bold color={k.tekhelet}>{t('simchas.card.all')}</Txt><ForwardIcon size={16} color={k.tekhelet} />
-      </Pressable>
-    </Card>
-  );
-}
-
-export function Overview({ onApprovals, onInvite, onGroups, onChannels, onImport, onPushTexts, onSeatPrint, onSchedule, onSeatEditor, onSeatResponses, onSeatHolders, onSimchas, onCount, onToast }: { onApprovals: () => void; onInvite: () => void; onGroups: () => void; onChannels: () => void; onImport: () => void; onPushTexts: () => void; /** The seat-release preview (UX §15.5): only passed when the preview flag is on. */ onSeatPrint?: () => void; /** The prayer-schedule editor (UX §14.2). */ onSchedule?: () => void; /** The seating editor (UX §16): gabbaim only. */ onSeatEditor?: () => void; /** The old Form's responses upload (§16.6) and the holders without an account (§16.7): gabbaim only. */ onSeatResponses?: () => void; onSeatHolders?: () => void; /** The upcoming simchas (UX §17.14): gabbaim only. Until the management restructure (§18) this card is where it lives. */ onSimchas?: () => void; onCount: (n: number) => void; onToast: (text: string) => void }) {
-  const { t } = useI18n();
-  const { api } = useAuth();
-  const { state, refreshKehila } = useSession();
-  const k = useTokens();
   const errText = useAdminErrText();
   const kehilaId = state.kehilaId!;
-  const [counts, setCounts] = React.useState<Counts | null>(null);
-  const [cap, setCap] = React.useState<{ max?: number; listeners?: number } | null>(null);
-  const [privacy, setPrivacy] = React.useState<{ contact: string; terms: { name: string; at: number } | null | undefined } | null>(null);
-  const [invites, setInvites] = React.useState<InviteRow[] | null>(null);
+  const [data, setData] = React.useState<Data | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [linkHints, setLinkHints] = React.useState(0);
-  React.useEffect(() => {
-    // link suggestions for the gabbai (best effort: nothing is shown when it fails)
-    if (!onSeatHolders) return;
-    let live = true;
-    api.seatLinkSuggestions(kehilaId).then(r => { if (live) setLinkHints(r.count); }, () => {});
-    return () => { live = false; };
-  }, [api, kehilaId, !!onSeatHolders]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadInvites = React.useCallback(async () => {
-    try { setInvites(await api.invites(kehilaId)); } catch (e) { setError(errText(e)); setInvites(prev => prev ?? []); }
-  }, [api, kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const load = React.useCallback(async () => {
-    const [req, mem, keh] = await Promise.allSettled([api.requests(kehilaId), api.members(kehilaId), api.kehila(kehilaId)]);
-    const failed = [req, mem, keh].find(x => x.status === 'rejected');
+  const reload = React.useCallback(async () => {
+    const [mem, keh, inv, grp, chn, sch, sim] = await Promise.allSettled([api.members(kehilaId), api.kehila(kehilaId), api.invites(kehilaId), api.groups(kehilaId), api.channels(kehilaId), api.schedule(kehilaId), api.simchas(kehilaId, 8)]);
+    const failed = [mem, keh].find(x => x.status === 'rejected');
     setError(failed && failed.status === 'rejected' ? errText(failed.reason) : null);
-    if (req.status === 'fulfilled') onCount(req.value.length);
-    setCounts(prev => ({
-      pending: req.status === 'fulfilled' ? req.value.length : prev?.pending ?? 0,
+    setData(prev => ({
       members: mem.status === 'fulfilled' ? mem.value.filter(m => m.role !== 'listener').length : prev?.members ?? 0,
       listeners: mem.status === 'fulfilled' ? mem.value.filter(m => m.role === 'listener').length : prev?.listeners ?? 0,
+      groups: grp.status === 'fulfilled' ? grp.value.length : prev?.groups ?? null,
+      channels: chn.status === 'fulfilled' ? chn.value.filter(c => !c.conversation).length : prev?.channels ?? null,
+      invites: inv.status === 'fulfilled' ? inv.value.length : prev?.invites ?? null,
+      cap: keh.status === 'fulfilled' ? keh.value.settings.maxListeners : prev?.cap,
+      contact: keh.status === 'fulfilled' ? keh.value.privacyContact ?? '' : prev?.contact ?? '',
+      terms: keh.status === 'fulfilled' ? keh.value.termsAccepted : prev?.terms,
+      schedule: sch.status === 'fulfilled' ? { saved: sch.value.sections.length > 0, updatedAt: sch.value.updatedAt } : prev?.schedule ?? null,
+      weeks: sim.status === 'fulfilled' ? sim.value.weeks : prev?.weeks ?? null,
     }));
-    if (keh.status === 'fulfilled') {
-      setCap({ max: keh.value.settings.maxListeners, listeners: keh.value.listenerCount });
-      setPrivacy({ contact: keh.value.privacyContact ?? '', terms: keh.value.termsAccepted });
+  }, [api, kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { void reload(); }, [reload]);
+  return { data, error, reload };
+}
+
+/** A compact row for the wide grid cards. */
+function MiniRow({ title, badge, onPress }: { title: string; badge?: number; onPress?: () => void }) {
+  const k = useTokens();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={title} disabled={!onPress} onPress={onPress} style={{ minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 }}>
+      <Txt color={onPress ? k.ink : k.muted} style={{ flex: 1 }}>{title}</Txt>
+      {badge ? <CountBadge n={badge} /> : null}
+    </Pressable>
+  );
+}
+
+/**
+ * §18.3: the management overview (area = null) and a group screen (area = id). The overview answers two questions only:
+ * what is waiting ("לטיפול עכשיו") and where things are (six groups). It has no edit fields; settings rows show their value
+ * and open a Sheet. Below 1024 the groups are 72-high rows, from 1024 a 3-column grid of cards that list their rows.
+ */
+export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId | null; onArea: (id: AreaId) => void; onGo: (target: GoTarget) => void; onBack: () => void; onToast: (text: string) => void }) {
+  const { t, lang } = useI18n();
+  const { state, refreshKehila } = useSession();
+  const k = useTokens();
+  const { width } = useWindowDimensions();
+  const wide = width >= WIDE;
+  const waiting = useWaiting();
+  const date = useShortDate();
+  const { parasha } = useShabbat();
+  const { data, error, reload } = useAreaData();
+  const [sheet, setSheet] = React.useState<'cap' | 'privacy' | 'terms' | null>(null);
+  const { refresh } = waiting;
+  React.useEffect(() => { refresh(); }, [refresh]);
+  const role = state.kehila?.role;
+  const list = areas(role);
+  const todo = todoItems(role, waiting);
+
+  const todoText = (i: TodoItem) => ({
+    title: i.id === 'terms' ? t('admin.todo.terms') : t(`admin.todo.${i.id}`, { n: i.count }),
+    status: i.id === 'terms' ? t('admin.todo.termsSub') : i.id === 'linkHints' ? t('admin.todo.linkHintsSub') : undefined,
+    badge: i.id === 'requests' ? i.count : undefined,
+  });
+  const goTodo = (i: TodoItem) => onGo(i.target === 'overview' ? 'approvals' : i.target);
+
+  const badgeOf = (r: AreaRow): number | undefined => (r.badge === 'requests' ? waiting.requests : r.badge === 'linkHints' ? waiting.linkHints : r.badge === 'groupRequests' ? waiting.groupRequests : 0) || undefined;
+  const nextS = data?.weeks ? nextSimcha(data.weeks) : null;
+  const simchaText = nextS ? `${simchaTitle(nextS.item, t)}${nextS.item.surname ? `, ${t('simchas.family', { surname: nextS.item.surname })}` : ''}` : null;
+  const prayersStatus = data?.schedule
+    ? data.schedule.saved
+      ? `${parasha ? t('admin.status.prayers', { parasha }) : ''}${data.schedule.updatedAt ? `${parasha ? ' · ' : ''}${t('admin.status.updated', { date: date(Math.floor(data.schedule.updatedAt / 1000)) })}` : ''}` || undefined
+      : t('admin.status.prayersNone')
+    : undefined;
+  const areaStatus = (id: AreaId): string | undefined => {
+    if (!data) return undefined;
+    switch (id) {
+      case 'prayers': return prayersStatus;
+      case 'seats': return waiting.linkHints > 0 ? t('admin.todo.linkHints', { n: waiting.linkHints }) : undefined;
+      case 'messages': return data.channels !== null ? t('admin.status.channels', { n: data.channels }) : undefined;
+      case 'simchas': return simchaText ? t(nextS!.thisWeek ? 'simchas.card.this' : 'simchas.card.later', { text: simchaText }) : data.weeks ? t('admin.status.simchaNone') : undefined;
+      case 'people': return t('admin.status.members', { m: data.members, l: data.listeners });
+      default: return t('admin.status.settings');
     }
-    await loadInvites();
-  }, [api, kehilaId, loadInvites]); // eslint-disable-line react-hooks/exhaustive-deps
-  React.useEffect(() => { void load(); }, [load]);
+  };
+  const rowStatus = (r: AreaRow): { status?: string; value?: string } => {
+    const sub = (key: string) => t(`admin.rowSub.${key}`);
+    switch (r.id) {
+      case 'schedule': return { status: prayersStatus };
+      case 'sheet': case 'print': case 'behalf': case 'responses': case 'editor': case 'compose': case 'types': case 'pushTexts': case 'aliyot': case 'members': case 'tags': case 'import': return { status: sub(r.id) };
+      case 'holders': return { status: waiting.linkHints > 0 ? t('seatHolders.card.hints', { n: waiting.linkHints }) : undefined };
+      case 'channels': return { status: data?.channels != null ? t('admin.status.channels', { n: data.channels }) : undefined };
+      case 'simchas': return { status: simchaText ?? undefined };
+      case 'groups': return { status: data?.groups != null ? t('admin.status.groups', { n: data.groups }) : undefined };
+      case 'invite': return { status: data?.invites != null ? t('admin.status.invites', { n: data.invites }) : undefined };
+      case 'cap': return { value: data?.cap !== undefined ? `${data.listeners} / ${data.cap}` : undefined };
+      case 'privacy': return { status: data ? data.contact || t('admin.status.privacyNone') : undefined };
+      case 'terms': return { status: data?.terms ? t('admin.status.terms', { date: termsDate(lang, data.terms.at), name: data.terms.name }) : undefined };
+      default: return {};
+    }
+  };
+  const open = (r: AreaRow) => {
+    if (!r.target) return undefined;
+    if (r.target === 'sheet:cap') return () => setSheet('cap');
+    if (r.target === 'sheet:privacy') return () => setSheet('privacy');
+    if (r.target === 'sheet:terms') return () => setSheet('terms');
+    const target = r.target;
+    return () => onGo(target);
+  };
+  const row = (r: AreaRow) => {
+    const s = rowStatus(r);
+    return <NavRow key={r.id} icon={ROW_ICON[r.id]} title={t(`admin.row.${r.id}`)} status={s.status} value={s.value} badge={badgeOf(r)} tone={r.id === 'holders' && waiting.linkHints > 0 ? 'attention' : undefined} onPress={open(r)} />;
+  };
+
+  const sheets = (
+    <>
+      <CapSheet visible={sheet === 'cap'} cap={data?.cap} listeners={data?.listeners} onClose={() => setSheet(null)} onSaved={() => { onToast(t('admin.overview.cap.saved')); void reload(); }} />
+      <PrivacyContactSheet visible={sheet === 'privacy'} contact={data?.contact ?? ''} onClose={() => setSheet(null)} onSaved={() => { onToast(t('admin.overview.privacy.saved')); void reload(); void refreshKehila(); }} />
+      <TermsSheet visible={sheet === 'terms'} accepted={data?.terms} onClose={() => setSheet(null)} />
+    </>
+  );
+  const frame = { padding: 16, gap: 16, width: '100%', maxWidth: wide ? 1200 : 680, alignSelf: 'center' } as const;
+
+  // A group screen (P42 phone 2): back "› סקירה", then list groups of rows.
+  const current = area ? list.find(a => a.id === area) : undefined;
+  if (area && current) {
+    const sections = current.id === 'seats' ? (['week', 'hall'] as const).map(s => ({ label: t(`admin.section.${s}`), rows: current.rows.filter(r => r.section === s) })) : [{ label: undefined, rows: current.rows }];
+    return (
+      <PadScroll contentContainerStyle={frame}>
+        <BackLink onPress={onBack} label={t('admin.area.back')} />
+        <Txt serif size="title" accessibilityRole="header">{t(`admin.area.${current.id}`)}</Txt>
+        {error ? <Banner tone="error" text={error} /> : null}
+        <View style={{ gap: 16, maxWidth: 680, width: '100%' }}>
+          {sections.map((s, i) => <ListGroup key={i} label={s.label}>{s.rows.map(row)}</ListGroup>)}
+        </View>
+        {sheets}
+      </PadScroll>
+    );
+  }
+
+  const todoCard = todo.length > 0 ? (
+    wide ? (
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        {todo.slice(0, 3).map(i => {
+          const x = todoText(i);
+          return <View key={i.id} style={{ flex: 1, backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, borderStartWidth: 6, borderStartColor: k.pomegranate, overflow: 'hidden' }}><NavRow title={x.title} status={x.status} badge={x.badge} onPress={() => goTodo(i)} /></View>;
+        })}
+      </View>
+    ) : (
+      <Card edgeColor={k.pomegranate} style={{ padding: 0, overflow: 'hidden' }}>
+        {todo.map((i, n) => { const x = todoText(i); return <View key={i.id} style={n > 0 ? { borderTopWidth: 1, borderTopColor: k.line } : undefined}><NavRow title={x.title} status={x.status} badge={x.badge} onPress={() => goTodo(i)} /></View>; })}
+      </Card>
+    )
+  ) : <Txt color={k.muted}>{t('admin.todo.none')}</Txt>;
 
   return (
-    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={frame}>
       <Txt serif size="title" accessibilityRole="header">{t('admin.overview.title')}</Txt>
       {error ? <Banner tone="error" text={error} /> : null}
-      {!counts ? <ActivityIndicator color={k.tekhelet} /> : null}
-      {counts ? (
+      {!data ? <ActivityIndicator color={k.tekhelet} /> : null}
+      {data ? (
         <>
-          <Card>
-            <Txt bold size="heading">{counts.pending > 0 ? t('admin.overview.pending', { n: counts.pending }) : t('admin.overview.pendingNone')}</Txt>
-            {counts.pending > 0 ? <Button title={t('admin.overview.review')} onPress={onApprovals} /> : null}
-          </Card>
-          {onSimchas ? <SimchasCard onOpen={onSimchas} /> : null}
-          {onSchedule ? (
-            <Card>
-              <Txt serif size="heading" accessibilityRole="header">{t('editor.card.title')}</Txt>
-              <Txt size="small" color={k.muted}>{t('editor.card.body')}</Txt>
-              <Button title={t('editor.card.open')} onPress={onSchedule} />
-            </Card>
-          ) : null}
-          {onSeatEditor ? (
-            <Card>
-              <Txt serif size="heading" accessibilityRole="header">{t('seatEditor.card.title')}</Txt>
-              <Txt size="small" color={k.muted}>{t('seatEditor.card.body')}</Txt>
-              <Button title={t('seatEditor.card.open')} onPress={onSeatEditor} />
-              {onSeatResponses ? <Button kind="secondary" title={t('seatUpload.card.open')} onPress={onSeatResponses} /> : null}
-              {onSeatHolders ? <Button kind="secondary" title={t('seatHolders.card.open')} onPress={onSeatHolders} /> : null}
-              {linkHints > 0 && onSeatHolders ? <Banner text={t('seatHolders.card.hints', { n: linkHints })} /> : null}
-            </Card>
-          ) : null}
-          {privacy ? <PrivacyContactCard contact={privacy.contact} onSaved={c => { setPrivacy(p => p && { ...p, contact: c }); onToast(t('admin.overview.privacy.saved')); void refreshKehila(); }} /> : null}
-          {privacy ? <TermsCard accepted={privacy.terms} /> : null}
-          <Card>
-            <Txt serif size="heading" accessibilityRole="header">{t('admin.overview.counts')}</Txt>
-            <Txt>{t('admin.overview.members', { n: counts.members })}</Txt>
-            <Txt>{t('admin.overview.listeners', { n: counts.listeners })}</Txt>
-          </Card>
-          <CapCard cap={cap?.max} listeners={cap?.listeners ?? counts.listeners} onSaved={n => { setCap(c => ({ ...c, max: n })); onToast(t('admin.overview.cap.saved')); }} />
+          <View style={{ gap: 8 }}>
+            {todo.length > 0 ? <Txt size="small" bold color={k.muted} accessibilityRole="header" style={{ marginHorizontal: 4 }}>{t('admin.todo.title')}</Txt> : null}
+            {todoCard}
+          </View>
+          <View style={{ gap: 8 }}>
+            <Txt size="small" bold color={k.muted} accessibilityRole="header" style={{ marginHorizontal: 4 }}>{t('admin.area.label')}</Txt>
+            {wide ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {list.map(a => <GridCard key={a.id} area={a} status={areaStatus(a.id)} onOpen={() => onArea(a.id)} badge={(r: AreaRow) => badgeOf(r)} open={open} />)}
+              </View>
+            ) : (
+              <ListGroup>
+                {AREA_IDS.filter(id => list.some(a => a.id === id)).map(id => (
+                  <NavRow key={id} big icon={AREA_ICON[id]} title={t(`admin.area.${id}`)} status={areaStatus(id)}
+                    tone={id === 'seats' && waiting.linkHints > 0 ? 'attention' : undefined} onPress={() => onArea(id)} />
+                ))}
+              </ListGroup>
+            )}
+          </View>
         </>
       ) : null}
-      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-        <View style={{ flex: 1, minWidth: 140 }}><Button kind="secondary" title={t('admin.overview.groupsLink')} onPress={onGroups} /></View>
-        <View style={{ flex: 1, minWidth: 140 }}><Button kind="secondary" title={t('admin.overview.channelsLink')} onPress={onChannels} /></View>
-      </View>
-      <Button kind="secondary" title={t('admin.overview.importLink')} onPress={onImport} />
-      <Button kind="secondary" title={t('admin.overview.pushTextsLink')} onPress={onPushTexts} />
-      {onSeatPrint ? <Button kind="secondary" title={t('seats.print.link')} onPress={onSeatPrint} /> : null}
-      <Button title={t('admin.overview.invites.new')} onPress={onInvite} />
-      {invites ? <InviteList rows={invites} onChanged={loadInvites} onToast={onToast} /> : null}
+      {sheets}
     </PadScroll>
+  );
+}
+
+/** Wide overview: one card per group with its status line and its rows (one click from the overview to every tool). */
+function GridCard({ area, status, onOpen, badge, open }: { area: Area; status: string | undefined; onOpen: () => void; badge: (r: AreaRow) => number | undefined; open: (r: AreaRow) => (() => void) | undefined }) {
+  const { t } = useI18n();
+  const k = useTokens();
+  return (
+    <View style={{ flexBasis: '31%', flexGrow: 1, minWidth: 280, backgroundColor: k.surface, borderRadius: 12, borderWidth: 1, borderColor: k.line, padding: 16, gap: 4 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={status ? `${t(`admin.area.${area.id}`)}. ${status}` : t(`admin.area.${area.id}`)} onPress={onOpen} style={{ gap: 2, paddingBottom: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name={AREA_ICON[area.id]} size={24} color={k.tekhelet} />
+          <Txt serif size="heading" style={{ flex: 1 }}>{t(`admin.area.${area.id}`)}</Txt>
+        </View>
+        {status ? <Txt size="small" color={k.muted} numberOfLines={1}>{status}</Txt> : null}
+      </Pressable>
+      {area.rows.map(r => <View key={r.id} style={{ borderTopWidth: 1, borderTopColor: k.line }}><MiniRow title={t(`admin.row.${r.id}`)} badge={badge(r)} onPress={open(r)} /></View>)}
+    </View>
   );
 }

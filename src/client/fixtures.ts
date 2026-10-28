@@ -25,10 +25,10 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
 /** Screens for the P-frames. `me-linked` is P2's main state and P6's member-with-a-partner check;
  *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
-export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -284,11 +284,11 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const adminFam = screen === 'admin-families' || screen === 'admin-link';
   const U = (n: number) => `01FIXTUREUSER000000000${n}`;
   const memberRows = adminFam ? [
-    { userId: U(21), displayName: 'דנה בדיוני', role: 'member', classification: 'א', canBroadcast: true, groups: [], tags: [] },
-    { userId: U(22), displayName: 'יוסי בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
-    { userId: U(23), displayName: 'מיכל דוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: [], tags: [] as RoleTag[] },
-    { userId: U(24), displayName: 'אבי ניסיון', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
-    { userId: U(25), displayName: 'אברהם אלמוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[] },
+    { userId: U(21), displayName: 'דנה בדיוני', role: 'member', classification: 'א', canBroadcast: true, groups: [], tags: [], phone: '+972500000011', showPhone: true },
+    { userId: U(22), displayName: 'יוסי בדיוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[], phone: '+972500000012', showPhone: false },
+    { userId: U(23), displayName: 'מיכל דוגמה', role: 'member', classification: 'קבוע', canBroadcast: true, groups: [], tags: [] as RoleTag[], phone: '+972500000013', showPhone: true },
+    { userId: U(24), displayName: 'אבי ניסיון', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[], phone: '+972500000014', showPhone: false },
+    { userId: U(25), displayName: 'אברהם אלמוני', role: 'member', classification: '', canBroadcast: false, groups: [], tags: [] as RoleTag[], phone: null, showPhone: false },
   ] : [
     { userId: me.userId, displayName: 'דנה בדויה', role: 'gabbai', classification: 'קבוע', canBroadcast: true, groups: ['01FIXTUREGROUP00000000001'], tags: [] as RoleTag[] },
     { userId: 'm1', displayName: 'יוסי לדוגמה', role: 'gabbai', classification: 'א', canBroadcast: true, groups: [], tags: [] as RoleTag[] },
@@ -494,7 +494,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       const h = { holderId: fixtureUlid(Date.now() + seatHolders.length, 40), name: b.name, phone: b.phone ?? null, createdAt: Date.now(), updatedAt: Date.now() };
       seatHolders = [...seatHolders, h]; return h;
     }
-    if (p === `${A}/seating/link-suggestions`) return holdersFx ? { count: linkSuggestions.length, suggestions: structuredClone(linkSuggestions) } : { count: 0, suggestions: [] };
+    if (p === `${A}/seating/link-suggestions`) return !holdersFx && (screen === 'overview' || screen?.startsWith('area')) ? { count: 2, suggestions: [] } : holdersFx ? { count: linkSuggestions.length, suggestions: structuredClone(linkSuggestions) } : { count: 0, suggestions: [] };
     const hm = /\/seating\/holders\/([^/]+)(\/link)?$/.exec(p);
     if (hm) {
       const h = seatHolders.find((x) => x.holderId === hm[1]);

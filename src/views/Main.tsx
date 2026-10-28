@@ -1,6 +1,6 @@
 import React from 'react';
 import { useReportScreen } from '../client/reportUi.ts';
-import { BackHandler, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { BackHandler, KeyboardAvoidingView, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { config } from '../config.ts';
 import { FIXTURE_PICTURE, fixtureParams } from '../client/fixtures.ts';
@@ -15,7 +15,7 @@ import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button, Sheet, Toast, Txt, useTokens } from '../kit/components.tsx';
 import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
-import { AdminContext } from './admin/shared.tsx';
+import { AdminContext, WIDE } from './admin/shared.tsx';
 import { Approvals } from './admin/Approvals.tsx';
 import { Channels } from './admin/Channels.tsx';
 import { GroupAdmin } from './admin/GroupAdmin.tsx';
@@ -25,6 +25,11 @@ import { Members } from './admin/Members.tsx';
 import { Import } from './admin/Import.tsx';
 import { PushTexts } from './admin/PushTexts.tsx';
 import { Overview } from './admin/Overview.tsx';
+import type { GoTarget } from './admin/Overview.tsx';
+import { AdminSidebar } from './admin/Sidebar.tsx';
+import type { SidebarKey } from './admin/Sidebar.tsx';
+import type { AreaId } from '../client/adminAreas.ts';
+import { useWaiting } from './useWaiting.ts';
 import { SeatPrint } from './admin/SeatPrint.tsx';
 import { SeatEditor } from './admin/SeatEditor.tsx';
 import { SeatHolders } from './admin/SeatHolders.tsx';
@@ -69,7 +74,8 @@ type Nav =
   | { tab: 'overview' }
   | { tab: 'simchas' }
   | { tab: 'approvals' }
-  | { tab: 'members' }
+  | { tab: 'members'; tags?: boolean }
+  | { tab: 'area'; id: AreaId }
   | { tab: 'invite'; member?: boolean }
   | { tab: 'groups' }
   | { tab: 'channels' }
@@ -78,7 +84,7 @@ type Nav =
   | { tab: 'seats' }
   | { tab: 'schedule' }
   | { tab: 'scheduleEditor' }
-  | { tab: 'seatPrint' }
+  | { tab: 'seatPrint'; behalf?: boolean }
   | { tab: 'seatEditor' }
   | { tab: 'seatResponses' }
   | { tab: 'seatHolders' }
@@ -102,6 +108,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'tree-admin') return { nav: { tab: 'adminTree', familyId: '01FIXTUREFAMILY0000000003', name: 'בדיוני' }, manage: true };
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
   if (s === 'overview' || s === 'overview-privacy' || s === 'terms' || s === 'simchas-card' || s === 'simchas-card-empty') return { nav: { tab: 'overview' }, manage: true };
+  if (s === 'area-seats' || s === 'area-people' || s === 'area-settings') return { nav: { tab: 'area', id: s.slice(5) as AreaId }, manage: true };
   if (s === 'simchas' || s === 'simchas-empty') return { nav: { tab: 'simchas' }, manage: true };
   if (s === 'approvals' || s === 'seat-approval') return seatEditorAllowed(state.kehila?.role) || s === 'approvals' ? { nav: { tab: 'approvals' }, manage: true } : null;
   if (s === 'members' || s === 'admin-families' || s === 'admin-link' || s === 'tags-manage' || s === 'tags-assign' || s === 'tags-empty') return { nav: { tab: 'members' }, manage: true };
@@ -132,7 +139,20 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
   const { state } = useSession();
   const { api } = useAuth();
   const [manage, setManage] = React.useState(false);
-  const [pending, setPending] = React.useState(0);
+  const waiting = useWaiting();
+  const pending = waiting.requests;
+  const setPending = waiting.setRequests;
+  const { width: winWidth } = useWindowDimensions();
+  const wide = winWidth >= WIDE;
+  // Where a management tool returns to: the overview or the group screen it was opened from (§18.3), and where the tree, phone list and invite return to when opened from the Kehila menu.
+  const [backNav, setBackNav] = React.useState<Nav>({ tab: 'overview' });
+  const toolBack = () => setNav(backNav);
+  const ret = React.useRef<{ nav: Nav; manage: boolean; menu: boolean } | null>(null);
+  const returnFrom = (fallback: Nav) => () => {
+    const r = ret.current; ret.current = null;
+    if (!r) { setNav(fallback); return; }
+    setManage(r.manage); setNav(r.nav); if (r.menu) onOpenMenu();
+  };
   const [nav, setNav] = React.useState<Nav>({ tab: 'home' });
   useReportScreen({ screen: nav.tab, hasTabs: true, kehilaId: state.kehilaId, kehilaName: state.kehila?.name ?? null });
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
@@ -149,6 +169,13 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+  /** A row of the overview or of a group screen opens its tool; the tool's back returns to that overview or group. */
+  function goTool(target: GoTarget) {
+    const to: Nav = target === 'seatBehalf' ? { tab: 'seatPrint', behalf: true } : target === 'membersTags' ? { tab: 'members', tags: true } : { tab: target };
+    if (nav.tab === 'overview' || nav.tab === 'area') setBackNav(nav);
+    if (to.tab === 'compose') setComposeInitial(undefined);
+    guard(() => setNav(to));
+  }
   // A member who administers groups: the first of them with pending requests (else Me).
   function openGroupRequests() {
     const kid = state.kehilaId;
@@ -182,7 +209,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
   // Android's back button leaves the schedule editor through the same unsaved-changes question.
   React.useEffect(() => {
     if (Platform.OS !== 'android' || nav.tab !== 'scheduleEditor') return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { guard(() => setNav({ tab: 'overview' })); return true; });
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { guard(() => toolBack()); return true; });
     return () => sub.remove();
   }, [nav.tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const isGabbai = state.kehila?.role === 'gabbai';
@@ -206,14 +233,9 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     if (req === 'manage') { if (takeManageEntry(holder, role)) { setManage(true); setNav({ tab: 'overview' }); } return; }
     const to = menuTarget(req, role);
     if (!to) return;
-    guard(() => { setManage(false); setNav(to === 'phoneList' ? { tab: 'phoneList', from: 'me' } : { tab: to }); });
+    guard(() => { ret.current = nav.tab === to ? null : { nav, manage, menu: true }; setManage(false); setNav(to === 'phoneList' ? { tab: 'phoneList', from: 'me' } : to === 'prefs' ? { tab: 'prefs', from: 'me' } : { tab: to }); });
   }, [menuSignal]); // eslint-disable-line react-hooks/exhaustive-deps
-  React.useEffect(() => {
-    if (!manage || !isGabbai || !state.kehilaId) return;
-    let live = true;
-    api.requests(state.kehilaId).then(r => { if (live) setPending(r.length); }, () => {});
-    return () => { live = false; };
-  }, [manage, isGabbai, state.kehilaId, api]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { if (nav.tab !== 'tree' && nav.tab !== 'phoneList' && nav.tab !== 'myInvite' && nav.tab !== 'prefs') ret.current = null; }, [nav.tab]);
   const jumped = React.useRef(false);
   const fixtureQuery = React.useMemo(() => (config.fixtures && typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : ''), []);
 
@@ -229,7 +251,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
   const kehila = state.kehila;
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const adminTab = nav.tab === 'overview' || nav.tab === 'simchas' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'seatResponses' || nav.tab === 'seatHolders' || nav.tab === 'scheduleEditor' || nav.tab === 'adminTree' || (nav.tab === 'group' && nav.from === 'groups');
+  const adminTab = nav.tab === 'overview' || nav.tab === 'area' || nav.tab === 'simchas' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'seatResponses' || nav.tab === 'seatHolders' || nav.tab === 'scheduleEditor' || nav.tab === 'adminTree' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : nav.tab === 'adminTree' ? 'members' : 'overview') : nav.tab === 'me' || nav.tab === 'tree' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || nav.tab === 'myGroups' || nav.tab === 'myInvite' || (nav.tab === 'group' && nav.from === 'myGroups') ? 'me'
     : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
@@ -254,25 +276,25 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = <Schedule onBack={() => setNav({ tab: 'home' })} onToast={showToast} />;
       break;
     case 'scheduleEditor':
-      body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => setNav({ tab: 'overview' }))} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
+      body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
     case 'seats':
       body = kehila?.role === 'member' || kehila?.role === 'gabbai' ? <SeatPage onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
     case 'seatEditor':
-      body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => setNav({ tab: 'overview' }))} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
+      body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
     case 'seatResponses':
-      body = seatEditorAllowed(kehila?.role) ? <SeatResponses onBack={() => setNav({ tab: 'overview' })} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
+      body = seatEditorAllowed(kehila?.role) ? <SeatResponses onBack={toolBack} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
       break;
     case 'seatHolders':
-      body = seatEditorAllowed(kehila?.role) ? <SeatHolders onBack={() => setNav({ tab: 'overview' })} onToast={showToast} /> : null;
+      body = seatEditorAllowed(kehila?.role) ? <SeatHolders onBack={toolBack} onToast={showToast} /> : null;
       break;
     case 'seatPrint':
-      body = seatPrintRole(kehila?.role) ? <SeatPrint onBack={() => setNav({ tab: 'overview' })} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
+      body = seatPrintRole(kehila?.role) ? <SeatPrint focusBehalf={nav.behalf} onBack={toolBack} onEditor={() => setNav({ tab: 'seatEditor' })} onToast={showToast} /> : null;
       break;
     case 'phoneList':
-      body = feats.phoneList ? <PhoneList onBack={() => setNav({ tab: nav.from })} onMine={() => setNav({ tab: 'tree' })} /> : null;
+      body = feats.phoneList ? <PhoneList onBack={returnFrom({ tab: nav.from })} onMine={() => { ret.current = null; setNav({ tab: 'tree' }); }} /> : null;
       break;
     case 'messages':
       body = <Messages initialFilter={filter} initialQuery={fixtureQuery} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
@@ -281,40 +303,41 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = <MessageDetail key={nav.id} messageId={nav.id} onBack={() => setNav({ tab: nav.from })} />;
       break;
     case 'prefs':
-      body = <NotifyPrefs onBack={() => setNav({ tab: nav.from })} onToast={showToast} />;
+      body = <NotifyPrefs onBack={returnFrom({ tab: nav.from })} onToast={showToast} />;
       break;
     case 'overview':
-      body = <Overview onApprovals={() => setNav({ tab: 'approvals' })} onInvite={() => setNav({ tab: 'invite' })} onGroups={() => setNav({ tab: 'groups' })} onChannels={() => setNav({ tab: 'channels' })} onImport={() => setNav({ tab: 'import' })} onPushTexts={() => setNav({ tab: 'pushTexts' })} onSeatPrint={seatPrintRole(state.kehila?.role) ? () => setNav({ tab: 'seatPrint' }) : undefined} onSchedule={() => setNav({ tab: 'scheduleEditor' })} onSeatEditor={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatEditor' }) : undefined} onSeatResponses={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatResponses' }) : undefined} onSeatHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} onSimchas={kehila?.role === 'gabbai' ? () => setNav({ tab: 'simchas' }) : undefined} onCount={setPending} onToast={showToast} />;
+    case 'area':
+      body = kehila?.role !== 'gabbai' ? null : <Overview area={nav.tab === 'area' ? nav.id : null} onArea={id => { setBackNav({ tab: 'overview' }); setNav({ tab: 'area', id }); }} onGo={goTool} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'simchas':
-      body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <Simchas onBack={() => setNav({ tab: 'overview' })} onMazalTov={({ familyId, ...draft }) => { setComposeInitial({ type: 'celebration', ...draft, ...(familyId ? { targetFamilyId: familyId } : {}) }); setNav({ tab: 'compose' }); }} />;
+      body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <Simchas onBack={toolBack} onMazalTov={({ familyId, ...draft }) => { setComposeInitial({ type: 'celebration', ...draft, ...(familyId ? { targetFamilyId: familyId } : {}) }); setNav({ tab: 'compose' }); }} />;
       break;
     case 'approvals':
       body = <Approvals onCount={setPending} onToast={showToast} onHolders={seatEditorAllowed(state.kehila?.role) ? () => setNav({ tab: 'seatHolders' }) : undefined} />;
       break;
     case 'members':
-      body = <Members onToast={showToast} onTree={(familyId, name) => setNav({ tab: 'adminTree', familyId, name })} />;
+      body = <Members key={nav.tags ? 'tags' : 'members'} openTags={nav.tags} onToast={showToast} onTree={(familyId, name) => setNav({ tab: 'adminTree', familyId, name })} />;
       break;
     case 'groups':
-      body = <Groups onBack={() => setNav({ tab: 'overview' })} onOpen={g => setNav({ tab: 'group', groupId: g.groupId, name: g.name, from: 'groups' })} onToast={showToast} />;
+      body = <Groups onBack={toolBack} onOpen={g => setNav({ tab: 'group', groupId: g.groupId, name: g.name, from: 'groups' })} onToast={showToast} />;
       break;
     case 'channels':
-      body = <Channels onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
+      body = <Channels onBack={toolBack} onToast={showToast} />;
       break;
     case 'pushTexts':
-      body = <PushTexts onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
+      body = <PushTexts onBack={toolBack} onToast={showToast} />;
       break;
     case 'import':
-      body = <Import onBack={() => setNav({ tab: 'overview' })} />;
+      body = <Import onBack={toolBack} />;
       break;
     case 'group':
       body = <GroupAdmin key={nav.groupId} group={nav} onBack={() => setNav({ tab: nav.from })} onGone={() => { setManage(false); setNav({ tab: 'me' }); }} onToast={showToast} />;
       break;
     case 'invite':
-      body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
+      body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={toolBack} onToast={showToast} />;
       break;
     case 'tree':
-      body = <TreeRoute onBack={() => setNav({ tab: 'me' })} />;
+      body = <TreeRoute onBack={returnFrom({ tab: 'me' })} />;
       break;
     case 'adminTree':
       // Gabbai only (the server enforces it too): anyone else gets the plain Me screen.
@@ -327,7 +350,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}><BackLink onPress={() => setNav({ tab: 'me' })} /><MyGroups onManage={g => setNav({ tab: 'group', ...g, from: 'myGroups' })} onToast={showToast} /></PadScroll>;
       break;
     case 'myInvite':
-      body = feats.phoneList ? <InviteListener onBack={() => setNav({ tab: 'me' })} onToast={showToast} /> : null;
+      body = feats.phoneList ? <InviteListener onBack={returnFrom({ tab: 'me' })} onToast={showToast} /> : null;
       break;
     case 'compose':
       body = !feats.compose ? <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} /> : <Compose initial={composeInitial} onBack={() => setNav({ tab: 'messages' })}
@@ -341,13 +364,20 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       break;
   }
 
+  const sidebarActive: SidebarKey | null = nav.tab === 'area' ? nav.id : active === 'home' || active === 'me' ? null : active;
+  const sidebar = manage && wide ? (
+    <AdminSidebar active={sidebarActive} pending={pending} unread={unread}
+      onTab={key => guard(() => setNav({ tab: key }))} onArea={id => guard(() => { setBackNav({ tab: 'overview' }); setNav({ tab: 'area', id }); })}
+      onExit={() => guard(() => { setManage(false); setNav({ tab: 'home' }); })} />
+  ) : null;
+
   // The Kehila terms are not accepted yet: every management screen of this Kehila shows the gate; the rest of the app works.
   if (manage && adminTab && kehila?.cards.terms) body = <TermsGate onToast={showToast} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       <View style={{ paddingHorizontal: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
-        <TopBar onOpenMenu={() => guard(onOpenMenu)} onBell={() => guard(() => setNav({ tab: 'prefs', from: active === 'home' || active === 'me' ? active : 'messages' }))} />
+        <TopBar onOpenMenu={() => guard(onOpenMenu)} />
         {banner}
       </View>
       {manage ? (
@@ -360,8 +390,11 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
           </View>
         </View>
       ) : null}
-      <AdminContext.Provider value={{ onForbidden: leaveManage }}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>{body}</KeyboardAvoidingView></AdminContext.Provider>
-      <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
+      <View style={{ flex: 1, flexDirection: 'row' }}>
+        {sidebar}
+        <AdminContext.Provider value={{ onForbidden: leaveManage }}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, minWidth: 0 }}>{body}</KeyboardAvoidingView></AdminContext.Provider>
+      </View>
+      {sidebar ? null : <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
         <View style={{ flexDirection: 'row', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
           {tabs.map(tab => {
             const on = active === tab.key;
@@ -380,7 +413,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
             );
           })}
         </View>
-      </View>
+      </View>}
       <Sheet visible={leaveAsk !== null} title={t('editor.leaveTitle')} onClose={() => setLeaveAsk(null)} closeLabel={t('editor.leaveStay')}
         footer={<Button kind="danger" title={t('editor.leaveDiscard')} onPress={() => { const go = leaveAsk; setLeaveAsk(null); editorDirty.current = false; go?.(); }} />}>
         <Txt>{t('editor.leaveBody')}</Txt>

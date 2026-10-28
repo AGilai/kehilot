@@ -32,6 +32,8 @@ export function KehilaMenu({ visible, onClose, onAction, onJoinCode }: { visible
   const [text, setText] = React.useState('');
   const [bad, setBad] = React.useState(false);
   const waiting = useWaiting();
+  const { refresh } = waiting;
+  React.useEffect(() => { if (visible) refresh(); }, [visible, refresh]);
   const rows = menuRows(kehila?.role);
   const { line } = useFamilyLine(kehila?.kehilaId, visible && rows.includes('tree'));
   const close = () => { setJoining(false); setText(''); setBad(false); setError(null); onClose(); };
@@ -45,7 +47,7 @@ export function KehilaMenu({ visible, onClose, onAction, onJoinCode }: { visible
     if (l?.kind === 'join') { setBad(false); setJoining(false); setText(''); onJoinCode(l.code); onClose(); } else setBad(true);
   }
   const go = (a: MenuAction) => () => { close(); onAction(a); };
-  const manageStatus = waiting.requests > 0 ? t('kehila.menu.waiting', { n: waiting.requests }) : waiting.terms ? t('kehila.menu.terms') : t('kehila.menu.none');
+  const manageStatus = waiting.requests > 0 ? t('kehila.menu.waiting', { n: waiting.requests }) : waiting.terms ? t('kehila.menu.terms') : waiting.linkHints + waiting.groupRequests > 0 ? t('kehila.menu.waitingOther', { n: waiting.linkHints + waiting.groupRequests }) : t('kehila.menu.none');
 
   const row = (id: (typeof rows)[number]) => {
     switch (id) {
@@ -53,6 +55,7 @@ export function KehilaMenu({ visible, onClose, onAction, onJoinCode }: { visible
       case 'tree': return <NavRow key={id} icon="tree" title={t('kehila.menu.tree')} status={line?.text} tone={line?.tone === 'request' ? 'attention' : line?.tone === 'missing' ? 'warn' : undefined} onPress={go('tree')} />;
       case 'phoneList': return <NavRow key={id} icon="phone" title={t('kehila.menu.phoneList')} onPress={go('phoneList')} />;
       case 'invite': return <NavRow key={id} icon="link" title={t('kehila.menu.invite')} onPress={go('invite')} />;
+      case 'prefs': return <NavRow key={id} icon="bell" title={t('kehila.menu.prefs')} onPress={go('prefs')} />;
       default: return <NavRow key={id} icon="book" title={t('kehila.menu.about')} status={t('kehila.menu.aboutSub')} onPress={() => setInfo(true)} />;
     }
   };
