@@ -81,9 +81,9 @@
 .yfit .hd{display:flex;align-items:center;gap:8px}
 .yfit .hd b{flex:1}
 .ymeter{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:13px}
-.ymeter .bar{height:8px;border-radius:4px;background:var(--k-line);overflow:hidden;display:flex}
-.ymeter .bar i{display:block;height:100%;background:var(--k-tek)}
-.ymeter .bar i.o{background:var(--k-gold)}
+.ymeter .ymb{height:8px;border-radius:4px;background:var(--k-line);overflow:hidden;display:flex}
+.ymeter .ymb i{display:block;height:100%;background:var(--k-tek)}
+.ymeter .ymb i.o{background:var(--k-gold)}
 .ymeter .n{font-weight:700;font-variant-numeric:tabular-nums;color:var(--k-muted)}
 .yok{color:var(--k-olive)}.ywarn{color:var(--k-gold)}
 .yadd{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:12px;border:1.5px dashed var(--k-tek);color:var(--k-tek);font-weight:700;background:transparent}
@@ -111,18 +111,18 @@
 .ywh .lg.b{width:34px;height:34px;border-radius:6px}
 .yrules{margin:0;padding:10px 12px;border-radius:10px;background:var(--k-stone);border:1px solid var(--k-line);font-size:13px;line-height:1.5;color:var(--k-muted);display:flex;flex-direction:column;gap:2px}
 .yrules b{color:var(--k-ink)}
-.ydanger{min-height:48px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--k-danger);font-weight:700}
+.ydanger{background:transparent;border:0;font:inherit;font-weight:700;width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--k-danger);font-weight:700}
 /* crop screen */
 .ycrop{position:absolute;inset:0;z-index:8;background:#0B0E20;color:#ECEEF7;display:flex;flex-direction:column}
 .ycrop .hdr{display:flex;align-items:center;justify-content:space-between;min-height:56px;padding:0 8px 0 8px;padding-inline:16px 8px}
 .ycrop .hdr b{font:700 19px/1.4 var(--f-serif)}
 .ycrop .hdr .kib{color:#ECEEF7}
-.ycrop .area{position:relative;height:358px;flex:none;overflow:hidden;background:repeating-conic-gradient(#2a2e48 0 25%,#202439 0 50%) 0 0/20px 20px}
-.ycrop .img{position:absolute;left:-30px;top:-14px;width:450px;height:386px;background:#fff;display:grid;place-items:center}
-.ycrop .img svg{width:300px;height:300px;margin-inline-start:22px}
-.ycrop .img .tx{position:absolute;bottom:18px;inset-inline:0;text-align:center;color:#2A3F94;font:800 26px/1 var(--f-serif)}
+.ycrop .area{position:relative;height:380px;flex:none;overflow:hidden;background:repeating-conic-gradient(#2a2e48 0 25%,#202439 0 50%) 0 0/20px 20px}
+.ycrop .img{position:absolute;left:-30px;top:0;width:450px;height:380px;background:#fff;display:grid;place-items:center}
+.ycrop .img svg{width:290px;height:290px;margin-top:-30px;margin-inline-start:22px}
+.ycrop .img .tx{position:absolute;bottom:12px;inset-inline:0;text-align:center;color:#2A3F94;font:800 24px/1 var(--f-serif)}
 .ycrop .mask{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 999px rgba(5,7,20,.55);}
-.ycrop .sq{position:absolute;left:40px;top:24px;width:310px;height:310px;outline:2px solid #fff;box-shadow:0 0 0 999px rgba(5,7,20,.6);background:linear-gradient(#fff6 0 0) 33.3% 0/1px 100% no-repeat,linear-gradient(#fff6 0 0) 66.6% 0/1px 100% no-repeat,linear-gradient(#fff6 0 0) 0 33.3%/100% 1px no-repeat,linear-gradient(#fff6 0 0) 0 66.6%/100% 1px no-repeat}
+.ycrop .sq{position:absolute;left:40px;top:14px;width:310px;height:310px;outline:2px solid #fff;box-shadow:0 0 0 999px rgba(5,7,20,.6);background:linear-gradient(#fff6 0 0) 33.3% 0/1px 100% no-repeat,linear-gradient(#fff6 0 0) 66.6% 0/1px 100% no-repeat,linear-gradient(#fff6 0 0) 0 33.3%/100% 1px no-repeat,linear-gradient(#fff6 0 0) 0 66.6%/100% 1px no-repeat}
 .ycrop .sq i{position:absolute;width:22px;height:22px;border:4px solid #fff}
 .ycrop .sq i:nth-child(1){top:-4px;left:-4px;border-right:0;border-bottom:0}.ycrop .sq i:nth-child(2){top:-4px;right:-4px;border-left:0;border-bottom:0}
 .ycrop .sq i:nth-child(3){bottom:-4px;left:-4px;border-right:0;border-top:0}.ycrop .sq i:nth-child(4){bottom:-4px;right:-4px;border-left:0;border-top:0}
@@ -236,9 +236,9 @@
 <figure class="xfig"><figcaption class="cap">1 · גבאי · ניהול › תפילות וזמנים › הגיליון השבועי</figcaption><div class="phone kit xm" id="items-top"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s ycv" aria-hidden="true"><use href="#chev"/></svg></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kband"><span>מצב ניהול</span><small>יציאה ממצב ניהול</small></div><div class="kscroll xs fade">
 <div class="kback"><svg class="i s" aria-hidden="true"><use href="#back"/></svg>תפילות וזמנים</div><div><h1 class="ktitle">הגיליון השבועי</h1><p class="kt s m">שבת פרשת וירא · <span class="knum">31.10</span> · מה שנכנס מתחת לזמנים</p></div>
 <section class="kc yfit"><div class="hd"><svg class="i s yok" aria-hidden="true"><use href="#check"/></svg><b>נכנס בעמוד אחד</b><span class="klink"><svg class="i s" aria-hidden="true"><use href="#print"/></svg> תצוגה</span></div>
-<div class="ymeter"><span>מזל טוב</span><span class="bar"><i style="width:50%"></i></span><span class="n">3 מתוך 6</span>
-<span>אירועים</span><span class="bar"><i style="width:67%"></i></span><span class="n">2 מתוך 3</span>
-<span>תמונה נעוצה</span><span class="bar"><i style="width:100%"></i></span><span class="n">יש</span></div>
+<div class="ymeter"><span>מזל טוב</span><span class="ymb"><i style="width:50%"></i></span><span class="n">3 מתוך 6</span>
+<span>אירועים</span><span class="ymb"><i style="width:67%"></i></span><span class="n">2 מתוך 3</span>
+<span>תמונה נעוצה</span><span class="ymb"><i style="width:100%"></i></span><span class="n">יש</span></div>
 </section>
 <div class="xl e" style="--e:var(--k-pom)"><p class="hd">ממתין לאישור <span class="bdg">2</span></p>
 <div class="yit "><svg class="i ii" aria-hidden="true" style="color:var(--k-pom)"><use href="#heart"/></svg><div class="g"><span class="ln">מזל טוב לשרה ודוד <b>ניסיוני</b> להולדת הנכד</span><span class="src"><span class="ytg wait">ממתין</span> פורסם בידי יעל דוגמה · אתמול 21:10</span><div class="ypend"><button class="kb">להוסיף לגיליון</button><button class="kb s">לא בגיליון</button></div></div></div>
@@ -264,9 +264,9 @@
 <p class="yhelp">מה שגבאים מפרסמים נכנס לבד. פריט שלא אושר עד ההדפסה לא מופיע, וההודעה עצמה נשארת בהודעות.</p>
 </div><nav class="ktabs"><a href="#" class="on"><b><svg class="i " aria-hidden="true"><use href="#grid"/></svg></b>סקירה</a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#check"/></svg></b>אישורים<span class="kbd">3</span></a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#users"/></svg></b>חברים</a></nav><div class="ktoast"><span>נוסף לגיליון · <b style="text-decoration:underline">ביטול</b></span></div></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">3 · נגיעה בפריט: עריכת השורה, סדר, הסרה</figcaption><div class="phone kit xm" id="item-sheet"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s ycv" aria-hidden="true"><use href="#chev"/></svg></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kband"><span>מצב ניהול</span><small>יציאה ממצב ניהול</small></div><div class="kscroll xs fade">
 <div class="kback"><svg class="i s" aria-hidden="true"><use href="#back"/></svg>תפילות וזמנים</div><h1 class="ktitle">הגיליון השבועי</h1><section class="kc yfit"><div class="hd"><svg class="i s yok" aria-hidden="true"><use href="#check"/></svg><b>נכנס בעמוד אחד</b><span class="klink"><svg class="i s" aria-hidden="true"><use href="#print"/></svg> תצוגה</span></div>
-<div class="ymeter"><span>מזל טוב</span><span class="bar"><i style="width:50%"></i></span><span class="n">3 מתוך 6</span>
-<span>אירועים</span><span class="bar"><i style="width:67%"></i></span><span class="n">2 מתוך 3</span>
-<span>תמונה נעוצה</span><span class="bar"><i style="width:100%"></i></span><span class="n">יש</span></div>
+<div class="ymeter"><span>מזל טוב</span><span class="ymb"><i style="width:50%"></i></span><span class="n">3 מתוך 6</span>
+<span>אירועים</span><span class="ymb"><i style="width:67%"></i></span><span class="n">2 מתוך 3</span>
+<span>תמונה נעוצה</span><span class="ymb"><i style="width:100%"></i></span><span class="n">יש</span></div>
 </section><p class="xgh">מזל טוב בגיליון · 3</p><div class="xl">
 <div class="yit "><svg class="i ii" aria-hidden="true" style="color:var(--k-pom)"><use href="#heart"/></svg><div class="g"><span class="ln">מזל טוב לדנה ויוסי <b>ניסיון</b> להולדת הנכדה נועה</span><span class="src"><span class="ytg auto">אוטומטי</span> גבאי · משה כהן</span></div><span class="kib" role="button" aria-label="פעולות על הפריט"><svg class="i " aria-hidden="true"><use href="#more"/></svg></span></div>
 <div class="yit "><svg class="i ii" aria-hidden="true" style="color:var(--k-pom)"><use href="#star"/></svg><div class="g"><span class="ln">מזל טוב לרחל ומשה <b>בדיוני</b> לבר המצווה של הבן הלל</span><span class="src"><span class="ytg free">נוסף בידי גבאי</span> משמחות קרובות</span></div><span class="kib" role="button" aria-label="פעולות על הפריט"><svg class="i " aria-hidden="true"><use href="#more"/></svg></span></div>
@@ -300,9 +300,9 @@
 <div class="ysl"><span>מזל טוב לאסתר <b>ניסיון</b><br>לרגל יום הולדתה ה־90</span></div>
 <p class="yhelp">לשבוע הזה בלבד. לא נשלחת הודעה ולא התראה.</p><button class="kb">הוספה לגיליון</button></div></section>
 <section class="kpanel" ><h3 class="plabel">יותר מדי פריטים</h3><div class="kbody"><section class="kc yfit"><div class="hd"><svg class="i s ywarn" aria-hidden="true"><use href="#alert"/></svg><b>2 ברכות לא נכנסות לגיליון</b><span class="klink"><svg class="i s" aria-hidden="true"><use href="#print"/></svg> תצוגה</span></div>
-<div class="ymeter"><span>מזל טוב</span><span class="bar"><i style="width:100%"></i></span><span class="n">6 מתוך 6 · +2</span>
-<span>אירועים</span><span class="bar"><i style="width:67%"></i></span><span class="n">2 מתוך 3</span>
-<span>תמונה נעוצה</span><span class="bar"><i style="width:100%"></i></span><span class="n">יש</span></div>
+<div class="ymeter"><span>מזל טוב</span><span class="ymb"><i style="width:100%"></i></span><span class="n">6 מתוך 6 · +2</span>
+<span>אירועים</span><span class="ymb"><i style="width:67%"></i></span><span class="n">2 מתוך 3</span>
+<span>תמונה נעוצה</span><span class="ymb"><i style="width:100%"></i></span><span class="n">יש</span></div>
 <p class="yhelp">כבר קיצרנו: בלי שורות ברכה, ותמונה קטנה יותר. אפשר להסיר פריט, להוריד את התמונה, או להשאיר: מה שלא נכנס יופיע בגיליון כ"ועוד 2 ברכות באפליקציה".</p></section><p class="xgh">מזל טוב בגיליון · 6 מתוך 6</p><div class="xl">
 <div class="yit "><svg class="i ii" aria-hidden="true" style="color:var(--k-pom)"><use href="#heart"/></svg><div class="g"><span class="ln">מזל טוב לדנה ויוסי <b>ניסיון</b> להולדת הנכדה נועה</span><span class="src"><span class="ytg auto">אוטומטי</span> גבאי · משה כהן</span></div><span class="kib" role="button" aria-label="פעולות על הפריט"><svg class="i " aria-hidden="true"><use href="#more"/></svg></span></div>
 <div class="yit "><svg class="i ii" aria-hidden="true" style="color:var(--k-pom)"><use href="#star"/></svg><div class="g"><span class="ln">מזל טוב לרחל ומשה <b>בדיוני</b> לבר המצווה של הבן הלל</span><span class="src"><span class="ytg free">נוסף בידי גבאי</span> משמחות קרובות</span></div><span class="kib" role="button" aria-label="פעולות על הפריט"><svg class="i " aria-hidden="true"><use href="#more"/></svg></span></div>
@@ -321,7 +321,7 @@
 <li>חברים עם הרשאת שליחה: נכנס אחרי נגיעה אחת "להוסיף לגיליון" (בלטיפול עכשיו או כאן). הקהילה יכולה לשנות ל"נכנס אוטומטית".</li>
 <li>הגבאי תמיד יכול להסיר, לקצר שורה, לשנות סדר ולהוסיף פריט חופשי לשבוע.</li>
 <li>אותה רשימה מוצגת בגיליון המודפס וב"בית" (השבוע בקהילה). אין שתי רשימות.</li>
-<li>סדר: לפי הסדר של הגבאי; ברירת מחדל לפי שעת הפרסום. עד 6 מזל טוב ו־3 אירועים ב־A4; מה שלא נכנס מופיע כ"ועוד n באפליקציה".</li></ul></aside><section class="kpanel" style="width:auto"><h3 class="plabel">A4 עם פריטי השבוע: 4 מזל טוב (בלי שורות ברכה, שלב 1 בהתאמה), 2 אירועים מתחת לתמונה, ו"ועוד 2"</h3><div class="hscroll" style="outline:0;padding:8px"><div class="sht" role="img" aria-label="גיליון שבת פרשת וירא, עם פריטי השבוע, A4">
+<li>סדר: לפי הסדר של הגבאי; ברירת מחדל לפי שעת הפרסום. עד 6 מזל טוב ו־3 אירועים ב־A4; מה שלא נכנס מופיע כ"ועוד n באפליקציה".</li></ul></aside><section class="kpanel" style="width:auto;max-width:100%;min-width:0"><h3 class="plabel">A4 עם תמונה נעוצה ו־6 מזל טוב: 3 נכנסים (בלי שורות ברכה, שלב 1 בהתאמה), 2 אירועים מתחת לתמונה, ו"ועוד 3"</h3><div class="hscroll" style="outline:0;padding:8px"><div class="sht" role="img" aria-label="גיליון שבת פרשת וירא, עם פריטי השבוע, A4">
 <div class="shd"><div class="logo ph" title="מקום ללוגו הקהילה (מועלה על ידי הגבאי)">א</div><div class="tt"><h1>שבת פרשת <b>וירא</b></h1><div class="hdate">כ׳ בחשוון תשפ״ז · 31.10.2026</div></div><div class="kn">קהילת<br><b>אור הדוגמה</b></div></div>
 <div class="rule"></div>
 <div class="cols">
@@ -354,8 +354,7 @@
 <div class="mt">מזל טוב לדנה ויוסי <b>ניסיון</b><br>להולדת הנכדה נועה<svg class="ic" aria-hidden="true"><use href="#heart"/></svg></div>
 <div class="mt">מזל טוב לרחל ומשה <b>בדיוני</b><br>לבר המצווה של הבן הלל<svg class="ic" aria-hidden="true"><use href="#star"/></svg></div>
 <div class="mt">מזל טוב לאלה <b>דוגמה</b><br>לאירוסיה עם עומר לוי<svg class="ic" aria-hidden="true"><use href="#heart"/></svg></div>
-<div class="mt">מזל טוב לשרה ודוד <b>ניסיוני</b><br>להולדת הנכד<svg class="ic" aria-hidden="true"><use href="#heart"/></svg></div>
-<div class="mt" style="font-size:11px;color:var(--s-mute)">ועוד 2 ברכות באפליקציה</div></div></div>
+<div class="mt" style="font-size:11px;color:var(--s-mute)">ועוד 3 ברכות באפליקציה</div></div></div>
 <div class="ft"><span class="ovk">* שינוי לשבוע זה</span><span>שבת שלום ומבורך</span></div></div></div></section><section class="xwide" aria-label="מבט ב־1280"><p class="cap">5 · ב־1280: הרשימה בצד אחד, הגיליון החי בצד השני (משתנה עם כל אישור או הסרה)</p><div class="hscroll"><div class="xweb kit">
 <div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s ycv" aria-hidden="true"><use href="#chev"/></svg></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kband"><span>מצב ניהול</span><small>יציאה ממצב ניהול</small></div><div class="xwb"><nav class="xside" aria-label="ניהול">
 <a href="#"><svg class="i " aria-hidden="true"><use href="#grid"/></svg>סקירה</a><a href="#"><svg class="i " aria-hidden="true"><use href="#check"/></svg>אישורים<span class="bdg">3</span></a><a href="#"><svg class="i " aria-hidden="true"><use href="#msg"/></svg>הודעות</a><a href="#"><svg class="i " aria-hidden="true"><use href="#users"/></svg>חברים</a><hr><p class="lb">תחומים</p>
@@ -403,8 +402,7 @@
 <div class="mt">מזל טוב לדנה ויוסי <b>ניסיון</b><br>להולדת הנכדה נועה<svg class="ic" aria-hidden="true"><use href="#heart"/></svg></div>
 <div class="mt">מזל טוב לרחל ומשה <b>בדיוני</b><br>לבר המצווה של הבן הלל<svg class="ic" aria-hidden="true"><use href="#star"/></svg></div>
 <div class="mt">מזל טוב לאלה <b>דוגמה</b><br>לאירוסיה עם עומר לוי<svg class="ic" aria-hidden="true"><use href="#heart"/></svg></div>
-<div class="mt">מזל טוב לשרה ודוד <b>ניסיוני</b><br>להולדת הנכד<svg class="ic" aria-hidden="true"><use href="#heart"/></svg></div>
-<div class="mt" style="font-size:11px;color:var(--s-mute)">ועוד 2 ברכות באפליקציה</div></div></div>
+<div class="mt" style="font-size:11px;color:var(--s-mute)">ועוד 3 ברכות באפליקציה</div></div></div>
 <div class="ft"><span class="ovk">* שינוי לשבוע זה</span><span>שבת שלום ומבורך</span></div></div></div></div></div></div></div></div></div></section>
 </main>
 </body>

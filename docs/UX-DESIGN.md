@@ -3130,7 +3130,7 @@ reorder.
   column. No pinned image: events head that column. No events and no image: mazal tov spans both columns (§14.5).
 - **Line**: "מזל טוב ל{names} **{surname}**" / "ל{occasion} {name}" with the occasion icon (`heart`; `star` for bar/bat
   mitzvah), blessing as a third line when it fits. Event: "**{name}** · {day} {time} · {place}".
-- **Max**: 6 mazal tov and 3 events on A4 (square: one band, up to 4 surnames: "מזל טוב: משפחת ניסיון · משפחת
+- **Max**: up to 6 mazal tov and 3 events on A4; with a pinned image, about 3 mazal tov fit in the weekday column (P44 A4 panel), and the fitting below decides (square: one band, up to 4 surnames: "מזל טוב: משפחת ניסיון · משפחת
   בדיוני · … ועוד 2"; events are not on the square, they go in the second picture with the pinned notice).
 - **Fitting** (never a second page, never a clipped line). Before the §14.5 steps: (1) drop all blessing lines
   together; (2) the §14.5 steps (mazal tov 12, pinned image down to 30% of the height, rows 12.5); (3) items beyond
@@ -3282,7 +3282,12 @@ network/server "לא הצלחנו לשמור את הלוגו. הלוגו הקו�
 
 ### 19.10 Verification
 
-Frames built from `src/kit` classes and checked for balanced markup. **Screenshots pending**: rendering at 390 × 844
-(light and dark) and the 1280 glances is the next step, done only when the machine has memory free. Not checked:
-real devices, English (LTR) layout, screen readers, the Hebrew grammar of the built phrases (needs a native editor),
-and the PNG size loop on real logos.
+Rendered with headless Chromium (Playwright 1.47.2), one browser: P43 phones 1–4, P44 phones 1–4 and P45 phones 1–3 at
+390 × 844, light and dark (PNGs in `/tmp/claude-1000/kehilot-shots-templates/`), and the P44 and P45 1280 glances
+in both themes. Checked: no horizontal scroll at 390 (scrollWidth 390 on all three frames), crop square, previews,
+meters and source tags readable in dark mode, and the A4 bottom does not run into the footer. Fixed during the
+check: meter bars took the page header's `.bar` class (renamed), the A4 panel widened the page at 390, the logo
+panel overflowed at 1280, bidi order of "38 / 50" and of the hours placeholder, and the A4 sample now shows 3 mazal
+tov + "ועוד 3" (4 did not fit beside the pinned image). Not checked: real devices, 360-wide Android, English (LTR),
+screen readers, web fonts (the shots may use fallback fonts), the Hebrew grammar of the built phrases (needs a
+native editor), and the PNG size loop on real logos.
