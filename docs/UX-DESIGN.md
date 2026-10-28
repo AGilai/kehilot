@@ -1411,7 +1411,9 @@ Blocks are always listed right to left (ימין → שמאל), as they stand.
 
 
 - **Who / when:** seat holders for the coming Shabbat (א household heads with an allocation), from the gabbai's reminder
-  time (default Thursday 12:00) to the deadline (default Friday 12:00). Nobody else ever sees it.
+  time (default Thursday 12:00) to the deadline (default Friday 12:00). Nobody else ever sees it. *§21 (2026-10-28):
+  opening Thursday 08:00, deadline Friday 14:00, the card stays in its final state until Shabbat ends, and a bottom row
+  on Home reaches the form all week.*
 - **Where (Home order):** greeting → test-build card (P15, owner's test build only) → **seat card** → the one P7
   one-time card → prayer schedule card (§14, P21) → zmanim. The seat card is outside the P7 queue (like P15) and comes
   before it because it has a deadline; it sits above the schedule card, which P21 already places under P7.
@@ -1817,14 +1819,15 @@ Owner, 2026-10-28: a real one-click. **"לא מגיעים השבת" frees all th
 at once.** Every other answer still goes through the form (P37). P24 is redrawn with the new card, the push and the
 audience note. It replaces the older P24 card described in §15.2, which keeps its timing and its place in the Home order.
 
-**Who gets it (rule).** The card and the push go **only to the male head of each member family**: one person per
+**Who gets it (rule).** *Superseded by §21.5 (owner, 2026-10-28): all the family's men, or its adult women when it has
+no man; the push becomes the two scheduled reminders.* The card and the push go **only to the male head of each member family**: one person per
 family. In this Kehila being a member means holding seats, so the audience is worked out from the family records.
 There is no distribution list, and nothing for the gabbai to manage. Women, other adults in the family and guests
 don't get them. For a family without an account, the gabbai answers on its behalf (P27). (P24 panel "למי זה הולך".)
 
-**Card (Home, Thursday 12:00 → the deadline):** `Card` with a tekhelet edge. The title row has the chair glyph and
+**Card (Home, Thursday 08:00 → the deadline; §21.1, was 12:00):** `Card` with a tekhelet edge. The title row has the chair glyph and
 "טופס מקומות לשבת". The question is "יש לכם {n} מקומות השבת. מגיעים?", and the muted line is "ליל שבת ושבת בבוקר · אפשר
-לענות עד יום שישי 12:00". **The buttons are all one family** (owner: the main action must not look like a link):
+לענות עד יום שישי 14:00" (§21.1: default deadline Friday 14:00, was 12:00). **The buttons are all one family** (owner: the main action must not look like a link):
 - **"לא מגיעים השבת"** is the **primary** `Button`: full width, **56 high**, 17 bold, tekhelet fill. At the start is the **"going away"
   icon**: an original mini illustration in the figure-set palette (§17.13), 50 × 28 (viewBox 60 × 34). It shows a
   mustard car (`#E2A93B`) in side view with the trunk lid open and a green suitcase (`#5E8A3A`), an adult in teal
@@ -1850,7 +1853,8 @@ better here.
 תודה!", then `Button`s **"ביטול"** and **"עריכה ‹"**, and "אפשר לשנות עד …". "ביטול" deletes the answer, which goes
 back to "no answer" = occupied, shows the Toast "התשובה בוטלה. כל המקומות שמורים לכם.", and brings the card back to
 asking. "עריכה" opens P37 with N chosen for both prayers. Other answered states: "תודה. כל {n} המקומות שמורים לכם."
-(red strip), the two-prayer summary, and "הגבאי עדכן…", each with "עריכה ‹". The card disappears at the deadline.
+(red strip), the two-prayer summary, and "הגבאי עדכן…", each with "עריכה ‹". ~~The card disappears at the deadline.~~
+§21.3: after the deadline it stays in a final state until Shabbat ends.
 
 **Push** (to the same list, at the reminder time): title "טופס מקומות לשבת", body "יש לכם {n} מקומות בשבת פרשת X.
 מגיעים? אפשר לענות עד שישי {time}."
@@ -2311,7 +2315,8 @@ with a bare "יש גרסה מתוכננת מ־…" Banner. Changes, refining §1
 - **Which version opens:** the one that governs the coming Shabbat (the latest from the current Shabbat or before; with
   only future versions, the first). Past versions open read-only from History as before.
 - **Save default:** in place on the open version whenever the server still takes writes to it (not before the current
-  Shabbat), even once that Shabbat is open for answers when only seat holders changed (the open-week warning shows). If
+  Shabbat), even once that Shabbat is open for answers when only seat holders changed (the open-week warning shows;
+  "open" now counts from the Thursday 08:00 opening, §21.1, and see §21.9). If
   the hall itself changed, the first Shabbat not yet open, as before. A past version always saves as a new version.
 - **Scheduled note** (replaces the Banner): one compact line under the band, tekhelet edge: "מ־{later} נכנסת לתוקף גרסה
   אחרת של המפה. מה שתשנו כאן חל עד אז ולא יעבור אליה." · link "עריכת הגרסה מ־{date}" (asks before dropping unsaved
@@ -2924,7 +2929,7 @@ the old P2 card above it as a stopgap, so no state becomes unreachable.
 | Group | Status line (example) | Rows inside, in order |
 |---|---|---|
 | **תפילות וזמנים** (weekly) | "שבת וירא · טיוטה" / "· פורסם ב־27.10" | עריכת זמני התפילות (§14.2) · הגיליון השבועי (§14.4–14.5) |
-| **מקומות ישיבה** (weekly) | "השבת: 61 מתוך 84 משפחות ענו" | *השבוע:* מפת האולם להדפסה · עדכון בשם משפחה · העלאת קובץ תשובות מהטופס — *הגדרת האולם:* עריכת מפת המקומות · מחזיקי מקומות בלי חשבון (badge) |
+| **מקומות ישיבה** (weekly) | "השבת: 61 מתוך 84 משפחות ענו" | *השבוע:* מפת האולם להדפסה · עדכון בשם משפחה · העלאת קובץ תשובות מהטופס — *כל שבוע:* זמני הטופס והתזכורות (§21.6) — *הגדרת האולם:* עריכת מפת המקומות · מחזיקי מקומות בלי חשבון (badge) |
 | **הודעות וערוצים** (most weeks) | "4 ערוצים · 2 סוגי הודעות" | הודעה חדשה · ערוצים · סוגי הודעות (§12.2) · נוסח ההתראות |
 | **שמחות ועליות** (by the calendar) | "השבת: בר מצווה · הלל, משפחת דוגמה" | שמחות קרובות (§17.14) · עליות לתורה (reserved, separate design) |
 | **חברים ומשפחות** (when people join) | "142 חברים · 38 מאזינים" | בקשות הצטרפות (badge) · ספר החברים (families, phones with call / WhatsApp, P11) · תגיות תפקיד · קבוצות · הזמנות · ייבוא רשימה |
@@ -3691,3 +3696,217 @@ or status cut off, the radio and lock line readable in dark mode, and taken and 
 dashed line (not by colour only). Not checked: real devices, 360-wide Android, English (LTR), screen readers, web
 fonts (the page uses fallback fonts), the 1024+ editor in Layout mode for a tech (specified here, not drawn), and the
 Hebrew of the role notes (needs a native editor).
+
+## 21. The seat form all week, the Thursday card, and the reminders
+
+Added 2026-10-28 from the owner's decisions of the same day (binding). Frames: `P47` (`seat-reminders.html`: phone 1
+Home on a weekday with the bottom row, 2 Home on Thursday with the card on top, 3 the reminder settings, 4 the two
+reminders on a lock screen), at 390 × 844, light and dark. All names are invented. This section refines §15.2 and
+§15.10.13 (timing, audience, the push) and adds one row to §18.3. Everything else in §15–§16 stands.
+
+**The problem (owner).** Outside the Thursday-to-Friday window there was no way to reach the seat form from the app.
+The server already takes answers all week (`open` = before the deadline, `GET …/seats/me`); only the way in was missing.
+
+### 21.1 Times (owner, binding) and what changed
+
+| Time | Default | Was | Who sets it |
+|---|---|---|---|
+| **Opening** (the card moves to the top of Home) | Thursday 08:00 | Thursday 12:00 | fixed in this pass (shown, not edited) |
+| **תזכורת** (first reminder) | Thursday 20:00, on | the one push at the opening | management (gabbai or tech, §20) |
+| **תזכורת עדינה** (second reminder) | Friday 11:00, on | — | management |
+| **Deadline** (the form closes) | **Friday 14:00** | Friday 12:00 | management (the Kehila setting `seatDeadline`) |
+
+**The default deadline is now Friday 14:00, not 12:00.** For the developer: `seatDeadline` defaults to `'12:00'` in
+`routes_core.py`, `seating_week.deadline_of` and `server/API.md`, and `DEFAULT_WINDOW` in `src/seats/window.ts` is
+`{reminder: Thu 12:00, deadline: Fri 12:00}`; they become 14:00 and `{opens: Thu 08:00, deadline: Fri 14:00}`. The
+field name `reminder` in `WindowConfig` means the card opening; rename it `opens` so it is not confused with the two
+reminders. Kehilot that saved `seatDeadline` keep their value. The sheet's own Friday 12:00 cut-off for mazal tov
+(§19.3, §19.9) is a different rule and is unchanged. Spec places updated: §15.2 and §15.10.13 (opening and deadline
+wording); the open-week warning (§16.12.6) now counts from the 08:00 opening.
+
+**Validation (my call, as the owner ordered it): opening < first reminder < second reminder < deadline**, with at least
+**30 minutes** between neighbours, so no reminder lands on top of another or right at the close. A reminder that is off
+drops out of the chain (the other must still sit between opening and deadline). **Both reminders are on Thursday or
+Friday only** (owner): the day picker offers just ה׳ and ו׳, plus a time in 15-minute steps. A deadline change that would put an on
+reminder after it is refused with the error below; move the reminder first. A change applies to this week too if the
+new time is still ahead; a reminder already sent this week is not sent again.
+
+### 21.2 Home all week: the bottom row (P47 phone 1)
+
+**Who sees it:** an adult (`ADULTS`: member, gabbai, tech) whose family holds seats in a Kehila where the seat feature
+is on. **Seat feature on** = the Kehila has a hall layout in effect for the coming Shabbat (there is no other switch;
+today's Home already hides seats without a hall map). **Holds seats** = the family has at least one seat in that
+Shabbat's assignments (`family:<id>` in `SEATASG#…`), or had seats last Shabbat (then the row shows "no seats this
+week"). Listeners, holders without an account, and families that never had seats see nothing.
+
+**Where:** the last thing on Home, after "latest messages" (and the guest's locked rows), before "יציאה". A quiet
+`NavRow` in a `Card`, 64 high: `Icon seat` (tekhelet) · title "טופס מקומות · {shabbat}" (bold 16, e.g. "טופס מקומות ·
+שבת וירא") and a status line (14 muted, up to two lines, then ellipsis) · `chev`. The whole row opens the seat page (P37) for the coming Shabbat. It never asks the question itself:
+the one-tap answers stay on the Thursday card, so a weekday Home stays calm.
+
+**States** (the title names the Shabbat, so the week is never in doubt):
+
+| State | Icon (start) | Status line (he) |
+|---|---|---|
+| Not answered, before the deadline (also before the opening: answers are taken all week) | `seat` tekhelet | עוד לא עניתם · אפשר עד יום ו׳ 14:00 |
+| Answered (any answer for the family) | `check` olive | עניתם: 1 פנוי לאחרים · אפשר לשנות עד יום ו׳ 14:00 |
+| Answered, set by a gabbai | `check` olive | הגבאי עדכן · אפשר לשנות עד יום ו׳ 14:00 |
+| After the deadline, until Shabbat ends | `lock` muted | הטופס נסגר · 1 פנוי לאחרים / כל המקומות נשמרו לכם |
+| No seats this week | `seat` muted, no chevron, not pressable | השבת אין לכם מקומות. לשאלות פנו לגבאי. |
+
+"עניתם:" sums the answer in the fewest words: "כולם מגיעים", "לא מגיעים", or "{n} פנוי לאחרים" (the larger of the two
+prayers). The state is the family's, so both partners see the same line whoever answered. Status is icon plus words,
+never colour alone. The row's accessibility label is title + status.
+
+### 21.3 Thursday: the card on top (P47 phone 2)
+
+- **From the opening (Thursday 08:00)** the full seat card of §15.10.13 (one-tap "לא מגיעים השבת", "כולם מגיעים", "חלק
+  מגיעים", undo, the answered states) sits at the top of Home, in the §15.2 place: greeting → test-build card → seat card
+  → P7 → schedule → zmanim. While it shows, the bottom row is hidden for that person (one way in at a time).
+- **Who gets the card:** the same people as the reminders (§21.5): the family's men, or its adult women when it has no
+  man. Other adults of the family (for example a wife in a family with a man) keep the bottom row all week, with its
+  states, so they can still open and answer the form.
+- **After the deadline, until Shabbat ends,** the card stays on top in its final state (owner): `Card` with an ash edge,
+  `Icon lock` + "טופס מקומות לשבת · נסגר", and one line: "שלחתם: {summary}." or "לא שלחתם השבת. כל המקומות נשמרו
+  לכם." (P38 wording), then "לשינוי פנו לגבאי." No buttons; the whole card opens P37 read-only (P38 ג). This replaces
+  §15.10.13's "the card disappears at the deadline".
+- **After Shabbat** (the Kehila's havdalah time from the schedule, §14; without a schedule, the zmanim `nightfall` for
+  the Kehila's location) the card goes and the bottom row returns for the next Shabbat. Until then, Saturday still
+  belongs to the Friday before, as the server already rules (`week` default); the client's `shabbatFriday` must follow
+  the same rule.
+
+### 21.4 Reminders: what they are
+
+- **Pushes only**, never feed messages, never in Messages or the bell list. Tapping one opens P37 for that Shabbat in
+  that Kehila (switching Kehila if needed), `data: {kehila, screen: 'seats', week}`. After the deadline the tap opens
+  P37 closed (P38 ג).
+- The §15.10.13 actions stay on both: "לא מגיעים השבת" and "למלא את הטופס" where the platform has actions.
+- **Privacy (push rule):** the Kehila name and generic text. No names, no seat count, no rows. The two texts differ in
+  tone: the first is plain, the second is soft and says why it matters.
+- **There is no push at the opening any more.** §15.10.13's push "at the reminder time" is now the first reminder.
+- **Muted = nothing.** A new switch in M5 (notification preferences), group "מקומות בשבת": `Toggle` "תזכורות לטופס
+  המקומות" (default on), offNote "לא תקבלו תזכורות. הטופס עדיין בדף הבית." Shown only to people who could receive
+  them. It mutes that person only, in that Kehila; it does not hide the card or the row.
+- **Once per reminder per week:** each is sent at most once for a Shabbat (idempotency key per Kehila, Friday and
+  reminder 1|2), evaluated at its send time.
+- **Developer notes (owner + CTO, binding):** the reminder job runs **only on Thursday and Friday, every 5 minutes, in
+  Israel time** (Asia/Jerusalem, so DST needs no special case). That is why the day picker offers only ה׳ and ו׳. Each run
+  sends every reminder whose time is at or before now and is not yet sent for that Shabbat, so **a reminder may arrive
+  up to 5 minutes late** (20:00 can land at 20:04). The recipient query runs at send time, so a family that answered
+  in those minutes is skipped. A reminder whose time is still ahead but would arrive after the deadline is never sent;
+  the 30-minute gap (§21.1) keeps that from happening. The settings screen does not promise the exact minute: its
+  footer adds "ההתראה יוצאת עד 5 דקות אחרי השעה." (`admin.seats.lateNote`).
+
+### 21.5 Who gets them (owner rule) and what "answered" means (my call)
+
+At the reminder's time, for the coming Shabbat:
+1. The Kehila has the seat feature on (§21.2) and that reminder is on.
+2. Families with at least one seat in that Shabbat's assignments, **not answered** (below).
+3. In each such family, the **men**: account holders linked to the family (its adults, and a son 13+ who has his own
+   account in the family), role in `ADULTS`, gender male in the tree (§17). **If the family has no man** (for example a
+   widow), its **adult women** with accounts get it instead. Someone whose gender is not recorded is not counted as a man;
+   if that leaves no man, every adult with an account gets it.
+4. Minus anyone who muted seat reminders (§21.4) or has no push token.
+
+**Answered (named for the developer):** the family's household ref `family:<familyId>` is a key in the `answered` map
+of **either** `SEATWK#<friday>#erev` **or** `SEATWK#<friday>#day`. That map is set by every member PUT (P37 Send, the
+card's one-tap answers, even one that changes nothing) and by a gabbai's on-behalf save. Either prayer is enough: the
+member form and the card always answer both together, so one answered prayer means a gabbai answered for the family,
+and the family should not be chased. **Whoever answered** (any partner, a son, a gabbai), nobody in the family gets a
+reminder after that.
+**Gap to close (CTO):** a responses-file upload (§16.6) does not set `answered` today, so a family that answered only on
+the old Google Form would still be reminded. Recommendation: on "החלת השינויים" add the matched households to a separate
+`answeredFile {household ref: ms}` on the same items (cleared by undo), and count it as answered for the reminder query
+only. The Home card keeps reading `answered` alone.
+
+This supersedes §15.10.13's "only the male head of each family": the card and reminders now go to all the family's
+men (owner). The CTO default there for a family with no man becomes the owner's rule above.
+
+### 21.6 Where management sets them (P47 phone 3)
+
+**Management › מקומות ישיבה** (§18.3) gets a third section, **"כל שבוע"**, with one row: **"זמני הטופס והתזכורות"**,
+status line "נסגר ו׳ 14:00 · 2 תזכורות" (or "· תזכורות כבויות"). There was no window setting on any screen before
+(`seatDeadline` existed only in the API), so this is now its home. Gabbai and tech alike (§20 override).
+
+**The screen** (its own stack screen, back "› מקומות ישיבה"):
+1. `ktitle` "זמני הטופס והתזכורות" and a muted line: "חל על כל שבוע. השבוע הקרוב: שבת וירא, כ׳ בחשוון (31.10)."
+2. **The week strip** (read-only): a line from Thursday to Friday, filling from the right, with four marks in order:
+   "נפתח ה׳ 08:00" (ring), "תזכורת ה׳ 20:00" (bell), "עדינה ו׳ 11:00" (bell), "נסגר ו׳ 14:00" (lock). A reminder that is
+   off shows as a dotted bell with "כבויה". It shows the order the validation enforces.
+3. **One settings block** (`Card`, the three times together, owner): three rows, each `Icon` · label and one muted line ·
+   value at the end (bold, tabular) · for the reminders a `Toggle` in the row:
+   - "תזכורת" · "למי שעוד לא ענה" · **ה׳ 20:00** · Toggle;
+   - "תזכורת עדינה" · "למי שעדיין לא ענה" · **ו׳ 11:00** · Toggle;
+   - "המועד האחרון" · "אחריו רק גבאי יכול לשנות" · **ו׳ 14:00**.
+   Tapping a value opens a `Sheet` with `Segmented` ה׳ / ו׳ (the deadline: Friday only, no day choice) and a
+   `TimeField` (15-minute steps), the allowed range in a muted line ("בין ה׳ 08:30 ל־ו׳ 10:30"), and "שמירה". An
+   out-of-order time shows the field error and keeps "שמירה" disabled. Toggles save at once with a Toast.
+4. A muted footer `Card` "למי זה הולך": "הגברים במשפחות שיש להן מקומות השבת ועוד לא ענו. במשפחה בלי גבר: הנשים
+   הבוגרות. מי שענה, או שמישהו מהמשפחה ענה בשבילו, לא יקבל. מי שכיבה תזכורות לא יקבל.", the 5-minute note (§21.4) and the live count "כרגע
+   עוד לא ענו: {n} משפחות" (no names; the names are on "עדכון בשם משפחה").
+5. "דוגמה להתראה" opens a `Sheet` showing both texts as on a lock screen (as P47 phone 4).
+
+**Wide (≥ 1024):** the same screen in the content column; the strip spans the column.
+
+### 21.7 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `seats.row.title` | טופס מקומות · {shabbat} | Seats form · {shabbat} |
+| `seats.row.open` | עוד לא עניתם · אפשר עד {day} {time} | Not answered yet · Open until {day} {time} |
+| `seats.row.answered` | עניתם: {summary} · אפשר לשנות עד {day} {time} | Answered: {summary} · You can change it until {day} {time} |
+| `seats.row.byGabbai` | הגבאי עדכן · אפשר לשנות עד {day} {time} | A gabbai updated it · You can change it until {day} {time} |
+| `seats.row.closed` | הטופס נסגר · {summary} | The form is closed · {summary} |
+| `seats.row.none` | השבת אין לכם מקומות. לשאלות פנו לגבאי. | No seats for you this Shabbat. Ask a gabbai if you have questions. |
+| `seats.row.sumAll` / `sumNone` / `sumFree` / `sumKept` | כולם מגיעים / לא מגיעים / {n} פנוי לאחרים / כל המקומות נשמרו לכם | Everyone's coming / Not coming / {n} free for others / All your seats were kept |
+| `seats.card.closedTitle` | טופס מקומות לשבת · נסגר | Shabbat seats form · Closed |
+| `seats.card.closedSent` | שלחתם: {summary}. לשינוי פנו לגבאי. | You sent: {summary}. To change it, ask a gabbai. |
+| `seats.push.r1.title` | {kehila} · טופס מקומות לשבת | {kehila} · Shabbat seats form |
+| `seats.push.r1.body` | עוד לא עניתם על טופס המקומות לשבת. אפשר לענות עד {day} {time}. | You haven't answered the Shabbat seats form yet. You can answer until {day} {time}. |
+| `seats.push.r2.title` | {kehila} | {kehila} |
+| `seats.push.r2.body` | תזכורת עדינה: טופס המקומות פתוח עד {time} היום. מקום שתפנו יכול לשמח מישהו אחר בשבת. | A gentle reminder: the seats form is open until {time} today. A seat you free could make someone else's Shabbat. |
+| `seats.push.r2.bodyOtherDay` | תזכורת עדינה: טופס המקומות פתוח עד {day} {time}. מקום שתפנו יכול לשמח מישהו אחר בשבת. | A gentle reminder: the seats form is open until {day} {time}. A seat you free could make someone else's Shabbat. |
+| `prefs.seatReminders` / `prefs.seatRemindersOff` | תזכורות לטופס המקומות / לא תקבלו תזכורות. הטופס עדיין בדף הבית. | Seats form reminders / You won't get reminders. The form is still on Home. |
+| `admin.seats.every` | כל שבוע | Every week |
+| `admin.seats.times` | זמני הטופס והתזכורות | Form times and reminders |
+| `admin.seats.timesStatus` / `timesOff` | נסגר {day} {time} · {n} תזכורות / נסגר {day} {time} · תזכורות כבויות | Closes {day} {time} · {n} reminders / Closes {day} {time} · Reminders off |
+| `admin.seats.applies` | חל על כל שבוע. השבוע הקרוב: {shabbat}, {date}. | Applies every week. Coming up: {shabbat}, {date}. |
+| `admin.seats.r1` / `r1Sub` | תזכורת / למי שעוד לא ענה | Reminder / To whoever hasn't answered |
+| `admin.seats.r2` / `r2Sub` | תזכורת עדינה / למי שעדיין לא ענה | Gentle reminder / To whoever still hasn't answered |
+| `admin.seats.deadline` / `deadlineSub` | המועד האחרון / אחריו רק גבאי יכול לשנות | Deadline / After it only a gabbai can change answers |
+| `admin.seats.opens` | נפתח {day} {time} | Opens {day} {time} |
+| `admin.seats.off` | כבויה | Off |
+| `admin.seats.range` | בין {from} ל־{to} | Between {from} and {to} |
+| `admin.seats.errOrder` | צריך להיות אחרי {prev} ולפני {next}, בהפרש של חצי שעה לפחות. | Must be after {prev} and before {next}, at least half an hour apart. |
+| `admin.seats.errDeadline` | {reminder} ({when}) תהיה אחרי המועד האחרון. שנו קודם את התזכורת. | {reminder} ({when}) would be after the deadline. Change the reminder first. |
+| `admin.seats.saved` / `onToast` / `offToast` | נשמר / התזכורת פעילה / התזכורת כבויה | Saved / Reminder on / Reminder off |
+| `admin.seats.who` | הגברים במשפחות שיש להן מקומות השבת ועוד לא ענו. במשפחה בלי גבר: הנשים הבוגרות. מי שענה, או שמישהו מהמשפחה ענה בשבילו, לא יקבל. מי שכיבה תזכורות לא יקבל. | The men of families with seats this Shabbat that haven't answered. In a family with no man: its adult women. Nobody gets one once their family has answered. People who turned reminders off get nothing. |
+| `admin.seats.pending` | כרגע עוד לא ענו: {n} משפחות | Not answered yet: {n} families |
+| `admin.seats.sample` | דוגמה להתראה | Sample notification |
+| `admin.seats.lateNote` | ההתראה יוצאת עד 5 דקות אחרי השעה. | It goes out within 5 minutes of the time. |
+
+`{day}` is the weekday ("יום ו׳" / "Fri"); the push body uses "היום" when the deadline is the same day. Keep
+`{day} {time}` on one line (non-breaking spaces): the row status may wrap to two lines (`numberOfLines={2}`), but never
+between the day and the time. No Gregorian
+date stands alone anywhere here; the one date shown (the settings line) follows §2: Hebrew first, Gregorian in brackets.
+
+### 21.8 Accessibility
+
+The row and the final card are `button`s with title + status as the label. The week strip is one image with a text
+label listing the four times in order. Each reminder row: the Toggle is a `switch` named "תזכורת, ה׳ 20:00"; the value is
+its own `button` ("שינוי שעת התזכורת"). Targets 48. Time values are LTR-isolated and tabular.
+
+### 21.9 Open for the CTO (not owner questions)
+
+- The editor's "open week" (§16.12.6) counted from the card opening; families can now answer earlier in the week from
+  the row. Recommendation: treat a Shabbat as open from the opening **or** its first answer, whichever is first, so a
+  hall change can't silently drop an early answer.
+- `answeredFile` for uploads (§21.5).
+- Opening is fixed at Thursday 08:00 in this pass; `WindowConfig` keeps it as data so it can become a setting later.
+
+### 21.10 Verification
+
+P47 phone 1 shows Home scrolled to the bottom; a separate panel shows the row in all five states. Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P47 phones 1–4 at 390 × 844 in light and
+dark, and the page at 390 wide (no horizontal scroll). Not checked: real devices, 360-wide Android, English, screen
+readers, how iOS and Android actually truncate the push bodies (the gentle text is about 90 characters; the lock
+screen frame shows two lines), web fonts, and the wide layout (specified, not drawn).
