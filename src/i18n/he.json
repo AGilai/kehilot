@@ -3103,7 +3103,23 @@
       "autoNote": "כמו הודעות של גבאים. אפשר תמיד להסיר מהגיליון."
     },
     "empty": "אין השבוע מזל טוב או אירועים בגיליון.",
-    "groupCondolence": "השתתפות בצער בגיליון"
+    "groupCondolence": "השתתפות בצער בגיליון",
+    "tagPending": "ממתין",
+    "rowLabel": "{line}. {source}. פריט {i} מתוך {n}",
+    "addLabel": "להוסיף לגיליון: {line}",
+    "skipLabel": "לא להוסיף לגיליון: {line}",
+    "moved": "הועבר למקום {i} מתוך {n}",
+    "removedToast": "הוסר מהגיליון",
+    "restore": "להחזיר לגיליון",
+    "meterHas": "יש",
+    "meterNone": "אין",
+    "linkRow": "הגיליון השבועי",
+    "freeMazal": "מזל טוב",
+    "freeEvent": "אירוע",
+    "freeNotice": "הודעה",
+    "rowMore": "פעולות לפריט",
+    "saved": "השורה נשמרה",
+    "pendingGroup": "ממתין לאישור · {n}"
   },
   "logo": {
     "row": "לוגו הקהילה",

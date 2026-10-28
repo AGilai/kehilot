@@ -60,3 +60,72 @@ test('the fixture API answers the sheet list by role and keeps writes', async ()
   const events = moved.items.filter(i => i.group === 'events');
   assert.ok(events.findIndex(i => i.itemId === added.itemId) < events.length - 1);
 });
+
+// ---- Task 14: the management screen's pure helpers ----
+import { editLine, groupsForScreen, meters, sourceTag } from '../src/client/sheetItems.ts';
+import type { SheetFit, SheetModel } from '../src/schedule/sheetModel.ts';
+
+const fitOf = (over: Partial<SheetFit> = {}): SheetFit => ({
+  rowFont: 14, mazalFont: 13, imageScale: 1, dropImage: false, dropBlessings: false, droppedMazal: 0, droppedEvents: 0, dropped: [], out: [], more: 0,
+  tight: false, scale: 1, overflow: false, ...over,
+});
+const modelOf = (mazal: number, events: number, image = true) => ({
+  mazalTov: Array.from({ length: mazal }, (_, i) => ({ id: `m${i}`, group: 'mazal' as const, main: [], sub: '', blessing: '', icon: null, cancelled: false })),
+  events: Array.from({ length: events }, (_, i) => ({ id: `e${i}`, group: 'events' as const, main: [], sub: '', blessing: '', icon: null, cancelled: false })),
+  pinned: image ? { imageUri: 'x' } : null, variant: 'a4',
+}) as unknown as SheetModel;
+
+test('meters: counts what is on the sheet against the maxima, and says what does not fit', () => {
+  const m = meters(modelOf(3, 2), fitOf());
+  assert.deepEqual(m, { mazal: { n: 3, max: 6 }, events: { n: 2, max: 3 }, image: true, fits: true, over: 0 });
+  const over = meters(modelOf(8, 1, false), fitOf({ out: ['m6', 'm7'], more: 2 }));
+  assert.equal(over.mazal.n, 6);
+  assert.equal(over.over, 2);
+  assert.equal(over.fits, false);
+  assert.equal(over.image, false);
+  assert.equal(meters(modelOf(1, 1), fitOf({ dropImage: true })).image, false);
+});
+
+test('groupsForScreen: pending apart, out flags from fit.out, index and count per group, removed by group', () => {
+  const page: SheetPage = {
+    week: '2026-10-30',
+    items: [
+      item('p1', 'mazal', { state: 'pending' }), item('a', 'mazal'), item('b', 'mazal'), item('c', 'mazal'), item('r1', 'events', { state: 'removed' }),
+      item('k', 'condolence'), item('e1', 'events'), item('r2', 'mazal', { state: 'removed' }),
+    ],
+  };
+  const g = groupsForScreen(page, fitOf({ out: ['c'] }));
+  assert.deepEqual(g.pending.map(i => i.itemId), ['p1']);
+  assert.deepEqual(g.mazal.map(r => [r.item.itemId, r.out, r.index, r.count]), [['a', false, 1, 3], ['b', false, 2, 3], ['c', true, 3, 3]]);
+  assert.deepEqual(g.condolence.map(r => [r.item.itemId, r.index, r.count]), [['k', 1, 1]]);
+  assert.deepEqual(g.events.map(r => r.item.itemId), ['e1']);
+  assert.deepEqual(g.removed.mazal.map(i => i.itemId), ['r2']);
+  assert.deepEqual(g.removed.events.map(i => i.itemId), ['r1']);
+  assert.deepEqual(g.removed.condolence, []);
+});
+
+test('sourceTag: label and tone per source, the approver joins "approved"', () => {
+  const t = (key: string, p?: Record<string, string | number>) => (p ? `${key}:${JSON.stringify(p)}` : key);
+  assert.deepEqual(sourceTag(item('a', 'mazal', { source: 'auto' }), t), { label: 'sheetItems.src.auto', tone: 'olive' });
+  assert.deepEqual(sourceTag(item('a', 'mazal', { source: 'approved', approvedBy: 'משה' }), t), { label: 'sheetItems.src.approved · משה', tone: 'olive' });
+  assert.deepEqual(sourceTag(item('a', 'mazal', { source: 'approved' }), t), { label: 'sheetItems.src.approved', tone: 'olive' });
+  assert.equal(sourceTag(item('a', 'mazal', { source: 'byGabbai' }), t).tone, 'tekhelet');
+  assert.equal(sourceTag(item('a', 'events', { source: 'free', kind: 'free' }), t).tone, 'plain');
+  assert.equal(sourceTag(item('a', 'mazal', { source: 'member', state: 'pending' }), t).tone, 'gold');
+});
+
+test('editLine keeps the bold token separate, and drops it when the text no longer holds it', () => {
+  const base = item('a', 'mazal', { line: { text: 'מזל טוב למשפחת דוגמה', bold: 'דוגמה' } });
+  assert.deepEqual(editLine(base, 'מזל טוב למשפחת דוגמה\nלחתונה'), { text: 'מזל טוב למשפחת דוגמה\nלחתונה', bold: 'דוגמה' });
+  assert.deepEqual(editLine(base, 'שמחה גדולה'), { text: 'שמחה גדולה', bold: '' });
+  const fromMessage = item('m', 'mazal', { message: { messageId: 'm', channelId: 'c', type: 'celebration', title: '', body: '', authorId: 'a', authorName: 'a', authorKind: 'management', joinCount: 0, templateId: 'mazal', fields: { occasion: 'wedding', whose: 'parents', surname: 'ניסיון', firstNames: '', name: '', parents: '', blessing: '' } } });
+  assert.equal(editLine(fromMessage, 'מזל טוב למשפחת ניסיון').bold, 'ניסיון');
+});
+
+test('relativeWhen: today and yesterday in words with the Israel clock, older as a short date', async () => {
+  const { relativeWhen } = await import('../src/client/sheetItems.ts');
+  const now = Date.parse('2026-10-29T10:00:00+02:00');
+  assert.equal(relativeWhen(Date.parse('2026-10-28T21:10:00+02:00') / 1000, now, 'he'), 'אתמול 21:10');
+  assert.equal(relativeWhen(Date.parse('2026-10-29T08:40:00+02:00') / 1000, now, 'he'), 'היום 08:40');
+  assert.match(relativeWhen(Date.parse('2026-10-20T08:40:00+03:00') / 1000, now, 'he'), /^20\.10 08:40$/);
+});

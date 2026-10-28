@@ -31,7 +31,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'compose-tpl-event', 'compose-tpl-mazal', 'compose-tpl-condolence', 'compose-tpl-missing', 'compose-tpl-free', 'm5', 'prefs-seats', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'print-items', 'print-items-many', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'sheet-items', 'sheet-items-many', 'sheet-items-sheet', 'sheet-items-free', 'sheet-items-rules', 'print-items', 'print-items-many', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -501,6 +501,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   // one waiting for approval and one removed. Members read only what is in.
   const sheetWeeks = new Map<string, SheetItem[]>();
   const sheetSeed = (week: string): SheetItem[] => {
+    if (screen?.startsWith('sheet-items')) return sheetScreenFixture(week, screen === 'sheet-items-many');
     if (screen === 'print-items' || screen === 'print-items-many') return printItemsFixture(week, screen === 'print-items' ? 'items' : 'many');
     const msg = (id: string, type: Message['type'], templateId: 'mazal' | 'condolence' | 'event', fields: Record<string, string | boolean>): Message => ({
       messageId: id, channelId: cAnn, type, title: '', body: '', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 0, templateId, fields,
@@ -514,6 +515,36 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       { ...base, itemId: 'SHFIXTURE0000000000000004', group: 'events', type: 'event', state: 'in', message: msg('SHFIXTURE0000000000000004', 'event', 'event', { name: 'ערב לימוד לנשים', date: addDays(week, 4), time: '20:30', place: 'בית הכנסת', for: 'women' }) },
       { ...base, itemId: 'SHFIXTURE0000000000000005', group: 'events', type: 'event', state: 'removed', message: msg('SHFIXTURE0000000000000005', 'event', 'event', { name: 'טיול קהילתי', date: addDays(week, 5), time: '10:00', place: 'הפארק', for: 'all' }) },
     ];
+  };
+  /** P44's lists: two waiting, four mazal tov (`many`: seven, so the sheet leaves the last one off), a condolence, two events (one free). Invented names. */
+  const sheetScreenFixture = (week: string, many: boolean): SheetItem[] => {
+    const msg = (id: string, type: Message['type'], templateId: 'mazal' | 'condolence' | 'event', fields: Record<string, string | boolean>): Message => ({
+      messageId: id, channelId: cAnn, type, title: '', body: '', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 0, templateId, fields,
+    });
+    const at = Math.floor(Date.parse(`${week}T08:00:00+02:00`) / 1000) - 3 * 86400;
+    let n = 0;
+    const id = () => `SHFIXTURE${String(++n).padStart(16, '0')}`;
+    const base = { week, kind: 'message' as const, state: 'in' as const, source: 'auto' as const, wasPending: false };
+    const mazal = (surname: string, occasion: string, more: Partial<SheetItem> = {}, fields: Record<string, string> = {}): SheetItem => {
+      const itemId = id();
+      return { ...base, itemId, group: 'mazal', type: 'celebration', postedAt: at + n * 60, message: msg(itemId, 'celebration', 'mazal', { occasion, whose: 'parents', surname, firstNames: '', name: '', parents: '', blessing: '', ...fields }), ...more };
+    };
+    const out: SheetItem[] = [
+      mazal('ניסיוני', 'birthSon', { state: 'pending', source: 'member', wasPending: true, postedBy: 'יעל דוגמה', postedAt: Date.now() / 1000 - 86400 }, { name: 'אורי' }),
+      { ...mazal('בדיוני', 'other', { state: 'pending', source: 'member', wasPending: true, postedBy: 'אבי בדיוני', postedAt: Date.now() / 1000 - 3600 * 3 }), group: 'events', type: 'event', kind: 'message',
+        message: msg('SHFIXTURE0000000000000099', 'event', 'event', { name: 'הקפות שניות לילדים', date: addDays(week, 1), time: '19:00', place: 'החצר', for: 'kids' }) },
+      mazal('ניסיון', 'birthDaughter', { postedBy: 'משה כהן' }, { name: 'נועה', whose: 'grandparents', parents: 'דוד ושרה' }),
+      mazal('בדיוני', 'barMitzvah', { source: 'byGabbai' }, { name: 'הלל' }),
+      mazal('דוגמה', 'engagement', { source: 'approved', approvedBy: 'משה', postedBy: 'נעמה לוי' }),
+      mazal('דוגמאי', 'batMitzvah', { source: 'approved', approvedBy: 'משה', postedBy: 'תמר דוגמאי' }, { name: 'שירה' }),
+    ];
+    if (many) out.push(mazal('לוי', 'wedding'), mazal('ניסיונית', 'birthSon'), mazal('דוגמית', 'engagement'));
+    const cid = id();
+    out.push({ ...base, itemId: cid, group: 'condolence', type: 'condolence', postedAt: at, message: msg(cid, 'condolence', 'condolence', { variant: 'only', surname: 'בדיוני', deceased: 'שרה', relation: 'אמו של יעקב' }) });
+    const eid = id();
+    out.push({ ...base, itemId: eid, group: 'events', type: 'event', postedAt: at, message: msg(eid, 'event', 'event', { name: 'ערב לימוד לנשים', date: addDays(week, 4), time: '20:30', place: 'עזרת הנשים', for: 'women' }) });
+    out.push({ ...base, itemId: id(), group: 'events', kind: 'free', type: 'notice', source: 'free', postedAt: at + 5, line: { text: 'שיעור פתוח · מוצ״ש 19:30 · הרב ניסיון', bold: '' }, postedBy: 'משה כהן' });
+    return out;
   };
   const sheetFixture = (method: string, path: string, body: unknown): unknown => {
     const parts = path.split('?')[0]!.split('/');

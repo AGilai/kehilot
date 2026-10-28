@@ -114,7 +114,7 @@ export function endpoints(http: Http) {
     updateMember: (k: string, u: string, fields: MemberFields) =>
       r<Record<string, never>>('PUT', `${A(k)}/members/${e(u)}`, fields),
     removeMember: (k: string, u: string) => r<void>('DELETE', `${A(k)}/members/${e(u)}`),
-    putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string; typeRules?: TypeRules; location?: ScheduleDoc['location']; sheet?: { candleCities: CandleCity[] } }) =>
+    putSettings: (k: string, s: { maxListeners?: number; privacyContact?: string; typeRules?: TypeRules; sheetMembers?: 'approve' | 'auto'; location?: ScheduleDoc['location']; sheet?: { candleCities: CandleCity[] } }) =>
       r<Record<string, never>>('PUT', `${A(k)}/settings`, s),
     // prayer schedule (gabbai): full replace of the sections (409 `schedule_changed` when `ifUpdatedAt` is stale) and per-week overrides
     putSchedule: (k: string, body: { sections: Section[]; version?: 1; ifUpdatedAt: number | null }) =>

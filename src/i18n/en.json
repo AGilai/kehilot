@@ -3103,7 +3103,23 @@
       "autoNote": "Like gabbai posts. You can always remove an item."
     },
     "empty": "No mazal tov or events on the sheet this week.",
-    "groupCondolence": "Condolences on the sheet"
+    "groupCondolence": "Condolences on the sheet",
+    "tagPending": "Waiting",
+    "rowLabel": "{line}. {source}. Item {i} of {n}",
+    "addLabel": "Add to the sheet: {line}",
+    "skipLabel": "Don't add to the sheet: {line}",
+    "moved": "Moved to place {i} of {n}",
+    "removedToast": "Removed from the sheet",
+    "restore": "Put back on the sheet",
+    "meterHas": "Yes",
+    "meterNone": "None",
+    "linkRow": "Weekly sheet",
+    "freeMazal": "Mazal tov",
+    "freeEvent": "Event",
+    "freeNotice": "Notice",
+    "rowMore": "Item actions",
+    "saved": "Line saved",
+    "pendingGroup": "Waiting for approval · {n}"
   },
   "logo": {
     "row": "Community logo",

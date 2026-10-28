@@ -10,7 +10,7 @@ import { ApiCodeError } from '../../client/errors.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../../kit/components.tsx';
-import { BackIcon } from '../../kit/Icon.tsx';
+import { BackIcon, ForwardIcon } from '../../kit/Icon.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import {
   applyFormulaPatch, changeCount, classicSections, cleanSections, editorReducer, initialEditorState, isDirty, issueTarget, nextId,
@@ -42,7 +42,7 @@ type Shown = { week?: string; sectionId: string | null; rowId: string | null; ex
 const EMPTY = { sections: [], weekOverrides: {}, updatedAt: null as number | null };
 const ltr = (value: string) => `⁦${value}⁩`;
 
-export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => void; onDirty: (dirty: boolean) => void; onToast: (text: string) => void }) {
+export function ScheduleEditor({ onBack, onDirty, onToast, onSheet }: { onBack: () => void; onDirty: (dirty: boolean) => void; onToast: (text: string) => void; /** Opens the weekly sheet screen (§19.8). */ onSheet?: () => void }) {
   const { t, lang } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
@@ -483,6 +483,12 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><BackIcon color={k.tekhelet} /><Txt bold color={k.tekhelet}>{t('editor.back')}</Txt></View>
     </Pressable>
   );
+  const sheetLink = onSheet ? (
+    <Pressable accessibilityRole="link" onPress={onSheet} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}>
+      <Txt bold color={k.tekhelet}>{t('sheetItems.linkRow')}</Txt>
+      <ForwardIcon color={k.tekhelet} />
+    </Pressable>
+  ) : null;
   const status = load.status === 'loading' ? <Card><Txt color={k.muted}>{t('common.loading')}</Txt></Card>
     : load.status === 'error' ? <Banner tone="error" text={t('editor.loadError')} action={{ title: t('common.retry'), onPress: () => { void fetchDoc(); } }} /> : null;
   const liveNote = <View accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}><Txt>{announce}</Txt></View>;
@@ -499,6 +505,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 24, backgroundColor: k.surface, borderBottomWidth: 1, borderBottomColor: k.line, minHeight: 56 }}>
           {back}
           <Txt serif size="heading" accessibilityRole="header">{t('editor.title')}</Txt>
+          {sheetLink}
           <View style={{ flex: 1 }} />
           <Txt size="small" color={k.muted}>{session.state.kehila?.name}</Txt>
         </View>
@@ -528,6 +535,7 @@ export function ScheduleEditor({ onBack, onDirty, onToast }: { onBack: () => voi
       <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
         {back}
         <Txt serif size="display" accessibilityRole="header">{t('editor.title')}</Txt>
+        {sheetLink}
         <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 4, padding: 4, borderRadius: 12, backgroundColor: k.stone, borderWidth: 1, borderColor: k.line }}>
           {(['edit', 'preview'] as const).map(tab => (
             <Pressable key={tab} accessibilityRole="tab" accessibilityState={{ selected: narrowTab === tab }} onPress={() => setNarrowTab(tab)}

@@ -45,6 +45,7 @@ import { ChatView } from './ChatView.tsx';
 import { Home } from './Home.tsx';
 import { Schedule } from './Schedule.tsx';
 import { ScheduleEditor } from './admin/ScheduleEditor.tsx';
+import { SheetItems } from './admin/SheetItems.tsx';
 import { editorLeaveAsk } from '../schedule/editor.ts';
 import { BackLink, Me } from './Me.tsx';
 import { InviteListener } from './InviteListener.tsx';
@@ -130,6 +131,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'seat-holders' || s === 'seat-link') return seatEditorAllowed(state.kehila?.role) ? { nav: { tab: 'seatHolders' }, manage: true } : null;
   if (s === 'schedule') return { nav: { tab: 'schedule' } };
   if (s === 'schedule-editor' || s === 'schedule-editor-none') return scheduleEditorAllowed(state.kehila?.role) ? { nav: { tab: 'scheduleEditor' }, manage: true } : null;
+  if (s?.startsWith('sheet-items')) return isManagement(state.kehila?.role) ? { nav: { tab: 'sheetItems' }, manage: true } : null;
   if (s === 'm5' || s === 'prefs-seats') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003' } };
   if (s === 'compose-family') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003', query: 'ב' } };
@@ -294,9 +296,11 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     case 'schedule':
       body = <Schedule onBack={() => setNav({ tab: 'home' })} onToast={showToast} />;
       break;
-    case 'sheetItems': // Task 14 replaces this with the sheet items screen; until then the schedule editor (print, PDF) is the destination.
+    case 'sheetItems':
+      body = isManagement(kehila?.role) ? <SheetItems week={nav.week} focus={nav.focus} onBack={toolBack} onToast={showToast} onOpenMessage={id => setNav({ tab: 'detail', id, from: 'messages' })} /> : null;
+      break;
     case 'scheduleEditor':
-      body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
+      body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} onSheet={() => guard(() => { setBackNav({ tab: 'scheduleEditor' }); setNav({ tab: 'sheetItems' }); })} /> : null;
       break;
     case 'seats':
       body = isAdult(kehila?.role) ? <SeatPage week={nav.week} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
