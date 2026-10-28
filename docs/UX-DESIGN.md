@@ -1686,9 +1686,15 @@ don't get them. For a family without an account, the gabbai answers on its behal
 
 **Card (Home, Thursday 12:00 → the deadline):** `Card` with a tekhelet edge. The title row has the chair glyph and
 "טופס מקומות לשבת". The question is "יש לכם {n} מקומות השבת. מגיעים?", and the muted line is "ליל שבת ושבת בבוקר · אפשר
-לענות עד יום שישי 12:00". Then two buttons, half width each: primary **"כולם מגיעים"** (= 0 for both prayers) and
-**"לא מגיעים השבת"** (surface fill, red border and text, `Icon out`). Under them a 44-high text link **"חלק מגיעים?
-למלא את הטופס ‹"** opens P37.
+לענות עד יום שישי 12:00". **The buttons are all one family** (owner: the main action must not look like a link):
+- **"לא מגיעים השבת"** is the **primary** `Button`: full width, **56 high**, 17 bold, tekhelet fill, `Icon out` at the
+  start. It is the action most members need each week.
+- Under it, two **secondary** `Button`s side by side (48 high, outlined tekhelet): **"כולם מגיעים"** (`Icon users`; = 0
+  for both prayers, also one tap) and **"חלק מגיעים"** (`Icon seat`; opens P37).
+
+No text links on the card. The P37 entry panel shows the same card. Inside the form (P37) there is no link-style
+action: the circles, the "כמו בליל שבת" chip and the footer `Button` are already controls, and "הסתרה / הצגת המפה" is a
+view toggle, not an answer.
 
 **Confirm or undo → undo, 5 seconds, no extra screen.** Tapping "לא מגיעים השבת" changes the card in place right away:
 the edge turns green, the folded strip shows all chairs green, with the line "פינית את כל {n} המקומות · ליל שבת ושבת
@@ -1719,7 +1725,7 @@ asking. "עריכה" opens P37 with N chosen for both prayers. Other answered st
 | `seats.card.q` | יש לכם {n} מקומות השבת. מגיעים? | You have {n} seats this Shabbat. Coming? |
 | `seats.card.both` | ליל שבת ושבת בבוקר · אפשר לענות עד {day} {time} | Friday night and Shabbat morning · Answer by {day} {time} |
 | `seats.card.allComing` / `notComing` | כולם מגיעים / לא מגיעים השבת | Everyone's coming / Not coming this Shabbat |
-| `seats.card.some` | חלק מגיעים? למלא את הטופס | Some coming? Fill in the form |
+| `seats.card.some` | חלק מגיעים | Some are coming |
 | `seats.card.undoIn` / `undo` | נשלח בעוד {s} שניות… / ביטול | Sending in {s} seconds… / Undo |
 | `seats.card.freedAll` | פינית את כל {n} המקומות לשבת | You freed all {n} seats for Shabbat |
 | `seats.card.undone` | התשובה בוטלה. כל המקומות שמורים לכם. | Answer cancelled. All your seats are kept. |
