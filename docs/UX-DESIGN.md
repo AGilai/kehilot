@@ -3654,6 +3654,16 @@ gabbaim. A tech who sees something wrong reports it to a gabbai (open question 2
 | `schedule.updated` | הזמנים מחושבים ל{city}. עודכנו ב־{date}. | Times are for {city}. Updated {date}. |
 | `admin.tags.suggest` | גבאי, רב, חזן, בעל קורא, גזבר, ועד הקהילה, ועד שמחות | Gabbai, rabbi, chazan, Torah reader, treasurer, committee, simchas committee |
 
+**R3 copy corrections under the owner override (2026-10-28).** The §20.7 role notes described the restricted tech. In `src/i18n`
+these were rewritten, he and en: `admin.role.techNote` ("כל ההרשאות של גבאי: זמנים, גיליון, מקומות, חברים ופרטיהם. מוצג/ת לחברים
+כטכני/ת, לא כגבאי."), `admin.role.gabbaiNote` ("מנהל/ת את הקהילה: זמנים, גיליון, מקומות, חברים ופרטיהם."), the new
+`admin.invite.techNote` and `join.asTech`. Strings that told members only gabbaim see their data now say "גבאים וטכנאים" / "gabbaim and
+techs": `me.details.gabbaimOnly`, the phone-list `listGabbaim`, `admin.groupAdmin.onlyGabbai`, the family `readOnly`, `privacy` (two
+holder texts, the seat-map privacy line, the tree and the birthdays line), the phone switch `body`, `switchOn` and `switchOff`, and
+`admin.channels.channelClosed` (en). The seatmap.tech.*, `admin.role.gabbaiOnly`, `admin.role.locked`, `admin.terms.waitGabbai`
+and `errors.gabbai_only` rows of the table above are not used. The picker's disabled button reads "בחרו תפקיד אחר" while the
+current role is selected (`admin.role.pickOther`).
+
 The tag suggestion **drops "טכני"**, so that a label is not confused with the role. An existing tag named "טכני"
 stays, and the tags screen shows a one-time info Banner on it: "יש עכשיו תפקיד טכני עם הרשאות. התגית לא נותנת
 הרשאות."
@@ -3925,7 +3935,9 @@ with one mechanism. Everything else in §12, §19 and §19.2a stands. "Managemen
 
 **Owner decisions (2026-10-28, binding).**
 1. There is **no switch in Compose**. Every message to the whole Kehila written by a **member** of the Kehila can be
-   answered privately. **Messages written by management (gabbai or tech) get no private-reply button and no count.** The reader gets a "תשובה פרטית" button on the card and on M3, and a long-press action on the card.
+   answered privately. **Messages written by management (gabbai or tech) get no private-reply button and no count** when the replies would
+   reach that gabbai or tech (הודעה, אירוע). *CTO ruling, owner to confirm (2026-10-28):* a mazal tov or condolence
+   posted by management still takes blessings, because they go to the family, not to the poster. The reader gets a "תשובה פרטית" button on the card and on M3, and a long-press action on the card.
 2. **Routing.** A private reply to a **mazal tov or condolence** goes to the **subject**: the adults of the family the
    message names, not the poster (as today). A private reply to **every other message** goes only to its **author**.
 3. The count of private replies shows on the card **to the whole Kehila**: "{n} תשובות פרטיות". The reason is that a
@@ -3946,19 +3958,19 @@ A message has the reply action when **all** of these hold:
 | Rule | Why |
 |---|---|
 | It is in the main channel ("הודעות הקהילה"), the whole-Kehila audience | Owner: "a message to the Kehila". Group channels and conversation channels already have their own conversation, so they get no private reply in v1 |
-| Its author is a **member** (`authorKind: member`). **Management (gabbai or tech) messages never qualify**, whatever their type: no button, no count, no long-press action, no box on M3 | Owner decision 1. The rule follows the author's role when the message was posted (`authorKind` is stored on the message), so a member who later becomes a gabbai keeps replies on older messages |
+| For **הודעה and אירוע**, the author is a **member** (`authorKind: member`). A management (gabbai or tech) הודעה or אירוע gets no button, no count, no long-press action and no box on M3. **מזל טוב and השתתפות בצער qualify whoever posted them** (*CTO ruling, owner to confirm*) | Owner decision 1: management doesn't need replies landing in its own mailbox. A blessing goes to the family, so that reason doesn't apply to it. The rule follows the author's role when the message was posted (`authorKind` is stored on the message), so a member who later becomes a gabbai keeps replies on older messages |
 | Its type is הודעה, אירוע, מזל טוב or השתתפות בצער | **עדכון שבועי is excluded**: it is the Kehila's notice sheet, not one person speaking, and questions about it belong to the gabbai directly |
 | It is not a system message (welcome, automatic notices, test-build card) | Nobody reads the mailbox of "the app" |
 | The recipient still exists: the author is still in the Kehila and can read the channel; for a blessing, the family still has a live adult who can (today's `target_left`) | Otherwise the reply would go nowhere |
 
 Who may reply: members, gabbaim and tech (management can reply to a member's message; it just can't receive
-replies on its own). **Listeners (guests) see the count but get no button** (they can't post or
+replies on its own הודעה or אירוע). **Listeners (guests) see the count but get no button** (they can't post or
 reply anywhere, §3). The author never sees a reply action on their own message; an adult of the named family never
 sees one on the blessing about them. A muted author (§M5) is muted for notifications only: the button stays.
 
-**Consequence of the management rule:** a mazal tov or condolence that a gabbai or tech posted has no blessing box,
-even though its replies would go to the family. In a Kehila whose type rule is "ההנהלה בלבד" (§12.2), no mazal tov
-takes blessings at all. This is the owner's rule as given; it is raised as the one open question in §22.9.
+**Blessings on a management post (CTO ruling, owner to confirm, 2026-10-28):** a mazal tov or condolence posted by a
+gabbai or tech has the full blessing box, the count and the recipient picker (§22.4a). The replies go to the family
+it names and never to the poster. So a Kehila whose type rule is "ההנהלה בלבד" (§12.2) keeps its blessings.
 
 **For the developer:** the server decides with one rule and returns `canReply: bool` and `replyTo: "author"|"family"`
 on the message object, and for a family target `replyAdults: [{userId, name}]` (the live adults who can read the
@@ -4000,7 +4012,8 @@ the same count. "ברכה פרטית" becomes "ברכה אישית" everywhere (
 - **The author's own card** (and the named family's card): no button; after the count, " · {m} חדשות" in bold
   pomegranate when unread replies exist. Tapping the count opens M3 at "תשובות שהגיעו".
 - **Listener:** the count only.
-- **A management message:** no reply row at all (owner).
+- **A management הודעה or אירוע:** no reply row at all (owner). A mazal tov or condolence posted by management keeps
+  its count and button (CTO ruling, owner to confirm).
 - A card with neither a count nor a button (עדכון שבועי, a group channel, a message nobody answered that I can't answer)
   has no reply row at all.
 
@@ -4217,9 +4230,8 @@ from the card traps focus and returns it to the button on close. Targets 48.
   throttle; `repliesReceived` in the export; deleting the author's received replies with the account.
 - Server work for §22.4a: a reply's `to` is `family` or one adult's `userId`; reads, pushes, unread markers and
   export follow it.
-- **Open with the owner:** should a mazal tov or condolence posted by management still take blessings? They go to the
-  family, not to the gabbai, so the reason for the management rule does not apply. Recommendation: yes. Until the
-  owner answers, build the rule as given (no replies on any management message).
+- **Owner to confirm:** the CTO ruled (2026-10-28) that a mazal tov or condolence posted by management still takes
+  blessings (§22.1). Build it that way.
 
 ### 22.10 Verification
 
