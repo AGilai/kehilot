@@ -3,7 +3,7 @@ import logging
 import time
 
 from . import inputs
-from .authz import require
+from . import authz
 from .routes_admin import CLASSIFICATIONS
 from .errors import ApiError
 from .repo_members import normalize_code
@@ -12,6 +12,8 @@ from .repo_members import normalize_code
 log = logging.getLogger(__name__)
 MAX_MEMBER_LISTENER_LINKS = 3
 DEFAULT_MAX_LISTENERS = 500
+
+INVITE_ROLES = (authz.LISTENER, authz.MEMBER)  # no invite ever gives gabbai or tech (§20.5)
 
 
 def _live_invite(repo, code):
@@ -22,17 +24,17 @@ def _live_invite(repo, code):
 
 
 def create(ctx, params):
-    membership = require(ctx.repo, ctx.user_id, params['k'], ('member', 'gabbai'))
+    membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ADULTS)
     d = inputs.body_object(ctx) if ctx.body else {}
-    role = d.get('role', 'listener')
-    if role not in ('listener', 'member'):
+    role = d.get('role', authz.LISTENER)
+    if role not in INVITE_ROLES:
         raise ApiError(400, 'invalid_role')
-    if role == 'member' and membership['role'] != 'gabbai':
+    if authz.in_set(role, authz.MEMBER_ONLY) and not authz.role_in(membership, authz.MANAGEMENT):
         raise ApiError(403, 'forbidden')
     classification = d.get('classification', '')
-    if 'classification' in d and (role != 'member' or classification not in CLASSIFICATIONS):
+    if 'classification' in d and (not authz.in_set(role, authz.MEMBER_ONLY) or classification not in CLASSIFICATIONS):
         raise ApiError(400, 'invalid_classification')
-    if role == 'listener' and membership['role'] != 'gabbai' \
+    if authz.in_set(role, authz.LISTENER_ONLY) and not authz.role_in(membership, authz.MANAGEMENT) \
             and ctx.repo.count_active_listener_invites(params['k'], ctx.user_id) >= MAX_MEMBER_LISTENER_LINKS:
         raise ApiError(409, 'too_many_invites')  # soft: parallel creates may overshoot by a few
     uses = inputs.integer(d, 'uses', 1, 50) if 'uses' in d else 10
@@ -62,16 +64,16 @@ def accept(ctx, params):
     if invite['inviterId'] != 'admin-cli':
         inviter = ctx.repo.get_membership(k, invite['inviterId'])
         # The inviter left or was removed, or (member invites) is no longer a gabbai: same answer as an expired link.
-        if not inviter or (invite['role'] == 'member' and inviter['role'] != 'gabbai'):
+        if not inviter or (authz.role_in(invite, authz.MEMBER_ONLY) and not authz.role_in(inviter, authz.MANAGEMENT)):
             raise ApiError(410, 'invite_expired')
     settings = (ctx.repo.get_kehila(k) or {}).get('settings', {})
-    if invite['role'] == 'listener' and not ctx.repo.get_membership(k, ctx.user_id):
+    if authz.role_in(invite, authz.LISTENER_ONLY) and not ctx.repo.get_membership(k, ctx.user_id):
         # Soft cap: the count is read, not reserved, so concurrent accepts may overshoot by a few.
         if ctx.repo.count_listeners(k) >= int(settings.get('maxListeners', DEFAULT_MAX_LISTENERS)):
             raise ApiError(409, 'kehila_full')
     membership = ctx.repo.accept_invite(code, ctx.user_id, name, int(time.time()),
                                         bool(settings.get('memberBroadcastDefault', False)))
-    if membership['role'] in ('member', 'gabbai'):
+    if authz.role_in(membership, authz.ADULTS):
         try:
             ctx.repo.ensure_family(k, ctx.user_id)
         except Exception:  # the lazy path (GET .../family) creates it later
@@ -80,8 +82,8 @@ def accept(ctx, params):
 
 
 def list_invites(ctx, params):
-    membership = require(ctx.repo, ctx.user_id, params['k'], ('member', 'gabbai'))
-    own_only = None if membership['role'] == 'gabbai' else ctx.user_id
+    membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ADULTS)
+    own_only = None if authz.role_in(membership, authz.MANAGEMENT) else ctx.user_id
     return 200, [{'code': i['pk'][len('INV#'):], 'role': i['role'], 'usesLeft': int(i['usesLeft']),
                   'expiresAt': int(i['expiresAt']), 'mine': i['inviterId'] == ctx.user_id}
                  for i in ctx.repo.list_invites(params['k'], own_only)]
@@ -89,11 +91,11 @@ def list_invites(ctx, params):
 
 def revoke(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     invite = ctx.repo.get_invite(normalize_code(params['code']))
     if not invite or invite['kehilaId'] != k:
         raise ApiError(404, 'invite_not_found')  # another Kehila's code looks exactly like a missing one
-    if membership['role'] != 'gabbai' and invite['inviterId'] != ctx.user_id:
+    if not authz.role_in(membership, authz.MANAGEMENT) and invite['inviterId'] != ctx.user_id:
         raise ApiError(403, 'forbidden')
     ctx.repo.revoke_invite(k, invite)
     return 204, None

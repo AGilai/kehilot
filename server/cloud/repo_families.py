@@ -1,4 +1,4 @@
-"""Family items (K#<k> / F#<familyId>): one per member or gabbai household."""
+"""Family items (K#<k> / F#<familyId>): one per adult (authz.ADULTS) household."""
 import json
 import logging
 import time
@@ -7,14 +7,13 @@ from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 
 from .errors import ApiError
-from . import tree_rules
+from . import authz, tree_rules
 from .ids import new_id
 
 log = logging.getLogger(__name__)
 
 REQUEST_TTL = 7 * 86400
 DECLINE_TTL = 30 * 86400
-MEMBER_ROLES = ('member', 'gabbai')
 
 
 def _cancelled(error):
@@ -41,7 +40,7 @@ class FamiliesRepo:
     def _ensure_family(self, k, user_id):
         """(familyId or None, created). None: a listener or no membership."""
         membership = self.get_membership(k, user_id)
-        if not membership or membership.get('role') not in ('member', 'gabbai'):
+        if not authz.role_in(membership, authz.ADULTS):
             return None, False
         if membership.get('familyId'):
             held = self.get_family(k, membership['familyId'])
@@ -49,6 +48,7 @@ class FamiliesRepo:
                 return membership['familyId'], False
             self._release_family_id(k, user_id, membership['familyId'])  # missing, or someone else's: start fresh
         family_id = new_id()
+        adults_only, adult_values = authz.role_condition(authz.ADULTS)
         family = {'pk': f'K#{k}', 'sk': f'F#{family_id}', 'familyId': family_id, 'adults': [user_id],
                   'children': [], 'version': 1, 'createdAt': int(time.time())}
         try:
@@ -58,10 +58,9 @@ class FamiliesRepo:
                 {'Update': {'TableName': self.table.name, 'Key': self._key(k, f'M#{user_id}'),
                             'UpdateExpression': 'SET familyId = :f',
                             'ConditionExpression': 'attribute_exists(sk) AND attribute_not_exists(familyId) '
-                                                   'AND #r IN (:member, :gabbai)',
+                                                   f'AND {adults_only}',
                             'ExpressionAttributeNames': {'#r': 'role'},
-                            'ExpressionAttributeValues': {':f': family_id, ':member': 'member',
-                                                          ':gabbai': 'gabbai'}}},
+                            'ExpressionAttributeValues': {':f': family_id, **adult_values}}},
             ])
         except ClientError as error:
             if error.response['Error']['Code'] != 'TransactionCanceledException':
@@ -81,7 +80,7 @@ class FamiliesRepo:
                 raise
 
     def ensure_family(self, k, user_id):
-        """The familyId of a member or gabbai, creating a one-adult family when the membership has none.
+        """The familyId of an adult (authz.ADULTS), creating a one-adult family when the membership has none.
         None for a listener or a missing membership. Idempotent."""
         return self._ensure_family(k, user_id)[0]
 
@@ -93,12 +92,12 @@ class FamiliesRepo:
         return family if family and user_id in family['adults'] else None
 
     def live_adults(self, k, family):
-        """Membership items of the family's adults that are still member or gabbai and still belong to this
+        """Membership items of the family's adults that are still adults (authz.ADULTS) and still belong to this
         family (membership.familyId == familyId), in adult order (one batch_get). A departed adult (membership
         gone, a listener, or one who rejoined with another family) is left out."""
         found = self.batch_get([(f'K#{k}', f'M#{u}') for u in family['adults']])
         live = [found.get((f'K#{k}', f'M#{u}')) for u in family['adults']]
-        return [m for m in live if m and m.get('role') in MEMBER_ROLES and m.get('familyId') == family['familyId']]
+        return [m for m in live if m and authz.role_in(m, authz.ADULTS) and m.get('familyId') == family['familyId']]
 
     def prune_family(self, k, family):
         """(family, live memberships): the family without its departed adults. The pruned list is written back
@@ -381,7 +380,7 @@ class FamiliesRepo:
             if len(moved['adults']) != 1:
                 raise ApiError(409, 'partner_taken')
             table = self.table.name
-            member_roles = {':member': 'member', ':gabbai': 'gabbai'}
+            adults_only, member_roles = authz.role_condition(authz.ADULTS)
             kp, mp = tree_rules.people_of(keep), tree_rules.people_of(moved)
             if keep.get('people') is not None or moved.get('people') is not None:
                 merged = ('people', tree_rules.merge_people(kp, mp, keep_user, move_user))
@@ -402,11 +401,11 @@ class FamiliesRepo:
                             'ExpressionAttributeValues': {':v': int(moved['version'])}}},
                 {'Update': {'TableName': table, 'Key': self._key(k, f'M#{move_user}'),
                             'UpdateExpression': 'SET familyId = :keep',
-                            'ConditionExpression': 'familyId = :moved AND #r IN (:member, :gabbai)',
+                            'ConditionExpression': f'familyId = :moved AND {adults_only}',
                             'ExpressionAttributeNames': {'#r': 'role'},
                             'ExpressionAttributeValues': {':keep': keep_id, ':moved': move_id, **member_roles}}},
                 {'ConditionCheck': {'TableName': table, 'Key': self._key(k, f'M#{keep_user}'),
-                                    'ConditionExpression': 'familyId = :keep AND #r IN (:member, :gabbai)',
+                                    'ConditionExpression': f'familyId = :keep AND {adults_only}',
                                     'ExpressionAttributeNames': {'#r': 'role'},
                                     'ExpressionAttributeValues': {':keep': keep_id, **member_roles}}},
             ]

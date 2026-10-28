@@ -2,10 +2,9 @@
 from datetime import datetime, timedelta, timezone
 
 from . import inputs, sheet_rules, visibility
-from .authz import ROLES, require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE, new_id
-from .routes_groups import GABBAI
 from .routes_messages import _message_json, kehila_rules
 from .schedule_rules import week_expiry, week_start
 
@@ -49,7 +48,7 @@ def _names(ctx, k, ids):
 
 def _items_json(ctx, k, membership, friday, now):
     """The week's items as this role sees them, sorted by (group, order)."""
-    gabbai = membership['role'] == 'gabbai'
+    gabbai = authz.role_in(membership, authz.MANAGEMENT)
     stored = ctx.repo.list_sheet_items(k, friday.isoformat(), int(now.timestamp()))
     if not gabbai:
         stored = [i for i in stored if i['state'] == 'in']
@@ -67,7 +66,7 @@ def _items_json(ctx, k, membership, friday, now):
                 continue
             if not gabbai and not visibility.message_visible(membership, channels.get(message['channelId']), message, rules):
                 continue
-        elif (membership['role'] == 'listener' and item['type'] == 'celebration'
+        elif (authz.role_in(membership, authz.LISTENER_ONLY) and item['type'] == 'celebration'
               and not rules['celebration']['listeners']):
             continue
         out.append((item, message))
@@ -98,13 +97,13 @@ def _week_body(ctx, params, membership, friday):
 
 
 def get_sheet(ctx, params):
-    membership = require(ctx.repo, ctx.user_id, params['k'], ROLES)
+    membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
     return _week_body(ctx, params, membership, _friday(params))
 
 
 def add_item(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, GABBAI)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _friday(params)
     now = _now()
     if (friday - now.astimezone(sheet_rules.JERUSALEM).date() > timedelta(days=MAX_AHEAD_DAYS)
@@ -155,7 +154,7 @@ def _line(value, item):
 
 def set_item(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, GABBAI)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _friday(params)
     d = inputs.body_object(ctx)
     if not d or set(d) - {'state', 'line'}:
@@ -198,7 +197,7 @@ def set_item(ctx, params):
 
 def move_item(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, GABBAI)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _friday(params)
     d = inputs.body_object(ctx)
     if set(d) - {'direction'}:

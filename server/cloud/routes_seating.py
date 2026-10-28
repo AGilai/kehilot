@@ -5,10 +5,9 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from . import inputs, seating_rules as rules
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE, new_id
-from .routes_groups import GABBAI
 
 
 def _today():
@@ -27,7 +26,7 @@ def _layout_out(item):
 def list_layouts(ctx, params):
     """History, newest first. `current` marks the version in effect today (the latest one not after today)."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     today = _today().isoformat()
     layouts = sorted(ctx.repo.list_layouts(k), key=lambda i: i['effectiveFrom'], reverse=True)
     assigned = ctx.repo.list_assignments(k)
@@ -43,7 +42,7 @@ def list_layouts(ctx, params):
 
 
 def get_layout(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     item = ctx.repo.get_layout(params['k'], _friday(params))
     if not item:
         raise ApiError(404, 'layout_not_found')
@@ -52,7 +51,7 @@ def get_layout(ctx, params):
 
 def put_layout(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _friday(params)
     rules.not_in_past(friday, _today())
     d = inputs.body_object(ctx, rules.LAYOUT_BODY_MAX)
@@ -69,7 +68,7 @@ def put_layout(ctx, params):
 
 def get_assignments(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _friday(params)
     layout = ctx.repo.get_layout(k, friday)
     if not layout:
@@ -99,7 +98,7 @@ def _live_family(ctx, k, family_id):
 def put_assignments(ctx, params):
     """`{assignments: {seatId: 'family:<id>'|'holder:<id>'|null}, ifUpdatedAt}`: a merge; null frees the seat."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _friday(params)
     rules.not_in_past(friday, _today())
     d = inputs.body_object(ctx, rules.ASSIGN_BODY_MAX)
@@ -134,14 +133,14 @@ def _holder_out(item):
 
 
 def list_holders(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     return 200, [_holder_out(h) for h in sorted(ctx.repo.list_holders(params['k']),
                                                 key=lambda h: (h['createdAt'], h['holderId']))]
 
 
 def create_holder(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     name, phone = rules.validate_holder(inputs.body_object(ctx, rules.HOLDER_BODY_MAX))
     if len(ctx.repo.list_holders(k)) >= rules.MAX_HOLDERS:
         raise ApiError(409, 'too_many_holders')
@@ -158,7 +157,7 @@ def _holder(ctx, params):
 
 def update_holder(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     item = _holder(ctx, params)
     name, phone = rules.validate_holder(inputs.body_object(ctx, rules.HOLDER_BODY_MAX))
     return 200, _holder_out(ctx.repo.put_holder(k, item['holderId'], name, phone, item['createdAt'], item['updatedAt']))
@@ -168,7 +167,7 @@ def holder_seats(ctx, params):
     """Seats the holder holds per layout version (only versions where it holds any, oldest first; `past` = before the
     current Shabbat). The delete confirm shows these: a delete frees them in every version."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     item = _holder(ctx, params)
     ref = f'holder:{item["holderId"]}'
     current = rules.current_shabbat(_today()).isoformat()
@@ -185,7 +184,7 @@ def holder_seats(ctx, params):
 
 def delete_holder(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     item = _holder(ctx, params)
     ctx.repo.delete_holder(k, item['holderId'])
     return 204, None

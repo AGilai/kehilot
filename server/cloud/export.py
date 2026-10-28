@@ -8,9 +8,8 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 
-from . import media, schedule_rules, tags, tree_rules
+from . import authz, media, schedule_rules, tags, tree_rules
 from .posts import _split
-from .repo_families import MEMBER_ROLES
 
 log = logging.getLogger(__name__)
 MIN_PHOTO_MS = 4000
@@ -18,7 +17,7 @@ CHUNK = 64 * 1024
 
 
 def _family(repo, k, membership):
-    if membership.get('role') not in MEMBER_ROLES:
+    if not authz.role_in(membership, authz.ADULTS):
         return None
     family = repo.family_of(k, membership['userId'])
     if not family:

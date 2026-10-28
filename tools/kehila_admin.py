@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from server.cloud import authz  # noqa: E402
 from server.cloud.logo import validate_logo  # noqa: E402
 from server.cloud.repo import Repo  # noqa: E402
 
@@ -43,17 +44,17 @@ def gabbai_invite(repo, k):
     """One-use, 7-day gabbai invite for an existing Kehila (lock-out recovery). Exits if it does not exist."""
     if not repo.get_kehila(k):
         sys.exit(f'Kehila {k} does not exist')
-    return repo.create_invite(k, 'admin-cli', 'gabbai', 1, 7)
+    return repo.create_invite(k, 'admin-cli', authz.GABBAI, 1, 7)
 
 
 def backfill_families(repo, k=None):
-    """Give every member and gabbai without a family one (all Kehilot, or just `k`). Idempotent.
+    """Give every adult (authz.ADULTS) without a family one (all Kehilot, or just `k`). Idempotent.
     Returns (kehilot, created)."""
     kehilot = [k] if k else repo.list_kehila_ids()
     created = 0
     for kehila in kehilot:
         for membership in repo.list_members(kehila):
-            if membership.get('role') in ('member', 'gabbai') and not membership.get('familyId'):
+            if authz.role_in(membership, authz.ADULTS) and not membership.get('familyId'):
                 created += repo._ensure_family(kehila, membership['userId'])[1]
     return len(kehilot), created
 
@@ -102,7 +103,7 @@ def create_kehila(repo, name, lang='he', dev=False):
     if dev:
         settings['pollSeconds'] = 5
     k = repo.create_kehila(name, settings)
-    return k, repo.create_invite(k, 'admin-cli', 'gabbai', 1, 7)
+    return k, repo.create_invite(k, 'admin-cli', authz.GABBAI, 1, 7)
 
 
 def main(argv=None):

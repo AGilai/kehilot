@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timezone
 
 from . import inputs, media, visibility
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE, new_id
 from .routes_messages import _visible_message
@@ -11,7 +11,7 @@ from .routes_messages import _visible_message
 
 def create_upload(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     d = inputs.body_object(ctx)
     channel_id = d.get('channelId')
     if not isinstance(channel_id, str) or not ID_RE.fullmatch(channel_id):
@@ -35,7 +35,7 @@ def create_upload(ctx, params):
 
 def image_url(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     message, _ = _visible_message(ctx, k, membership, params['m'])
     image = message.get('image')
     if not image:

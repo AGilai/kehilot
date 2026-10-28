@@ -4,9 +4,8 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from . import inputs, schedule_rules as rules
-from .authz import ROLES, require
+from . import authz
 from .errors import ApiError
-from .routes_groups import GABBAI
 
 
 def _today():
@@ -19,7 +18,7 @@ def _friday_of(day):
 
 def get_schedule(ctx, params):
     """Any member or listener. Overrides of the current schedule week (Friday to Thursday) and the next."""
-    require(ctx.repo, ctx.user_id, params['k'], ROLES)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
     k = params['k']
     settings = (ctx.repo.get_kehila(k) or {}).get('settings') or {}
     saved = ctx.repo.get_schedule(k)
@@ -34,7 +33,7 @@ def get_schedule(ctx, params):
 def put_schedule(ctx, params):
     """`{version?: 1, sections, ifUpdatedAt?: int|null}`: full replace. Crossing bounds are allowed (notLaterThan wins)
     and reported in `warnings`."""
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     d = inputs.body_object(ctx, rules.SCHEDULE_BODY_MAX)
     check = rules.Checker('invalid_schedule')
     check.obj(d, '', ('sections',), ('version', 'ifUpdatedAt'))
@@ -57,7 +56,7 @@ def _week(params):
 
 def put_week(ctx, params):
     """One week's overrides (rows: time/hide, extra rows), replaced as a whole. Expire a week after the week ends."""
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     friday = _week(params)
     expires = rules.week_expiry(friday)
     now = int(time.time())
@@ -69,6 +68,6 @@ def put_week(ctx, params):
 
 
 def delete_week(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     ctx.repo.delete_week_overrides(params['k'], _week(params).isoformat())
     return 204, None

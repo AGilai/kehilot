@@ -2,15 +2,13 @@
 import logging
 import time
 
-from . import inputs, push, repo_messages, tree_rules
-from .authz import require
+from . import authz, inputs, push, repo_messages, tree_rules
 from .errors import ApiError
 from .families import clean_child, family_name
 from .ids import ID_RE, new_id
 
 log = logging.getLogger(__name__)
 
-MEMBERS = ('member', 'gabbai')
 MAX_CHILDREN = 20
 SENT_KEEP = 7 * 86400  # a sent marker is ignored this long after it expired
 
@@ -23,7 +21,7 @@ def notice_of(repo, k, membership):
         return None
     found = repo.batch_get([(f'K#{k}', f'M#{notice["byUserId"]}'), (f'K#{k}', f'M#{notice["partnerUserId"]}')])
     partner = found.get((f'K#{k}', f'M#{notice["partnerUserId"]}'))
-    if not partner or partner.get('role') not in MEMBERS:
+    if not authz.role_in(partner, authz.ADULTS):
         return None
     by = found.get((f'K#{k}', f'M#{notice["byUserId"]}')) or {}
     return {'gabbaiName': by.get('displayName', ''), 'partnerName': partner.get('displayName', '')}
@@ -38,7 +36,7 @@ def live_received(repo, k, user_id, live_count, now):
     requests = repo.received_requests(k, user_id, now)
     found = repo.batch_get([(f'K#{k}', f'M#{r["fromUserId"]}') for r in requests])
     return [(r, found[(f'K#{k}', f'M#{r["fromUserId"]}')]) for r in requests
-            if (found.get((f'K#{k}', f'M#{r["fromUserId"]}')) or {}).get('role') in MEMBERS]
+            if authz.role_in(found.get((f'K#{k}', f'M#{r["fromUserId"]}')), authz.ADULTS)]
 
 
 def request_card(repo, k, user_id, membership):
@@ -95,7 +93,7 @@ def _family_id(ctx, k, membership):
 
 def get_family(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, MEMBERS)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     return 200, family_view(ctx, k, membership)
 
 
@@ -108,7 +106,7 @@ def _child_id(params):
 
 def add_child(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, MEMBERS)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     child = {'id': new_id(), **clean_child(inputs.body_object(ctx), repo_messages.local_date())}
 
     def add(children):
@@ -121,7 +119,7 @@ def add_child(ctx, params):
 
 def edit_child(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, MEMBERS)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     child_id = _child_id(params)
     fields = clean_child(inputs.body_object(ctx), repo_messages.local_date())
     updated = {'id': child_id, **fields}
@@ -136,7 +134,7 @@ def edit_child(ctx, params):
 
 def delete_child(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, MEMBERS)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     child_id = _child_id(params)
 
     def remove(children):
@@ -159,10 +157,10 @@ def _user_id(value):
 
 def create_request(ctx, params):
     k, repo = params['k'], ctx.repo
-    require(repo, ctx.user_id, k, MEMBERS)
+    authz.require(repo, ctx.user_id, k, authz.ADULTS)
     to_user = _user_id(inputs.body_object(ctx).get('toUserId'))
     target = repo.get_membership(k, to_user)
-    if to_user == ctx.user_id or not target or target.get('role') not in MEMBERS:
+    if to_user == ctx.user_id or not authz.role_in(target, authz.ADULTS):
         raise ApiError(400, 'invalid_to_user_id')
     if _live_pair(repo, k, ctx.user_id):
         raise ApiError(409, 'already_linked')
@@ -177,7 +175,7 @@ def create_request(ctx, params):
 
 
 def withdraw_request(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.ADULTS)
     ctx.repo.withdraw_request(params['k'], ctx.user_id)
     return 204, None
 
@@ -191,7 +189,7 @@ def _from_user(params):
 
 def confirm_request(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     from_user = _from_user(params)
     ctx.repo.link(k, keep_user=ctx.user_id, move_user=from_user, request_from=from_user)
     return 200, _refreshed_view(ctx, k)
@@ -199,25 +197,25 @@ def confirm_request(ctx, params):
 
 def decline_request(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     ctx.repo.decline_request(k, ctx.user_id, _from_user(params), int(time.time()))
     return 204, None
 
 
 def unlink(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     ctx.repo.unlink(k, ctx.user_id)
     return 200, _refreshed_view(ctx, k)
 
 
 def candidates(ctx, params):
     k, repo = params['k'], ctx.repo
-    require(repo, ctx.user_id, k, MEMBERS)
+    authz.require(repo, ctx.user_id, k, authz.ADULTS)
     now = int(time.time())
     members = repo.list_members(k)
-    family_of_user = {m['userId']: m.get('familyId') for m in members if m['role'] in MEMBERS}
-    others = [m for m in members if m['role'] in MEMBERS and m['userId'] != ctx.user_id]
+    family_of_user = {m['userId']: m.get('familyId') for m in members if authz.role_in(m, authz.ADULTS)}
+    others = [m for m in members if authz.role_in(m, authz.ADULTS) and m['userId'] != ctx.user_id]
     found = repo.batch_get([(f'K#{k}', f'F#{m["familyId"]}') for m in others if m.get('familyId')])
     cooldowns = repo.decline_markers(k, ctx.user_id, now)
     out = []
@@ -240,7 +238,7 @@ def _live_pair(repo, k, user_id):
 
 def admin_families(ctx, params):
     k, repo = params['k'], ctx.repo
-    require(repo, ctx.user_id, k, ('gabbai',))
+    authz.require(repo, ctx.user_id, k, authz.MANAGEMENT)
     families = repo.list_families(k)
     keys = [(f'K#{k}', f'M#{u}') for f in families for u in f['adults']]
     keys += [(f'U#{u}', 'PROFILE') for f in families for u in f['adults']]
@@ -248,7 +246,7 @@ def admin_families(ctx, params):
     rows = []
     for family in families:
         live = [found[(f'K#{k}', f'M#{u}')] for u in family['adults']
-                if (found.get((f'K#{k}', f'M#{u}')) or {}).get('role') in MEMBERS
+                if authz.role_in(found.get((f'K#{k}', f'M#{u}')), authz.ADULTS)
                 and found[(f'K#{k}', f'M#{u}')].get('familyId') == family['familyId']]
         if not live:
             continue
@@ -267,13 +265,13 @@ def admin_families(ctx, params):
 
 def gabbai_link(ctx, params):
     k, repo = params['k'], ctx.repo
-    require(repo, ctx.user_id, k, ('gabbai',))
+    authz.require(repo, ctx.user_id, k, authz.MANAGEMENT)
     ids = inputs.body_object(ctx).get('userIds')
     if not isinstance(ids, list) or len(ids) != 2 or not all(isinstance(u, str) and ID_RE.fullmatch(u) for u in ids) \
             or ids[0] == ids[1]:
         raise ApiError(400, 'invalid_user_ids')
     a, b = ids
-    if any((repo.get_membership(k, u) or {}).get('role') not in MEMBERS for u in ids):
+    if any(not authz.role_in(repo.get_membership(k, u), authz.ADULTS) for u in ids):
         raise ApiError(400, 'invalid_user_ids')
     try:
         family_id = repo.link(k, keep_user=a, move_user=b)

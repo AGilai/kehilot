@@ -2,7 +2,7 @@
 import logging
 import re
 
-from . import accounts
+from . import accounts, authz
 from .ids import new_id
 
 log = logging.getLogger(__name__)
@@ -10,7 +10,7 @@ EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 MAX_EMAIL = 254
 MAX_NAME = 60
 MAX_GROUPS = 20
-ROLES = ('listener', 'member', 'gabbai')
+ROLES = (authz.LISTENER, authz.MEMBER, authz.GABBAI)  # no tech row: tech is given only in the app
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 
 
@@ -45,7 +45,7 @@ def clean_row(row):
             or not all(isinstance(g, str) for g in groups)):
         return None, 'invalid_groups'
     return {'email': email, 'first': first, 'last': last, 'role': role, 'groups': groups,
-            'classification': '' if role == 'listener' else classification}, None
+            'classification': '' if authz.in_set(role, authz.LISTENER_ONLY) else classification}, None
 
 
 MIN_REMAINING_MS = 3000
@@ -80,7 +80,7 @@ def import_rows(repo, client, pool_id, k, rows, remaining_ms=None):
         repo.put_profile_if_absent(user_id, row['first'], row['last'], lang)
         status = repo.import_membership(k, user_id, f"{row['first']} {row['last']}".strip(), row['role'],
                                         row['classification'], broadcast_default)
-        if row['role'] != 'listener' or status == 'exists':  # ensure skips listeners; it is idempotent
+        if not authz.in_set(row['role'], authz.LISTENER_ONLY) or status == 'exists':  # ensure skips listeners; it is idempotent
             try:
                 repo.ensure_family(k, user_id)
             except Exception:  # the lazy path (GET .../family) creates it later

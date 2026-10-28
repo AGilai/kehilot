@@ -5,7 +5,7 @@ from unittest import mock
 from moto import mock_aws
 
 from server.cloud import handler as handler_module
-from server.cloud.authz import require
+from server.cloud import authz
 from server.cloud.identity import Caller, resolve_user_id
 from server.cloud.ids import new_id
 from server.cloud.repo import Repo
@@ -68,7 +68,7 @@ class HandlerTest(unittest.TestCase):
 
     def test_listener_blocked_by_role_filter(self):
         with self.assertRaises(ApiError) as caught:
-            require(self.repo, self.user_id, self.ka, ('gabbai',))
+            authz.require(self.repo, self.user_id, self.ka, authz.MANAGEMENT)
         self.assertEqual((caught.exception.status, caught.exception.code), (403, 'forbidden'))
 
     def test_malformed_json_body_is_400(self):

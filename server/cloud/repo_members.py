@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
-from . import schedule_rules, type_rules as type_rules_module
+from . import authz, schedule_rules, type_rules as type_rules_module
 from .errors import ApiError
 from .ids import new_id
 
@@ -93,7 +93,7 @@ class MembersRepo:
     def import_membership(self, k, user_id, display_name, role, classification, broadcast_default):
         """Gabbai's list import. Returns 'added' (new membership), 'upgraded' (a listener becomes member or
         gabbai and the pending request goes, one transaction) or 'exists' (anything else is left as it is)."""
-        can_broadcast = bool(broadcast_default) if role == 'member' else False
+        can_broadcast = bool(broadcast_default) if authz.in_set(role, authz.MEMBER_ONLY) else False
         membership = {'pk': f'K#{k}', 'sk': f'M#{user_id}', 'gsi1pk': f'U#{user_id}', 'gsi1sk': f'K#{k}',
                       'kehilaId': k, 'userId': user_id, 'role': role, 'classification': classification,
                       'canBroadcast': can_broadcast, 'notify': {}, 'displayName': display_name}
@@ -106,7 +106,7 @@ class MembersRepo:
             if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
                 raise
             existing = error.response.get('Item', {}).get('role', {}).get('S')
-        if existing != 'listener' or role == 'listener':
+        if not authz.in_set(existing, authz.LISTENER_ONLY) or authz.in_set(role, authz.LISTENER_ONLY):
             return 'exists'
         upgrade = {'Update': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': f'M#{user_id}'},
                               'UpdateExpression': 'SET #r = :role, classification = :c, canBroadcast = :b',
@@ -409,7 +409,7 @@ class MembersRepo:
         if not invite:
             raise ApiError(404, 'invite_not_found')
         k = invite['kehilaId']
-        is_member = invite['role'] == 'member'
+        is_member = authz.role_in(invite, authz.MEMBER_ONLY)
         classification = invite.get('classification', '') if is_member else ''
         can_broadcast = bool(broadcast_default) if is_member else False
         membership = {'pk': f'K#{k}', 'sk': f'M#{user_id}', 'gsi1pk': f'U#{user_id}', 'gsi1sk': f'K#{k}',
@@ -554,7 +554,7 @@ class AdminRepo:
                                UpdateExpression='SET settings.memberBroadcastDefault = :a',
                                ExpressionAttributeValues={':a': allow})
         for item in self.list_members(k):
-            if item['role'] == 'member':
+            if authz.role_in(item, authz.MEMBER_ONLY):
                 try:
                     self.table.update_item(Key=self._key(k, item['sk']), UpdateExpression='SET canBroadcast = :a',
                                            ConditionExpression='#r = :member',
@@ -581,9 +581,11 @@ class AdminRepo:
                   'UpdateExpression': expression.strip(), 'ConditionExpression': '#r = :seen',
                   'ExpressionAttributeNames': names, 'ExpressionAttributeValues': values}
         if 'role' in fields:  # never to or from listener, even if the role changed since the caller looked
-            update['ConditionExpression'] += ' AND #r IN (:member, :gabbai)'
-            values[':member'], values[':gabbai'] = 'member', 'gabbai'
-        if seen_role == 'gabbai' and fields.get('role', 'gabbai') != 'gabbai':
+            not_listener, roles = authz.role_condition(authz.NON_LISTENERS)
+            update['ConditionExpression'] += f' AND {not_listener}'
+            values.update(roles)
+        if authz.in_set(seen_role, authz.MANAGEMENT) and not authz.in_set(fields.get('role', seen_role),
+                                                                           authz.MANAGEMENT):
             return self._without_last_gabbai(k, user_id, [{'Update': update}])
         self._run(k, [{'Update': update}])
 
@@ -715,7 +717,7 @@ class AdminRepo:
                              'ConditionExpression': '#r = :seen', 'ExpressionAttributeNames': {'#r': 'role'},
                              'ExpressionAttributeValues': {':seen': seen_role}}},
                  {'Delete': {'TableName': self.table.name, 'Key': self._key(k, f'REQ#{user_id}')}}]
-        if seen_role == 'gabbai':
+        if authz.in_set(seen_role, authz.MANAGEMENT):
             return self._without_last_gabbai(k, user_id, items)
         self._run(k, items)
 
@@ -736,7 +738,7 @@ class AdminRepo:
         """
         for _ in range(3):
             witness = next((m['userId'] for m in self.list_members(k)
-                            if m['role'] == 'gabbai' and m['userId'] != user_id), None)
+                            if authz.role_in(m, authz.MANAGEMENT) and m['userId'] != user_id), None)
             if witness is None:
                 raise ApiError(409, 'last_gabbai')
             try:
@@ -747,9 +749,10 @@ class AdminRepo:
         raise ApiError(409, 'try_again')
 
     def _guarded(self, k, witness, items):
+        still_gabbai, gabbai = authz.role_condition(authz.MANAGEMENT)
         check = {'ConditionCheck': {'TableName': self.table.name, 'Key': self._key(k, f'M#{witness}'),
-                                    'ConditionExpression': '#r = :gabbai', 'ExpressionAttributeNames': {'#r': 'role'},
-                                    'ExpressionAttributeValues': {':gabbai': 'gabbai'}}}
+                                    'ConditionExpression': still_gabbai, 'ExpressionAttributeNames': {'#r': 'role'},
+                                    'ExpressionAttributeValues': gabbai}}
         try:
             self._txn([check, *items])
         except ClientError as error:

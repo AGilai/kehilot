@@ -275,11 +275,35 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 - Base URL: the `api_url` Terraform output. All paths below start with `/v1` except `/health`. Bodies are JSON objects (max 16 KB; `isBase64Encoded` bodies are decoded). Responses are JSON; 204 has an empty body.
 - Authentication: `Authorization: <Cognito ID token>` (the `Bearer ` prefix is accepted). A missing or invalid token is rejected by API Gateway with 401 before the Lambda runs (that body is API Gateway's own, not an error code). Public routes: `GET /health`, `GET /v1/invites/{code}` and `POST /v1/reports/anonymous`.
 - Errors are codes only: `{"error": "<snake_case_code>"}`. The server never sends prose; the app translates the code. IDs (`kehilaId`, `userId`, `channelId`, `messageId`, `replyId`) are 26-character ULIDs.
-- Roles: `listener`, `member`, `gabbai`. A caller who is not in the Kehila gets 404 `kehila_not_found` (a Kehila's existence is not revealed); a caller whose role is too low gets 403 `forbidden`. Listeners see only channels with `listenersCanRead = true`, and cannot post, reply, join, create invites or see the member list.
+- Roles: `listener`, `member`, `gabbai`, `tech` (see Roles below). A caller who is not in the Kehila gets 404 `kehila_not_found` (a Kehila's existence is not revealed); a caller whose role is too low gets 403 `forbidden`. Listeners see only channels with `listenersCanRead = true`, and cannot post, reply, join, create invites or see the member list.
 - **Times**: every time field (`expiresAt`, `createdAt`) is a number of Unix **seconds**, not milliseconds and not an ISO string.
 - Text limits: names 60 characters, title 120, body 4000, reply 1000. Supported `lang`: `he`, `en`.
 - **Retry on `try_again`**: HTTP 409 (or 503 from a batch read) with `{"error": "try_again"}` means a DynamoDB transaction conflicted. Nothing was changed; the client should retry the same request after a short delay (about 0.5 s, a few attempts).
 - **Change feed hold-back**: `GET /changes` never returns changes younger than 2 seconds (`HOLD_BACK_MS = 2000`), because IDs are generated on several containers and a change can commit after a later one. A change written now appears in the feed after about 2 s plus the next poll. The `cursor` the feed returns never passes the hold-back line.
+
+### Roles
+
+Four roles, stored on the membership as `role`: `listener` (guest), `member`, `gabbai`, and `tech` (shown as "טכני").
+**A tech has every right of a gabbai** (owner decision, 2026-10-28), including granting and changing the gabbai role,
+and is also a member (family, tree, seat form, phone list). The only differences are the label and attribution: a
+tech is shown as "טכני", never as "גבאי". A `tech` cannot be assigned yet: no route, invite, import or CLI gives the
+role.
+
+Every authorization decision on the server picks one named role set from `server/cloud/authz.py`; no route compares a
+role by hand (`server/tests/cloud/test_authz_sets.py` enforces it, and that every set holding `gabbai` holds `tech`):
+
+| Set | Roles | Used for |
+|---|---|---|
+| `ALL` | listener, member, gabbai, tech | anyone in the Kehila |
+| `NON_LISTENERS` | member, gabbai, tech | role changes never go to or from listener |
+| `ADULTS` | member, gabbai, tech | an adult with a family: family, tree, seat form, phone list, directory, replies, invites |
+| `MANAGEMENT` | gabbai, tech | everything this document calls "gabbai" or "Management (gabbai)" |
+| `LISTENER_ONLY` | listener | asking to become a member |
+| `MEMBER_ONLY` | member | rules for plain members only: the broadcast right, appointed group admins |
+
+**At least one gabbai or tech always remains.** The `last_gabbai` guard (409 `last_gabbai`, code unchanged) refuses
+the role change, removal, leaving or account deletion that would leave the Kehila with neither; its witness is any
+other gabbai or tech.
 
 ### Items (families)
 
@@ -305,7 +329,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 | PUT | `/v1/me/profile` | signed in | `{firstName (required), lastName?, lang: "he"\|"en"}` | 200 `{firstName, lastName, lang, phone}` (`phone`: the stored number or null) | 400 `invalid_body`, `invalid_json`, `invalid_first_name`, `invalid_last_name`, `invalid_lang` |
 | PUT | `/v1/me/devices` | signed in | `{token: "ExponentPushToken[...]", platform: "ios"\|"android"\|"web"}` | 204; a token already registered to another user moves to the caller | 400 `invalid_token`, `invalid_platform`, `invalid_body` |
 | DELETE | `/v1/me/devices/{token}` | signed in | the token in the path, percent-encoded (`ExponentPushToken%5Bxxxx%5D`) | 204, also when it was not registered | - |
-| DELETE | `/v1/me` | signed in | query `deletePosts=1` (any other value or none: posts stay) | 204; deletes the account's data (names on messages are blanked, counts are kept) and the Cognito user | 409 `last_gabbai` (sole gabbai of any Kehila: hand over first), 503 `try_again` (only with `deletePosts=1`, when the time ran out: **repeat the same request**; it continues where it stopped), 500 `internal` (**retry the same request**: the operation is idempotent and a retry finishes the job; the client may repeat it until it gets 204). After success the account is a tombstone for 1 day: any signed-in call with the old token returns 401 `account_deleted` (the app should sign out), except a repeated `DELETE /v1/me`, which still answers 204 |
+| DELETE | `/v1/me` | signed in | query `deletePosts=1` (any other value or none: posts stay) | 204; deletes the account's data (names on messages are blanked, counts are kept) and the Cognito user | 409 `last_gabbai` (sole gabbai or tech of any Kehila: hand over first), 503 `try_again` (only with `deletePosts=1`, when the time ran out: **repeat the same request**; it continues where it stopped), 500 `internal` (**retry the same request**: the operation is idempotent and a retry finishes the job; the client may repeat it until it gets 204). After success the account is a tombstone for 1 day: any signed-in call with the old token returns 401 `account_deleted` (the app should sign out), except a repeated `DELETE /v1/me`, which still answers 204 |
 
 #### Kehila, invites and joining
 
@@ -604,7 +628,7 @@ Posting a message, a reply, a membership request, a group join request or a fami
 | 409 | `group_name_taken`, `too_many_groups`, `group_in_use` | group rules (see Management) |
 | 409 | `tag_exists`, `too_many_tags` | role tag rules (see Management) |
 | 409 | `cannot_move`, `too_many_items` | weekly sheet items (see Weekly sheet items) |
-| 409 | `last_gabbai` | the action would leave the Kehila with no gabbai |
+| 409 | `last_gabbai` | the action would leave the Kehila with no gabbai and no tech |
 | 409 | `role_change_not_allowed` | role changes are only member and gabbai |
 | 409 | `replies_not_allowed`, `cannot_reply_to_own` | reply rules |
 | 409 | `target_left` | the message's target family is no longer a member of the Kehila (left, removed or deleted) or can no longer read the channel (left its groups): the app should hide the reply box |

@@ -4,7 +4,7 @@ import os
 import re
 from urllib.parse import unquote
 
-from . import inputs, media, posts
+from . import authz, inputs, media, posts
 from .errors import ApiError
 
 log = logging.getLogger(__name__)
@@ -55,23 +55,23 @@ def finish_deleted_account(caller):
 
 
 def delete_account(ctx, params):
-    """Refuse while last gabbai anywhere; then data first, Cognito last (a retry finishes either half)."""
+    """Refuse while the last gabbai or tech anywhere; then data first, Cognito last (a retry finishes either half)."""
     if not os.environ.get('USER_POOL_ID'):
         raise RuntimeError('USER_POOL_ID not set')  # misconfiguration: fail before deleting anything
     memberships = ctx.repo.list_memberships(ctx.user_id)
-    gabbai_of = [m['kehilaId'] for m in memberships if m['role'] == 'gabbai']
-    for k in gabbai_of:
-        if not any(m['role'] == 'gabbai' and m['userId'] != ctx.user_id for m in ctx.repo.list_members(k)):
+    managing = {m['kehilaId']: m['role'] for m in memberships if authz.role_in(m, authz.MANAGEMENT)}
+    for k in managing:
+        if not any(authz.role_in(m, authz.MANAGEMENT) and m['userId'] != ctx.user_id for m in ctx.repo.list_members(k)):
             raise ApiError(409, 'last_gabbai')
     n_messages = n_replies = 0
     if ctx.query.get('deletePosts') == '1':  # first: a 503 try_again leaves membership intact, the retry continues
         n_messages, n_replies = posts.delete_posts(
             ctx.repo, ctx.user_id, getattr(ctx.context, 'get_remaining_time_in_millis', None))
     for m in memberships:  # before the purge, so the scan never meets the person in a family
-        if m['role'] in ('member', 'gabbai'):
+        if authz.role_in(m, authz.ADULTS):
             ctx.repo.drop_adult(m['kehilaId'], ctx.user_id)
-    for k in gabbai_of:  # guarded removal: re-checks the other gabbai atomically (409 last_gabbai on a race)
-        ctx.repo.remove_member(k, ctx.user_id, 'gabbai')
+    for k, role in managing.items():  # guarded removal: re-checks another gabbai or tech atomically (409 last_gabbai)
+        ctx.repo.remove_member(k, ctx.user_id, role)
     reports = ctx.repo.list_user_reports(ctx.user_id)
     for report in reports:  # images before items: a 503 retry still finds them
         if report.get('image'):

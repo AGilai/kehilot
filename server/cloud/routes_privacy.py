@@ -4,13 +4,10 @@ Nothing here logs a phone number, a name or the list."""
 import time
 
 from . import consents, inputs, tags
-from .authz import ROLES, require
+from . import authz
 from .errors import ApiError
 from .families import family_name
 from .phones import normalize_phone
-
-MEMBERS = ('member', 'gabbai')
-
 
 def put_phone(ctx, params):
     d = inputs.body_object(ctx)
@@ -29,7 +26,7 @@ def put_phone(ctx, params):
 
 def put_switch(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     show = inputs.boolean(inputs.body_object(ctx), 'show')
     if show:
         profile = ctx.repo.get_profile(ctx.user_id)
@@ -44,9 +41,9 @@ def put_switch(ctx, params):
 
 def phone_list(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     repo = ctx.repo
-    on = {m['userId'] for m in repo.list_members(k) if m.get('role') in MEMBERS and m.get('showPhone')}
+    on = {m['userId'] for m in repo.list_members(k) if authz.role_in(m, authz.ADULTS) and m.get('showPhone')}
     families = []  # (family, live adult memberships) for families with at least one adult switched on
     for family in repo.list_families(k):
         if on.intersection(family['adults']):
@@ -84,13 +81,13 @@ def age13_required(repo, user_id):
 def dismiss_card(ctx, params):
     """One route for the one-time cards. `imported` is for any role; `gabbai_link`, `seat_link` and `phone` for M/G."""
     k, card = params['k'], params['card']
-    require(ctx.repo, ctx.user_id, k, ROLES)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     if card not in ('gabbai_link', 'imported', 'phone', 'seat_link'):
         raise ApiError(400, 'invalid_card')
     if card == 'imported':
         ctx.repo.dismiss_import_notice(k, ctx.user_id)
         return 204, None
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     if card == 'gabbai_link':
         ctx.repo.clear_family_notice(k, ctx.user_id)
     elif card == 'seat_link':

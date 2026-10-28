@@ -8,13 +8,11 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from . import inputs, seating_link as link, seating_rules as rules
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE
-from .routes_groups import GABBAI
 from .routes_seating import _holder, _live_family
 
-MEMBER_ROLES = ('member', 'gabbai')
 CERTAIN = ('phone-surname', 'surname-initial')  # what may auto-link; everything else (a bare phone too) stays a suggestion
 UNDO_SECONDS = 14 * 86400
 KEEP_SECONDS = 30 * 86400  # the record (names, phone) is erased by the table TTL after this
@@ -29,7 +27,7 @@ def _profiles(ctx, user_ids):
 def _families(ctx, k):
     """{familyId: {names, people: {userId: person}}} from the live memberships and their profiles. The person of an
     adult carries the family's first names and phones (an initial or a phone matches either adult)."""
-    members = [m for m in ctx.repo.list_members(k) if m.get('role') in MEMBER_ROLES and m.get('familyId')]
+    members = [m for m in ctx.repo.list_members(k) if authz.role_in(m, authz.ADULTS) and m.get('familyId')]
     profiles = _profiles(ctx, [m['userId'] for m in members])
     out = {}
     for m in members:
@@ -47,7 +45,7 @@ def _families(ctx, k):
 
 def link_suggestions(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     holders = ctx.repo.list_holders(k)
     if not holders:
         return 200, {'count': 0, 'suggestions': []}
@@ -102,7 +100,7 @@ def link_holder(ctx, params):
     """`{familyId, ifUpdatedAt?}`: the holder's seats join the family's in every version, the open and future weeks'
     answers follow, the holder is deleted, and each adult gets a one-time Home card."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     item = _holder(ctx, params)
     d = inputs.body_object(ctx, 1024)
     if not set(d) <= {'familyId', 'ifUpdatedAt'} or 'familyId' not in d:
@@ -174,7 +172,7 @@ def certain_holder(ctx, k, adults):
     mine = set(ids)
     holding = {r for item in ctx.repo.list_assignments(k).values() for r in item['assignments'].values()}
     # (userId, can't-be-ruled-out-when-unknown): members not yet seated and requesters could be a holder's own household
-    people = {m['userId']: m.get('role') in MEMBER_ROLES and f'family:{m.get("familyId")}' not in holding
+    people = {m['userId']: authz.role_in(m, authz.ADULTS) and f'family:{m.get("familyId")}' not in holding
               for m in ctx.repo.list_members(k) if m['userId'] not in mine}
     for r in ctx.repo.list_requests(k):
         uid = r['sk'][len('REQ#'):]
@@ -239,7 +237,7 @@ def auto_link_family(ctx, k, user_id):
     Never logs names."""
     membership = ctx.repo.get_membership(k, user_id)
     family_id = (membership or {}).get('familyId')
-    if not family_id or membership.get('role') not in MEMBER_ROLES:
+    if not family_id or not authz.role_in(membership, authz.ADULTS):
         return None
     family = ctx.repo.get_family(k, family_id)
     adults = ctx.repo.live_adults(k, family) if family else []
@@ -300,7 +298,7 @@ def try_auto_link(ctx, k, user_id):
 
 def list_auto_links(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     now = int(time.time())
     items = [{'holderId': r['holderId'], 'holderName': r['holderName'], 'familyId': r['familyId'],
               'familyName': r['familyName'], 'seats': int(r['seats']), 'state': 'pending' if r['state'] == 'pending' else 'done', 'at': int(r['at']),
@@ -312,7 +310,7 @@ def list_auto_links(ctx, params):
 
 def _auto_record(ctx, params, live_states):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     holder_id = params['holderId']
     rec = ctx.repo.get_auto_link(k, holder_id) if ID_RE.fullmatch(holder_id) else None
     if not rec or rec.get('state') in ('undone', 'expired'):

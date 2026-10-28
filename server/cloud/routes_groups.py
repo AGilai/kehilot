@@ -2,11 +2,10 @@
 from collections import Counter
 
 from . import inputs, push, visibility
-from .authz import ROLES, require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE
 
-GABBAI = ('gabbai',)
 MAX_GROUPS = 20
 
 
@@ -44,11 +43,11 @@ def _existing_group(ctx, params):
 
 def list_groups(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     everyone = ctx.repo.list_members(k)
     members = Counter(g for m in everyone for g in m.get('groups') or ())
     channels = Counter(g for c in ctx.repo.list_channels(k) for g in c.get('groups') or ())
-    admins = Counter(g for m in everyone if m['role'] == 'member'
+    admins = Counter(g for m in everyone if authz.role_in(m, authz.MEMBER_ONLY)
                      for g in m.get('adminGroups') or () if visibility.is_group_admin(m, g))
     present = {m['userId'] for m in everyone}
     pending = Counter(r['groupId'] for r in ctx.repo.list_group_requests_all(k) if r['userId'] in present)
@@ -60,7 +59,7 @@ def list_groups(ctx, params):
 
 def create_group(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     name = _group_name(ctx, k)
     if len(ctx.repo.list_groups(k)) >= MAX_GROUPS:
         raise ApiError(409, 'too_many_groups')
@@ -70,7 +69,7 @@ def create_group(ctx, params):
 
 def rename_group(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     name = _group_name(ctx, k, params['g'])
     group_id = _existing_group(ctx, params)
     item = ctx.repo.rename_group(k, group_id, name)
@@ -79,7 +78,7 @@ def rename_group(ctx, params):
 
 def delete_group(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     group_id = _existing_group(ctx, params)
     if group_id in {g['sk'][len('G#'):] for g in ctx.repo.list_groups(k)} and any(
             group_id in (c.get('groups') or ()) for c in ctx.repo.list_channels(k)):
@@ -100,7 +99,7 @@ def _group_of(ctx, k, params):
 def _admin_of(ctx, params):
     """(k, group_id, caller membership) after checking the caller administers the group."""
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ROLES)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     group_id = _group_of(ctx, k, params)
     if not visibility.is_group_admin(membership, group_id):
         raise ApiError(403, 'forbidden')
@@ -114,7 +113,7 @@ def _user(ctx, k, params):
 
 def my_groups(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ROLES)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     mine = set(membership.get('groups') or ())
     asked = {r['groupId'] for r in ctx.repo.list_my_group_requests(k, ctx.user_id)}
     rows = [{'groupId': g['sk'][len('G#'):], 'name': g['name'], 'isMember': g['sk'][len('G#'):] in mine,
@@ -125,7 +124,7 @@ def my_groups(ctx, params):
 
 def request_join(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ROLES)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     group_id = _group_of(ctx, k, params)
     if group_id in (membership.get('groups') or ()):
         raise ApiError(409, 'already_in_group')
@@ -136,7 +135,7 @@ def request_join(ctx, params):
 
 def withdraw_request(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, ROLES)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     if ID_RE.fullmatch(params['g']):
         ctx.repo.withdraw_group_request(k, params['g'], ctx.user_id)
     return 204, None
@@ -187,7 +186,7 @@ def remove_group_member(ctx, params):
     if not target or group_id not in (target.get('groups') or ()):
         raise ApiError(404, 'member_not_found')
     if (params['u'] != ctx.user_id and visibility.is_group_admin(target, group_id)
-            and not visibility.is_gabbai(caller)):
+            and not visibility.is_management(caller)):
         raise ApiError(403, 'forbidden')
     ctx.repo.remove_member_group(k, params['u'], group_id)
     return 204, None
@@ -195,7 +194,7 @@ def remove_group_member(ctx, params):
 
 def leave_group(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, ROLES)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     if ID_RE.fullmatch(params['g']):
         ctx.repo.remove_member_group(k, ctx.user_id, params['g'])
     return 204, None
@@ -203,14 +202,14 @@ def leave_group(ctx, params):
 
 def _appoint(ctx, params, admin):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     group_id = _group_of(ctx, k, params)
     target = _user(ctx, k, params)
     if not target:
         raise ApiError(404, 'member_not_found')
-    if target['role'] == 'gabbai':  # already an admin of every group
+    if authz.role_in(target, authz.MANAGEMENT):  # already an admin of every group
         return 204, None
-    if target['role'] != 'member':
+    if not authz.role_in(target, authz.MEMBER_ONLY):
         if admin:
             raise ApiError(400, 'invalid_role')
         return 204, None

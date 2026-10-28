@@ -6,11 +6,9 @@ import time
 from datetime import datetime
 
 from . import inputs, seating_rules as rules, seating_week as wk
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE
-from .routes_families import MEMBERS
-from .routes_groups import GABBAI
 
 _REF = re.compile(r'(family|holder):([0-9A-HJKMNP-TV-Z]{26})')
 BODY_MAX = 200 * 1024
@@ -129,7 +127,7 @@ def _family_id(ctx, k):
 
 def get_mine(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     week = ctx.query.get('week') or rules.current_shabbat(_now().date()).isoformat()
     return 200, _out_member(ctx, k, _week(week, _now().date()), _family_id(ctx, k))
 
@@ -137,7 +135,7 @@ def get_mine(ctx, params):
 def put_mine(ctx, params):
     """`{week, prayer, released: [orders | own seat ids]}` replaces the released set of his family for that prayer."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     d = inputs.body_object(ctx, 8 * 1024)
     if set(d) != {'week', 'prayer', 'released', 'ifUpdatedAt'}:
         raise ApiError(400, 'invalid_body')
@@ -196,7 +194,7 @@ def _prayer_out(item, held):
 
 def get_week(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _week(params['week'], _now().date())
     layout = ctx.repo.layout_for(k, friday)
     if not layout:
@@ -214,7 +212,7 @@ def get_week(ctx, params):
 def put_week(ctx, params):
     """On behalf: `{prayer, released: {seatId: bool}, ifUpdatedAt}`, any time, any assigned seat, marked gabbai."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _week(params['week'], _now().date())
     d = inputs.body_object(ctx, 64 * 1024)
     if set(d) != {'prayer', 'released', 'ifUpdatedAt'}:
@@ -248,7 +246,7 @@ def put_week(ctx, params):
 def apply_responses(ctx, params):
     """`{event, rows:[{household, released, requests?}]}`; later rows win. Counts above the seats clamp (warning)."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _week(params['week'], _now().date())
     d = inputs.body_object(ctx, BODY_MAX)
     if set(d) != {'event', 'rows'} or not isinstance(d['rows'], list) or len(d['rows']) > wk.MAX_ROWS:
@@ -338,7 +336,7 @@ def undo_responses(ctx, params):
     """Undo the last apply for that week and event: seats still as the apply left them go back; seats changed
     since (by a member or a gabbai) stay."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     friday = _week(params['week'], _now().date())
     d = inputs.body_object(ctx, 1024)
     if set(d) != {'event'}:

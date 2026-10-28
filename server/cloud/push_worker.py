@@ -8,7 +8,7 @@ import logging
 import os
 import time
 
-from . import expo, families, type_rules, visibility
+from . import authz, expo, families, type_rules, visibility
 from .push import MESSAGE_TYPES, PUSH_TEXT, SYSTEM_KEYS, resolve_text
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
@@ -33,14 +33,14 @@ def backoff(receive_count):
 def recipients(repo, kind, kehila, ref):
     """User IDs to push for this job."""
     if kind == 'request':
-        return [m['userId'] for m in repo.list_members(kehila) if visibility.is_gabbai(m)]
+        return [m['userId'] for m in repo.list_members(kehila) if visibility.is_management(m)]
     if kind == 'group_request':  # ref = the group ID: appointed admins, else every gabbai
         members = repo.list_members(kehila)
-        admins = [m['userId'] for m in members if visibility.is_group_admin(m, ref) and m['role'] == 'member']
-        return admins or [m['userId'] for m in members if visibility.is_gabbai(m)]
+        admins = [m['userId'] for m in members if visibility.is_group_admin(m, ref) and authz.role_in(m, authz.MEMBER_ONLY)]
+        return admins or [m['userId'] for m in members if visibility.is_management(m)]
     if kind in SYSTEM_KEYS:  # ref = the recipient, who must still be a member or gabbai here
         membership = repo.get_membership(kehila, ref)
-        return [ref] if membership and membership.get('role') in ('member', 'gabbai') else []
+        return [ref] if authz.role_in(membership, authz.ADULTS) else []
     message = repo.get_message(kehila, ref)
     if not message or message.get('removed'):
         return []

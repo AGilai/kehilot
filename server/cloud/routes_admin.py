@@ -6,16 +6,16 @@ import time
 from collections import Counter
 
 from . import seating_week, accounts, consents, importer, inputs, push, routes_me, routes_seatlink, schedule_rules, sheet_rules, tags, type_rules
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE
-from .routes_groups import GABBAI, group_ids
+from .routes_groups import group_ids
 
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 LANGS = ('he', 'en')
 # control characters (Cc, incl. tab and newlines), line/paragraph separators and bidi overrides/isolates/marks
 _UNSAFE_TEXT = re.compile('[\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]')
-ROLES = ('listener', 'member', 'gabbai')
+ROLES = (authz.LISTENER, authz.MEMBER, authz.GABBAI)  # a role change may name these; tech is not assignable yet (§20.4)
 PRIVACY_CONTACT_MAX = 100
 IMPORT_MAX_ROWS = 10
 IMPORT_MAX_BODY = 64 * 1024
@@ -33,7 +33,7 @@ def _target(ctx, params, missing):
 
 def request_membership(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ('listener',))
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.LISTENER_ONLY)
     ctx.repo.put_request(k, ctx.user_id, membership.get('displayName', ''), 'rejectedAt' in membership,
                          time.time())
     push.enqueue('request', k, 'requests')
@@ -41,7 +41,7 @@ def request_membership(ctx, params):
 
 
 def list_requests(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     rows = [{'userId': r['sk'][len('REQ#'):], 'displayName': r['displayName'], 'createdAt': int(r['createdAt']),
              'previouslyRejected': bool(r.get('previouslyRejected'))} for r in ctx.repo.list_requests(params['k'])]
     suggested = routes_seatlink.request_suggestions(ctx, params['k'], rows)
@@ -53,7 +53,7 @@ def list_requests(ctx, params):
 
 def approve(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     classification = inputs.choice(inputs.body_object(ctx), 'classification', CLASSIFICATIONS)
     _target(ctx, params, 'request_not_found')
     default = ctx.repo.get_kehila(k).get('settings', {}).get('memberBroadcastDefault', False)
@@ -67,30 +67,30 @@ def approve(ctx, params):
 
 
 def reject(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     _target(ctx, params, 'request_not_found')
     ctx.repo.reject_request(params['k'], params['userId'], time.time())
     return 200, {}
 
 
 def list_members(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     existing = {g['sk'][len('G#'):] for g in ctx.repo.list_groups(params['k'])}  # a deleted group's ID is not listed
     members = ctx.repo.list_members(params['k'])
-    adults = [m['userId'] for m in members if m['role'] in ('member', 'gabbai')]
+    adults = [m['userId'] for m in members if authz.role_in(m, authz.ADULTS)]
     keys = [(f'U#{u}', 'PROFILE') for u in adults]
     profiles = ctx.repo.batch_get(keys) if keys else {}  # gabbaim always see members' phones (owner decision)
     rows = [{'userId': m['userId'], 'displayName': m.get('displayName', ''), 'role': m['role'],
              'classification': m.get('classification', ''), 'canBroadcast': bool(m.get('canBroadcast')),
              'phone': (profiles.get((f'U#{m["userId"]}', 'PROFILE')) or {}).get('phone') or None,
-             'showPhone': bool(m.get('showPhone')) and m['role'] != 'listener',
+             'showPhone': bool(m.get('showPhone')) and not authz.role_in(m, authz.LISTENER_ONLY),
              'groups': sorted(set(m.get('groups') or ()) & existing)} for m in members]
     return 200, tags.with_tags(ctx.repo, params['k'], rows, members)
 
 
 def update_member(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     d = inputs.body_object(ctx)
     fields = {}
     if 'role' in d:
@@ -104,7 +104,7 @@ def update_member(ctx, params):
     if not fields:
         raise ApiError(400, 'invalid_body')
     target = _target(ctx, params, 'member_not_found')
-    if 'role' in fields and 'listener' in (fields['role'], target['role']):
+    if 'role' in fields and (authz.in_set(fields['role'], authz.LISTENER_ONLY) or authz.role_in(target, authz.LISTENER_ONLY)):
         raise ApiError(409, 'role_change_not_allowed')  # listeners become members only through approve
     if 'groups' in fields:  # admin rights follow group membership
         fields['adminGroups'] = set(target.get('adminGroups') or ()) & fields['groups']
@@ -113,13 +113,13 @@ def update_member(ctx, params):
 
 
 def set_broadcast(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     ctx.repo.set_all_broadcast(params['k'], inputs.boolean(inputs.body_object(ctx), 'allow'))
     return 200, {}
 
 
 def remove_member(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     target = _target(ctx, params, 'member_not_found')
     ctx.repo.remove_member(params['k'], params['userId'], target['role'])
     _drop_from_family(ctx, params['k'], params['userId'], target['role'])
@@ -149,7 +149,7 @@ def _delete_if_never_signed_in(ctx, k, user_id):
 
 def _drop_from_family(ctx, k, user_id, role):
     """Family clean-up after the membership is gone. Best effort: reads prune a departed adult anyway."""
-    if role not in ('member', 'gabbai'):
+    if not authz.in_set(role, authz.ADULTS):
         return
     try:
         ctx.repo.drop_adult(k, user_id)
@@ -158,7 +158,7 @@ def _drop_from_family(ctx, k, user_id, role):
 
 
 def leave(ctx, params):
-    membership = require(ctx.repo, ctx.user_id, params['k'])
+    membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
     ctx.repo.remove_member(params['k'], ctx.user_id, membership['role'])
     _drop_from_family(ctx, params['k'], ctx.user_id, membership['role'])
     ctx.repo.revoke_member_invites(params['k'], ctx.user_id)
@@ -196,7 +196,7 @@ def _channel_json(item, with_groups=False, is_admin=None):
 
 def create_channel(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     name, readable, policy, groups, conversation, limit = _channel_fields(ctx, k)
     item = ctx.repo.put_channel(k, name, readable, policy, groups or frozenset(), bool(conversation), limit)
     return 201, _channel_json(item, True, True)
@@ -204,7 +204,7 @@ def create_channel(ctx, params):
 
 def update_channel(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     name, readable, policy, groups, conversation, limit = _channel_fields(ctx, k)
     if not ID_RE.fullmatch(params['c']):
         raise ApiError(404, 'channel_not_found')
@@ -221,7 +221,7 @@ def update_channel(ctx, params):
 def import_list(ctx, params):
     """Pre-create accounts and memberships from the gabbai's list. Idempotent by email; logs only counts."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     rows = inputs.body_object(ctx, IMPORT_MAX_BODY).get('rows')
     if not isinstance(rows, list) or not 1 <= len(rows) <= IMPORT_MAX_ROWS or not all(isinstance(r, dict) for r in rows):
         raise ApiError(400, 'invalid_rows')
@@ -249,7 +249,7 @@ def _type_rules(value):
 
 def set_settings(ctx, params):
     """maxListeners, privacyContact, typeRules, location and/or sheet (at least one). The contact is never logged."""
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     d = inputs.body_object(ctx)
     if not any(key in d for key in ('maxListeners', 'privacyContact', 'typeRules', 'location', 'sheet', 'seatDeadline',
                                            'sheetMembers')):
@@ -275,8 +275,9 @@ def set_settings(ctx, params):
 
 
 def accept_terms(ctx, params):
-    """A gabbai accepts the Kehila terms for the Kehila. Recorded only; the gate is client-side."""
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    """A gabbai accepts the Kehila terms for the Kehila. Recorded only; the gate is client-side.
+    A tech accepts like a gabbai (owner decision 2026-10-28)."""
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     now = int(time.time())
     ctx.repo.accept_terms(params['k'], ctx.user_id, consents.VERSIONS['kehilaTerms'], now)
     return 200, {'at': now}
@@ -287,7 +288,7 @@ def _editable(key):
 
 
 def get_push_texts(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     stored = (ctx.repo.get_kehila(params['k']) or {}).get('pushTexts') or {}
     custom = {key: {lang: t for lang, t in langs.items() if lang in LANGS and t}
               for key, langs in stored.items() if _editable(key) and isinstance(langs, dict)}
@@ -297,7 +298,7 @@ def get_push_texts(ctx, params):
 def put_push_text(ctx, params):
     """Set or (with "") remove the custom push text. It is shown on the lock screen, so it is one line of at
     most 80 code points; it is never logged."""
-    require(ctx.repo, ctx.user_id, params['k'], GABBAI)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
     d = inputs.body_object(ctx)
     key, lang = d.get('key'), d.get('lang')
     if not isinstance(key, str) or not _editable(key):

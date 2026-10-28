@@ -2,11 +2,10 @@
 from collections import Counter
 
 from . import inputs
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE
 from .routes_admin import _UNSAFE_TEXT, _target
-from .routes_groups import GABBAI
 from .tags import sort_key as _sort_key, tag_map
 
 MAX_TAGS = 20
@@ -27,7 +26,7 @@ def _name(d, tags, own_id=None):
 
 def list_tags(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     tags = ctx.repo.list_tags(k)
     ids = {t['sk'][len('TAG#'):] for t in tags}
     held = Counter(i for m in ctx.repo.list_members(k) for i in set(m.get('tagIds') or ()) & ids)
@@ -38,7 +37,7 @@ def list_tags(ctx, params):
 
 def create_tag(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     tags = ctx.repo.list_tags(k)
     name = _name(inputs.body_object(ctx), tags)
     if len(tags) >= MAX_TAGS:
@@ -55,7 +54,7 @@ def _existing(params):
 
 def rename_tag(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     d = inputs.body_object(ctx)
     tag_id = _existing(params)
     tags = ctx.repo.list_tags(k)
@@ -68,14 +67,14 @@ def rename_tag(ctx, params):
 
 def delete_tag(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     ctx.repo.delete_tag(k, _existing(params))
     return 204, None
 
 
 def set_member_tags(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, GABBAI)
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     value = inputs.body_object(ctx).get('tagIds')
     if not isinstance(value, list) or len(value) > MAX_TAGS or not all(isinstance(v, str) and ID_RE.fullmatch(v) for v in value):
         raise ApiError(400, 'invalid_tag_ids')

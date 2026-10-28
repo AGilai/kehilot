@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 
 from . import families, inputs, media, message_fields, push, schedule_rules, sheet_items, type_rules, visibility
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .families import family_name
 from .ids import ID_RE, new_id
@@ -54,10 +54,10 @@ def _visible_message(ctx, k, membership, message_id):
 
 
 def list_channels(ctx, params):
-    membership = require(ctx.repo, ctx.user_id, params['k'])
-    is_gabbai = visibility.is_gabbai(membership)
+    membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
+    is_management = visibility.is_management(membership)
     rules = kehila_rules(ctx, params['k'])
-    channels = [{**_channel_json(c, is_gabbai, visibility.is_channel_admin(membership, c)),
+    channels = [{**_channel_json(c, is_management, visibility.is_channel_admin(membership, c)),
                  'canPost': visibility.can_post(membership, c),
                  'postableTypes': type_rules.postable_types(membership, c, rules),
                  'inAudience': visibility.in_audience(membership, c)}
@@ -82,7 +82,7 @@ def _attach(k, user_id, upload_id):
 
 def post_message(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     d = inputs.body_object(ctx)
     channel_id = d.get('channelId')
     if not isinstance(channel_id, str) or not ID_RE.fullmatch(channel_id):
@@ -101,7 +101,7 @@ def post_message(ctx, params):
         if type_ not in TARGET_TYPES or not isinstance(target, str) or not ID_RE.fullmatch(target):
             raise ApiError(400, 'invalid_target_member_id')
         target_membership = ctx.repo.get_membership(k, target)
-        if not target_membership or target_membership['role'] not in ('member', 'gabbai'):
+        if not authz.role_in(target_membership, authz.ADULTS):
             raise ApiError(400, 'invalid_target_member_id')
     channel = ctx.repo.get_channel(k, channel_id)
     if not visibility.can_read_channel(membership, channel):
@@ -113,12 +113,12 @@ def post_message(ctx, params):
     settings = kehila.get('settings', {})
     if not visibility.can_post(membership, channel, type_, type_rules.rules(settings)):
         raise ApiError(403, 'forbidden')
-    if membership['role'] != 'gabbai':
+    if not authz.role_in(membership, authz.MANAGEMENT):
         limit = settings.get('broadcastDailyLimit', 3)
         ctx.repo.count_broadcast(k, ctx.user_id, local_date(), int(limit))
     message_id, image = _attach(k, ctx.user_id, upload_id)
     item = ctx.repo.put_message(k, channel_id, type_, title, body, ctx.user_id, membership.get('displayName', ''),
-                                'management' if membership['role'] == 'gabbai' else 'member', target,
+                                'management' if authz.role_in(membership, authz.MANAGEMENT) else 'member', target,
                                 target_membership.get('displayName', '') if target else '',
                                 message_id=message_id, image=image, target_family_id=target_family_id,
                                 template_id=template_id, fields=fields)
@@ -172,7 +172,7 @@ def _post_chat(ctx, k, membership, channel_id, channel, d):
         ctx.repo.count_chat(k, channel_id, ctx.user_id, hour, visibility.chat_hourly_limit(channel))
     message_id, image = _attach(k, ctx.user_id, upload_id)
     item = ctx.repo.put_message(k, channel_id, CHAT, '', body, ctx.user_id, membership.get('displayName', ''),
-                                'management' if membership['role'] == 'gabbai' else 'member', None,
+                                'management' if authz.role_in(membership, authz.MANAGEMENT) else 'member', None,
                                 message_id=message_id, image=image)
     message = _message_json(item)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
@@ -182,7 +182,7 @@ def _post_chat(ctx, k, membership, channel_id, channel, d):
 
 def set_chat_settings(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     channel = ctx.repo.get_channel(k, params['c']) if ID_RE.fullmatch(params['c']) else None
     if not visibility.can_read_channel(membership, channel):
         raise ApiError(404, 'channel_not_found')
@@ -206,7 +206,7 @@ def _limit(query):
 
 def list_messages(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     limit = _limit(ctx.query)
     before = ctx.query.get('before')
     if before is not None and not ID_RE.fullmatch(before):
@@ -226,7 +226,7 @@ def list_messages(ctx, params):
 
 
 def get_message(ctx, params):
-    membership = require(ctx.repo, ctx.user_id, params['k'])
+    membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
     item = _visible_message(ctx, params['k'], membership, params['m'])[0]
     return 200, _message_json(item, bool(ctx.repo.read_flags(params['k'], ctx.user_id, [params['m']])))
 
@@ -234,7 +234,7 @@ def get_message(ctx, params):
 def list_directory(ctx, params):
     """Names of the members and gabbaim, for choosing a target family. Listeners never see it."""
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     channel_id = ctx.query.get('channelId')
     channel = None
     if channel_id is not None:  # only people who could be the target of a blessing in that channel
@@ -245,14 +245,14 @@ def list_directory(ctx, params):
             raise ApiError(404, 'channel_not_found')
     rows = [{'userId': m['userId'], 'displayName': m.get('displayName', '')}
             for m in ctx.repo.list_members(k)
-            if (visibility.reply_target_ok(m, channel) if channel else m['role'] in ('member', 'gabbai'))]
+            if (visibility.reply_target_ok(m, channel) if channel else authz.role_in(m, authz.ADULTS))]
     return 200, sorted(rows, key=lambda r: r['displayName'])
 
 
 def list_target_families(ctx, params):
     """Families that can be the target of a blessing in a channel: at least one live adult who may read it."""
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     channel_id = ctx.query.get('channelId')
     if channel_id is None or not ID_RE.fullmatch(channel_id):
         raise ApiError(400, 'invalid_channel_id')
@@ -274,9 +274,9 @@ def list_target_families(ctx, params):
 
 def remove_message(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     message, _ = _visible_message(ctx, k, membership, params['m'])
-    if membership['role'] != 'gabbai' and message['authorId'] != ctx.user_id:
+    if not authz.role_in(membership, authz.MANAGEMENT) and message['authorId'] != ctx.user_id:
         raise ApiError(403, 'forbidden')
     if message.get('image'):  # first: a failure leaves the message, so a retry still finds the image to delete
         media.delete_image(k, params['m'])
@@ -288,7 +288,7 @@ def remove_message(ctx, params):
 
 def join(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     message, _ = _visible_message(ctx, k, membership, params['m'])
     count, joined = ctx.repo.join_message(k, params['m'], ctx.user_id)
     if joined:
@@ -298,7 +298,7 @@ def join(ctx, params):
 
 def read(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     message, _ = _visible_message(ctx, k, membership, params['m'])
     ctx.repo.put_read(k, params['m'], ctx.user_id)
     ctx.repo.put_change(k, 'read', params['m'], message['channelId'], [ctx.user_id])
@@ -312,7 +312,7 @@ def _reply_json(item):
 
 def post_reply(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k, ('member', 'gabbai'))
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     message, channel = _visible_message(ctx, k, membership, params['m'])
     if not message.get('targetMemberId'):
         raise ApiError(409, 'replies_not_allowed')
@@ -335,7 +335,7 @@ def post_reply(ctx, params):
 
 def list_replies(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     message, _ = _visible_message(ctx, k, membership, params['m'])
     adults = families.target_adults(ctx.repo, k, message)
     return 200, [_reply_json(r) for r in ctx.repo.list_replies(k, params['m'])

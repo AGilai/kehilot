@@ -2,6 +2,7 @@
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from . import authz
 from .ids import new_id
 
 JERUSALEM = ZoneInfo('Asia/Jerusalem')
@@ -32,7 +33,7 @@ def sheet_members(settings):
 
 def initial_state(role, setting):
     """(state, source) of a new item. Gabbaim and members under 'auto' go straight in."""
-    if role == 'gabbai' or setting == 'auto':
+    if authz.in_set(role, authz.MANAGEMENT) or setting == 'auto':
         return 'in', 'auto'
     return 'pending', 'member'
 

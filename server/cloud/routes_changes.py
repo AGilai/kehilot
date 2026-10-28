@@ -2,7 +2,7 @@
 import time
 
 from . import families, inputs, visibility
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE, floor_id, id_time_ms
 from .routes_messages import TYPES, _message_json, _reply_json, kehila_rules
@@ -43,7 +43,7 @@ def _item(ctx_user, membership, channels, change, messages, replies, adults=froz
 
 def changes(ctx, params):
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     since = ctx.query.get('since')
     bound = floor_id(_now_ms() - HOLD_BACK_MS)  # nothing at or after this ID is scanned, nor may a cursor pass it
     if since is None:
@@ -111,7 +111,7 @@ def put_notify(ctx, params):
     Listeners may set them, but only for channels they can read; they cannot name members (the member list is
     hidden from them, so validating member ids would be a membership oracle). Only the fields sent change."""
     k = params['k']
-    membership = require(ctx.repo, ctx.user_id, k)
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     d = inputs.body_object(ctx)
     known = ('mutedChannels', 'mutedTypes', 'membersBroadcasts', 'mutedMembers', 'chatChannels')
     if not any(f in d for f in known):
@@ -134,12 +134,12 @@ def put_notify(ctx, params):
         new['membersBroadcasts'] = inputs.choice(d, 'membersBroadcasts', BROADCAST_MODES)
     if 'mutedMembers' in d:
         def members_ok(values):
-            if membership['role'] == 'listener':
+            if authz.role_in(membership, authz.LISTENER_ONLY):
                 return not values
             if not all(ID_RE.fullmatch(v) for v in values):
                 return False
             found = ctx.repo.batch_get([(f'K#{k}', f'M#{v}') for v in values])
-            return all(i['role'] in ('member', 'gabbai') for i in found.values()) and len(found) == len(values)
+            return all(authz.role_in(i, authz.ADULTS) for i in found.values()) and len(found) == len(values)
         new['mutedMembers'] = _id_list(d, 'mutedMembers', members_ok)
     ctx.repo.set_notify(k, ctx.user_id, {**membership.get('notify', {}), **new})
     return 200, {}

@@ -3,18 +3,17 @@ import json
 from datetime import date
 
 from . import inputs, repo_messages, simchas, tree_rules
-from .authz import require
+from . import authz
 from .errors import ApiError
 from .ids import ID_RE
 
-MEMBERS = ('member', 'gabbai')
 DEFAULT_WEEKS = 8
 MAX_BODY = tree_rules.MAX_TREE_BYTES  # body and people JSON
 
 
 def get_tree(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     family_id = ctx.repo.ensure_family(k, ctx.user_id)
     family = ctx.repo.get_family(k, family_id) if family_id else None
     if not family:
@@ -24,7 +23,7 @@ def get_tree(ctx, params):
 
 def put_tree(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, MEMBERS)
+    authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
     body = inputs.body_object(ctx, MAX_BODY)
     version = body.get('ifVersion')
     if isinstance(version, bool) or not isinstance(version, int) or version < 1:
@@ -45,7 +44,7 @@ def put_tree(ctx, params):
 
 def admin_tree(ctx, params):
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, ('gabbai',))
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     if not ID_RE.fullmatch(params['familyId']):
         raise ApiError(404, 'family_not_found')
     family = ctx.repo.get_family(k, params['familyId'])
@@ -58,14 +57,14 @@ def admin_simchas(ctx, params):
     """Upcoming bar and bat mitzvahs from the family trees (UX-DESIGN 17.14). Gabbaim only; first name, surname and
     date per item, nothing logged."""
     k = params['k']
-    require(ctx.repo, ctx.user_id, k, ('gabbai',))
+    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
     raw = ctx.query.get('weeks', str(DEFAULT_WEEKS))
     if not (raw.isascii() and raw.isdigit()) or not 1 <= int(raw) <= simchas.MAX_WEEKS:
         raise ApiError(400, 'invalid_weeks')
     today = date.fromisoformat(repo_messages.local_date())
     # Two queries in all (members, families): a family counts when one of its adults is still a member or gabbai of it.
     live_ids = {(m.get('familyId'), m['sk'][2:]) for m in ctx.repo.list_members(k)
-                if m.get('role') in ('member', 'gabbai') and m.get('familyId')}
+                if authz.role_in(m, authz.ADULTS) and m.get('familyId')}
     live = [family for family in ctx.repo.list_families(k)
             if any((family['familyId'], u) in live_ids for u in family.get('adults', []))]
     return 200, {'weeks': simchas.upcoming_simchas(simchas.families_people(live), today, int(raw))}

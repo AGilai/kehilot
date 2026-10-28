@@ -1,9 +1,9 @@
 """Routes: health, my profile, one Kehila and its logo."""
 import base64
 
-from .authz import ROLES, require
+from . import authz
 from .errors import ApiError
-from .routes_families import MEMBERS, notice_of, request_card
+from .routes_families import notice_of, request_card
 from . import consents, schedule_rules, sheet_rules, tags, type_rules
 from .routes_invites import DEFAULT_MAX_LISTENERS
 from .routes_privacy import age13_required
@@ -26,7 +26,7 @@ def me(ctx, params):
 
 
 def kehila(ctx, params):
-    membership = require(ctx.repo, ctx.user_id, params['k'], ROLES)
+    membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
     item = ctx.repo.get_kehila(params['k'])
     settings = item.get('settings', {})
     notify = {'mutedChannels': [], 'mutedTypes': [], 'membersBroadcasts': 'all', 'mutedMembers': [], 'chatChannels': [],
@@ -34,14 +34,14 @@ def kehila(ctx, params):
     pending = bool(ctx.repo.get_request(params['k'], ctx.user_id))
     shown = {'pollSeconds': int(settings.get('pollSeconds', 30))}
     extra = {}
-    if membership['role'] == 'gabbai':
+    if authz.role_in(membership, authz.MANAGEMENT):
         shown['maxListeners'] = int(settings.get('maxListeners', DEFAULT_MAX_LISTENERS))
         extra['typeRules'] = type_rules.rules(settings)  # members get postableTypes per channel instead
         extra['location'] = schedule_rules.location_of(settings)
         extra['sheet'] = schedule_rules.sheet_of(settings)
         extra['seatDeadline'] = settings.get('seatDeadline') or '12:00'
         extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
-    is_member = membership['role'] in MEMBERS
+    is_member = authz.role_in(membership, authz.ADULTS)
     if is_member:
         extra['sheetMembers'] = sheet_rules.sheet_members(settings)
     cards = {'gabbaiLink': None, 'request': None, 'imported': bool(membership.get('importNotice')),
@@ -52,7 +52,7 @@ def kehila(ctx, params):
             if membership.get('seatLinkSeats') else None
         cards['gabbaiLink'] = notice_of(ctx.repo, params['k'], membership)
         cards['request'] = request_card(ctx.repo, params['k'], ctx.user_id, membership)
-    if membership['role'] == 'gabbai':
+    if authz.role_in(membership, authz.MANAGEMENT):
         accepted = item.get('termsAccepted')
         current = bool(accepted) and accepted.get('version') == consents.VERSIONS['kehilaTerms']
         cards['terms'] = not current
@@ -64,14 +64,14 @@ def kehila(ctx, params):
                  'logoVersion': item.get('logoVersion'),
                  'canBroadcast': bool(membership.get('canBroadcast')), 'pendingRequest': pending, 'notify': notify,
                  'settings': shown, 'groups': sorted(membership.get('groups') or ()),
-                 'adminGroups': sorted(set(membership.get('adminGroups') or ()) & set(membership.get('groups') or ())) if membership['role'] == 'member' else [],
+                 'adminGroups': sorted(set(membership.get('adminGroups') or ()) & set(membership.get('groups') or ())) if authz.role_in(membership, authz.MEMBER_ONLY) else [],
                  'showPhone': bool(membership.get('showPhone')), 'cards': cards,
                  'privacyContact': settings.get('privacyContact', ''),
                  'tags': tags.with_tags(ctx.repo, params['k'], [{}], [membership])[0]['tags'], **extra}
 
 
 def logo(ctx, params):
-    require(ctx.repo, ctx.user_id, params['k'], ROLES)
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
     found = ctx.repo.get_logo(params['k'])
     if not found:
         raise ApiError(404, 'not_found')
