@@ -692,12 +692,26 @@ svg.fi .solid{fill:currentColor;stroke:none}
 .fhA .cdl{position:absolute;bottom:-2px;inset-inline-start:-4px;width:24px;height:24px;border-radius:50%;background:var(--k-surface);border:1px solid var(--k-line);display:grid;place-items:center;color:var(--k-gold)}
 .fhA .cdl svg{width:16px;height:16px}
 .fmini .av{width:44px;height:44px}
-/* §17.15 ill (לרפואה שלמה): olive leaf badge + text, never red */
-.fig .ill,.fhA .ill,.srow .ill{position:absolute;bottom:-5px;inset-inline-start:-7px;width:24px;height:24px;border-radius:50%;background:var(--k-surface);border:1px solid var(--k-olive);display:grid;place-items:center;color:var(--k-olive)}
-.fig .ill svg,.fhA .ill svg{width:15px;height:15px}
-.fig .ill-t{display:block;color:var(--k-olive);font-weight:600;font-size:12px}
-.flegend .lg-ill svg{color:var(--k-olive)}
-.fname.heal{border-color:var(--k-olive)}.fname.heal .ov{color:var(--k-olive)}.fname.heal .n{font-size:24px}
+/* §17.15 status: lit memorial candle; ill = soft-rose heart with a pulse line (never alarm red) */
+:root{--k-heal:#B8507A;--k-heal-bg:#FBEAF0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--k-heal:#F2A6C0;--k-heal-bg:#3A2232}}
+:root[data-theme="dark"]{--k-heal:#F2A6C0;--k-heal-bg:#3A2232}
+.fig .ill,.fhA .ill{position:absolute;bottom:-5px;inset-inline-start:-7px;width:24px;height:24px;border-radius:50%;background:var(--k-surface);border:1px solid var(--k-heal);display:grid;place-items:center;color:var(--k-heal)}
+.fig .ill svg,.fhA .ill svg{width:17px;height:17px}
+.fig .ill-t{display:block;color:var(--k-heal);font-weight:600;font-size:12px}
+.flegend .lg-ill svg{color:var(--k-heal)}
+.fig .cdl svg,.fhA .cdl svg{width:18px;height:18px}
+.fname.heal{border-color:var(--k-heal)}.fname.heal .ov{color:var(--k-heal)}.fname.heal .n{font-size:24px}
+.fstat{display:flex;align-items:center;gap:10px;min-height:48px}
+.fsb{all:unset;box-sizing:border-box;width:44px;height:44px;border-radius:50%;border:1.5px solid var(--k-line);background:var(--k-surface);display:grid;place-items:center;color:var(--k-muted);cursor:pointer}
+.fsb svg{width:24px;height:24px}
+.fsb.on{border-color:#E7A64A;background:radial-gradient(circle at 50% 35%,rgba(255,181,71,.28),transparent 70%),var(--k-surface);box-shadow:0 0 0 3px rgba(242,140,28,.15)}
+.fsb.heal{color:var(--k-heal)}
+.fsb.heal.on{border-color:var(--k-heal);background:var(--k-heal-bg);box-shadow:0 0 0 3px rgba(184,80,122,.15)}
+.fsb.heal.on .hf{fill-opacity:.55}
+.fsb:focus-visible{outline:2px solid var(--k-tek);outline-offset:2px}
+.fcap{font-size:14px;font-weight:700;color:var(--k-muted)}.fcap.h{color:var(--k-heal)}
+.ftip{align-self:flex-start;background:var(--k-ink);color:var(--k-stone);font-size:12.5px;font-weight:700;padding:6px 10px;border-radius:8px;margin-top:-6px}
 /* P36 upcoming simchas */
 .swk{margin:4px 0 0;font-size:12.5px;font-weight:700;color:var(--k-muted);display:flex;justify-content:space-between}
 .srow{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 10px;border:1px solid var(--k-line);border-radius:12px;background:var(--k-surface)}

@@ -2402,8 +2402,14 @@ content is a side panel (§17.6).
      when the figure is created**, editable by hand afterwards ("נלקח מהאב כשהדמות נוצרה. אפשר לשנות.").
    - תאריך לידה: Hebrew day+month select and year select; the Gregorian date is computed and shown under it ("לועזי:
      24.6.1982"), and can be typed instead. Optional everywhere. Bar/bat mitzvah: see "Bar mitzvah" below.
-   - Segmented **בחיים / 🕯 נפטר/ה**. Deceased adds "תאריך הפטירה (עברי)" (day, month, year selects) with the Gregorian
-     date. Date unknown is allowed (no dot for it). **No yahrzeit calculation** in this version (owner decision 4).
+   - **Status buttons** (owner, replaces the earlier "בחיים / נפטר/ה" Segmented): two small round icon buttons (44, on a
+     row of their own right under the name card). **Memorial candle**: outline candle when off; label/tooltip "סימון
+     כנפטר/ה" (long-press on phones, `title` on web, `aria-label` always, `aria-pressed`). Turning it on asks inline:
+     "לסמן את {name} כנפטר/ה? יופיע נר נשמה ו״ז״ל״, ושדות תאריך הפטירה ייפתחו." with "כן, לסמן" / "ביטול"; then the
+     candle is **lit** (orange flame with a soft glow) and "תאריך הפטירה (עברי)" (day, month, year selects, Gregorian
+     under it) appears. **Ill** (§17.15): a heart-with-pulse button next to it. When either is on, a one-line caption
+     follows the buttons: "נפטר · כ״ג בשבט תשע״ח" or "לרפואה שלמה". Turning the candle off (a mistake) needs no confirm.
+     Date unknown is allowed (no dot for it). **No yahrzeit calculation** in this version (owner decision 4).
 4. **Save** (primary). Remove only for children and spouses (inline confirm: "להסיר את {name} מהעץ? הפרטים יימחקו גם
    אצל {partner}." danger "כן, להסיר" + "השארה"). Parents' figures have "ניקוי הפרטים" instead (the slot stays).
 
@@ -2669,13 +2675,17 @@ Every figure collects its **father's name** (aliyah, blessings) and **mother's n
 For our children they come from the tree; for the parents' generation and up they are typed in the figure's sheet
 (and fill that parent's figure, §17.4).
 
-**The toggle.** In a living figure's sheet, right under the "בחיים / נפטר/ה" Segmented: a Toggle row **"לרפואה שלמה"**
-with the line "חולה כרגע? השם יופיע במי שברך לחולים." (`role="switch"`, "פעיל / כבוי"). Not shown for a deceased figure.
+**The button.** In a living figure's sheet, next to the memorial-candle button (§17.4): a small round button with a
+**heart and a pulse line** (soft rose `k.heal` — light #B8507A, dark #F2A6C0; never alarm red). Label/tooltip "סימון
+כחולה · לרפואה שלמה" (long-press on phones). Turning it on asks lightly: "לסמן את {name} כחולה? השם יופיע במי שברך
+לחולים." with "כן, לרפואה שלמה" / "ביטול"; on = filled heart on a pale rose disc, caption "לרפואה שלמה". Turning it off
+needs no confirm. For a deceased figure the button is not shown.
 
-**On the tree.** An ill figure keeps its colours and gets a small **olive leaf badge** in a white circle with an olive
-ring (24 px, bottom corner of the disc — the place of the memorial candle, which it can never share) and the word
-**"לרפואה"** under the name in olive. Calm, never red; the text carries the meaning. Accessible label: "{relation}:
-{name}, חולה, לרפואה שלמה". The legend line gains "🌱 לרפואה שלמה". The person-sheet header (A figure) shows the same
+**On the tree.** An ill figure keeps its colours and gets a small **heart-with-pulse badge** in a white circle with a
+soft-rose ring (24 px, bottom corner of the disc — the place of the memorial candle, which it can never share) and the
+word **"לרפואה"** under the name in the same rose. Calm, never alarm red; the text carries the meaning. (An olive leaf
+was tried first; the owner found it unclear.) The memorial candle badge is now drawn **lit** (orange flame). Accessible label: "{relation}:
+{name}, חולה, לרפואה שלמה". The legend line gains "♡ לרפואה שלמה" (the heart glyph). The person-sheet header (A figure) shows the same
 badge and "לרפואה" after the name.
 
 **In the sheet, when on.** The computed name card becomes the **Mi Sheberach name, prominent** (olive edge, overline
@@ -2683,7 +2693,7 @@ badge and "לרפואה" after the name.
 לחולים (בקרוב)"**. If the mother's name is missing: the gold state (overline "… · חסר שם האם", "משה בן ___") and the
 mother's-name field ("השם העברי של אמא", saved also on the mother's figure).
 
-**Rules.** `ill` is for living figures only. Setting "נפטר/ה" clears `ill` and hides the toggle; going back to "בחיים"
+**Rules.** `ill` is for living figures only. Marking "נפטר/ה" clears `ill` and hides the heart button; going back to "בחיים"
 does not turn it on again. Turning it off (recovery) removes the badge and the name from the sick list, silently — no
 message to anyone. Same visibility as the rest of the tree (family and the Kehila's gabbaim, §17.11).
 
@@ -2695,12 +2705,13 @@ name stays. The M8 "מי שברך" tab and this flag will be joined then.
 
 | Key | Hebrew | English |
 |---|---|---|
-| `tree.ill.toggle` / `.hint` | לרפואה שלמה / חולה כרגע? השם יופיע במי שברך לחולים. | For a full recovery / Ill at the moment? The name will appear in the Mi Sheberach for the sick. |
+| `tree.ill.button` / `.confirm` / `.yes` | סימון כחולה · לרפואה שלמה / לסמן את {name} כחולה? השם יופיע במי שברך לחולים. / כן, לרפואה שלמה | Mark as ill · for a full recovery / Mark {name} as ill? The name will appear in the Mi Sheberach for the sick. / Yes, for a full recovery |
+| `tree.dec.button` / `.confirm` / `.yes` / `.caption` | סימון כנפטר/ה / לסמן את {name} כנפטר/ה? יופיע נר נשמה ו״ז״ל״, ושדות תאריך הפטירה ייפתחו. / כן, לסמן / נפטר/ה · {hdate} | Mark as deceased / Mark {name} as deceased? A memorial candle and ז״ל will appear, and the date-of-death fields open. / Yes, mark / Deceased · {hdate} |
 | `tree.ill.badge` / `.a11y` / `.legend` | לרפואה / חולה, לרפואה שלמה / לרפואה שלמה | For recovery / Ill, for a full recovery / For a full recovery |
 | `tree.ill.nameTitle` / `.toGabbai` | השם למי שברך לחולים / השם יישלח לגבאי למי שברך לחולים (בקרוב) | Mi Sheberach name for the sick / The name will be sent to the gabbai for the Mi Sheberach (coming soon) |
 
-Frames: P31 (שרה, the grandmother, is ill in the test family), P32 (her sheet with the toggle on; the missing-mother and
-rules panels), P34 section 5 (both styles, light and dark, tile and header size).
+Frames: P31 (שרה, the grandmother, is ill in the test family), P32 (her sheet with the heart on; Avraham's with the
+candle lit; confirm panels for both; the missing-mother panel), P34 section 5 (both styles, light and dark, tile and header size).
 
 ## 18. Me and management — structure
 
