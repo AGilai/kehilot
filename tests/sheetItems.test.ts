@@ -155,3 +155,10 @@ test('sheetPendingOf: sums the weeks, names the first with any, and a failed wee
   assert.deepEqual(sheetPendingOf(['w1', 'w2'], [page('w1', 0), page('w2', 0)], prev), { n: 0, week: null });
   assert.deepEqual(sheetPendingOf(['w1', 'w2'], [page('w1', 1), null], prev), prev);
 });
+
+test('Home shows exactly the in-items it is given: the guest rule is the server\'s (server/tests/cloud/test_sheet_routes.py test_listener_without_celebrations_sees_events_only)', () => {
+  const events = { week: '2026-10-30', items: [item('e1', 'events'), item('e2', 'events')] };
+  assert.deepEqual(homeRows(inItems(events)).rows.map(i => i.itemId), ['e1', 'e2']);
+  const all = { week: '2026-10-30', items: [item('m1', 'mazal'), item('c1', 'condolence'), item('e1', 'events')] };
+  assert.equal(homeRows(inItems(all)).rows.length, 3);
+});

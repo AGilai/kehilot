@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
-import { counts, filterWeeks, mazalDraft, needsCheck, quietNames, sheetItemsFor, sheetWeekOf, simchaSub, simchaTag, simchaTitle, weekHeader } from '../../client/simchasView.ts';
+import { counts, filterWeeks, mazalDraft, needsCheck, quietNames, sendToSheet, sheetWeekOf, simchaSub, simchaTag, simchaTitle, weekHeader } from '../../client/simchasView.ts';
 import type { SimchaFilter } from '../../client/simchasView.ts';
 import type { SimchaItem, SimchaWeek } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
@@ -58,12 +58,14 @@ export function Simchas({ onBack, onMazalTov, onToast }: { onBack: () => void; o
   const [error, setError] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState<SimchaFilter>('all');
   const [sending, setSending] = React.useState<string | null>(null);
+  const [done, setDone] = React.useState<Set<string>>(new Set());
   /** Each simcha becomes a gabbai item in that week's sheet, at once (§19.8); the first failure stops and is told. */
   async function toSheet(w: SimchaWeek) {
     if (sending) return;
     setSending(w.week);
     try {
-      for (const body of sheetItemsFor(w)) await api.addSheetItem(kehilaId, sheetWeekOf(w), body);
+      await sendToSheet(w, { list: async wk => (await api.sheetItems(kehilaId, wk)).items, add: (wk, body) => api.addSheetItem(kehilaId, wk, body) });
+      setDone(d => new Set(d).add(w.week));
       onToast?.(t('simchas.toSheetNote'));
     } catch (e) { onToast?.(errText(e)); } finally { setSending(null); }
   }
@@ -98,7 +100,7 @@ export function Simchas({ onBack, onMazalTov, onToast }: { onBack: () => void; o
               <Txt size="small" color={k.muted}>{head.greg}</Txt>
             </View>
             {w.items.map((item, i) => <Row key={`${item.kind}-${item.firstName}-${item.date}-${i}`} item={item} id={`${w.week}-${i}`} onMazalTov={onMazalTov} />)}
-            <Button kind="secondary" title={t('simchas.toSheet')} busy={sending === w.week} disabled={!!sending} onPress={() => { void toSheet(w); }} />
+            <Button kind="secondary" title={done.has(w.week) ? t('simchas.onSheet') : t('simchas.toSheet')} busy={sending === w.week} disabled={!!sending || done.has(w.week)} onPress={() => { void toSheet(w); }} />
           </View>
         );
       })}

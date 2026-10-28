@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { counts, filterWeeks, mazalDraft, needsCheck, nextSimcha, quietNames, sheetItemsFor, sheetWeekOf, simchaSub, simchaTag, simchaTitle, weekHeader } from '../src/client/simchasView.ts';
+import { counts, filterWeeks, mazalDraft, needsCheck, nextSimcha, quietNames, sendToSheet, sheetItemsFor, sheetWeekOf, simchaSub, simchaTag, simchaTitle, weekHeader } from '../src/client/simchasView.ts';
 import type { SimchaWeek } from '../src/client/types.ts';
 
 // All names are invented.
@@ -65,4 +65,21 @@ test('sheetItemsFor: one gabbai celebration per simcha, surname bold, in the Fri
   ]);
   assert.deepEqual(sheetItemsFor(week(1, '2026-11-07', 'חיי שרה')), []);
   assert.equal(sheetWeekOf(w), '2026-10-30');
+});
+
+test('sendToSheet: a second run posts nothing; a retry after a partial failure posts only the missing', async () => {
+  const w = week(0, '2026-10-31', 'וירא', [hillel, noga]);
+  const store: Array<{ state: string; line?: { text: string } }> = [];
+  let failAt = 1;
+  const io = {
+    list: async () => store,
+    add: async (_: string, b: { text: string }) => { if (failAt-- === 0) throw new Error('x'); store.push({ state: 'in', line: { text: b.text } }); },
+  };
+  await assert.rejects(sendToSheet(w, io));
+  assert.equal(store.length, 1);
+  assert.equal(await sendToSheet(w, io), 1);
+  assert.equal(store.length, 2);
+  assert.equal(await sendToSheet(w, io), 0);
+  store[0]!.state = 'removed';
+  assert.equal(await sendToSheet(w, io), 1);
 });

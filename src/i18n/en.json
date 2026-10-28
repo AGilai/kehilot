@@ -2871,6 +2871,8 @@
     "card": {
       "this": "This Shabbat: {text}",
     "toSheet": "Add to mazal tov in the weekly sheet",
+    "onSheet": "Already in the weekly sheet",
+    "toSheet": "Add to mazal tov in the weekly sheet",
       "later": "Next: {text}"
     },
     "mazal": "Mazal tov",

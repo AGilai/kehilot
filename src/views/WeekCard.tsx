@@ -33,7 +33,8 @@ export function WeekCard({ week, doc, onOpen, onToast }: { week: ScheduleWeek; d
   async function print() {
     if (Platform.OS === 'web') { if (!openPrintPage(0)) onToast?.(t('schedule.printError')); return; }
     const kehila = session.state.kehila;
-    if (!doc || !kehila || !page || printing) return;
+    if (printing) return;
+    if (!doc || !kehila || !page) { onToast?.(t('schedule.printError')); return; }
     setPrinting(true);
     try {
       const computed = computeWeek({ version: 1, sections: doc.sections, weekOverrides: doc.weekOverrides }, week.friday, zmanimForLocation(doc.location));

@@ -82,3 +82,18 @@ export function sheetItemsFor(week: SimchaWeek): Array<{ type: 'celebration'; te
     return { type: 'celebration' as const, text: `מזל טוב למשפחת ${i.surname}\n${phrase}`, bold: i.surname, source: 'byGabbai' as const };
   });
 }
+
+type SheetBody = ReturnType<typeof sheetItemsFor>[number];
+/** The week's simchas not yet on its sheet: a line with the same text that is not removed counts as there (so a second tap or a retry posts nothing twice). */
+export function missingSheetItems(week: SimchaWeek, existing: Array<{ state: string; line?: { text: string } }>): SheetBody[] {
+  const there = new Set(existing.filter(i => i.state !== 'removed' && i.line).map(i => i.line!.text));
+  return sheetItemsFor(week).filter(b => !there.has(b.text));
+}
+
+/** Reads the sheet, posts what is missing one by one (stops at the first failure, which is thrown) and returns how many were posted. */
+export async function sendToSheet(week: SimchaWeek, io: { list: (sheetWeek: string) => Promise<Array<{ state: string; line?: { text: string } }>>; add: (sheetWeek: string, body: SheetBody) => Promise<unknown> }): Promise<number> {
+  const at = sheetWeekOf(week);
+  let n = 0;
+  for (const body of missingSheetItems(week, await io.list(at))) { await io.add(at, body); n += 1; }
+  return n;
+}
