@@ -51,3 +51,9 @@ export function previewOf(id: TemplateId, f: TemplateFields, lang: Lang, label: 
   const built = buildMessage(id, p, lang);
   return { fields: p, title: scrub(built.title), body: scrub(built.body), missing, scrub };
 }
+
+/** A day in the date select: Hebrew first, the Gregorian date in brackets ("ב׳, כ״ט בחשוון (9.11)"). */
+export const dayOptionLabel = (iso: string, lang: Lang): string => `${dayLabel(iso, lang, 'short')}, ${dualDate(iso, lang)}`;
+
+/** The preview's ‹missing› markers removed, for text that is copied into the free fields. */
+export const stripGaps = (s: string): string => s.replace(/‹[^›]*›/g, '');

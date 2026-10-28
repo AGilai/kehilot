@@ -84,7 +84,7 @@ export function TemplateForm({ id, fields, onChange, errors, families, busy, ref
             return (
               <View key={spec.key} style={{ gap: 6 }}>
                 <Field inputRef={register as never} label={label} value={value} onChangeText={v => onChange(spec.key, v)} error={errorText} editable={!busy}
-                  maxCodePoints={spec.kind === 'long' ? 600 : 120} multiline={spec.kind === 'long'} />
+                  maxCodePoints={spec.kind === 'long' ? 600 : 120} ltr={spec.key === 'hours'} multiline={spec.kind === 'long'} />
                 {id === 'mazal' && spec.key === 'blessing' ? <Txt size="caption" color={k.muted}>{t('tpl.mazal.blessingHint')}</Txt> : null}
               </View>
             );

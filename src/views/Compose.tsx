@@ -22,7 +22,7 @@ import { channelLabel } from '../client/channelsView.ts';
 import { composeTypes, messageMeta, refusalBanner } from '../client/typesView.ts';
 import { isManagement } from '../client/roles.ts';
 import { buildMessage, buildSheetLine, defaultBlessing, missingFields, templateOf, TEMPLATES } from '../client/templates.ts';
-import { copyToFree, gap, previewOf, sheetCaption } from '../client/composeState.ts';
+import { copyToFree, gap, stripGaps, previewOf, sheetCaption } from '../client/composeState.ts';
 import { WIDE } from './admin/shared.tsx';
 import { TemplateForm, fieldLabel } from './compose/TemplateForm.tsx';
 import type { FocusRefs } from './compose/TemplateForm.tsx';
@@ -149,7 +149,7 @@ export function Compose({ onBack, onPublished, initial }: { onBack: () => void; 
   function switchMode(next: 'tpl' | 'free') {
     if (next === mode) return;
     if (next === 'free' && tplId) {
-      const full = missingFields(tplId, fullFields).length === 0 ? buildMessage(tplId, fullFields, lang) : { title: built!.title, body: built!.body };
+      const full = missingFields(tplId, fullFields).length === 0 ? buildMessage(tplId, fullFields, lang) : { title: stripGaps(built!.title), body: stripGaps(built!.body) };
       const r = copyToFree({ title, body, lastCopied }, full);
       setTitle(r.title); setBody(r.body); setLastCopied(r.lastCopied); setCopiedBanner(r.copied);
     } else setCopiedBanner(false);

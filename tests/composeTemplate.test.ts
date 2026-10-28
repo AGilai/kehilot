@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { copyToFree, previewOf, sheetCaption } from '../src/client/composeState.ts';
+import { copyToFree, dayOptionLabel, previewOf, sheetCaption, stripGaps } from '../src/client/composeState.ts';
 
 const built = { title: 'T', body: 'B' };
 test('copyToFree copies into empty free fields', () => {
@@ -50,4 +50,11 @@ test('previewOf of a complete form has no missing fields', () => {
   const p = previewOf('event', { name: 'א', date: '2026-11-03', time: '20:30', place: 'בית הכנסת', for: 'women' }, 'he', k => k);
   assert.deepEqual(p.missing, []);
   assert.match(p.body, /20:30/);
+});
+
+test('dayOptionLabel is Hebrew first with the Gregorian date in brackets', () => {
+  assert.equal(dayOptionLabel('2026-11-09', 'he'), 'ב׳, כ״ט בחשוון (9.11)');
+});
+test('stripGaps empties the placeholders', () => {
+  assert.equal(stripGaps('בשעה ‹שעה› · ‹מקום›.'), 'בשעה  · .');
 });
