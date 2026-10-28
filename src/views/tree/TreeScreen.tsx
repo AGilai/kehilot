@@ -109,7 +109,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
     const rel = o.partner ? t('tree.rel.married', { kind: roleWord(p, t) }) : relationLabel(people, p, t, who);
     const label = figureLabel({ relation: o.ring ? `${rel}, ${t('tree.fromHere')}` : rel, name, deceased: !o.partner && p.deceased, states }, t);
     return (
-      <FigureTile key={p.id} testID={o.testID ?? `tree-fig-${p.id}`} person={p} partner={o.partner} name={name} label={label} big={o.big} box={o.box} ring={o.ring} size={o.box ? 52 : undefined}
+      <FigureTile key={p.id} testID={o.testID ?? `tree-fig-${p.id}`} tag={pendingSpouse && p.relation === 'spouse' && !p.userId && !readOnly ? t('tree.link.pending') : undefined} person={p} partner={o.partner} name={name} label={label} big={o.big} box={o.box} ring={o.ring} size={o.box ? 52 : undefined}
         dot={missing(p) || (!!o.partner && missing(o.partner))} deceased={!o.partner && p.deceased} ill={!p.deceased && !!p.ill || (!!o.partner && !o.partner.deceased && !!o.partner.ill)} me={!readOnly && mine(p) && !!p.hebrewFirst?.trim()} selected={selectedId === p.id || (!!o.partner && selectedId === o.partner.id)}
         width={tileW} onPress={() => onOpenPerson(p.id)} />
     );
@@ -159,7 +159,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
           {`${t('tree.title')} ‹ `}{layout.trail.map((p, i) => (i ? ' ‹ ' : '') + t('tree.crumb', { name: nameOrRole(p, t) })).join('')}
         </Txt>
       )}
-      {root ? top : null}
+      {top}
       {root && mode === 'tree' ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, columnGap: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: k.gold }} /><Txt size="caption" color={k.muted}>{t('tree.legend.missing')}</Txt></View>

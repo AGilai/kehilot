@@ -32,8 +32,16 @@ export function linkModel(view: FamilyView | null): LinkModel {
     banner: st === 'received' && received ? { kind: 'received', fromUserId: received.fromUserId, name: received.fromName }
       : (st === 'declined' || st === 'expired') && sent ? { kind: st, name: sent.toName } : null,
     linkedName: st === 'linked' ? view.adults.find(a => !a.me)?.displayName ?? null : null,
-    canRequest: st !== 'linked',
+    // A request waiting for my answer is answered first (the old card showed only confirm / decline then).
+    canRequest: st !== 'linked' && st !== 'received',
   };
+}
+
+/** What a spouse figure without an account offers: a request to link an account, the waiting request, or nothing. */
+export type FigureLink = { kind: 'invite' } | { kind: 'pending'; name: string; expiresAt: number } | { kind: 'none' };
+export function figureLink(model: LinkModel, person: { relation: string; userId?: string }): FigureLink {
+  if (person.relation !== 'spouse' || person.userId || !model.canRequest) return { kind: 'none' };
+  return model.slot.kind === 'pending' ? { kind: 'pending', name: model.slot.name, expiresAt: model.slot.expiresAt } : { kind: 'invite' };
 }
 
 /** True when the view differs in a way the tree must reload for (a request was confirmed or the link was cancelled). */

@@ -20,8 +20,10 @@ import { BarMitzvahPicker, shabbatLine } from './BarMitzvahPicker.tsx';
 import { FigurePicker } from './FigurePicker.tsx';
 import { HebrewDateField } from './HebrewDateField.tsx';
 import { StatusButtons } from './StatusButtons.tsx';
+import { useShortDate } from '../me/PartnerPicker.tsx';
 import { MineBlock, draftOfMine } from './MineBlock.tsx';
 import { errorsOf, isDirty as mineDirty } from '../../client/myDetails.ts';
+import type { FigureLink } from '../../client/linking.ts';
 import type { Mine, MineDraft } from '../../client/myDetails.ts';
 
 export type SaveOutcome = { ok: true } | { ok: false; message: string };
@@ -133,6 +135,8 @@ export type SheetProps = {
   /** My own figure: what the account holds now, for "הפרטים שלי בקהילה" (name, phone, switch). Absent: no block. */
   mine?: { cur: Mine; kehilaName: string };
   /** The linked partner's figure: "ביטול הקישור" at the bottom. */
+  /** A spouse figure without an account: invite an account to link (member picker), or the waiting request with its withdraw. */
+  invite?: { link: FigureLink; busy: boolean; error: string | null; onInvite: () => void; onWithdraw: () => Promise<boolean> };
   unlink?: { name: string; busy: boolean; error: string | null; onUnlink: () => Promise<boolean> };
   /**
    * Writes the whole tree. `feed`: how many children's names changed (the toast). `extra.mine`: my details when they changed (the
@@ -148,7 +152,7 @@ export type SheetProps = {
  * The person sheet (UX-DESIGN §17.4, P32): the figure's short form. The draft lives in `sheetReducer`; "שמירה" writes the whole
  * tree through `onSave`. Moving to another figure first saves what was changed here.
  */
-export function PersonSheet({ myId, people, target, newId, readOnly, mine, unlink, onSave, onOpen, onClose }: SheetProps) {
+export function PersonSheet({ myId, people, target, newId, readOnly, mine, unlink, invite, onSave, onOpen, onClose }: SheetProps) {
   const { t, lang } = useI18n();
   const arrow = lang === 'he' ? '‹' : '›';
   const k = useTokens();
@@ -173,10 +177,11 @@ export function PersonSheet({ myId, people, target, newId, readOnly, mine, unlin
   const mineChanged = !!mineDraft && !!mine && mineDirty(mine.cur, mineDraft);
   const treeDirty = isDirty(state);
   const dark = useColorScheme() === 'dark';
+  const shortDate = useShortDate();
 
   const save = async (then?: () => void) => {
     if (errors.length) { setError(t(errKey[errors[0]!])); return; }
-    if (mineErrors.length) { setError(null); return; } // shown under the fields
+    if (mineErrors.length) { setError(t('tree.mine.invalid')); return; } // the fields are marked too
     setBusy(true); setError(null);
     const out = await onSave(commit(state, mkId), feed, mineChanged ? { mine: mineDraft, treeChanged: treeDirty } : undefined);
     setBusy(false);
@@ -385,6 +390,24 @@ export function PersonSheet({ myId, people, target, newId, readOnly, mine, unlin
             <Button kind="secondary" title={t('tree.keep')} onPress={() => setConfirm(null)} />
           </Card>
         ) : <Button kind="secondary" title={t('tree.clear')} onPress={() => setConfirm('clear')} />
+      ) : null}
+
+      {invite && invite.link.kind !== 'none' ? (
+        <Card>
+          {invite.link.kind === 'pending' ? (
+            <>
+              <Tag label={t('tree.link.pending')} />
+              <Txt>{t('family.sentBody', { name: invite.link.name, date: shortDate(invite.link.expiresAt) })}</Txt>
+              {invite.error ? <Banner tone="error" text={invite.error} /> : null}
+              <View testID="sheet-withdraw"><Button kind="secondary" title={t('family.withdraw')} busy={invite.busy} onPress={() => void invite.onWithdraw()} /></View>
+            </>
+          ) : (
+            <>
+              <Txt size="small" color={k.muted}>{t('tree.link.inviteHint')}</Txt>
+              <View testID="sheet-invite"><Button kind="secondary" title={t('tree.link.invite')} onPress={invite.onInvite} /></View>
+            </>
+          )}
+        </Card>
       ) : null}
 
       {unlink && existing ? (

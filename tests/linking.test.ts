@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { linkModel, linkChanged } from '../src/client/linking.ts';
+import { linkModel, linkChanged, figureLink } from '../src/client/linking.ts';
 import type { FamilyView } from '../src/client/types.ts';
 
 const base = (o: Partial<FamilyView> = {}): FamilyView => ({
@@ -23,6 +23,23 @@ test('sent pending: the slot carries the name and expiry', () => {
 test('received: a banner with the first request; the slot stays empty', () => {
   const m = linkModel(base({ received: [{ fromUserId: 'u9', fromName: 'נועה לוי', expiresAt: 5 }, { fromUserId: 'u8', fromName: 'אחר', expiresAt: 5 }] }));
   assert.deepEqual(m.banner, { kind: 'received', fromUserId: 'u9', name: 'נועה לוי' }); assert.deepEqual(m.slot, { kind: 'empty' });
+});
+test('received: no new request is offered while one waits', () => {
+  assert.equal(linkModel(base({ received: [{ fromUserId: 'u9', fromName: 'א', expiresAt: 5 }] })).canRequest, false);
+});
+test('figureLink: a spouse figure without an account offers invite / shows the pending request', () => {
+  const spouse = { relation: 'spouse' };
+  assert.deepEqual(figureLink(linkModel(base()), spouse), { kind: 'invite' });
+  assert.deepEqual(figureLink(linkModel(base({ sent: { toUserId: 'u3', toName: 'נועה', expiresAt: 7, state: 'pending' } })), spouse), { kind: 'pending', name: 'נועה', expiresAt: 7 });
+  assert.deepEqual(figureLink(linkModel(base({ sent: { toUserId: 'u3', toName: 'נועה', expiresAt: 1, state: 'declined' } })), spouse), { kind: 'invite' });
+});
+test('figureLink: nothing for a linked account, other relations, a waiting received request, or no view', () => {
+  const m = linkModel(base());
+  assert.deepEqual(figureLink(m, { relation: 'spouse', userId: 'u2' }), { kind: 'none' });
+  assert.deepEqual(figureLink(m, { relation: 'child' }), { kind: 'none' });
+  assert.deepEqual(figureLink(m, { relation: 'self' }), { kind: 'none' });
+  assert.deepEqual(figureLink(linkModel(base({ received: [{ fromUserId: 'u9', fromName: 'א', expiresAt: 5 }] })), { relation: 'spouse' }), { kind: 'none' });
+  assert.deepEqual(figureLink(linkModel(null), { relation: 'spouse' }), { kind: 'none' });
 });
 test('received wins over a pending sent request (same priority as the old card)', () => {
   const m = linkModel(base({ received: [{ fromUserId: 'u9', fromName: 'א', expiresAt: 5 }], sent: { toUserId: 'u3', toName: 'ב', expiresAt: 1, state: 'pending' } }));

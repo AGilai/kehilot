@@ -13,6 +13,8 @@ export type Linking = {
   model: LinkModel;
   busy: boolean;
   error: string | null;
+  /** The first load failed (nothing is known about requests): the tree shows a retry. */
+  loadError: string | null;
   clearError: () => void;
   reload: () => Promise<void>;
   /** Runs one family call, then reloads the view. Resolves true when it went through. */
@@ -31,6 +33,8 @@ export function useLinking(api: ReturnType<typeof useAuth>['api'], kehilaId: str
   const viewRef = React.useRef<FamilyView | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const seq = React.useRef(0);
   const onChangedRef = React.useRef(onChanged);
   onChangedRef.current = onChanged;
   const live = React.useRef(true);
@@ -38,19 +42,21 @@ export function useLinking(api: ReturnType<typeof useAuth>['api'], kehilaId: str
 
   const reload = React.useCallback(async () => {
     if (!enabled || !kehilaId) return;
+    const mine = ++seq.current; // only the newest answer counts: a slow poll must not undo what an action just changed
     try {
       const next = await api.family(kehilaId);
-      if (!live.current) return;
+      if (!live.current || mine !== seq.current) return;
+      setLoadError(null);
       const before = viewRef.current;
       viewRef.current = next; setView(next);
       if (linkChanged(before, next)) onChangedRef.current();
-    } catch { /* a failed background reload keeps what is shown */ }
-  }, [api, kehilaId, enabled]);
+    } catch (e) { if (live.current && mine === seq.current && !viewRef.current) setLoadError(errText(e)); } // a failed background reload keeps what is shown
+  }, [api, kehilaId, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     if (!enabled) return;
     void reload();
-    const timer = setInterval(() => { void reload(); }, POLL_MS);
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void reload(); }, POLL_MS); // like the feed poll: foreground only
     const sub = AppState.addEventListener('change', s => { if (s === 'active') void reload(); });
     return () => { clearInterval(timer); sub.remove(); };
   }, [enabled, reload]);
@@ -62,5 +68,5 @@ export function useLinking(api: ReturnType<typeof useAuth>['api'], kehilaId: str
   }, [busy, reload]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const model = React.useMemo(() => linkModel(enabled ? view : null), [view, enabled]);
-  return { view, model, busy, error, clearError: () => setError(null), reload, run };
+  return { view, model, busy, error, loadError, clearError: () => setError(null), reload, run };
 }

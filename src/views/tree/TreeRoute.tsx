@@ -15,6 +15,10 @@ import type { Target } from '../../tree/sheet.ts';
 import { useErrorText } from '../auth/Frame.tsx';
 import { PersonSheet, makeId, sheetTitle } from './PersonSheet.tsx';
 import { LinkBannerView, SpouseLinkSheet } from './LinkParts.tsx';
+import { PartnerPicker } from '../me/PartnerPicker.tsx';
+import { ApiCodeError } from '../../client/errors.ts';
+import { figureLink } from '../../client/linking.ts';
+import { Banner, Button } from '../../kit/components.tsx';
 import { useLinking } from './useLinking.ts';
 import type { SaveOutcome } from './PersonSheet.tsx';
 import { TreeScreen, useWide } from './TreeScreen.tsx';
@@ -38,6 +42,7 @@ export function TreeRoute({ onBack, readOnly, familyId, familyName }: { onBack: 
   const [doc, setDoc] = React.useState<TreeDoc | null>(null);
   const [picked, setPicked] = React.useState<Picked>(null);
   const [linkSlot, setLinkSlot] = React.useState<Slot | null>(null);
+  const [invitePicker, setInvitePicker] = React.useState(false);
   const [toast, setToast] = React.useState<string | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const say = (text: string) => { setToast(text); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 3500); };
@@ -80,14 +85,23 @@ export function TreeRoute({ onBack, readOnly, familyId, familyName }: { onBack: 
       const why = treeOut.ok ? errText(out.error) : treeOut.message;
       return { ok: false, message: out.done.length ? t('tree.mine.treeFailed', { why }) : why };
     }
+    const phoneErr = out.failed === 'phone' && out.error instanceof ApiCodeError && out.error.code === 'invalid_phone';
     const lead = t(out.failed === 'profile' ? 'tree.mine.failProfile' : out.failed === 'phone' ? 'tree.mine.failPhone' : 'tree.mine.failSwitch');
-    return { ok: false, message: [lead, errText(out.error), out.done.length ? t('tree.mine.doneBefore') : ''].filter(Boolean).join(' ') };
+    return { ok: false, message: [lead, phoneErr ? t('me.phone.invalid') : errText(out.error), out.done.length ? t('tree.mine.doneBefore') : ''].filter(Boolean).join(' ') };
   };
   const openId = (id: string) => setPicked(open({ id }));
   const openSlot = (slot: Slot) => {
     if (!readOnly && slot.relation === 'spouse' && linking.model.canRequest) { linking.clearError(); setLinkSlot(slot); } else setPicked(open({ create: slot }));
   };
   const target = picked?.target;
+  const inviteFor = (tg: Target) => {
+    const p = 'id' in tg ? docRef.current?.people.find(x => x.id === tg.id) : undefined;
+    if (readOnly || !kehilaId || !p) return undefined;
+    const link = figureLink(linking.model, p);
+    if (link.kind === 'none') return undefined;
+    return { link, busy: linking.busy, error: linking.error, onInvite: () => { linking.clearError(); setInvitePicker(true); },
+      onWithdraw: () => linking.run(() => api.withdrawPartnerRequest(kehilaId)).then(ok => { if (ok) say(t('family.withdrawn')); return ok; }) };
+  };
   const unlinkFor = (tg: Target) => {
     const p = 'id' in tg ? docRef.current?.people.find(x => x.id === tg.id) : undefined;
     const name = linking.model.linkedName;
@@ -97,7 +111,7 @@ export function TreeRoute({ onBack, readOnly, familyId, familyName }: { onBack: 
   const exists = !!target && ('id' in target ? !!docRef.current?.people.some(p => p.id === target.id) : true);
   const title = picked && exists ? sheetTitle(docRef.current?.people ?? [], picked.target, t) : '';
   const content = picked && exists && docRef.current ? (
-    <PersonSheet key={picked.key} myId={state.me?.userId ?? null} people={docRef.current.people} target={picked.target} newId={picked.newId} readOnly={readOnly} mine={mine} unlink={unlinkFor(picked.target)}
+    <PersonSheet key={picked.key} myId={state.me?.userId ?? null} people={docRef.current.people} target={picked.target} newId={picked.newId} readOnly={readOnly} mine={mine} unlink={unlinkFor(picked.target)} invite={inviteFor(picked.target)}
       onSave={onSave} onOpen={next => setPicked(open(next))} onClose={() => setPicked(null)} />
   ) : null;
   const selectedId = picked && 'id' in picked.target ? picked.target.id : null;
@@ -116,12 +130,18 @@ export function TreeRoute({ onBack, readOnly, familyId, familyName }: { onBack: 
     <View style={{ flex: 1 }}>
       <TreeScreen onBack={onBack} readOnly={readOnly} familyId={familyId} familyName={familyName} selectedId={selectedId}
         onOpenPerson={openId} onOpenSlot={openSlot}
-        top={linking.model.banner && kehilaId ? <LinkBannerView banner={linking.model.banner} linking={linking} kehilaId={kehilaId} onToast={say} /> : null}
+        top={linking.loadError && !linking.view ? (
+          <View style={{ gap: 8 }}><Banner tone="error" text={linking.loadError} /><Button kind="secondary" title={t('common.retry')} onPress={() => void linking.reload()} /></View>
+        ) : linking.model.banner && kehilaId ? <LinkBannerView banner={linking.model.banner} linking={linking} kehilaId={kehilaId} onToast={say} /> : null}
         pendingSpouse={linking.model.slot.kind === 'pending' ? linking.model.slot.name : null} onDoc={d => { docRef.current = d; }} doc={doc} panel={panel} />
       {!wide ? <Sheet visible={!!picked && !!content} title={title} onClose={() => setPicked(null)}>{content}</Sheet> : null}
       {!readOnly && kehila && linkSlot ? (
         <SpouseLinkSheet visible gender={linkSlot.gender} slot={linking.model.slot} kehilaId={kehila.kehilaId} kehilaName={kehila.name} linking={linking}
           onManual={() => { const sl = linkSlot; setLinkSlot(null); setPicked(open({ create: sl })); }} onClose={() => setLinkSlot(null)} onToast={say} />
+      ) : null}
+      {!readOnly && kehila ? (
+        <PartnerPicker visible={invitePicker} kehilaId={kehila.kehilaId} kehilaName={kehila.name} onClose={() => setInvitePicker(false)}
+          onSent={() => { setInvitePicker(false); say(t('family.pick.sent')); void linking.reload(); }} />
       ) : null}
       <Toast text={toast ?? ''} visible={!!toast} />
     </View>
