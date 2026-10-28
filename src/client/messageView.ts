@@ -1,6 +1,6 @@
 import { israelDate } from '../dates.ts';
 import type { FeedState } from './feed.ts';
-import type { Channel, Message, MessageType, NotifyPrefs, PostMessageBody, Reply, Role } from './types.ts';
+import type { Channel, Message, MessageType, NotifyPrefs, PostMessageBody, Reply, Role, TemplateFields, TemplateId } from './types.ts';
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
@@ -127,7 +127,7 @@ export function canPublish(d: Draft): boolean {
 }
 
 /** The request body; the target goes only with types that take one, empty optional fields are left out. */
-export function postBody(d: Draft, imageUploadId: string | undefined): PostMessageBody {
+export function postBody(d: Draft, imageUploadId: string | undefined, tpl?: { templateId: TemplateId; fields: TemplateFields }): PostMessageBody {
   const out: PostMessageBody = { channelId: d.channelId!, type: d.type, title: d.title.trim() };
   if (d.body.trim()) out.body = d.body;
   if (needsTarget(d.type) && d.targetMemberId) {
@@ -135,5 +135,6 @@ export function postBody(d: Draft, imageUploadId: string | undefined): PostMessa
     if (d.targetFamilyId) out.targetFamilyId = d.targetFamilyId;
   }
   if (imageUploadId) out.imageUploadId = imageUploadId;
+  if (tpl) { out.templateId = tpl.templateId; out.fields = tpl.fields; }
   return out;
 }

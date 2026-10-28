@@ -132,6 +132,17 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm5' || s === 'prefs-seats') return { nav: { tab: 'prefs', from: 'home' } };
   if (s === 'compose-target') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003' } };
   if (s === 'compose-family') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: '01FIXTUREFAMILY0000000003', query: 'ב' } };
+  if (s?.startsWith('compose-tpl-')) {
+    const event = { name: 'ערב לימוד לנשים', date: '2026-11-03', time: '20:30', place: 'בית הכנסת, עזרת הנשים', for: 'women' };
+    const mazal = { occasion: 'birthDaughter', whose: 'grandparents', name: 'נועה', parents: 'דוד ושרה', blessing: 'שיזכו לגדלה לתורה, לחופה ולמעשים טובים' };
+    const condolence = { variant: 'full', deceased: 'אברהם דוגמה', relation: 'אביו של משה', address: 'רח׳ הניסיון 12, קומה 2', hours: '10:00–13:00', until: '2026-11-09' };
+    const family = '01FIXTUREFAMILY0000000003';
+    if (s === 'compose-tpl-event') return { nav: { tab: 'compose' }, compose: { type: 'event', tpl: { fields: event } } };
+    if (s === 'compose-tpl-mazal') return { nav: { tab: 'compose' }, compose: { type: 'celebration', targetFamilyId: family, tpl: { fields: mazal } } };
+    if (s === 'compose-tpl-condolence') return { nav: { tab: 'compose' }, compose: { type: 'condolence', targetFamilyId: family, tpl: { fields: condolence } } };
+    if (s === 'compose-tpl-missing') return { nav: { tab: 'compose' }, compose: { type: 'condolence', targetFamilyId: family, tpl: { fields: { ...condolence, hours: '', until: '' }, then: 'publish' } } };
+    if (s === 'compose-tpl-free') return { nav: { tab: 'compose' }, compose: { type: 'event', tpl: { fields: event, then: 'free' } } };
+  }
   if (s === 'compose-image') return { nav: { tab: 'compose' }, compose: { type: 'weekly', image: { uri: FIXTURE_PICTURE } } };
   return null;
 }

@@ -532,6 +532,8 @@
     "asGeneral": "Change to a regular message",
     "tpl": {
       "mode": "How to write",
+      "previewRegion": "Preview",
+      "now": "now",
       "template": "Fill a template",
       "free": "Free text",
       "optional": "(optional)",

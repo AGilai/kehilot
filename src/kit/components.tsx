@@ -36,10 +36,10 @@ export function Txt({ children, size = 'body', bold, serif, color, content, styl
   );
 }
 
-export function Screen({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
+export function Screen({ children, scroll = true, maxWidth = 680 }: { children: React.ReactNode; scroll?: boolean; maxWidth?: number }) {
   const k = useTokens();
   const pad = useReportPad();
-  const inner = { padding: 16, paddingBottom: scroll && pad ? pad : 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' } as const;
+  const inner = { padding: 16, paddingBottom: scroll && pad ? pad : 16, gap: 16, width: '100%', maxWidth, alignSelf: 'center' } as const;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: k.stone }}>
       {scroll ? <ScrollView contentContainerStyle={inner}>{children}</ScrollView> : <View style={[{ flex: 1 }, inner]}>{children}</View>}
@@ -90,7 +90,7 @@ export function Button({ title, onPress, kind = 'primary', busy, disabled, acces
 }
 
 /** Text field with a code-point counter (`[...s].length`, matching the server). */
-export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, ...rest }: TextInputProps & { label: string; value: string; onChangeText: (v: string) => void; maxCodePoints?: number; error?: string | null; /** Typed left to right (numbers, even in Hebrew); still aligned to the logical start. */ ltr?: boolean }) {
+export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, inputRef, ...rest }: TextInputProps & { inputRef?: React.Ref<TextInput>; label: string; value: string; onChangeText: (v: string) => void; maxCodePoints?: number; error?: string | null; /** Typed left to right (numbers, even in Hebrew); still aligned to the logical start. */ ltr?: boolean }) {
   const { lang, dir, t } = useI18n();
   const k = useTokens();
   const n = [...value].length;
@@ -98,7 +98,7 @@ export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, .
   return (
     <View style={{ gap: 6 }}>
       <Txt size="small" bold>{label}</Txt>
-      <TextInput {...rest} accessibilityLabel={label} value={value} onChangeText={onChangeText} placeholderTextColor={k.muted}
+      <TextInput {...rest} ref={inputRef} accessibilityLabel={label} value={value} onChangeText={onChangeText} placeholderTextColor={k.muted}
         style={[{ minHeight: TOUCH, borderWidth: 1, borderRadius: 10, borderColor: over || error ? k.danger : k.line, backgroundColor: k.surface, paddingHorizontal: 12, color: k.ink, fontSize: type.body, fontFamily: fonts.ui, writingDirection: ltr ? 'ltr' : dir, textAlign: textStart(lang) }, rest.multiline ? { paddingVertical: 10, minHeight: 120, textAlignVertical: 'top' } : null]} />
       {maxCodePoints !== undefined ? <Txt size="caption" color={over ? k.danger : k.muted}>{t('field.counter', { n, max: maxCodePoints })}</Txt> : null}
       {error ? <Txt size="small" color={k.danger} accessibilityRole="alert">{error}</Txt> : null}

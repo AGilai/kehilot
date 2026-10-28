@@ -35,6 +35,8 @@ export type Kehila = {
   role: Role;
   classification: Classification;
   logoVersion: string | null;
+  /** Members only: whether their mazal tov, condolence and event lines go on the sheet at once or wait for approval. */
+  sheetMembers?: 'approve' | 'auto';
   canBroadcast: boolean;
   pendingRequest: boolean;
   notify: NotifyPrefs;

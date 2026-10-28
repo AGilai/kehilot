@@ -169,3 +169,13 @@ test('postBody sends the family with its adult for a blessing, and neither for o
   assert.deepEqual(postBody({ ...d, type: 'celebration' }, undefined), { channelId: 'a', type: 'celebration', title: 't', targetMemberId: 'u2', targetFamilyId: 'F1' });
   assert.deepEqual(postBody({ ...d, type: 'weekly' }, undefined), { channelId: 'a', type: 'weekly', title: 't' });
 });
+
+test('postBody adds templateId and fields only when a template is given', () => {
+  const d = { type: 'event' as const, channelId: 'c', title: 'T', body: 'B', targetMemberId: null };
+  const withTpl = postBody(d, undefined, { templateId: 'event', fields: { name: 'x' } });
+  assert.equal(withTpl.templateId, 'event');
+  assert.deepEqual(withTpl.fields, { name: 'x' });
+  const without = postBody(d, undefined);
+  assert.ok(!('templateId' in without));
+  assert.ok(!('fields' in without));
+});

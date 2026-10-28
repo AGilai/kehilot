@@ -1,0 +1,53 @@
+// Pure helpers for Compose's template mode (UX-DESIGN §19.2 item 5, §19.3).
+import { isManagement } from './roles.ts';
+import { dualDate } from '../dates.ts';
+import { TEMPLATES, buildMessage, dayLabel, missingFields } from './templates.ts';
+import type { Lang, MessageType, Role, TemplateFields, TemplateId } from './types.ts';
+
+type Free = { title: string; body: string };
+export type CopyState = Free & { lastCopied: Free | null };
+
+/** Switching to free text: the built text goes into the free fields only when both are empty or still what the last copy put there. */
+export function copyToFree(state: CopyState, built: Free): CopyState & { copied: boolean } {
+  const last = state.lastCopied;
+  const empty = !state.title.trim() && !state.body.trim();
+  const untouched = !!last && state.title === last.title && state.body === last.body;
+  if (!empty && !untouched) return { ...state, copied: false };
+  return { title: built.title, body: built.body, lastCopied: { title: built.title, body: built.body }, copied: true };
+}
+
+/** What happens to the sheet line of this post: in at once (management, or a Kehila that lets members in) or after approval. */
+export function sheetCaption(role: Role | undefined, sheetMembers: 'approve' | 'auto' | undefined, type: MessageType): 'sheetAuto' | 'sheetPending' | null {
+  if (type !== 'event' && type !== 'celebration' && type !== 'condolence') return null;
+  return isManagement(role) || sheetMembers === 'auto' ? 'sheetAuto' : 'sheetPending';
+}
+
+// Live preview ---------------------------------------------------------------------------------------------------
+const SENTINEL_DAY = '2000-01-03';
+export const gap = (label: string): string => `‹${label}›`;
+
+/**
+ * What the preview shows while fields are still empty: the built text with each missing field's name in ‹ › (the
+ * preview draws it as a gold dashed chip as well, so colour is never the only cue). `label(key)` is the field's name.
+ */
+export function previewOf(id: TemplateId, f: TemplateFields, lang: Lang, label: (key: string) => string): { fields: TemplateFields; title: string; body: string; missing: string[]; scrub: (s: string) => string } {
+  const missing = missingFields(id, f);
+  const p: TemplateFields = { ...f };
+  const dateKeys: string[] = [];
+  for (const spec of TEMPLATES[id]) {
+    if (!missing.includes(spec.key)) continue;
+    if (spec.kind === 'chips') { p[spec.key] = spec.options![0]!; continue; }
+    if (spec.kind === 'date') { p[spec.key] = SENTINEL_DAY; dateKeys.push(spec.key); } else p[spec.key] = gap(label(spec.key));
+  }
+  const dateLabel = dateKeys.length ? gap(label(dateKeys[0]!)) : '';
+  const pairs: Array<[string, string]> = dateKeys.length ? [
+    [`${dayLabel(SENTINEL_DAY, lang, 'long')}, ${dualDate(SENTINEL_DAY, lang)}`, dateLabel],
+    [dualDate(SENTINEL_DAY, lang, { weekday: true }), dateLabel],
+    [dualDate(SENTINEL_DAY, lang), dateLabel],
+    [`· ${dayLabel(SENTINEL_DAY, lang, 'short')} `, `· ${dateLabel} `],
+    [`${lang === 'he' ? 'עד' : 'until'} ${dayLabel(SENTINEL_DAY, lang, 'short')}`, `${lang === 'he' ? 'עד' : 'until'} ${dateLabel}`],
+  ] : [];
+  const scrub = (s: string) => pairs.reduce((acc, [a, b]) => acc.split(a).join(b), s);
+  const built = buildMessage(id, p, lang);
+  return { fields: p, title: scrub(built.title), body: scrub(built.body), missing, scrub };
+}
