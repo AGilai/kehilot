@@ -9,6 +9,7 @@
     "invalid_adar": "That Adar does not exist in that year (Adar I and II only in a leap year)",
     "invalid_birth": "The birth date is not valid",
     "invalid_death": "The date of death is not valid",
+    "invalid_ill": "Only a living person can be marked as ill",
     "invalid_bar_mitzvah": "The bar mitzvah date is not valid",
     "invalid_figure": "The figure options are not valid",
     "version_conflict": "Someone else updated the tree. Reloading.",
@@ -2400,6 +2401,25 @@
       "missMother": "Mother's name missing",
       "missFirst": "First name missing",
       "diedOn": "Died on {hdate}"
+    },
+    "ill": {
+      "button": "Mark as ill · for a full recovery",
+      "confirm": "Mark {name} as ill? The name will appear in the Mi Sheberach for the sick.",
+      "yes": "Yes, for a full recovery",
+      "badge": "For recovery",
+      "a11y": "ill, for a full recovery",
+      "legend": "For a full recovery",
+      "caption": "For a full recovery",
+      "nameTitle": "Mi Sheberach name for the sick",
+      "toGabbai": "The name will be sent to the gabbai for the Mi Sheberach (coming soon)"
+    },
+    "dec": {
+      "button": "Mark as deceased",
+      "confirm": "Mark {name} as deceased? A memorial candle and ז״ל will appear, and the date-of-death fields open.",
+      "yes": "Yes, mark",
+      "cancel": "Cancel",
+      "caption": "Deceased · {hdate}",
+      "captionNoDate": "Deceased"
     },
     "f": {
       "first": "Hebrew first name",
