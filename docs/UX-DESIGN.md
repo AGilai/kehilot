@@ -1976,12 +1976,30 @@ content is a side panel (§17.6).
    - כהן, לוי או ישראל — men only (women: none, owner decision 2). Three Chips, **prefilled from the father's figure
      when the figure is created**, editable by hand afterwards ("נלקח מהאב כשהדמות נוצרה. אפשר לשנות.").
    - תאריך לידה: Hebrew day+month select and year select; the Gregorian date is computed and shown under it ("לועזי:
-     24.6.1982"), and can be typed instead. Children under 13 (boys) / 12 (girls): "בר מצווה: י״ד בכסלו תשפ״ט, שבת
-     2.12.2028" / "בת מצווה: …". Optional everywhere.
+     24.6.1982"), and can be typed instead. Optional everywhere. Bar/bat mitzvah: see "Bar mitzvah" below.
    - Segmented **בחיים / 🕯 נפטר/ה**. Deceased adds "תאריך הפטירה (עברי)" (day, month, year selects) with the Gregorian
      date. Date unknown is allowed (no dot for it). **No yahrzeit calculation** in this version (owner decision 4).
 4. **Save** (primary). Remove only for children and spouses (inline confirm: "להסיר את {name} מהעץ? הפרטים יימחקו גם
    אצל {partner}." danger "כן, להסיר" + "השארה"). Parents' figures have "ניקוי הפרטים" instead (the slot stays).
+
+**Short forms: only the fields that figure needs** (owner). Each figure opens its own small form:
+
+| Figure | Fields (besides the computed name card) |
+|---|---|
+| Parents, grandparents and up | first name, surname, father's / mother's name (from the tree or typed), tribe (men), alive/deceased + date of death |
+| Our couple | first name, surname, father's / mother's name, tribe (men), birth date, alive/deceased |
+| Child | first name, birth date (+ bar/bat mitzvah), alive/deceased; the parents' names come from us — no fields; "נשוי/אה? הוספת בן/בת זוג" |
+| Child's spouse | first name, surname, father's / mother's name (typed), tribe (men) |
+| Grandchild | first name, son/daughter, birth date |
+
+**Bar mitzvah (boys).** Once the birth date is in, the form suggests the **Shabbat of, or after, the 13th Hebrew
+birthday** with its parasha and date — e.g. "שבת פרשת וישלח · י״ד בכסלו תשפ״ט · 2.12.2028" — in a card marked with a
+Tag **"הצעה"** and a link "שינוי השבת ‹". Changing it lists the suggested Shabbat and the next three (each with parasha,
+Hebrew and Gregorian date; "שבת אחרת…" opens a full Shabbat list). A changed choice shows the Tag **"נקבע ידנית"** and
+"חזרה להצעה: וישלח, 2.12.2028". If the birth date changes later, a manual choice is kept and a Banner asks whether to
+take the new suggestion. Parashot follow the Israeli reading cycle. **Girls:** the bat mitzvah date (12th Hebrew
+birthday) is shown as information only, no Shabbat picker (designer's call — flag: add a picker if the Kehila marks a
+Shabbat for girls too).
 
 **The feed, shown.** When a saved name is also someone else's father/mother name, the sheet says so before saving
 (Banner "זה גם שם האב של 7 הילדים. בשמירה השמות שלהם יתעדכנו.") and after saving the toast names the count ("נשמר. השם
@@ -2070,6 +2088,11 @@ candle / empty / selected / path), **`FaceIcon`** (`oldman`, `oldwoman`, `man`, 
 | `tree.married` | נשוי/אה? הוספת בן/בת זוג | Married? Add a spouse |
 | `tree.remove` / `.removeYes` / `.clear` | להסיר את {name} מהעץ? הפרטים יימחקו גם אצל {partner}. / כן, להסיר / ניקוי הפרטים | Remove {name} from the tree? It's removed for {partner} too. / Yes, remove / Clear details |
 | `tree.save` / `.add` | שמירה / הוספה לעץ | Save / Add to the tree |
+| `tree.bm.title` / `.suggested` / `.manual` | בר מצווה / הצעה / נקבע ידנית | Bar mitzvah / Suggested / Set by hand |
+| `tree.bm.shabbat` / `.why` | שבת פרשת {parasha} · {hdate} · {date} / ההצעה: השבת שבה, או אחרי, יום ההולדת ה־13 העברי. משפחות מזיזות לפעמים; אפשר לשנות. | Shabbat {parasha} · … / Suggested: the Shabbat of or after the 13th Hebrew birthday. Families sometimes move it; you can change it. |
+| `tree.bm.change` / `.pick` / `.other` / `.reset` | שינוי השבת / באיזו שבת? / שבת אחרת… / חזרה להצעה: {parasha}, {date} | Change Shabbat / Which Shabbat? / Another Shabbat… / Back to the suggestion: … |
+| `tree.bm.afterBirthDate` | אחרי תאריך הלידה תופיע הצעה לשבת בר המצווה. | After the birth date, a bar mitzvah Shabbat is suggested. |
+| `tree.batm.title` | בת מצווה | Bat mitzvah |
 
 ### 17.10 Decisions taken here (CTO to check)
 
