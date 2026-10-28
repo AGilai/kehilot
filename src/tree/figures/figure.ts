@@ -51,7 +51,7 @@ export function resolveFigure(relation: Relation, gender: Gender, stage: AgeStag
 }
 
 export type FigureArgs = { style: 'A' | 'B'; stage: AgeStage; gender: Gender; options: FigureOptions; deceased: boolean; dark: boolean; seed?: number };
-type Member = { stage: AgeStage; gender: Gender; options: FigureOptions; seed?: number };
+type Member = { stage: AgeStage; gender: Gender; options: FigureOptions; seed?: number; deceased?: boolean };
 
 const DISC = { light: '#EAEDE2', dark: '#283058' };
 const SPOT = { light: { c: '#2A3F94', o: '.2' }, dark: { c: '#8FA2F0', o: '.38' } };
@@ -63,7 +63,7 @@ function lookOf(m: Member): Look {
   const kind = m.stage, female = m.gender === 'f';
   const shirts = female ? SHIRT_F : SHIRT_M;
   const elder = kind === 'older';
-  const shirt = elder ? (female ? '#C99A3B' : '#8A8FA6') : kind === 'adult' && female ? pick(shirts, 1) : pick(shirts, seed);
+  const shirt = kind === 'baby' ? pick(shirts, 0) : elder ? (female ? '#C99A3B' : '#8A8FA6') : kind === 'adult' && female ? pick(shirts, 1) : pick(shirts, seed);
   const knit = kind === 'adult' || kind === 'older' ? pick(KNIT, 0) : pick(KNIT, seed);
   const skin = o.skin === 0 || o.skin === 1 || o.skin === 2 ? o.skin : 1;
   const coverDefault = female && elder ? BERET : female ? pick(COVER_COLORS, seed) : TEKHELET;
@@ -77,8 +77,6 @@ function lookOf(m: Member): Look {
   };
 }
 
-// A short stable hash for ids, so two figures inlined in one page never share a clip-path id.
-function hash(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
 const box = (viewBox: string): [number, number, number, number] => { const v = viewBox.split(' ').map(Number); return [v[0] ?? 0, v[1] ?? 0, v[2] ?? 100, v[3] ?? 100]; };
 const ROOT = (viewBox: string, inner: string) => {
   const [, , w, h] = box(viewBox);
@@ -87,7 +85,7 @@ const ROOT = (viewBox: string, inner: string) => {
 const fade = (markup: string, deceased: boolean, dark = false) => deceased ? `<g opacity="${dark ? '0.8' : '0.62'}">${ash(markup, dark)}</g>` : markup;
 
 function badgeFor(style: 'A' | 'B', viewBox: string, dark: boolean): string {
-  if (style === 'B') return candleBadge(80, 82, 13, dark);
+  if (style === 'B') return candleBadge(75, 75, 11, dark); // inside the disc: the round clip is done by the Figure wrapper
   const [x, y, w, h] = box(viewBox);
   const r = Math.max(10, Math.min(w, h) * 0.17);
   return candleBadge(x + w * 0.74, y + h - r - 2, r, dark);
@@ -102,31 +100,31 @@ export function figureSvg(a: FigureArgs): string {
   const m = { stage: a.stage, gender: a.gender, options: a.options, seed: a.seed };
   const disc = a.dark ? DISC.dark : DISC.light;
   if (a.style === 'B') {
-    const id = 'c' + hash(JSON.stringify([a.stage, a.gender, a.options, a.seed]));
-    const art = `<g clip-path="url(#${id})"><circle cx="50" cy="50" r="50" fill="${disc}"/>${figureBMarkup(m)}</g>`;
-    return ROOT('0 0 100 100', `<defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath></defs>${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
+    // No clipPath (weak on iOS): the disc is a plain circle and Figure.tsx rounds the image with a clipping wrapper.
+    const art = `<circle cx="50" cy="50" r="50" fill="${disc}"/>${figureBMarkup(m)}`;
+    return ROOT('0 0 100 100', `${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
   }
   const fig = figureA(lookOf(m));
   return ROOT(fig.viewBox, `${fade(fig.markup, a.deceased, a.dark)}${a.deceased ? badgeFor('A', fig.viewBox, a.dark) : ''}`);
 }
 
 /** A married child: one tile, our child in front on a tekhelet stage, the spouse a step behind (and a little smaller). */
-export function coupleSvg(a: { style: 'A' | 'B'; dark: boolean; deceased: boolean; child: Member; spouse: Member }): string {
+export function coupleSvg(a: { style: 'A' | 'B'; dark: boolean; child: Member; spouse: Member }): string {
   const spot = a.dark ? SPOT.dark : SPOT.light;
+  const gone = !!a.child.deceased || !!a.spouse.deceased;
   if (a.style === 'B') {
-    const id = 'c' + hash(JSON.stringify([a.child, a.spouse]));
-    const art = `<g clip-path="url(#${id})"><circle cx="50" cy="50" r="50" fill="${a.dark ? DISC.dark : DISC.light}"/>`
-      + `<g transform="translate(35 56.2) scale(0.6615) translate(-50 -46)">${figureBMarkup(a.spouse)}</g>`
+    const art = `<circle cx="50" cy="50" r="50" fill="${a.dark ? DISC.dark : DISC.light}"/>`
+      + fade(`<g transform="translate(35 56.2) scale(0.6615) translate(-50 -46)">${figureBMarkup(a.spouse)}</g>`, !!a.spouse.deceased, a.dark)
       + `<ellipse data-marker="1" cx="62" cy="100" rx="30" ry="9" fill="${spot.c}" fill-opacity="${spot.o}"/>`
-      + `<g transform="translate(62 52) scale(0.8) translate(-50 -46)">${figureBMarkup(a.child)}</g></g>`;
-    return ROOT('0 0 100 100', `<defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath></defs>${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
+      + fade(`<g transform="translate(62 52) scale(0.8) translate(-50 -46)">${figureBMarkup(a.child)}</g>`, !!a.child.deceased, a.dark);
+    return ROOT('0 0 100 100', `${art}${gone ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
   }
   const vb = '18 0 70 150';
   const art = `<ellipse data-marker="1" cx="61" cy="145.5" rx="17" ry="3.6" fill="${spot.c}" fill-opacity="${spot.o}"/>`
-    + `<g transform="translate(-11 0) translate(50 146) scale(0.9) translate(-50 -146)">${figureA(lookOf(a.spouse)).markup}</g>`
-    + `<g transform="translate(11 0)">${figureA(lookOf(a.child)).markup}</g>`
+    + fade(`<g transform="translate(-11 0) translate(50 146) scale(0.9) translate(-50 -146)">${figureA(lookOf(a.spouse)).markup}</g>`, !!a.spouse.deceased, a.dark)
+    + fade(`<g transform="translate(11 0)">${figureA(lookOf(a.child)).markup}</g>`, !!a.child.deceased, a.dark)
     + `<rect data-marker="1" x="55" y="147" width="30" height="3" rx="1.5" fill="${spot.c}"/>`;
-  return ROOT(vb, `${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('A', vb, a.dark) : ''}`);
+  return ROOT(vb, `${art}${gone ? badgeFor('A', vb, a.dark) : ''}`);
 }
 
 /** An empty slot: a dashed outline (head and shoulders in a dashed circle in B, the body in A). */

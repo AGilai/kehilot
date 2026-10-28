@@ -80,6 +80,7 @@ const NO_EXTERNAL = (svg: string) => {
   assert.ok(!/<script/i.test(svg) && !/\son\w+\s*=/i.test(svg) && !/<foreignObject/i.test(svg) && !/<image\b/i.test(svg) && !/url\(\s*["']?(https?:|\/\/)/i.test(svg));
   assert.ok(!/var\(--/.test(svg), 'no CSS variables: an SVG shown as an image cannot see them');
   assert.ok(!/<style/i.test(svg));
+  assert.ok(!/<(clipPath|mask|filter)\b|clip-path=|mask=|filter=/i.test(svg), 'no clipPath/mask/filter: iOS SVG renderers are weak with them');
 };
 // Well-formed: tags balance and attributes are quoted (a tiny XML check, no dependency).
 function wellFormed(svg: string) {
@@ -155,10 +156,25 @@ test('dark mode only changes the disc and the badge, not the art', () => {
 
 test('couple tile: our child in front with the tekhelet marker, spouse behind', () => {
   for (const style of ['A', 'B'] as const) for (const dark of [false, true]) for (const deceased of [false, true]) {
-    const svg = coupleSvg({ style, dark, deceased, child: { stage: 'youngAdult', gender: 'm', options: resolveFigure('child', 'm', 'youngAdult') }, spouse: { stage: 'adult', gender: 'f', options: resolveFigure('childSpouse', 'f', 'adult') } });
+    const svg = coupleSvg({ style, dark, child: { stage: 'youngAdult', gender: 'm', options: resolveFigure('child', 'm', 'youngAdult'), deceased }, spouse: { stage: 'adult', gender: 'f', options: resolveFigure('childSpouse', 'f', 'adult') } });
     NO_EXTERNAL(svg); wellFormed(svg);
     assert.ok(svg.includes('data-marker'), 'tekhelet stage marker');
     assert.equal(svg.includes('data-candle'), deceased);
+  }
+});
+
+test('couple tile: only the deceased person is ashed, the living one keeps colour', () => {
+  const child = { stage: 'youngAdult' as const, gender: 'm' as const, options: resolveFigure('child', 'm', 'youngAdult') };
+  const spouse = { stage: 'adult' as const, gender: 'f' as const, options: resolveFigure('childSpouse', 'f', 'adult') };
+  for (const style of ['A', 'B'] as const) {
+    const living = coupleSvg({ style, dark: false, child, spouse });
+    const spouseGone = coupleSvg({ style, dark: false, child, spouse: { ...spouse, deceased: true } });
+    const childGone = coupleSvg({ style, dark: false, child: { ...child, deceased: true }, spouse });
+    assert.ok(!living.includes('opacity="0.62"'));
+    for (const svg of [spouseGone, childGone]) { assert.equal(svg.split('opacity="0.62"').length - 1, 1, 'one ashed group'); assert.ok(svg.includes('data-candle')); }
+    assert.notEqual(spouseGone, childGone);
+    // the tekhelet colour of the living one's clothes survives in both
+    assert.ok(spouseGone.includes('#2A3F94') && childGone.includes('#DD7C92'));
   }
 });
 
