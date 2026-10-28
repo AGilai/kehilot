@@ -2128,10 +2128,16 @@ mode; only the tile, disc (`--disc`) and "stage" (`--spot`) behind it follow the
 | נער/ה | 13–17 (from bar mitzvah) | 12–17 (from bat mitzvah), long hair, long skirt |
 | בחור/ה | 18+, not married | 18+, not married |
 
-**Adults** (our couple) and **older** (parents and up): three options each. Man: knitted kippah and short beard
-(default) · black kippah and glasses · no kippah. Woman: tichel (default for married) · tichel and glasses · no head
+**Adults** (our couple) and **older** (parents and up): three options each. Man: large knitted kippah and short beard
+(default) · large black kippah and glasses · no kippah. Woman: hat (default for married) · hat and glasses · no head
 covering. Older man: white beard, glasses, black kippah (default) · grey beard, knitted kippah · no kippah. Older
-woman: tichel and glasses (default) · tichel · grey bun, no covering. The option is stored per person ("איך להציג",
+woman: hat and glasses (default) · hat · grey bun, no covering.
+
+**Kippah** (owner, 2026-10-28): the Kehila wears a large kippah. Drawn as a flat lens on the crown that follows the
+head's curve and sits slightly back (about two thirds of the head's width, never a raised dome), knitted ones with a
+contrasting ring. **Married women's hat** (owner): a large, soft beret framing the face, smooth silhouette, a thin
+contrasting ribbon and a small flower at the side, hair showing at the forehead and sides; no tied scarf, no knot or
+tails. The option is stored per person ("איך להציג",
 in the sheet); the default follows the person's generation and gender.
 
 **Married child**: keeps one place among the siblings, as a 2-column tile. Our child stands **in front, slightly
@@ -2148,7 +2154,12 @@ dashed outline (body in A, head-and-shoulders in a dashed circle in B) and the t
 3. Default skin tone for a new family (three are drawn; each person can change it).
 4. The children's age bands (bat mitzvah at 12 starts "נערה").
 
-**Build note.** One parametric `FamilyFigure` component (`react-native-svg`): `{ stage, gender, variant, skin, hair,
+**Later phase (not now): community style.** A Kehila may choose its style through figure options — kippah type and
+size (large knitted, cloth, black velvet, none) and women's head covering (beret/hat, tichel, snood, none) — as Kehila
+defaults, overridable per person. The component must take these as parameters, not bake them into the drawings.
+
+**Build note.** One parametric `FamilyFigure` component (`react-native-svg`): `{ stage, gender, skin, hair, hairColor,
+kippah: { style, colour, ring } | null, headCovering: { style, colour, accent } | null, beard, glasses, clothes,
 deceased, size }` → paths. Stage comes from the birth date and marital status; variant from the person's "איך להציג".
 The frames generate every figure from such parameters, so the component can follow the same shapes.
 
