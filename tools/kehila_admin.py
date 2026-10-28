@@ -3,6 +3,7 @@
 
        .venv/bin/python tools/kehila_admin.py gabbai-invite --env dev --kehila <id>
        .venv/bin/python tools/kehila_admin.py backfill-families --env dev [--kehila <id>]
+       .venv/bin/python tools/kehila_admin.py set-role --env dev --kehila <id> --user <userId|email> --role <role> [--apply]
        .venv/bin/python tools/kehila_admin.py merge-channels --env dev [--kehila <id>] [--apply]   (dry run without --apply)
 
 Creates a Kehila (with default channels) and prints its ID and a one-use, 7-day gabbai invite code.
@@ -87,6 +88,55 @@ def merge_channels(repo, k=None, apply=False):
     return plans
 
 
+def cognito_client():
+    import boto3
+    return boto3.client('cognito-idp', region_name=os.environ.get('AWS_DEFAULT_REGION')
+                        or os.environ.get('AWS_REGION') or terraform_output('dev', 'region'))
+
+
+def resolve_user(repo, env, user):
+    """A userId as given, or (when it holds an @) the account's userId via Cognito. Never echoes an email."""
+    if '@' not in user:
+        return user
+    client = cognito_client()
+    try:
+        found = client.admin_get_user(UserPoolId=terraform_output(env, 'user_pool_id'), Username=user.strip().lower())
+    except client.exceptions.UserNotFoundException:
+        sys.exit('no account for that email')
+    sub = next(a['Value'] for a in found['UserAttributes'] if a['Name'] == 'sub')
+    user_id = repo.get_user_id(sub)
+    if not user_id:
+        sys.exit('that account has never signed in to the app')
+    return user_id
+
+
+def set_role(repo, k, user_id, role, apply=False):
+    """Change one member's role (never to or from listener). Refuses, apply or not, when it would leave the
+    Kehila without a gabbai or tech. Returns (old role, new role, applied). Exits with a message on a refusal."""
+    from server.cloud.errors import ApiError
+    if not repo.get_kehila(k):
+        sys.exit(f'Kehila {k} does not exist')
+    member = repo.get_membership(k, user_id)
+    if not member:
+        sys.exit('not a member of that Kehila')
+    old = member['role']
+    if not authz.in_set(role, authz.NON_LISTENERS) or not authz.in_set(old, authz.NON_LISTENERS):
+        sys.exit('a listener cannot be given a role here, and no one becomes a listener (use the approval flow)')
+    if old == role:
+        return old, role, False
+    others = [m for m in repo.list_members(k) if m['userId'] != user_id and authz.role_in(m, authz.MANAGEMENT)]
+    if authz.in_set(old, authz.MANAGEMENT) and not authz.in_set(role, authz.MANAGEMENT) and not others:
+        sys.exit('refused: this is the last gabbai or tech; make another one first')
+    if apply:
+        try:
+            repo.update_member(k, user_id, old, {'role': role})
+        except ApiError as error:
+            if error.code == 'last_gabbai':
+                sys.exit('refused: this is the last gabbai or tech; make another one first')
+            raise
+    return old, role, apply
+
+
 def read_logo(path):
     """Read and validate a logo PNG; exits with a clear message when it is unusable."""
     try:
@@ -130,7 +180,23 @@ def main(argv=None):
     merge.add_argument('--env', required=True, choices=['dev'])
     merge.add_argument('--kehila', help='only this Kehila (default: all)')
     merge.add_argument('--apply', action='store_true', help='make the changes (default: only print the plan)')
+    set_role_cmd = sub.add_parser('set-role', help='change a member\'s role (dry run unless --apply)')
+    set_role_cmd.add_argument('--env', required=True, choices=['dev'])
+    set_role_cmd.add_argument('--kehila', required=True)
+    set_role_cmd.add_argument('--user', required=True, help='a userId, or an email address')
+    set_role_cmd.add_argument('--role', required=True, choices=list(authz.NON_LISTENERS))
+    set_role_cmd.add_argument('--apply', action='store_true', help='make the change (default: only print it)')
     args = parser.parse_args(argv)
+    if args.command == 'set-role':
+        repo = open_repo(args.env)
+        user_id = resolve_user(repo, args.env, args.user)
+        old, new, applied = set_role(repo, args.kehila, user_id, args.role, args.apply)  # ids only, no names
+        if old == new:
+            print(f'kehila={args.kehila} user={user_id}: already {new}, nothing to do')
+        else:
+            print(f'kehila={args.kehila} user={user_id}: {old} -> {new}'
+                  + (' (applied)' if applied else ' (dry run: nothing changed; add --apply)'))
+        return
     if args.command == 'merge-channels':
         plans = merge_channels(open_repo(args.env), args.kehila, args.apply)
         verb = 'deleted' if args.apply else 'would delete'
