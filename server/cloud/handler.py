@@ -28,6 +28,8 @@ ROUTES = [
     ('DELETE', re.compile(r'^/v1/me/devices/(?P<token>[^/]+)$'), routes_me.delete_device),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)$'), routes_core.kehila),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/logo$'), routes_core.logo),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/logo$'), routes_core.put_logo),
+    ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/admin/logo$'), routes_core.delete_logo),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/invites$'), routes_invites.create),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/invites$'), routes_invites.list_invites),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/invites/(?P<code>[^/]+)$'), routes_invites.revoke),

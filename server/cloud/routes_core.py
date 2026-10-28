@@ -1,12 +1,18 @@
 """Routes: health, my profile, one Kehila and its logo."""
 import base64
+import binascii
 
 from . import authz
+from . import inputs
 from .errors import ApiError
+from .logo import LogoError, validate_logo
 from .routes_families import notice_of, request_card
 from . import consents, schedule_rules, seat_times, sheet_rules, tags, type_rules
 from .routes_invites import DEFAULT_MAX_LISTENERS
 from .routes_privacy import age13_required
+
+
+LOGO_BODY_MAX = 96 * 1024
 
 
 def health(ctx, params):
@@ -41,6 +47,10 @@ def kehila(ctx, params):
         extra['sheet'] = schedule_rules.sheet_of(settings)
         extra['seatDeadline'] = seat_times.deadline_hm(settings)
         extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
+        info = item.get('logoInfo')
+        who = ctx.repo.get_membership(params['k'], info['by']) if info and info.get('by') else None
+        extra['logoInfo'] = {'name': (who or {}).get('displayName', ''), 'at': int(info['at']),
+                             'bytes': int(info['bytes']), 'side': int(info['side'])} if info else None
     is_member = authz.role_in(membership, authz.ADULTS)
     if is_member:
         extra['sheetMembers'] = sheet_rules.sheet_members(settings)
@@ -77,3 +87,32 @@ def logo(ctx, params):
         raise ApiError(404, 'not_found')
     version, data = found
     return 200, {'logoVersion': version, 'contentType': 'image/png', 'data': base64.b64encode(data).decode('ascii')}
+
+
+def put_logo(ctx, params):
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
+    data = inputs.body_object(ctx, LOGO_BODY_MAX).get('data')
+    if not isinstance(data, str) or not data:
+        raise ApiError(400, 'invalid_body')
+    try:
+        png = base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError):
+        raise ApiError(400, 'invalid_logo_format')
+    try:
+        side, _ = validate_logo(png)
+    except LogoError as error:
+        raise ApiError(400, 'invalid_logo_format' if error.code == 'logo_format' else error.code)
+    try:
+        version = ctx.repo.set_logo(params['k'], png, by=ctx.user_id, side=side)
+    except LookupError:
+        raise ApiError(404, 'kehila_not_found')
+    return 200, {'logoVersion': version}
+
+
+def delete_logo(ctx, params):
+    authz.require(ctx.repo, ctx.user_id, params['k'], authz.MANAGEMENT)
+    try:
+        ctx.repo.delete_logo(params['k'])
+    except LookupError:
+        raise ApiError(404, 'kehila_not_found')
+    return 204, None

@@ -61,6 +61,15 @@ class ValidateLogoTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, '65536'):
             validate_logo(make_png(64, pad=65536))
 
+    def test_codes(self):
+        from server.cloud.logo import LogoError
+        cases = [(b'', 'logo_format'), (make_png(100, 80), 'logo_not_square'), (make_png(63), 'logo_too_small'),
+                 (make_png(513), 'logo_too_large'), (make_png(64, pad=65537 - len(make_png(64))), 'logo_too_large')]
+        for data, code in cases:
+            with self.assertRaises(LogoError) as raised:
+                validate_logo(data)
+            self.assertEqual(raised.exception.code, code)
+
     def test_first_chunk_not_ihdr(self):
         png = make_png(64)
         with self.assertRaises(ValueError):
@@ -147,6 +156,103 @@ class LogoRepoAndRouteTest(unittest.TestCase):
 
     def test_logo_route_rejects_invalid_kehila_id(self):
         self.assertEqual(self.call('/v1/kehilot/not-an-id/logo'), (400, {'error': 'invalid_kehila_id'}))
+
+
+@mock_aws
+class LogoRouteTest(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo(make_table())
+        patcher = mock.patch.object(handler_module, '_repo', return_value=self.repo)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.k = self.repo.create_kehila('Beit Logo', {})
+        self.users = {}
+        for sub, role in (('g1', 'gabbai'), ('t1', 'tech'), ('m1', 'member'), ('l1', 'listener')):
+            self.users[sub] = resolve_user_id(self.repo, Caller(sub, f'{sub}@example.test'))
+            self.repo.put_membership(self.k, self.users[sub], role)
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.users["g1"]}'},
+                                    UpdateExpression='SET displayName = :n', ExpressionAttributeValues={':n': 'יוסף ניסיון'})
+
+    def call(self, method, path, body=None, sub='g1'):
+        response = handler_module.handler(event(method, path, sub=sub, body=body), Context())
+        text = response['body']
+        return response['statusCode'], (json.loads(text) if text else None)
+
+    def put(self, png, sub='g1'):
+        return self.call('PUT', f'/v1/kehilot/{self.k}/admin/logo', json.dumps({'data': base64.b64encode(png).decode()}), sub)
+
+    def kehila(self, sub='g1'):
+        return self.call('GET', f'/v1/kehilot/{self.k}', sub=sub)[1]
+
+    def test_gabbai_uploads_and_version_changes(self):
+        png = make_png(256)
+        before = self.kehila()['logoVersion']
+        status, body = self.put(png)
+        self.assertEqual(status, 200)
+        self.assertEqual(set(body), {'logoVersion'})
+        status, got = self.call('GET', f'/v1/kehilot/{self.k}/logo')
+        self.assertEqual(base64.b64decode(got['data']), png)
+        shown = self.kehila()
+        self.assertNotEqual(shown['logoVersion'], before)
+        self.assertEqual(shown['logoVersion'], body['logoVersion'])
+        self.assertEqual(shown['logoInfo'], {'name': 'יוסף ניסיון', 'at': shown['logoInfo']['at'], 'bytes': len(png), 'side': 256})
+        self.assertIsInstance(shown['logoInfo']['at'], int)
+        self.assertNotIn('logoInfo', self.kehila('m1'))
+
+    def test_tech_may_upload(self):
+        self.assertEqual(self.put(make_png(64), 't1')[0], 200)
+        self.assertEqual(self.kehila('t1')['logoInfo']['name'], '')
+
+    def test_limits_map_to_codes(self):
+        cases = [(make_png(63), 'logo_too_small'), (make_png(513), 'logo_too_large'),
+                 (make_png(64, pad=65537 - len(make_png(64))), 'logo_too_large'),
+                 (make_png(100, 80), 'logo_not_square'), (b'GIF89a' + make_png(64)[6:], 'invalid_logo_format')]
+        for png, code in cases:
+            self.assertEqual(self.put(png), (400, {'error': code}), code)
+        status, body = self.call('PUT', f'/v1/kehilot/{self.k}/admin/logo', json.dumps({'data': 'not base64!'}))
+        self.assertEqual((status, body), (400, {'error': 'invalid_logo_format'}))
+        self.assertEqual(self.put(make_png(64, pad=65536 - len(make_png(64))))[0], 200)
+
+    def test_bad_bodies(self):
+        path = f'/v1/kehilot/{self.k}/admin/logo'
+        self.assertEqual(self.call('PUT', path, json.dumps({'data': 5}))[1], {'error': 'invalid_body'})
+        self.assertEqual(self.call('PUT', path, json.dumps({}))[1], {'error': 'invalid_body'})
+        self.assertEqual(self.call('PUT', path, json.dumps({'data': 'A' * (96 * 1024)}))[1], {'error': 'invalid_body'})
+
+    def test_member_forbidden_listener_forbidden(self):
+        for sub in ('m1', 'l1'):
+            self.assertEqual(self.put(make_png(64), sub)[0], 403)
+            self.assertEqual(self.call('DELETE', f'/v1/kehilot/{self.k}/admin/logo', sub=sub)[0], 403)
+        self.assertIsNone(self.repo.get_logo(self.k))
+
+    def test_delete_removes_logo_and_version(self):
+        self.put(make_png(64))
+        status, body = self.call('DELETE', f'/v1/kehilot/{self.k}/admin/logo')
+        self.assertEqual((status, body), (204, None))
+        self.assertEqual(self.call('GET', f'/v1/kehilot/{self.k}/logo'), (404, {'error': 'not_found'}))
+        shown = self.kehila()
+        self.assertIsNone(shown['logoVersion'])
+        self.assertIsNone(shown['logoInfo'])
+        self.assertEqual(self.call('DELETE', f'/v1/kehilot/{self.k}/admin/logo')[0], 204)
+
+    def test_delete_missing_kehila(self):
+        self.assertEqual(self.repo.get_kehila('0' * 26), None)
+        with self.assertRaises(LookupError):
+            self.repo.delete_logo('0' * 26)
+
+    def test_cli_set_logo_has_no_uploader(self):
+        self.repo.set_logo(self.k, make_png(64))
+        self.assertEqual(self.kehila()['logoInfo']['name'], '')
+
+    def test_logo_bytes_never_logged(self):
+        png = make_png(64)
+        prefix = base64.b64encode(png).decode()[:40]
+        with self.assertLogs(level='INFO') as logs:
+            import logging
+            logging.getLogger().info('start')
+            self.put(b'GIF89a' + png[6:])
+            self.put(png)
+        self.assertFalse([r for r in logs.output if prefix in r])
 
 
 @mock_aws

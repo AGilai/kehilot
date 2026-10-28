@@ -1,4 +1,6 @@
 """All DynamoDB access for the cloud API. Every Kehila-scoped key starts with K#<kehila>."""
+import time
+
 from boto3.dynamodb.conditions import Key
 from boto3.dynamodb.types import Binary
 from botocore.exceptions import ClientError
@@ -95,25 +97,42 @@ class Repo(MembersRepo, AdminRepo, MessagesRepo, FamiliesRepo, TagsRepo, Reports
     def put_kehila(self, k, name):
         self.table.put_item(Item={'pk': f'K#{k}', 'sk': 'META', 'kehilaId': k, 'name': name})
 
-    def set_logo(self, k, data):
-        """Replace the logo item and META.logoVersion together; raises LookupError when the Kehila does not exist."""
+    def set_logo(self, k, data, by=None, side=None):
+        """Replace the logo item and META.logoVersion/logoInfo together; raises LookupError when the Kehila does not
+        exist. `by` is the uploader's userId (None from the CLI)."""
         version = new_id()
+        side = side if side is not None else int.from_bytes(data[16:20], 'big')  # PNG IHDR width; callers validated
+        info = {'at': int(time.time()), 'bytes': len(data), 'side': side}
+        if by:
+            info['by'] = by
+        self._logo_transaction(k, [
+            {'Update': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': 'META'},
+                        'UpdateExpression': 'SET logoVersion = :v, logoInfo = :i',
+                        'ConditionExpression': 'attribute_exists(pk)',
+                        'ExpressionAttributeValues': {':v': version, ':i': info}}},
+            {'Put': {'TableName': self.table.name,
+                     'Item': {'pk': f'K#{k}', 'sk': 'LOGO', 'logo': Binary(data), 'logoVersion': version}}},
+        ], k)
+        return version
+
+    def delete_logo(self, k):
+        """Remove the logo item and META.logoVersion/logoInfo in one transaction; LookupError when no such Kehila."""
+        self._logo_transaction(k, [
+            {'Update': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': 'META'},
+                        'UpdateExpression': 'REMOVE logoVersion, logoInfo',
+                        'ConditionExpression': 'attribute_exists(pk)'}},
+            {'Delete': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': 'LOGO'}}},
+        ], k)
+
+    def _logo_transaction(self, k, items, key):
         try:
-            self.table.meta.client.transact_write_items(TransactItems=[
-                {'Update': {'TableName': self.table.name, 'Key': {'pk': f'K#{k}', 'sk': 'META'},
-                            'UpdateExpression': 'SET logoVersion = :v',
-                            'ConditionExpression': 'attribute_exists(pk)',
-                            'ExpressionAttributeValues': {':v': version}}},
-                {'Put': {'TableName': self.table.name,
-                         'Item': {'pk': f'K#{k}', 'sk': 'LOGO', 'logo': Binary(data), 'logoVersion': version}}},
-            ])
+            self.table.meta.client.transact_write_items(TransactItems=items)
         except ClientError as error:
             if error.response['Error']['Code'] != 'TransactionCanceledException':
                 raise
             if any(r.get('Code') == 'ConditionalCheckFailed' for r in error.response.get('CancellationReasons', [])):
-                raise LookupError(k)
+                raise LookupError(key)
             raise
-        return version
 
     def get_logo(self, k):
         """(logoVersion, png bytes), or None when the Kehila has no logo."""

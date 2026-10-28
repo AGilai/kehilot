@@ -7,17 +7,20 @@ created (also on failure). Also checks the group admin and join-request flow, th
 invite roles, the import (twice) and the served web app. Also checks family links and private replies, the phone list, hidden children, the data export,
 "delete my posts" account deletion, and the age and terms consents. Prints one line per check.
 """
+import base64
 import io
 import json
 import secrets
 import subprocess
 import sys
+import struct
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
-from datetime import date, timedelta
+import zlib
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import boto3
@@ -26,6 +29,7 @@ from pyluach import dates as hebdates, hebrewcal
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from server.cloud import sheet_rules  # noqa: E402
 from server.cloud.ids import new_id  # noqa: E402
 from server.cloud.repo import Repo  # noqa: E402
 from server.cloud.repo_messages import local_date  # noqa: E402
@@ -177,6 +181,8 @@ class Smoke:
         self.check_children_hidden()
         self.check_tree()
         self.check_simchas()
+        self.check_templates_and_sheet()
+        self.check_logo()
         self.check_export()
         self.check_delete_posts()
         self.check_terms_and_age()
@@ -722,6 +728,82 @@ class Smoke:
 
     def family_of(self, token):
         return self.call(token, 'GET', f'/v1/kehilot/{self.k}/family')[1]['familyId']
+
+    def check_templates_and_sheet(self):
+        """A member's templated mazal tov waits on the weekly sheet until a gabbai approves it, then a listener who may
+        see celebrations gets it; a templated condolence update with `notify` notifies once, the second within 12 h not."""
+        k, lis, fam2 = self.k, self.people['lis'][0], self.people['fam2']
+        settings = f'/v1/kehilot/{k}/admin/settings'
+        channel = self.channels['announcements']['channelId']
+        rule = lambda post, listeners: {'post': post, 'listeners': listeners}
+        week = sheet_rules.week_for_post(datetime.now(timezone.utc), 'celebration', None).isoformat()
+        sheet = f'/v1/kehilot/{k}/sheet/{week}'
+        try:
+            self.call(self.gab, 'PUT', settings, {'typeRules': {'celebration': rule('broadcasters', True)}})
+            self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam2[1]}', {'canBroadcast': True})
+            status, msg = self.call(fam2[0], 'POST', f'/v1/kehilot/{k}/messages', {
+                'channelId': channel, 'type': 'celebration', 'title': 'Smoke mazal tov', 'body': '', 'templateId': 'mazal',
+                'fields': {'occasion': 'birthSon', 'whose': 'parents', 'surname': 'ניסיון'}})
+            expect('template_mazal_posted_by_member', status == 201 and msg.get('templateId') == 'mazal', f'{status} {msg}')
+            status, listed = self.call(self.gab, 'GET', sheet)
+            mine = [i for i in listed['items'] if i.get('messageId') == msg.get('messageId')] if status == 200 else []
+            expect('sheet_item_pending_for_gabbai', len(mine) == 1 and mine[0]['state'] == 'pending', f'{status} {mine}')
+            status, listed = self.call(lis, 'GET', sheet)
+            expect('sheet_pending_hidden_from_listener', status == 200
+                   and not [i for i in listed['items'] if i.get('messageId') == msg.get('messageId')], str(status))
+            status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/sheet/{week}/items/{msg.get("messageId")}',
+                                  {'state': 'in'})
+            expect('sheet_item_approved', status == 200, str(status))
+            status, listed = self.call(lis, 'GET', sheet)
+            seen = [i for i in listed['items'] if i.get('messageId') == msg.get('messageId')] if status == 200 else []
+            expect('sheet_approved_visible_to_listener', len(seen) == 1 and seen[0]['state'] == 'in', f'{status} {seen}')
+
+            fields = {'variant': 'only', 'surname': 'דוגמה', 'deceased': 'יוסף', 'relation': 'אביו'}
+            status, cond = self.call(self.gab, 'POST', f'/v1/kehilot/{k}/messages', {
+                'channelId': channel, 'type': 'condolence', 'title': 'Smoke condolence', 'body': '',
+                'templateId': 'condolence', 'fields': fields})
+            expect('template_condolence_posted', status == 201, f'{status} {cond}')
+            path = f'/v1/kehilot/{k}/messages/{cond.get("messageId")}'
+            update = lambda: self.call(self.gab, 'PUT', path, {
+                'title': 'Smoke condolence', 'body': '', 'fields': {**fields, 'relation': 'אמו'}, 'notify': True})
+            status, first = update()
+            expect('update_notify_notifies', status == 200 and first.get('notified') is True, f'{status} {first}')
+            status, second = update()
+            expect('update_notify_second_is_quiet', status == 200 and second.get('notified') is False, f'{status} {second}')
+        finally:
+            self.call(self.gab, 'PUT', settings, {'typeRules': {'celebration': rule('broadcasters', False)}})
+            self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam2[1]}', {'canBroadcast': False})
+        print('PASS  check_templates_and_sheet')
+
+    @staticmethod
+    def png(side):
+        """A flat grey square PNG of the given side (64 px is the smallest the API takes)."""
+        def chunk(kind, data):
+            return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+        raw = b''.join(b'\x00' + b'\x80' * (side * 3) for _ in range(side))
+        return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', side, side, 8, 2, 0, 0, 0))
+                + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
+
+    def check_logo(self):
+        """The gabbai uploads and removes the Kehila logo; a member may not."""
+        k, member = self.k, self.people['fam1'][0]
+        path = f'/v1/kehilot/{k}/admin/logo'
+        body = {'data': base64.b64encode(self.png(64)).decode()}
+        status, _ = self.call(member, 'PUT', path, body)
+        expect('logo_member_403', status == 403, str(status))
+        status, put = self.call(self.gab, 'PUT', path, body)
+        expect('logo_uploaded', status == 200 and put.get('logoVersion'), f'{status}')
+        status, got = self.call(self.gab, 'GET', f'/v1/kehilot/{k}/logo')
+        expect('logo_served', status == 200 and got.get('logoVersion') == put.get('logoVersion'), str(status))
+        status, shown = self.call(self.gab, 'GET', f'/v1/kehilot/{k}')
+        expect('logo_info_for_gabbai', status == 200 and (shown.get('logoInfo') or {}).get('side') == 64, str(status))
+        status, bad = self.call(self.gab, 'PUT', path, {'data': 'not base64!'})
+        expect('logo_bad_base64_400', (status, bad) == (400, {'error': 'invalid_logo_format'}), f'{status} {bad}')
+        status, _ = self.call(self.gab, 'DELETE', path)
+        expect('logo_removed', status == 204, str(status))
+        status, gone = self.call(self.gab, 'GET', f'/v1/kehilot/{k}/logo')
+        expect('logo_gone_404', (status, gone) == (404, {'error': 'not_found'}), f'{status} {gone}')
+        print('PASS  check_logo')
 
     def check_simchas(self):
         """The gabbai's simchas list: 8 weeks, members refused, and a son turning 13 (Hebrew) in three weeks shows
