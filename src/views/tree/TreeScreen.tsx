@@ -38,12 +38,16 @@ function BackRow({ label, onPress, testID }: { label: string; onPress: () => voi
  * generation up (breadcrumb, back, "חזרה ל…"); the list view is the same people in words. `readOnly` is the gabbai's view
  * of one family: no "+", no empty slots to tap. Tapping a figure calls `onOpenPerson` (the sheet is the caller's).
  */
-export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel, readOnly, familyId, familyName, onPeople, onDoc, doc: external }: {
+export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel, top, pendingSpouse, readOnly, familyId, familyName, onPeople, onDoc, doc: external }: {
   onBack: () => void;
   onOpenPerson: (id: string) => void;
   /** An empty place or the "+ child" tile was tapped. */
   onOpenSlot: (slot: Slot) => void;
   selectedId?: string | null;
+  /** Under the title: the partner-request banner. */
+  top?: React.ReactNode;
+  /** A request I sent is waiting: the empty spouse place shows this name and "ממתין לאישור". */
+  pendingSpouse?: string | null;
   /** Wide screens: the side panel's content (400 px at the inline end). */
   panel?: React.ReactNode;
   readOnly?: boolean;
@@ -113,6 +117,9 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
   const slotTile = (slot: Slot, big?: boolean) => {
     const role = roleWord({ relation: slot.relation, gender: slot.gender }, t);
     const rel = relationLabel(people, { id: '', relation: slot.relation, of: slot.of, gender: slot.gender } as Person, t, who);
+    if (pendingSpouse && slot.relation === 'spouse' && !readOnly) {
+      return <FigureTile key="spouse-pending" testID="tree-slot-pending" name={pendingSpouse} tag={t('tree.link.pending')} big={big} label={`${rel}: ${t('tree.link.pendingA11y', { name: pendingSpouse })}`} onPress={() => onOpenSlot(slot)} />;
+    }
     return <FigureTile key={`${slot.relation}-${slot.of ?? ''}`} testID={`tree-slot-${slot.relation}-${slot.of ?? 'none'}`} name={role} empty readOnly={readOnly} big={big} label={`${rel}: ${t('tree.emptySlotA11y', { role })}. ${t('tree.open')}`} onPress={() => onOpenSlot(slot)} />;
   };
   const spot = (s: Spot, big?: boolean) => (s.person ? person(s.person, { big }) : slotTile(s.slot, big));
@@ -152,6 +159,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
           {`${t('tree.title')} ‹ `}{layout.trail.map((p, i) => (i ? ' ‹ ' : '') + t('tree.crumb', { name: nameOrRole(p, t) })).join('')}
         </Txt>
       )}
+      {root ? top : null}
       {root && mode === 'tree' ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, columnGap: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: k.gold }} /><Txt size="caption" color={k.muted}>{t('tree.legend.missing')}</Txt></View>

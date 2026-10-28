@@ -2389,6 +2389,37 @@
       "mother": "mother's name",
       "tribe": "tribe"
     },
+    "link": {
+      "title": "Add {role}",
+      "memberM": "My husband is a Kehila member",
+      "memberF": "My wife is a Kehila member",
+      "memberHint": "Pick them from the member list and send a request. The link is made only after they confirm.",
+      "manual": "Fill in details without an account",
+      "manualHint": "No account is linked. You fill in the name and details yourself.",
+      "pendingTitle": "Request to {name}",
+      "pending": "Waiting for confirmation",
+      "pendingA11y": "{name}, waiting for confirmation. Open",
+      "bannerNote": "If you do not confirm, {name} will only see that the request was not confirmed.",
+      "unlinkTitle": "Cancel the link"
+    },
+    "mine": {
+      "title": "My details in the Kehila",
+      "appName": "My name in the app",
+      "phone": "Phone",
+      "phonePh": "050-0000000",
+      "remove": "Remove",
+      "switch": "My number in {kehila}'s phone list",
+      "switchOn": "Members and gabbaim of {kehila} can see it.",
+      "switchOff": "Only the gabbaim of {kehila} can see it.",
+      "firstRequired": "Write a first name.",
+      "nameLong": "The name is too long.",
+      "failProfile": "The name was not saved.",
+      "failPhone": "The number was not saved.",
+      "failSwitch": "The switch was not saved.",
+      "doneBefore": "What was saved before it stays.",
+      "treeFailed": "My details were saved, but the tree was not: {why}",
+      "saved": "My details were saved"
+    },
     "account": {
       "app": "Name in the app",
       "phone": "Phone",

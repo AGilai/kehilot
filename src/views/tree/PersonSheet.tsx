@@ -20,6 +20,9 @@ import { BarMitzvahPicker, shabbatLine } from './BarMitzvahPicker.tsx';
 import { FigurePicker } from './FigurePicker.tsx';
 import { HebrewDateField } from './HebrewDateField.tsx';
 import { StatusButtons } from './StatusButtons.tsx';
+import { MineBlock, draftOfMine } from './MineBlock.tsx';
+import { errorsOf, isDirty as mineDirty } from '../../client/myDetails.ts';
+import type { Mine, MineDraft } from '../../client/myDetails.ts';
 
 export type SaveOutcome = { ok: true } | { ok: false; message: string };
 export type { SheetError };
@@ -127,11 +130,15 @@ export type SheetProps = {
   newId: string;
   /** Gabbai: the family's tree, read only. */
   readOnly?: boolean;
-  /** Me: shown read-only on my own figure, with the link to "הפרטים שלי". */
-  account?: { name: string; phone?: string | null };
-  onOpenMe?: () => void;
-  /** Writes the whole tree. `feed`: how many children's names changed (the toast). */
-  onSave: (people: Person[], feed: number) => Promise<SaveOutcome>;
+  /** My own figure: what the account holds now, for "הפרטים שלי בקהילה" (name, phone, switch). Absent: no block. */
+  mine?: { cur: Mine; kehilaName: string };
+  /** The linked partner's figure: "ביטול הקישור" at the bottom. */
+  unlink?: { name: string; busy: boolean; error: string | null; onUnlink: () => Promise<boolean> };
+  /**
+   * Writes the whole tree. `feed`: how many children's names changed (the toast). `extra.mine`: my details when they changed (the
+   * caller sends them first, then the tree); `extra.treeChanged` false: only my details changed, so the tree is not written again.
+   */
+  onSave: (people: Person[], feed: number, extra?: { mine: MineDraft | null; treeChanged: boolean }) => Promise<SaveOutcome>;
   /** Another figure (the parent's, the spouse's, a grandchild's, a new spouse): the caller opens it after this sheet is saved. */
   onOpen: (target: Target) => void;
   onClose: () => void;
@@ -141,14 +148,15 @@ export type SheetProps = {
  * The person sheet (UX-DESIGN §17.4, P32): the figure's short form. The draft lives in `sheetReducer`; "שמירה" writes the whole
  * tree through `onSave`. Moving to another figure first saves what was changed here.
  */
-export function PersonSheet({ myId, people, target, newId, readOnly, account, onOpenMe, onSave, onOpen, onClose }: SheetProps) {
+export function PersonSheet({ myId, people, target, newId, readOnly, mine, unlink, onSave, onOpen, onClose }: SheetProps) {
   const { t, lang } = useI18n();
   const arrow = lang === 'he' ? '‹' : '›';
   const k = useTokens();
   const [state, dispatch] = React.useReducer(sheetReducer, undefined, () => startSheet(people, target, newId));
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [confirm, setConfirm] = React.useState<'remove' | 'clear' | null>(null);
+  const [confirm, setConfirm] = React.useState<'remove' | 'clear' | 'unlink' | null>(null);
+  const [mineD, setMineD] = React.useState<MineDraft | null>(() => (mine ? draftOfMine(mine.cur) : null));
   const [picker, setPicker] = React.useState<'shabbat' | 'figure' | null>(null);
   React.useEffect(() => { if (people !== state.base) dispatch({ type: 'rebase', base: people }); }, [people]); // eslint-disable-line react-hooks/exhaustive-deps
   const d = state.draft;
@@ -159,18 +167,24 @@ export function PersonSheet({ myId, people, target, newId, readOnly, account, on
   const feed = feedWarning(state);
   const existing = people.find(p => p.id === d.id);
   const who = { myId, neutral: readOnly };
+  const showMine = !!mine && !!existing && isMe(people, existing, who);
+  const mineDraft: MineDraft | null = showMine && mine ? (mineD ?? draftOfMine(mine.cur)) : null;
+  const mineErrors = mineDraft ? errorsOf(mineDraft) : [];
+  const mineChanged = !!mineDraft && !!mine && mineDirty(mine.cur, mineDraft);
+  const treeDirty = isDirty(state);
   const dark = useColorScheme() === 'dark';
 
   const save = async (then?: () => void) => {
     if (errors.length) { setError(t(errKey[errors[0]!])); return; }
+    if (mineErrors.length) { setError(null); return; } // shown under the fields
     setBusy(true); setError(null);
-    const out = await onSave(commit(state, mkId), feed);
+    const out = await onSave(commit(state, mkId), feed, mineChanged ? { mine: mineDraft, treeChanged: treeDirty } : undefined);
     setBusy(false);
     if (!out.ok) { setError(out.message); return; }
     then ? then() : onClose();
   };
   /** Opens another figure; what changed here is saved first. */
-  const go = (next: Target) => { if (readOnly || !isDirty(state)) onOpen(next); else void save(() => onOpen(next)); };
+  const go = (next: Target) => { if (readOnly || !(treeDirty || mineChanged)) onOpen(next); else void save(() => onOpen(next)); };
   const removeNow = async (people2: Person[]) => {
     setBusy(true); setError(null);
     const out = await onSave(people2, 0);
@@ -241,6 +255,8 @@ export function PersonSheet({ myId, people, target, newId, readOnly, account, on
         </View>
       </View>
 
+      {mineDraft && mine ? <MineBlock value={mineDraft} onChange={setMineD} errors={mineErrors} kehilaName={mine.kehilaName} disabled={busy} /> : null}
+
       {spouseTab && childTab && childId && !state.isNew ? (
         <Segmented<'child' | 'spouse'> value={d.relation === 'child' ? 'child' : 'spouse'} onChange={key => { if (key !== (d.relation === 'child' ? 'child' : 'spouse')) go({ id: key === 'child' ? childTab.id : spouseTab.id }); }}
           options={[{ key: 'child', label: nameOrRole(childTab, t) }, { key: 'spouse', label: nameOrRole(spouseTab, t) }]} />
@@ -259,15 +275,6 @@ export function PersonSheet({ myId, people, target, newId, readOnly, account, on
         </View>
       ) : null}
 
-      {existing && isMe(people, existing, who) && account ? (
-        <Card>
-          <Txt size="small" bold>{t('tree.account.app')}</Txt>
-          <Txt content>{account.name}</Txt>
-          <Txt size="small" bold>{t('tree.account.phone')}</Txt>
-          {account.phone ? <Txt content style={{ textAlign: 'left', writingDirection: 'ltr' }}>{account.phone}</Txt> : <Txt color={k.muted}>{t('tree.account.none')}</Txt>}
-          {onOpenMe ? <Pressable testID="sheet-open-me" accessibilityRole="button" onPress={() => (isDirty(state) ? void save(onOpenMe) : onOpenMe())} style={{ minHeight: 44, justifyContent: 'center' }}><Txt bold color={k.tekhelet}>{`${t('tree.account.edit')} ${arrow}`}</Txt></Pressable> : null}
-        </Card>
-      ) : null}
 
       {feed > 0 ? <Banner tone="info" text={t(d.gender === 'm' ? (feed === 1 ? 'tree.feedWarnFatherOne' : 'tree.feedWarnFather') : (feed === 1 ? 'tree.feedWarnMotherOne' : 'tree.feedWarnMother'), { n: feed })} /> : null}
 
@@ -378,6 +385,17 @@ export function PersonSheet({ myId, people, target, newId, readOnly, account, on
             <Button kind="secondary" title={t('tree.keep')} onPress={() => setConfirm(null)} />
           </Card>
         ) : <Button kind="secondary" title={t('tree.clear')} onPress={() => setConfirm('clear')} />
+      ) : null}
+
+      {unlink && existing ? (
+        confirm === 'unlink' ? (
+          <Card>
+            <Txt>{t('family.unlinkConfirm', { name: unlink.name })}</Txt>
+            {unlink.error ? <Banner tone="error" text={unlink.error} /> : null}
+            <Button kind="danger" title={t('family.unlinkYes')} busy={unlink.busy} onPress={() => void unlink.onUnlink().then(ok => { if (!ok) return; setConfirm(null); onClose(); })} />
+            <Button kind="secondary" title={t('family.keep')} disabled={unlink.busy} onPress={() => setConfirm(null)} />
+          </Card>
+        ) : <View testID="sheet-unlink"><Button kind="secondary" title={t('family.unlink')} onPress={() => setConfirm('unlink')} /></View>
       ) : null}
 
       <Sheet visible={picker === 'shabbat'} title={t('tree.bm.title')} onClose={() => setPicker(null)}>

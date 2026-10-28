@@ -91,7 +91,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
   if (s === 'me' || s === 'me-family' || s === 'me-request' || s === 'me-linked' || s === 'partner-picker' || s === 'child-sheet' || s === 'privacy' || s === 'privacy-ready' || s === 'kehila-info' || s === 'leave-listener' || s === 'delete' || s === 'delete-ticked') return { nav: { tab: 'me' } };
-  if (s === 'tree' || s === 'tree-married' || s === 'tree-solo' || s === 'tree-empty') return { nav: { tab: 'tree' } };
+  if (s === 'tree' || s === 'tree-married' || s === 'tree-solo' || s === 'tree-empty' || s?.startsWith('tree-link')) return { nav: { tab: 'tree' } };
   if (s === 'tree-admin') return { nav: { tab: 'adminTree', familyId: '01FIXTUREFAMILY0000000003', name: 'בדיוני' }, manage: true };
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
   if (s === 'overview' || s === 'overview-privacy' || s === 'terms' || s === 'simchas-card' || s === 'simchas-card-empty') return { nav: { tab: 'overview' }, manage: true };
@@ -302,7 +302,7 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <InviteWithRole initialRole={nav.member ? 'member' : 'listener'} onBack={() => setNav({ tab: 'overview' })} onToast={showToast} />;
       break;
     case 'tree':
-      body = <TreeRoute onBack={() => setNav({ tab: 'me' })} onOpenMe={() => setNav({ tab: 'me' })} />;
+      body = <TreeRoute onBack={() => setNav({ tab: 'me' })} />;
       break;
     case 'adminTree':
       // Gabbai only (the server enforces it too): anyone else gets the plain Me screen.

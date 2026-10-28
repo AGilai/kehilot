@@ -33,12 +33,19 @@ export const treeFiveMarried = (): Person[] => [...core(),
 /** Only me, name not yet filled. */
 export const treeSolo = (): Person[] => [{ id: 'me', userId: ME, relation: 'self', gender: 'f' }];
 
+/** Me with my parents and two children, no partner (the empty spouse place). */
+export const treeAlone = (): Person[] => [
+  ...core().filter(p => p.id !== 'sp' && p.of !== 'sp'),
+  kid('c1', 'נועה', 'f', 5775), kid('c2', 'אליעזר', 'm', 5777),
+];
+
 /** The tree to serve for a fixture screen. */
 export function fixtureTreeFor(screen: string | null): Person[] {
   switch (screen) {
     case 'tree': case 'tree-admin': case 'me-linked': case 'child-sheet': return treeSeven();
     case 'tree-married': return treeFiveMarried();
     case 'tree-solo': return treeSolo();
+    case 'tree-link': case 'tree-link-sent': case 'tree-link-received': case 'tree-link-declined': case 'tree-link-expired': return treeAlone();
     default: return [];
   }
 }

@@ -25,10 +25,10 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
 /** Screens for the P-frames. `me-linked` is P2's main state and P6's member-with-a-partner check;
  *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
-export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'm5', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -147,7 +147,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const PRIVACY_CONTACT = 'עמית דוגמה, גבאי · pratiyut@example.org';
   const TERMS_AT = Math.floor(Date.parse('2026-10-27T10:00:00+02:00') / 1000);
   // P4 main state: a number on file and the switch on. P1 empty: a number, switch off.
-  const phoneOn = !!screen && ['me', 'me-family', 'me-request', 'me-linked', 'child-sheet', 'partner-picker', 'phone-list'].includes(screen);
+  const phoneOn = !!screen && ['me', 'me-family', 'me-request', 'me-linked', 'child-sheet', 'partner-picker', 'phone-list', 'tree', 'tree-married', 'tree-solo', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired'].includes(screen);
   const hasPhone = phoneOn || screen === 'phone-list-empty' || card === 'phone';
   const kehila: Kehila = {
     kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין נווה דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: null,
@@ -356,13 +356,16 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { id: '01FIXTURECHILD00000000003', firstName: 'אורי', gender: 'm' },
   ];
   // `me-linked` is P2's main state and also P6's member-with-a-partner check; `child-sheet` has the same family.
-  const linked = screen === 'me-linked' || screen === 'child-sheet';
+  const linked = screen === 'me-linked' || screen === 'child-sheet' || screen === 'tree' || screen === 'tree-married';
+  const ended = (state: 'declined' | 'expired') => ({ toUserId: partner.userId, toName: 'אבי מדומה', expiresAt: secs(now + 24 * H), state });
   const familyView: FamilyView = {
     familyId: '01FIXTUREFAMILY0000000001', name: 'בדיוני',
     adults: linked ? [meAdult, partner] : [meAdult],
     children: linked ? kids : [],
-    sent: null,
-    received: screen === 'me-request' ? [{ fromUserId: partner.userId, fromName: 'דנה בדיוני', expiresAt: secs(now + 6 * 24 * H) }] : [],
+    sent: screen === 'tree-link-sent' ? { toUserId: partner.userId, toName: 'אבי מדומה', expiresAt: secs(now + 6 * 24 * H), state: 'pending' as const }
+      : screen === 'tree-link-declined' ? ended('declined') : screen === 'tree-link-expired' ? ended('expired') : null,
+    received: screen === 'me-request' ? [{ fromUserId: partner.userId, fromName: 'דנה בדיוני', expiresAt: secs(now + 6 * 24 * H) }]
+      : screen === 'tree-link-received' ? [{ fromUserId: partner.userId, fromName: 'אבי מדומה', expiresAt: secs(now + 6 * 24 * H) }] : [],
     notice: null,
   };
   routes[`GET ${K}/family`] = familyView;
