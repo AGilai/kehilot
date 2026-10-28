@@ -1,7 +1,7 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
 from datetime import datetime, timezone
 
-from . import families, inputs, media, message_fields, push, schedule_rules, sheet_items, type_rules, visibility
+from . import families, inputs, media, private_replies, message_fields, push, schedule_rules, sheet_items, type_rules, visibility
 from . import authz
 from .errors import ApiError
 from .families import family_name
@@ -18,7 +18,7 @@ CHAT_MAX = 1000
 CHAT_HOURLY_LIMIT = 30
 
 
-def _message_json(item, read=None):
+def _message_json(item, read=None, viewer=None):
     out = {'messageId': item['sk'][len('MSG#'):], 'channelId': item['channelId'], 'type': item['type'],
            'title': item['title'], 'body': item['body'], 'authorId': item['authorId'],
            'authorName': item['authorName'], 'authorKind': item['authorKind'],
@@ -34,6 +34,9 @@ def _message_json(item, read=None):
         out['fields'] = schedule_rules.plain(item.get('fields', {}))
     if item.get('image'):  # metadata only: the URL comes from GET .../image after a visibility check
         out['image'] = {'contentType': item['image']['contentType'], 'bytes': int(item['image']['bytes'])}
+    if viewer:
+        out.update(viewer)
+        out.setdefault('replierCount', int(item.get('replierCount', 0)))
     if read is not None:
         out['read'] = read
     return out
@@ -123,7 +126,10 @@ def post_message(ctx, params):
                                 message_id=message_id, image=image, target_family_id=target_family_id,
                                 template_id=template_id, fields=fields)
     sheet_items.on_post(ctx.repo, k, membership, settings, item, sheet_items._now())
-    message = _message_json(item)
+    mid = item['sk'][len('MSG#'):]
+    viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, [item], {channel_id: channel},
+                                           families.TargetMemo(ctx.repo, k))[mid]
+    message = _message_json(item, viewer=viewer)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
     return 201, message
@@ -222,13 +228,20 @@ def list_messages(ctx, params):
             if len(page) == limit:
                 break
     flags = ctx.repo.read_flags(k, ctx.user_id, [i['sk'][len('MSG#'):] for i in page])
-    return 200, [_message_json(i, i['sk'][len('MSG#'):] in flags) for i in page]
+    viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, page, channels,
+                                           families.TargetMemo(ctx.repo, k))
+    return 200, [_message_json(i, i['sk'][len('MSG#'):] in flags, viewer[i['sk'][len('MSG#'):]]) for i in page]
 
 
 def get_message(ctx, params):
     membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
-    item = _visible_message(ctx, params['k'], membership, params['m'])[0]
-    return 200, _message_json(item, bool(ctx.repo.read_flags(params['k'], ctx.user_id, [params['m']])))
+    k = params['k']
+    item, channel = _visible_message(ctx, k, membership, params['m'])
+    viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, [item], {item['channelId']: channel},
+                                           families.TargetMemo(ctx.repo, k))[params['m']]
+    out = _message_json(item, bool(ctx.repo.read_flags(k, ctx.user_id, [params['m']])), viewer)
+    out.update(private_replies.detail_fields(ctx.repo, k, ctx.user_id, item, channel))
+    return 200, out
 
 
 def list_directory(ctx, params):

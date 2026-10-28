@@ -63,3 +63,29 @@ def reachable_adults(repo, k, adults, channel):
     found = repo.batch_get([(f'K#{k}', f'M#{u}') for u in adults])
     return sorted((m for m in found.values() if visibility.reply_target_ok(m, channel)),
                   key=lambda m: m['userId'])
+
+
+class TargetMemo:
+    """target_adults, remembered per (targetFamilyId, targetMemberId) for the length of one request."""
+
+    def __init__(self, repo, k):
+        self.repo, self.k, self._seen = repo, k, {}
+
+    def adults(self, message):
+        key = (message.get('targetFamilyId'), message.get('targetMemberId'))
+        if key not in self._seen:
+            self._seen[key] = target_adults(self.repo, self.k, message)
+        return self._seen[key]
+
+
+def ordered_reachable_adults(repo, k, message, channel):
+    """Memberships of the target family's live adults who may receive a reply in `channel`, in the family's
+    stored adult order. Resolved like target_adults (family, else the target member's family, else the member)."""
+    target = message.get('targetMemberId')
+    if not target:
+        return []
+    family = repo.get_family(k, message['targetFamilyId']) if message.get('targetFamilyId') else None
+    if not family:
+        family = repo.family_of(k, target)
+    live = repo.live_adults(k, family) if family else [m for m in [repo.get_membership(k, target)] if m]
+    return [m for m in live if visibility.reply_target_ok(m, channel)]

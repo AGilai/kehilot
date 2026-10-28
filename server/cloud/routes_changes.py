@@ -1,7 +1,7 @@
 """Routes: the change feed and notification preferences. Visibility comes from visibility.py."""
 import time
 
-from . import families, inputs, visibility
+from . import families, inputs, private_replies, visibility
 from . import authz
 from .errors import ApiError
 from .ids import ID_RE, floor_id, id_time_ms
@@ -18,7 +18,7 @@ def _now_ms():
     return int(time.time() * 1000)
 
 
-def _item(ctx_user, membership, channels, change, messages, replies, adults=frozenset(), rules=None):
+def _item(ctx_user, membership, channels, change, messages, replies, adults=frozenset(), rules=None, viewer=None):
     """The current visible object for a change, or None to skip it.
 
     A `message` or `join` whose message was removed since is skipped: the `message_removed` change that the
@@ -30,7 +30,7 @@ def _item(ctx_user, membership, channels, change, messages, replies, adults=froz
     if not message or not visibility.message_visible(membership, channels.get(message['channelId']), message, rules):
         return None
     if kind in ('message', 'join', 'reply_count'):
-        return _message_json(message)
+        return _message_json(message, viewer=(viewer or {}).get(change.get('messageId', ref)))
     if kind == 'read':
         return {'messageId': ref}
     if kind == 'reply':
@@ -74,6 +74,12 @@ def changes(ctx, params):
     messages = {pk_sk[1][len('MSG#'):]: v for pk_sk, v in found.items() if pk_sk[1].startswith('MSG#')}
     replies = {pk_sk[1][len('R#'):]: v for pk_sk, v in found.items() if pk_sk[1].startswith('R#')}
     rules = kehila_rules(ctx, k)  # once per request
+    memo = families.TargetMemo(ctx.repo, k)
+    shown = {}
+    for c in allowed:
+        if c['kind'] in ('message', 'join', 'reply_count') and messages.get(c['refId']):
+            shown[c['refId']] = messages[c['refId']]
+    viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, list(shown.values()), channels, memo)
     out, family_adults = [], {}
     for c in allowed:
         adults = frozenset()
@@ -86,7 +92,7 @@ def changes(ctx, params):
             adults = family_adults[c['messageId']]
             if not visibility.change_visible(ctx.user_id, membership, channels, c, adults):
                 continue
-        item = _item(ctx.user_id, membership, channels, c, messages, replies, adults, rules)
+        item = _item(ctx.user_id, membership, channels, c, messages, replies, adults, rules, viewer)
         if item is not None:
             out.append({'kind': c['kind'], 'id': c['refId'], 'item': item})
     return 200, {'cursor': scanned[-1]['sk'][len('CHG#'):], 'more': more, 'changes': out}

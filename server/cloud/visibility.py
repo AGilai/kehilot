@@ -25,6 +25,11 @@ def in_audience(membership, channel):
     return can_read_channel(membership, channel) and (not channel.get('groups') or _shares_group(membership, channel))
 
 
+def whole_kehila_channel(channel):
+    """A channel for the whole Kehila: no groups and not a chat (legacy simchas / condolences channels count)."""
+    return bool(channel) and not channel.get('groups') and not channel.get('conversation')
+
+
 def is_management(membership):
     return authz.role_in(membership, authz.MANAGEMENT)
 
