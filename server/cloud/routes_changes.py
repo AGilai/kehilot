@@ -18,7 +18,8 @@ def _now_ms():
     return int(time.time() * 1000)
 
 
-def _item(ctx_user, membership, channels, change, messages, replies, adults=frozenset(), rules=None, viewer=None):
+def _item(ctx_user, membership, channels, change, messages, replies, adults=frozenset(), rules=None, viewer=None,
+          seen=None, names=None):
     """The current visible object for a change, or None to skip it.
 
     A `message` or `join` whose message was removed since is skipped: the `message_removed` change that the
@@ -26,6 +27,8 @@ def _item(ctx_user, membership, channels, change, messages, replies, adults=froz
     kind, ref = change['kind'], change['refId']
     if kind == 'message_removed':
         return {'id': ref}
+    if kind == 'reply_removed':  # an id only: change_visible already limited it to the writer and the recipients
+        return {'id': ref, 'messageId': change['messageId']}
     message = messages.get(change.get('messageId', ref))
     if not message or not visibility.message_visible(membership, channels.get(message['channelId']), message, rules):
         return None
@@ -37,7 +40,8 @@ def _item(ctx_user, membership, channels, change, messages, replies, adults=froz
         reply = replies.get(ref)
         if not reply or not visibility.reply_visible(ctx_user, message, reply, adults):
             return None
-        return {**_reply_json(reply), 'messageId': change['messageId']}
+        mid = change['messageId']
+        return {**_reply_json(reply, ctx_user, message, (seen or {}).get(mid), names), 'messageId': mid}
     return None
 
 
@@ -60,13 +64,14 @@ def changes(ctx, params):
     if not scanned:
         return 200, {'cursor': since, 'more': False, 'changes': []}  # since < bound here
     channels = {c['sk'][2:]: c for c in ctx.repo.list_channels(k)}
-    # a reply is checked against the target family below, once its message is loaded
-    allowed = [c for c in scanned if c['kind'] in ('message', 'message_removed', 'join', 'read', 'reply', 'reply_count')
+    # a reply is checked below, once its message and the reply itself are loaded: its `to` decides who may pass
+    allowed = [c for c in scanned if c['kind'] in ('message', 'message_removed', 'join', 'read', 'reply', 'reply_count',
+                                                   'reply_removed')
                and (visibility.can_read_channel(membership, channels.get(c.get('channelId')))
                     if c['kind'] == 'reply' else visibility.change_visible(ctx.user_id, membership, channels, c))]
     keys = []
     for c in allowed:
-        if c['kind'] != 'message_removed':
+        if c['kind'] not in ('message_removed', 'reply_removed'):
             keys.append((f'K#{k}', f"MSG#{c.get('messageId', c['refId'])}"))
         if c['kind'] == 'reply':
             keys.append((f"K#{k}#MSG#{c['messageId']}", f"R#{c['refId']}"))
@@ -80,19 +85,23 @@ def changes(ctx, params):
         if c['kind'] in ('message', 'join', 'reply_count') and messages.get(c['refId']):
             shown[c['refId']] = messages[c['refId']]
     viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, list(shown.values()), channels, memo)
+    reply_ids = [c['messageId'] for c in allowed if c['kind'] == 'reply']
+    seen = ctx.repo.seen_marks(k, ctx.user_id, reply_ids) if reply_ids else {}
+    names = private_replies.to_names(ctx.repo, k, ctx.user_id, list(replies.values()))
     out, family_adults = [], {}
     for c in allowed:
         adults = frozenset()
         if c['kind'] == 'reply':
-            message = messages.get(c['messageId'])
-            if not message:
+            message, reply = messages.get(c['messageId']), replies.get(c['refId'])
+            if not message or not reply:
                 continue
-            if c['messageId'] not in family_adults:  # once per distinct message on the page
-                family_adults[c['messageId']] = families.target_adults(ctx.repo, k, message)
-            adults = family_adults[c['messageId']]
+            if (reply.get('to') or 'family') == 'family':  # a partner linked later: family replies only
+                if c['messageId'] not in family_adults:  # once per distinct message on the page
+                    family_adults[c['messageId']] = families.target_adults(ctx.repo, k, message)
+                adults = family_adults[c['messageId']]
             if not visibility.change_visible(ctx.user_id, membership, channels, c, adults):
                 continue
-        item = _item(ctx.user_id, membership, channels, c, messages, replies, adults, rules, viewer)
+        item = _item(ctx.user_id, membership, channels, c, messages, replies, adults, rules, viewer, seen, names)
         if item is not None:
             out.append({'kind': c['kind'], 'id': c['refId'], 'item': item})
     return 200, {'cursor': scanned[-1]['sk'][len('CHG#'):], 'more': more, 'changes': out}

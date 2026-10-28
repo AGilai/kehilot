@@ -294,6 +294,7 @@ def remove_message(ctx, params):
     if message.get('image'):  # first: a failure leaves the message, so a retry still finds the image to delete
         media.delete_image(k, params['m'])
     ctx.repo.remove_message(k, params['m'])
+    ctx.repo.delete_replies(k, params['m'])  # replies, markers and the thread index go with the message
     sheet_items.on_remove(ctx.repo, k, message)
     ctx.repo.put_change(k, 'message_removed', params['m'], message['channelId'])
     return 204, None
@@ -318,38 +319,147 @@ def read(ctx, params):
     return 204, None
 
 
-def _reply_json(item):
-    return {'replyId': item['sk'][len('R#'):], 'authorId': item['authorId'], 'authorName': item['authorName'],
-            'body': item['body'], 'createdAt': int(item.get('createdAt', 0))}
+def _reply_json(item, caller, message, seen=None, names=None):
+    """The reply as `caller` may see it. `seen` is the caller's read watermark on the message (a replyId or None);
+    `names` maps a chosen adult's userId to the current displayName (the writer's own choice only)."""
+    to = item.get('to') or 'family'  # a reply stored before `to` existed went to the family
+    out = {'replyId': item['sk'][len('R#'):], 'authorId': item['authorId'], 'authorName': item['authorName'],
+           'body': item['body'], 'createdAt': int(item.get('createdAt', 0)), 'to': to}
+    if item.get('updatedAt') is not None:
+        out['updatedAt'] = int(item['updatedAt'])
+    if item['authorId'] == caller:
+        if to not in ('author', 'family'):
+            out['toName'] = (names or {}).get(to, '')
+    else:
+        out['personal'] = to == caller
+        out['unread'] = item['sk'][len('R#'):] > (seen or '')
+    return out
+
+
+def _recipients(ctx, k, message, reply):
+    return private_replies.recipients(ctx.repo, k, message, reply)
+
+
+def _visible_replies(ctx, k, message, caller):
+    """The replies of the message that `caller` may read, oldest first."""
+    adults = families.target_adults(ctx.repo, k, message)
+    return [r for r in ctx.repo.list_replies(k, message['sk'][len('MSG#'):])
+            if visibility.reply_visible(caller, message, r, adults)]
+
+
+def _routed(ctx, k, params, membership):
+    """(message, channel, reply route) for a reply write."""
+    message, channel = _visible_message(ctx, k, membership, params['m'])
+    return message, channel, private_replies.reply_route(message, channel)
+
+
+def _choose_to(d, route, reachable):
+    """The stored `to` of a new reply, or 400 invalid_to."""
+    if 'to' not in d:
+        return route
+    value = d['to']
+    if not isinstance(value, str):
+        raise ApiError(400, 'invalid_to')
+    if value == route:
+        return route
+    if route == 'family' and value in {m['userId'] for m in reachable}:
+        return value
+    raise ApiError(400, 'invalid_to')
 
 
 def post_reply(ctx, params):
-    k = params['k']
+    k, mid = params['k'], params['m']
     membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
-    message, channel = _visible_message(ctx, k, membership, params['m'])
-    if not message.get('targetMemberId'):
+    message, channel, route = _routed(ctx, k, params, membership)
+    if not route:
         raise ApiError(409, 'replies_not_allowed')
-    adults = families.target_adults(ctx.repo, k, message)
-    if ctx.user_id in adults:
+    memo = families.TargetMemo(ctx.repo, k)
+    if ctx.user_id == message['authorId'] or (route == 'family' and ctx.user_id in memo.adults(message)):
         raise ApiError(409, 'cannot_reply_to_own')
-    if not families.reachable_adults(ctx.repo, k, adults, channel):
-        # everyone left, was removed, deleted or is no longer in the channel's groups: nobody would receive it
-        raise ApiError(409, 'target_left')
-    body = inputs.text(inputs.body_object(ctx), 'body', REPLY_MAX, required=True)
-    item, counted = ctx.repo.put_reply(k, params['m'], ctx.user_id, membership.get('displayName', ''), body)
-    reply = _reply_json(item)
-    ctx.repo.put_change(k, 'reply', reply['replyId'], message['channelId'], [ctx.user_id, *sorted(adults)],
-                        message_id=params['m'])
-    if counted:  # channel-scoped, no visibleTo: the feed serves the message JSON, never the reply
-        ctx.repo.put_change(k, 'reply_count', params['m'], message['channelId'])
-    push.enqueue('reply', k, params['m'])  # ref = messageId: the target family is on the message
-    return 201, reply
+    reachable = []
+    if route == 'author':
+        if not visibility.reply_target_ok(ctx.repo.get_membership(k, message['authorId']), channel):
+            raise ApiError(409, 'author_left')
+    else:
+        reachable = families.ordered_reachable_adults(ctx.repo, k, message, channel)
+        if not reachable:
+            # everyone left, was removed, deleted or is no longer in the channel's groups: nobody would receive it
+            raise ApiError(409, 'target_left')
+    d = inputs.body_object(ctx)
+    to = _choose_to(d, route, reachable)
+    body = inputs.text(d, 'body', REPLY_MAX, required=True)
+    personal = private_replies.personal_to({'to': to})
+    ctx.repo.touch_thread(k, mid, message, route, personal)
+    item = ctx.repo.put_reply(k, mid, ctx.user_id, membership.get('displayName', ''), body, to)
+    ctx.repo.put_change(k, 'reply', item['sk'][len('R#'):], message['channelId'],
+                        [ctx.user_id, *_recipients(ctx, k, message, item)], message_id=mid)
+    ctx.repo.put_change(k, 'reply_count', mid, message['channelId'])  # no visibleTo: the feed serves a count only
+    reply_id = item['sk'][len('R#'):]
+    push.enqueue('reply', k, f'{mid}/{reply_id}')
+    names = private_replies.to_names(ctx.repo, k, ctx.user_id, [item])
+    return 201, _reply_json(item, ctx.user_id, message, names=names)
 
 
 def list_replies(ctx, params):
     k = params['k']
     membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     message, _ = _visible_message(ctx, k, membership, params['m'])
-    adults = families.target_adults(ctx.repo, k, message)
-    return 200, [_reply_json(r) for r in ctx.repo.list_replies(k, params['m'])
-                 if visibility.reply_visible(ctx.user_id, message, r, adults)]
+    replies = _visible_replies(ctx, k, message, ctx.user_id)
+    seen = ctx.repo.seen_marks(k, ctx.user_id, [params['m']]).get(params['m'])
+    names = private_replies.to_names(ctx.repo, k, ctx.user_id, replies)
+    return 200, [_reply_json(r, ctx.user_id, message, seen, names) for r in replies]
+
+
+def _own_reply(ctx, k, params, membership):
+    """(message, reply) when the caller wrote it; otherwise 404 reply_not_found: another's reply and a missing
+    one look the same."""
+    message, _ = _visible_message(ctx, k, membership, params['m'])
+    reply = ctx.repo.get_reply(k, params['m'], params['r']) if ID_RE.fullmatch(params['r']) else None
+    if not reply or reply['authorId'] != ctx.user_id:
+        raise ApiError(404, 'reply_not_found')
+    return message, reply
+
+
+def put_reply(ctx, params):
+    k = params['k']
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
+    message, reply = _own_reply(ctx, k, params, membership)
+    body = inputs.text(inputs.body_object(ctx), 'body', REPLY_MAX, required=True)  # `to` in the request is ignored
+    item = ctx.repo.update_reply(k, params['m'], params['r'], ctx.user_id, body)
+    ctx.repo.put_change(k, 'reply', params['r'], message['channelId'],
+                        [ctx.user_id, *_recipients(ctx, k, message, item)], message_id=params['m'])
+    names = private_replies.to_names(ctx.repo, k, ctx.user_id, [item])
+    return 200, _reply_json(item, ctx.user_id, message, names=names)
+
+
+def delete_reply(ctx, params):
+    k = params['k']
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
+    message, reply = _own_reply(ctx, k, params, membership)
+    visible_to = [ctx.user_id, *_recipients(ctx, k, message, reply)]
+    ctx.repo.delete_reply(k, params['m'], reply['sk'], ctx.user_id)  # settles the count (and its change) first
+    ctx.repo.put_change(k, 'reply_removed', params['r'], message['channelId'], visible_to, message_id=params['m'])
+    return 204, None
+
+
+def read_replies(ctx, params):
+    """Move the caller's read watermark up to `upTo`, but only over replies they received. Anyone else gets the
+    same 204 and nothing is written."""
+    k = params['k']
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
+    message, _ = _visible_message(ctx, k, membership, params['m'])
+    up_to = inputs.body_object(ctx).get('upTo')
+    if not isinstance(up_to, str) or not ID_RE.fullmatch(up_to):
+        raise ApiError(400, 'invalid_up_to')
+    received = [r['sk'][len('R#'):] for r in _visible_replies(ctx, k, message, ctx.user_id)
+                if r['authorId'] != ctx.user_id and r['sk'][len('R#'):] <= up_to]
+    if received:
+        ctx.repo.mark_seen(k, ctx.user_id, params['m'], max(received))
+    return 204, None
+
+
+def inbox(ctx, params):
+    k = params['k']
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
+    threads = private_replies.inbox_threads(ctx.repo, k, ctx.user_id, membership)
+    return 200, {'unread': sum(t['unread'] for t in threads), 'threads': threads}

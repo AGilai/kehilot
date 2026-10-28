@@ -89,8 +89,9 @@ class GroupsTest(test_messages.MessagesTest):
         status, msg = self.post('women-only', type='celebration', targetMemberId=self.quiet)
         self.assertEqual(status, 201, msg)
         mid = msg['messageId']
+        self.repo.put_reply(self.k, mid, self.member, 'Mia Member', 'Mazal tov')  # a group blessing takes no new replies
         self.assertEqual(self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub',
-                                   body={'body': 'Mazal tov'})[0], 201)
+                                   body={'body': 'Mazal tov'}), (409, {'error': 'replies_not_allowed'}))
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{mid}', sub='gabbai-sub')[0], 200)
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{mid}/replies', sub='gabbai-sub'), (200, []))
         mine = self.channel_names('gabbai-sub')['women-only']
@@ -137,16 +138,17 @@ class GroupsTest(test_messages.MessagesTest):
         offset[0] = 10
         mid = self.post('women-only', type='celebration', targetMemberId=self.quiet)[1]['messageId']
         self.call('POST', f'{self.base()}/messages/{mid}/join', sub='member-sub')
-        self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub', body={'body': 'hi'})
+        self.assertEqual(self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub',
+                                   body={'body': 'hi'})[0], 409)  # a group channel has no private replies
 
         def kinds(sub):
             status, body = self.call('GET', f'{self.base()}/changes', sub=sub, query={'since': start})
             self.assertEqual(status, 200)
             return {c['kind'] for c in body['changes']}
-        self.assertEqual(kinds('member-sub'), {'message', 'join', 'reply_count', 'reply'})  # their own reply
+        self.assertEqual(kinds('member-sub'), {'message', 'join'})
         self.assertEqual(kinds('other-sub'), set())
         self.assertEqual(kinds('listener-sub'), set())
-        self.assertEqual(kinds('gabbai-sub'), {'message', 'join', 'reply_count'})
+        self.assertEqual(kinds('gabbai-sub'), {'message', 'join'})
 
     def message_item(self, channel_key, author='nobody', target=None):
         return self.repo.put_message(self.k, self.channels[channel_key], 'weekly', 't', 'b', author, 'N',
@@ -170,13 +172,13 @@ class GroupsTest(test_messages.MessagesTest):
         self.assertEqual(self.post('women-only', type='celebration', targetMemberId=self.quiet)[0], 201)
         self.assertEqual(self.post('women-only', type='celebration', targetMemberId=self.gabbai)[0], 201)
 
-    def test_reply_after_target_left_group_is_409_and_not_pushed(self):
+    def test_reply_in_group_channel_is_409_and_not_pushed(self):
         mid = self.post('women-only', type='celebration', targetMemberId=self.quiet)[1]['messageId']
         self.set_groups(self.quiet, [self.men])
         with mock.patch.object(push, 'enqueue') as enqueue:
             status, body = self.call('POST', f'{self.base()}/messages/{mid}/replies', sub='member-sub',
                                      body={'body': 'hi'})
-        self.assertEqual((status, body), (409, {'error': 'target_left'}))
+        self.assertEqual((status, body), (409, {'error': 'replies_not_allowed'}))
         enqueue.assert_not_called()
         self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, mid), [])
 

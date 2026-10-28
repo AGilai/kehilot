@@ -4,6 +4,7 @@ from unittest import mock
 from moto import mock_aws
 
 from server.cloud import push, push_worker, visibility
+from server.cloud.errors import ApiError
 from server.tests.cloud import test_messages
 from server.tests.cloud.helpers import set_type_rules
 
@@ -75,7 +76,7 @@ class RepliesTest(test_messages.MessagesTest):
         self.assertEqual((body['authorId'], body['authorName'], body['body']),
                          (self.member, 'Mia Member', 'Mazal tov'))
         self.assertIn('replyId', body)
-        enqueue.assert_called_once_with('reply', self.k, self.mid)
+        enqueue.assert_called_once_with('reply', self.k, f"{self.mid}/{body['replyId']}")
         change = [c for c in self.changes() if c['kind'] == 'reply'][0]
         self.assertEqual((change['refId'], change['messageId'], change['channelId']),
                          (body['replyId'], self.mid, self.channels['simchas']))
@@ -83,7 +84,7 @@ class RepliesTest(test_messages.MessagesTest):
 
     def test_replier_count_counts_distinct_users(self):
         self.reply('member-sub', 'one')
-        self.reply('member-sub', 'two')
+        self.assertEqual(self.reply('member-sub', 'two'), (409, {'error': 'already_replied'}))
         self.reply('other-sub', 'three')
         status, msg = self.call('GET', f'{self.base()}/messages/{self.mid}', sub='gabbai-sub')
         self.assertEqual((status, msg['replierCount'], msg['targetName']), (200, 2, 'Quinn Quiet'))
@@ -92,10 +93,14 @@ class RepliesTest(test_messages.MessagesTest):
         self.assertNotIn('visibleTo', counts[0])
         self.assertEqual(counts[0]['refId'], self.mid)
 
-    def test_concurrent_first_replies_by_same_user_count_once(self):
+    def test_concurrent_replies_by_same_user_one_wins(self):
         # the marker's attribute_not_exists in the reply's transaction is what makes this hold under races
-        results = [self.repo.put_reply(self.k, self.mid, self.member, 'Mia Member', 'x')[1] for _ in range(2)]
-        self.assertEqual(results, [True, False])
+        self.repo.put_reply(self.k, self.mid, self.member, 'Mia Member', 'x')
+        with self.assertRaises(ApiError) as caught:
+            self.repo.put_reply(self.k, self.mid, self.member, 'Mia Member', 'y')
+        self.assertEqual((caught.exception.status, caught.exception.code), (409, 'already_replied'))
+        self.assertEqual(len(self.repo.list_replies(self.k, self.mid)), 1)
+        self.assertEqual(int(self.repo.get_message(self.k, self.mid)['replierCount']), 1)
 
     def test_count_visible_to_everyone_who_sees_message(self):
         self.guests_see_celebrations()
@@ -166,8 +171,8 @@ class RepliesTest(test_messages.MessagesTest):
 
     def test_partner_who_cannot_read_channel_sees_nothing(self):
         self.link(self.quiet, self.other)
-        self.set_group('simchas', [self.member, self.quiet])
         self.assertEqual(self.reply('member-sub', 'hi')[0], 201)
+        self.set_group('simchas', [self.member, self.quiet])
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{self.mid}', sub='other-sub')[0], 404)
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{self.mid}/replies', sub='other-sub')[0], 404)
         self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid), [self.quiet])
@@ -203,8 +208,9 @@ class RepliesTest(test_messages.MessagesTest):
         mid = self.post('simchas', type='celebration', targetMemberId=self.quiet, targetFamilyId=fid)[1]['messageId']
         self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='quiet-sub')[0], 204)
         with mock.patch.object(push, 'enqueue') as enqueue:
-            self.assertEqual(self.reply('member-sub', mid=mid)[0], 201)
-        enqueue.assert_called_once_with('reply', self.k, mid)
+            status, sent = self.reply('member-sub', mid=mid)
+        self.assertEqual(status, 201)
+        enqueue.assert_called_once_with('reply', self.k, f"{mid}/{sent['replyId']}")
         self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, mid), [self.other])
         self.assertEqual(self.replies('other-sub', mid=mid), ['Mazal tov'])
         self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='other-sub')[0], 204)

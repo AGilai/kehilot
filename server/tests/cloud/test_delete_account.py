@@ -8,6 +8,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from moto import mock_aws
 
+from server.cloud.ids import new_id
 from server.cloud import handler as handler_module
 from server.cloud import media, routes_me
 from server.cloud.repo import Repo
@@ -238,7 +239,8 @@ class DeletePostsTest(DeleteAccountTest):
                                             'management', self.eli, 'Eli')
         oid = about_other['sk'][4:]
         self.repo.put_reply(self.k1, oid, self.dana, 'Dana T', 'private')
-        self.repo.put_reply(self.k1, oid, self.dana, 'Dana T', 'private again')
+        self.repo.table.put_item(Item={'pk': f'K#{self.k1}#MSG#{oid}', 'sk': f'R#{new_id()}', 'authorId': self.dana,
+                                       'authorName': 'Dana T', 'body': 'private again', 'createdAt': 1})  # legacy: a second reply
         self.repo.put_reply(self.k1, oid, self.gab, 'Gab', 'other reply')
         return weekly, chat, blessing, about_other
 

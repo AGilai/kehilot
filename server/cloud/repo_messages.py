@@ -292,11 +292,12 @@ class MessagesRepo:
         return {sk[len('READ#'):] for _, sk in found}
 
     # replies
-    def put_reply(self, k, message_id, author_id, author_name, body):
-        """Returns (reply item, counted). The user's first reply also writes the distinct-replier marker and
-        adds 1 to the message's replierCount in the same transaction; later replies only put the reply."""
+    def put_reply(self, k, message_id, author_id, author_name, body, to='family'):
+        """Write the person's one reply, its distinct-replier marker and replierCount + 1 in one transaction.
+        `to` is 'author', 'family' or the userId of the one chosen adult. The marker's attribute_not_exists is
+        what makes "one reply per person" hold under races: a second try raises 409 already_replied."""
         item = {'pk': f'K#{k}#MSG#{message_id}', 'sk': f'R#{new_id()}', 'authorId': author_id,
-                'authorName': author_name, 'body': body, 'createdAt': int(time.time())}
+                'authorName': author_name, 'body': body, 'createdAt': int(time.time()), 'to': to}
         name = self.table.name
         try:
             self._txn([
@@ -308,17 +309,77 @@ class MessagesRepo:
                             'ConditionExpression': 'attribute_exists(sk)',
                             'ExpressionAttributeValues': {':one': 1}}},
             ])
-            return item, True
+            return item
         except ClientError as error:
             if not _failed(error, 'TransactionCanceledException'):
                 raise
             reasons = [r.get('Code') for r in error.response.get('CancellationReasons', [])] + [None] * 3
-            if reasons[1] == 'ConditionalCheckFailed' and reasons[2] != 'ConditionalCheckFailed':
-                self.table.put_item(Item=item)  # already counted this user (also when a racing reply won)
-                return item, False
             if reasons[2] == 'ConditionalCheckFailed':
                 raise ApiError(404, 'message_not_found')
+            if reasons[1] == 'ConditionalCheckFailed':
+                raise ApiError(409, 'already_replied')
             raise ApiError(409, 'try_again')
+
+    def touch_thread(self, k, message_id, message, route, personal_to=None, now=None):
+        """The mailbox index of an answered message: who may have replies (never what they say). Written before
+        the reply, so a crash in between leaves an empty candidate, never a reply the mailbox cannot find."""
+        values = {':route': route, ':author': message['authorId'], ':now': int(now if now is not None else time.time())}
+        sets = ['replyTo = :route', 'msgAuthorId = :author', 'lastAt = :now']
+        for field in ('targetMemberId', 'targetFamilyId'):
+            if message.get(field):
+                sets.append(f'{field} = :{field}')
+                values[f':{field}'] = message[field]
+        expression = 'SET ' + ', '.join(sets)
+        if personal_to:
+            expression += ' ADD personalTo :personal'
+            values[':personal'] = {personal_to}
+        self.table.update_item(Key={'pk': f'K#{k}#RX', 'sk': f'{MSG_PREFIX}{message_id}'}, UpdateExpression=expression,
+                               ExpressionAttributeValues=values)
+
+    def get_reply(self, k, message_id, reply_id):
+        return self._get(f'K#{k}#MSG#{message_id}', f'R#{reply_id}')
+
+    def update_reply(self, k, message_id, reply_id, author_id, body, now=None):
+        """Edit the writer's own reply; `to` never changes. Anyone else's, or a missing one: 404 reply_not_found."""
+        try:
+            return self.table.update_item(
+                Key={'pk': f'K#{k}#MSG#{message_id}', 'sk': f'R#{reply_id}'},
+                UpdateExpression='SET body = :b, updatedAt = :t',
+                ConditionExpression='attribute_exists(sk) AND authorId = :me',
+                ExpressionAttributeValues={':b': body, ':t': int(now if now is not None else time.time()),
+                                           ':me': author_id},
+                ReturnValues='ALL_NEW')['Attributes']
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+            raise ApiError(404, 'reply_not_found')
+
+    def list_threads(self, k):
+        """Every thread-index item of the Kehila (candidates for a mailbox; callers re-check visibility)."""
+        items, kwargs = [], {}
+        while True:
+            page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}#RX'), ConsistentRead=True, **kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def seen_marks(self, k, user_id, message_ids):
+        """{messageId: upTo} for the messages the user has a read watermark on."""
+        keys = [(f'K#{k}#U#{user_id}', f'RXSEEN#{m}') for m in dict.fromkeys(message_ids)]
+        found = self.batch_get(keys) if keys else {}
+        return {sk[len('RXSEEN#'):]: item['upTo'] for (_, sk), item in found.items()}
+
+    def mark_seen(self, k, user_id, message_id, up_to):
+        """Raise the watermark; never lowers it. A lost race (a newer mark already there) is not an error."""
+        try:
+            self.table.update_item(Key={'pk': f'K#{k}#U#{user_id}', 'sk': f'RXSEEN#{message_id}'},
+                                   UpdateExpression='SET upTo = :u',
+                                   ConditionExpression='attribute_not_exists(upTo) OR upTo < :u',
+                                   ExpressionAttributeValues={':u': up_to})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
 
     def list_replies(self, k, message_id, consistent=False):
         """Every reply of the message, oldest first. Callers filter with visibility.reply_visible."""
@@ -332,7 +393,8 @@ class MessagesRepo:
             kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
 
     def delete_replies(self, k, message_id):
-        """Delete every reply (R#) and distinct-replier marker (RP#) under the message. Returns the count."""
+        """Delete every reply (R#), distinct-replier marker (RP#) and the thread index item of the message.
+        Returns the number of replies and markers."""
         pk, count = f'K#{k}#MSG#{message_id}', 0
         keys, kwargs = [], {}
         while True:
@@ -355,6 +417,7 @@ class MessagesRepo:
             for key in keys:
                 batch.delete_item(Key={'pk': key['pk'], 'sk': key['sk']})
                 count += 1
+            batch.delete_item(Key={'pk': f'K#{k}#RX', 'sk': f'{MSG_PREFIX}{message_id}'})  # the thread index item
         return count
 
     def delete_reply(self, k, message_id, reply_sk, author_id):

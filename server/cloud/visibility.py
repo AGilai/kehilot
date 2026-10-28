@@ -96,16 +96,25 @@ def message_visible(membership, channel, message, rules=None):
 
 
 def reply_visible(user_id, message, reply, family_adults=frozenset()):
-    """Private replies: only the reply's author and the target family's current adults (`family_adults`, from
-    families.target_adults). The stored targetMemberId alone grants nothing. Gabbaim get no exception."""
+    """Private replies: the writer always; then by `to`. 'author': the message's author. 'family' (or missing,
+    legacy): the target family's current adults (`family_adults`, from families.target_adults). A userId: that
+    user only, not the spouse. Gabbaim and tech get no exception."""
     if not user_id:
         return False
-    return user_id == reply.get('authorId') or user_id in family_adults
+    if user_id == reply.get('authorId'):
+        return True
+    to = reply.get('to') or 'family'
+    if to == 'author':
+        return user_id == message.get('authorId')
+    if to == 'family':
+        return user_id in family_adults
+    return user_id == to
 
 
 def change_visible(user_id, membership, channels_by_id, change, family_adults=None):
     """May this user learn of this change item at all? The feed also applies the per-item checks. A `reply`
-    change is visible to those in `visibleTo` or in `family_adults` (a partner linked after the reply)."""
+    change is visible to those in `visibleTo` or in `family_adults` (a partner linked after the reply). Callers
+    pass `family_adults` only for a reply whose `to` is family: never for an author or personal reply."""
     readable = can_read_channel(membership, channels_by_id.get(change.get('channelId')))
     visible_to = change.get('visibleTo')
     if visible_to is None:

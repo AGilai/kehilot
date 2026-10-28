@@ -475,13 +475,21 @@ Item JSON: `{itemId, week, group, kind, type, state, source, postedAt, line?, me
 
 #### Private replies (blessings)
 
-Which messages take replies (`private_replies.reply_route`): the channel is for the whole Kehila (no `groups`, not a chat), the message is not removed, and either it is a `general` or `event` message whose stored `authorKind` is `member` (replies go to the author), or a `celebration` or `condolence` with a target, whoever posted it (replies go to the target family). Messages written by management (gabbai or tech) of type `general` or `event`, `weekly`, chat, and a blessing without a target take none. Replies are **private**: only the reply's author and the **target family's current adults** can read them (the live adults of `targetFamilyId` when that family exists, else of the target member's current family, else the member alone). A partner linked later sees earlier replies; a partner who unlinked or left no longer does. Gabbaim have no exception; they see `replierCount` on the message and nothing more.
+Which messages take replies (`private_replies.reply_route`): the channel is for the whole Kehila (no `groups`, not a chat), the message is not removed, and either it is a `general` or `event` message whose stored `authorKind` is `member` (replies go to the author), or a `celebration` or `condolence` with a target, whoever posted it (replies go to the target family). Messages written by management (gabbai or tech) of type `general` or `event`, `weekly`, chat, and a blessing without a target take none. Replies are **private**, one per person per message, and the person who wrote one can edit and delete it. Who reads a reply (`visibility.reply_visible`): the writer always; then by its `to`. `"author"`: the message's author. `"family"` (or `to` missing on an old reply): the target family's current live adults (the live adults of `targetFamilyId` when that family exists, else of the target member's current family, else the member alone). A userId: that one adult only, not the spouse, not the rest of the family. A partner linked later sees earlier family replies, never a personal one; a chosen adult who unlinks and stays keeps the personal reply. Gabbaim and tech have no exception anywhere (app, feed, export, push); they see `replierCount` on the message and nothing more. `replierCount` counts family and personal repliers alike and is never broken down. Someone else's reply and a missing one are both 404 `reply_not_found`.
+
+Request rules. `to` is omitted, or `"family"`, or the `userId` of one of the adults who can receive a reply (`replyAdults`); a userId is allowed on the family route only. On the author route `to` is omitted or `"author"`. Anything else (also a non-string or `null`) is 400 `invalid_to`. Order of checks: no route -> `replies_not_allowed`; the caller is the author or an adult of the target family -> `cannot_reply_to_own`; nobody can receive it -> `author_left` / `target_left`; `to` -> `invalid_to`; a reply of this person already there -> `already_replied` (decided by the distinct-replier marker inside the write transaction, so a race cannot bypass it). Deleting your reply frees the slot.
+
+Reply object: `{replyId, authorId, authorName, body, createdAt, updatedAt?, to}`. For the writer, `toName` (the chosen adult's current display name, `""` when gone) when `to` is a userId. For a recipient, `personal` (true when `to` is the caller) and `unread` (the reply is newer than the caller's read marker on the message and not their own).
 
 | Method | Path | Role | Request | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/v1/kehilot/{k}/messages/{m}/replies` | member, gabbai | `{body}` (1-1000) | 201 `{replyId, authorId, authorName, body, createdAt}` | 400 `invalid_body`, 404 `message_not_found`, 409 `replies_not_allowed` (no target), `cannot_reply_to_own` (the caller is an adult of the target family), `target_left` (no adult of the target family is still a member who can read the channel: hide the reply box), `try_again` |
+| POST | `/v1/kehilot/{k}/messages/{m}/replies` | member, gabbai, tech | `{body (1-1000), to?}` | 201 reply | 400 `invalid_body`, `invalid_to`; 404 `message_not_found`; 409 `replies_not_allowed`, `cannot_reply_to_own`, `author_left` (the author is gone or cannot read the channel), `target_left` (no adult of the target family can receive it), `already_replied`, `try_again` |
+| PUT | `/v1/kehilot/{k}/messages/{m}/replies/{r}` | the writer | `{body}` (`to` is ignored; the recipient is fixed once sent) | 200 reply (with `updatedAt`) | 400 `invalid_body`; 404 `message_not_found`, `reply_not_found` (also another person's reply) |
+| DELETE | `/v1/kehilot/{k}/messages/{m}/replies/{r}` | the writer | - | 204 | 404 `message_not_found`, `reply_not_found` |
+| POST | `/v1/kehilot/{k}/messages/{m}/replies/read` | any | `{upTo}` (a replyId) | 204. Raises the caller's read marker to the newest reply they received at or below `upTo`; it never lowers it and writes nothing when the caller received no reply there (the answer is the same for anyone) | 400 `invalid_up_to`; 404 `message_not_found` |
+| GET | `/v1/kehilot/{k}/replies/inbox` | member, gabbai, tech | - | 200 `{unread, threads: [{message, total, unread, personal, replies}]}`: `message` is the message object with the caller's fields; `total` the replies the caller received (not their own); `personal` how many of them were sent to the caller alone; `unread` those above the read marker; `replies` the newest 3, newest first. Threads are ordered by newest received reply; `unread` is the sum. A gabbai who is not a recipient gets `{unread: 0, threads: []}` | 403 (listener) |
 | GET | `/v1/kehilot/{k}/families?channelId=` | member, gabbai | query `channelId` (required) | 200 `[{familyId, name, firstNames: [string], targetMemberId}]` sorted by `name`: one row per family with at least one live adult who can be a blessing target in that channel (`targetMemberId` is the first such adult); families with none are left out; no children | 400 `invalid_channel_id`, 403 `forbidden`, 404 `channel_not_found` |
-| GET | `/v1/kehilot/{k}/messages/{m}/replies` | any | - | 200 `[reply]`, only the ones the caller may see (empty for everyone else) | 404 `message_not_found` |
+| GET | `/v1/kehilot/{k}/messages/{m}/replies` | any | - | 200 `[reply]`, oldest first, only the ones the caller may see: their own, plus those sent to them (empty for everyone else) | 404 `message_not_found` |
 
 #### Family and children
 
@@ -555,8 +563,9 @@ Feed use: call without `since`, store `cursor`, then every `pollSeconds` call wi
 | `message` | message object | new message in a channel the caller can read |
 | `message_removed` | `{id}` | the message was removed |
 | `join` | message object (new `joinCount`) | someone joined |
-| `reply_count` | message object (new `replierCount`) | a new distinct replier. Channel-wide, so gabbaim and others learn the count only |
-| `reply` | reply object plus `messageId` | a new private reply. Only the reply's author and the target family's current adults receive it |
+| `reply_count` | message object (new `replierCount`) | a new or withdrawn replier. Channel-wide, so gabbaim and others learn the count only |
+| `reply` | reply object plus `messageId` | a new or edited private reply (an edit has the same id). Only its writer and its recipients receive it: the author, the target family's current adults, or the one chosen adult |
+| `reply_removed` | `{id, messageId}` | the writer deleted the reply; only the writer and the recipients at that time receive it. A deleted message is covered by `message_removed` |
 | `read` | `{messageId}` | the caller read it (only the caller's own feed) |
 
 A change is skipped if the object is no longer visible to the caller. The feed is subject to the 2 s hold-back above.
@@ -651,7 +660,9 @@ Posting a message, a reply, a membership request, a group join request or a fami
 | 409 | `cannot_move`, `too_many_items` | weekly sheet items (see Weekly sheet items) |
 | 409 | `last_gabbai` | the action would leave the Kehila with no gabbai and no tech |
 | 409 | `role_change_not_allowed` | role changes are only between member, gabbai and tech |
-| 409 | `replies_not_allowed`, `cannot_reply_to_own` | reply rules |
+| 409 | `replies_not_allowed`, `cannot_reply_to_own`, `already_replied`, `author_left` | reply rules (`author_left`: the message's author is gone or cannot read the channel) |
+| 400 | `invalid_to`, `invalid_up_to` | reply recipient / read marker |
+| 404 | `reply_not_found` | no such reply of the caller's |
 | 409 | `target_left` | the message's target family is no longer a member of the Kehila (left, removed or deleted) or can no longer read the channel (left its groups): the app should hide the reply box |
 | 410 | `invite_expired` | expired or used up |
 | 429 | `broadcast_limit` | a member's daily message limit |
@@ -684,3 +695,5 @@ Linking two families (`link`, gabbai link or confirmed request) merges the trees
 - The moved tree's own former spouse is carried when the `formerSpouse` slot is free, else dropped. Limits are not enforced (a merge over a limit is kept, and the next save returns `children_limit` etc.); a merged tree over 300 KB is kept and a count-only warning is logged.
 
 `unlink`, leaving the Kehila and account deletion split the tree by `userId`: each adult keeps their own figure as `self` with their own ancestors, the other adult stays as a names-only `spouse` (no ancestor figures), and the children side is copied to both. A former spouse stays with the original `self`. Without a figure for the leaver, the leaver gets only the children side (a list without `self`) and the remaining adult keeps the tree; without a figure for the remaining adult, they get the children side. The tree is deleted with the family (last adult leaving or deleting the account) and is in the member's export (`kehilot[].family.tree`, the family's own figures included).
+
+Storage added by private replies (no names in any key): a reply item `K#<k>#MSG#<m>` / `R#<replyId>` with `to` and `updatedAt?`; a thread index item `K#<k>#RX` / `MSG#<m>` (`replyTo`, `msgAuthorId`, `targetMemberId?`, `targetFamilyId?`, `personalTo?`, `lastAt`: candidates for the mailbox, never what grants access); a read marker `K#<k>#U#<user>` / `RXSEEN#<m>` (`upTo`). Removing a message deletes its replies, markers and thread item. Reply pushes queue `reply` with ref `<messageId>/<replyId>`; edits and deletes never push.

@@ -3146,3 +3146,8 @@
     "whereTitle": "Where it appears"
   }
 }
+    "already_replied": "You have already replied to this message",
+    "author_left": "The author is no longer in the community, so a reply cannot be sent",
+    "invalid_to": "The reply cannot be sent to the chosen person",
+    "reply_not_found": "The reply was not found",
+    "invalid_up_to": "The read marker is not valid",

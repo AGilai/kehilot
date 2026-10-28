@@ -64,3 +64,82 @@ def detail_fields(repo, k, user_id, message, channel):
     if not adults:
         return {'canReply': False, 'replyBlocked': 'target_left'}
     return {'replyAdults': [{'userId': m['userId'], 'name': m.get('displayName', '')} for m in adults]}
+
+
+def personal_to(reply):
+    """The chosen adult's userId of a personal reply, else None."""
+    to = reply.get('to') or 'family'
+    return None if to in ('author', 'family') else to
+
+
+def to_names(repo, k, user_id, replies):
+    """{userId: displayName} for the adults the caller chose in their own personal replies ('' when gone).
+    Nobody else's choice is ever looked up."""
+    chosen = {personal_to(r) for r in replies if r.get('authorId') == user_id} - {None}
+    found = repo.batch_get([(f'K#{k}', f'M#{u}') for u in chosen]) if chosen else {}
+    return {u: (found.get((f'K#{k}', f'M#{u}')) or {}).get('displayName', '') for u in chosen}
+
+
+def recipients(repo, k, message, reply, memo=None):
+    """Who receives this reply now, as userIds (never the writer): the author, the chosen adult, or the target
+    family's current adults."""
+    to = reply.get('to') or 'family'
+    if to == 'author':
+        recipients_ = {message['authorId']}
+    elif to == 'family':
+        recipients_ = set((memo or families.TargetMemo(repo, k)).adults(message))
+    else:
+        recipients_ = {to}
+    return sorted(recipients_ - {reply['authorId']})
+
+
+def inbox_threads(repo, k, user_id, membership, limit=3):
+    """The caller's mailbox: [{message, total, unread, personal, replies}], newest visible reply first.
+    `total` counts the replies visible to the caller that they did not write; `replies` are those, newest first
+    (all of them when `limit` is None). Candidates come from the thread index and every one is re-checked with
+    message_visible and reply_visible, so the index grants nothing."""
+    from . import routes_messages  # late: routes_messages imports this module
+    from . import type_rules
+    family = repo.family_of(k, user_id)
+    my_family = family['familyId'] if family else None
+    my_adults = set(family['adults']) if family else set()
+    candidates = []
+    for t in repo.list_threads(k):
+        if t.get('replyTo') == 'author':
+            wanted = t.get('msgAuthorId') == user_id
+        else:
+            wanted = (t.get('targetFamilyId') is not None and t.get('targetFamilyId') == my_family) \
+                or t.get('targetMemberId') in my_adults
+        if wanted or user_id in (t.get('personalTo') or ()):
+            candidates.append(t['sk'][len('MSG#'):])
+    if not candidates:
+        return []
+    found = repo.batch_get([(f'K#{k}', f'MSG#{m}') for m in candidates])
+    messages = {sk[len('MSG#'):]: item for (_, sk), item in found.items()}
+    channels = {c['sk'][2:]: c for c in repo.list_channels(k)}
+    rules = type_rules.rules((repo.get_kehila(k) or {}).get('settings', {}))
+    memo = families.TargetMemo(repo, k)
+    seen = repo.seen_marks(k, user_id, candidates)
+    rows = []
+    for mid in candidates:
+        message = messages.get(mid)
+        if not message or not visibility.message_visible(membership, channels.get(message['channelId']), message, rules):
+            continue
+        adults = memo.adults(message)
+        received = [r for r in repo.list_replies(k, mid)
+                    if r['authorId'] != user_id and visibility.reply_visible(user_id, message, r, adults)]
+        if not received:
+            continue
+        newest = received[::-1]  # list_replies is oldest first
+        shown = newest if limit is None else newest[:limit]
+        viewer = viewer_fields(repo, k, user_id, membership, [message], channels, memo)[mid]
+        marks = {mid: seen[mid]} if mid in seen else {}
+        replies = [routes_messages._reply_json(r, user_id, message, marks.get(mid)) for r in shown]
+        rows.append((newest[0]['sk'], {
+            'message': routes_messages._message_json(message, viewer=viewer),
+            'total': len(received),
+            'unread': sum(1 for r in received if r['sk'][len('R#'):] > marks.get(mid, '')),
+            'personal': sum(1 for r in received if r.get('to') == user_id),
+            'replies': replies}))
+    rows.sort(key=lambda row: row[0], reverse=True)
+    return [row[1] for row in rows]
