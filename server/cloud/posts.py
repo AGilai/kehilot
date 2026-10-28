@@ -1,7 +1,7 @@
 """Account deletion's "also delete everything I posted". Idempotent: a retry finishes whatever is left."""
 import logging
 
-from . import media
+from . import media, sheet_items
 from .errors import ApiError
 
 log = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ def delete_posts(repo, user_id, remaining_ms=None):
                 media.delete_image(k, message_id)
             repo.remove_message(k, message_id)
         repo.put_change(k, 'message_removed', message_id, item['channelId'])
+        sheet_items.on_remove(repo, k, item)
         replies += repo.delete_replies(k, message_id)
         repo.scrub_message(k, message_id)
         messages += 1

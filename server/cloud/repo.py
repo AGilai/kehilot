@@ -11,6 +11,7 @@ from .repo_messages import MessagesRepo
 from .repo_reports import ReportsRepo
 from .repo_schedule import ScheduleRepo
 from .repo_seating import SeatingRepo
+from .repo_sheet import SheetRepo
 from .repo_tags import TagsRepo
 
 TABLE_SCHEMA = dict(
@@ -26,7 +27,7 @@ TABLE_SCHEMA = dict(
     BillingMode='PAY_PER_REQUEST',
 )
 
-class Repo(MembersRepo, AdminRepo, MessagesRepo, FamiliesRepo, TagsRepo, ReportsRepo, ScheduleRepo, SeatingRepo):
+class Repo(MembersRepo, AdminRepo, MessagesRepo, FamiliesRepo, TagsRepo, ReportsRepo, ScheduleRepo, SeatingRepo, SheetRepo):
     def __init__(self, table):
         self.table = table
 

@@ -4,7 +4,7 @@ import base64
 from .authz import ROLES, require
 from .errors import ApiError
 from .routes_families import MEMBERS, notice_of, request_card
-from . import consents, schedule_rules, tags, type_rules
+from . import consents, schedule_rules, sheet_rules, tags, type_rules
 from .routes_invites import DEFAULT_MAX_LISTENERS
 from .routes_privacy import age13_required
 
@@ -42,6 +42,8 @@ def kehila(ctx, params):
         extra['seatDeadline'] = settings.get('seatDeadline') or '12:00'
         extra['listenerCount'] = ctx.repo.count_listeners(params['k'])
     is_member = membership['role'] in MEMBERS
+    if is_member:
+        extra['sheetMembers'] = sheet_rules.sheet_members(settings)
     cards = {'gabbaiLink': None, 'request': None, 'imported': bool(membership.get('importNotice')),
              'seatLink': None, 'phoneAsk': is_member and membership.get('phoneAsked') != consents.VERSIONS['phoneList'],
              'terms': False}

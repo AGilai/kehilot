@@ -1,7 +1,7 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
 from datetime import datetime, timezone
 
-from . import families, inputs, media, message_fields, push, schedule_rules, type_rules, visibility
+from . import families, inputs, media, message_fields, push, schedule_rules, sheet_items, type_rules, visibility
 from .authz import require
 from .errors import ApiError
 from .families import family_name
@@ -122,6 +122,7 @@ def post_message(ctx, params):
                                 target_membership.get('displayName', '') if target else '',
                                 message_id=message_id, image=image, target_family_id=target_family_id,
                                 template_id=template_id, fields=fields)
+    sheet_items.on_post(ctx.repo, k, membership, settings, item, sheet_items._now())
     message = _message_json(item)
     ctx.repo.put_change(k, 'message', message['messageId'], channel_id)
     push.enqueue('message', k, message['messageId'])
@@ -280,6 +281,7 @@ def remove_message(ctx, params):
     if message.get('image'):  # first: a failure leaves the message, so a retry still finds the image to delete
         media.delete_image(k, params['m'])
     ctx.repo.remove_message(k, params['m'])
+    sheet_items.on_remove(ctx.repo, k, message)
     ctx.repo.put_change(k, 'message_removed', params['m'], message['channelId'])
     return 204, None
 

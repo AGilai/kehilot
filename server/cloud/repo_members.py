@@ -319,7 +319,8 @@ class MembersRepo:
                                ConditionExpression='attribute_exists(settings)',
                                ExpressionAttributeValues={':v': value})
 
-    def set_settings(self, k, max_listeners=None, privacy_contact=None, type_rules=None, location=None, sheet=None, seat_deadline=None):
+    def set_settings(self, k, max_listeners=None, privacy_contact=None, type_rules=None, location=None, sheet=None, seat_deadline=None,
+                     sheet_members=None):
         """Set the given settings only (None = leave); privacy_contact '' removes it. `type_rules` is a validated
         partial `{type: {post, listeners}}`: those types are replaced, the other type keeps its (normalized) rule.
         `location` / `sheet` (validated) replace those settings whole. Other settings are kept."""
@@ -333,6 +334,9 @@ class MembersRepo:
         if seat_deadline is not None:
             sets.append('settings.seatDeadline = :sd')
             values[':sd'] = seat_deadline
+        if sheet_members is not None:
+            sets.append('settings.sheetMembers = :sm')
+            values[':sm'] = sheet_members
         if type_rules:
             kehila = self.get_kehila(k)
             if not kehila:
