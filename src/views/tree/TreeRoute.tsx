@@ -46,7 +46,7 @@ export function TreeRoute({ onBack, readOnly, familyId, familyName, onOpenMe }: 
     try {
       const out = await saveTree(api, kehilaId, people, cur.version);
       docRef.current = out.doc; setDoc(out.doc);
-      if (!out.ok) { setPicked(null); say(t('errors.version_conflict')); return { ok: true }; } // the tree was reloaded; the edit was not written
+      if (!out.ok) { say(t('tree.conflictNotSaved')); return { ok: false, message: t('tree.conflictNotSaved') }; } // reloaded underneath; the sheet keeps the draft (it rebases onto the new tree)
       say(feed > 0 ? t(feed === 1 ? 'tree.feedDoneOne' : 'tree.feedDone', { n: feed }) : t('tree.saved'));
       return { ok: true };
     } catch (e) { return { ok: false, message: errText(e) }; }

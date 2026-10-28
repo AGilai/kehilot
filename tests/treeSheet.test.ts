@@ -267,3 +267,22 @@ test('a tribe is for men only', () => {
   const g = run(newChild(base, 'f'), { type: 'tribe', tribe: 'kohen' });
   assert.equal(g.draft.tribe, undefined);
 });
+
+test('a typed Gregorian date outside the server\'s Hebrew year range is an error, not a 400', () => {
+  const old = run(newChild(), { type: 'birth', part: { day: 1, month: 'tishrei', year: 4000 } });
+  assert.deepEqual(sheetErrors(old.draft, '2026-10-28'), ['yearRange']);
+  const dead = run(newChild(), { type: 'alive', deceased: true }, { type: 'death', part: { day: 1, month: 'tishrei', year: 6100 } });
+  assert.ok(sheetErrors(dead.draft, '2026-10-28').includes('yearRange'));
+  assert.deepEqual(sheetErrors(run(newChild(), { type: 'birth', part: { day: 1, month: 'tishrei', year: 5000 } }).draft, '2026-10-28'), []);
+});
+
+test('rebase: the draft is kept and the reloaded tree is the base (nobody else\'s change is lost)', () => {
+  const s = run(startSheet(base, { id: 'me' }, 'x'), { type: 'text', key: 'hebrewFirst', value: 'חדש' });
+  const theirs: Person[] = [...base, { id: 'z', relation: 'child', gender: 'f', hebrewFirst: 'נוי' }];
+  const r = sheetReducer(s, { type: 'rebase', base: theirs });
+  assert.equal(r.draft.hebrewFirst, 'חדש');
+  assert.equal(isDirty(r), true);
+  const out = commit(r, ids());
+  assert.equal(out.find(p => p.id === 'z')!.hebrewFirst, 'נוי');
+  assert.equal(out.find(p => p.id === 'me')!.hebrewFirst, 'חדש');
+});

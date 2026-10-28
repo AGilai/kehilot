@@ -21,6 +21,7 @@ import { FigurePicker } from './FigurePicker.tsx';
 import { HebrewDateField } from './HebrewDateField.tsx';
 
 export type SaveOutcome = { ok: true } | { ok: false; message: string };
+export type { SheetError };
 const today = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
 let counter = 0;
 /** A client-made id for a figure created from a typed parent name (matches the server's id pattern). */
@@ -101,7 +102,7 @@ function LinkRow({ title, sub, action, onPress, testID, me, person, tree }: { ti
 
 const SECTION_GAP = 14;
 const TRIBES: Tribe[] = ['kohen', 'levi', 'yisrael'];
-const errKey: Record<SheetError, string> = { partialBirth: 'tree.err.partialDate', partialDeath: 'tree.err.partialDate', birthFuture: 'tree.err.future', deathFuture: 'tree.err.future', deathBeforeBirth: 'tree.err.deathBeforeBirth' };
+const errKey: Record<SheetError, string> = { yearRange: 'tree.err.yearRange', partialBirth: 'tree.err.partialDate', partialDeath: 'tree.err.partialDate', birthFuture: 'tree.err.future', deathFuture: 'tree.err.future', deathBeforeBirth: 'tree.err.deathBeforeBirth' };
 
 export type SheetProps = {
   /** The tree as saved. */
@@ -134,6 +135,7 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
   const [error, setError] = React.useState<string | null>(null);
   const [confirm, setConfirm] = React.useState<'remove' | 'clear' | null>(null);
   const [picker, setPicker] = React.useState<'shabbat' | 'figure' | null>(null);
+  React.useEffect(() => { if (people !== state.base) dispatch({ type: 'rebase', base: people }); }, [people]); // eslint-disable-line react-hooks/exhaustive-deps
   const d = state.draft;
   const mkId = React.useRef(makeId).current;
   const preview = React.useMemo(() => { let n = 0; return commit(state, () => `preview-${n++}`); }, [state]);
@@ -223,8 +225,8 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
         </View>
       </View>
 
-      {spouseTab && childTab && childId ? (
-        <Segmented<'child' | 'spouse'> value={d.relation === 'child' ? 'child' : 'spouse'} onChange={key => go({ id: key === 'child' ? childTab.id : spouseTab.id })}
+      {spouseTab && childTab && childId && !state.isNew ? (
+        <Segmented<'child' | 'spouse'> value={d.relation === 'child' ? 'child' : 'spouse'} onChange={key => { if (key !== (d.relation === 'child' ? 'child' : 'spouse')) go({ id: key === 'child' ? childTab.id : spouseTab.id }); }}
           options={[{ key: 'child', label: nameOrRole(childTab, t) }, { key: 'spouse', label: nameOrRole(spouseTab, t) }]} />
       ) : null}
 
@@ -268,6 +270,7 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
 
       {showBirth ? <HebrewDateField testID="sheet-birth" label={t('tree.f.birth')} part={d.birth} onChange={part => dispatch({ type: 'birth', part })} /> : null}
       {errors.includes('birthFuture') ? <Banner tone="error" text={t('tree.err.future')} /> : null}
+      {errors.includes('yearRange') ? <Banner tone="error" text={t('tree.err.yearRange')} /> : null}
       {errors.includes('partialBirth') ? <Banner tone="error" text={t('tree.err.partialDate')} /> : null}
 
       {hasBarMitzvah(d) ? (

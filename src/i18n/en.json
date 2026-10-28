@@ -2413,7 +2413,8 @@
     "err": {
       "partialDate": "Fill in the day and month, or leave the date empty.",
       "future": "The date can't be in the future.",
-      "deathBeforeBirth": "Date of death is before date of birth."
+      "deathBeforeBirth": "Date of death is before date of birth.",
+      "yearRange": "The Hebrew year is out of range (5000 to 6000)."
     },
     "feedWarnFather": "This is also the father's name of {n} children. Their names will update when you save.",
     "feedWarnFatherOne": "This is also the father's name of the child. Their name will update when you save.",
@@ -2528,6 +2529,7 @@
         "grey": "Grey",
         "white": "White"
       }
-    }
+    },
+    "conflictNotSaved": "Your change was NOT saved: somebody else updated the tree. The tree was reloaded. Check the details and save again."
   }
 }

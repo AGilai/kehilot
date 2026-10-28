@@ -36,7 +36,9 @@ export type SheetAction =
   | { type: 'shabbat'; info: ShabbatInfo }
   | { type: 'takeSuggestion' }
   | { type: 'keepManual' }
-  | { type: 'figure'; figure: FigureOptions | undefined };
+  | { type: 'figure'; figure: FigureOptions | undefined }
+  /** The tree was reloaded underneath (somebody else saved): keep the draft, write it onto the new tree. */
+  | { type: 'rebase'; base: Person[] };
 
 const find = (tree: Person[], id?: string) => (id ? tree.find(p => p.id === id) : undefined);
 const clean = (s?: string) => (s ?? '').trim();
@@ -45,6 +47,8 @@ const spouseOf = (tree: Person[]) => tree.find(p => p.relation === 'spouse');
 
 // --- dates -----------------------------------------------------------------------------------------------------
 
+/** The Hebrew years the server accepts. */
+const YEAR_RANGE = [5000, 6000] as const;
 const MAX_DAYS: Record<MonthKey, number> = { nisan: 30, iyar: 29, sivan: 30, tamuz: 29, av: 30, elul: 29, tishrei: 30, cheshvan: 30, kislev: 30, tevet: 29, shevat: 30, adar: 29, adar_i: 30, adar_ii: 29 };
 /** The last day of a Hebrew month; with a year, cheshvan/kislev are checked against the real calendar. */
 export function maxDay(month: MonthKey, year?: number): number {
@@ -177,6 +181,7 @@ export function sheetReducer(s: SheetState, a: SheetAction): SheetState {
     }
     case 'keepManual': return { ...s, takePrompt: false };
     case 'figure': return { ...s, draft: { ...d, figure: a.figure } };
+    case 'rebase': return { ...s, base: a.base };
   }
 }
 
@@ -302,13 +307,15 @@ export function clearPerson(tree: Person[], id: string): Person[] {
 
 // --- checks ------------------------------------------------------------------------------------------------------
 
-export type SheetError = 'partialBirth' | 'partialDeath' | 'birthFuture' | 'deathFuture' | 'deathBeforeBirth';
+export type SheetError = 'yearRange' | 'partialBirth' | 'partialDeath' | 'birthFuture' | 'deathFuture' | 'deathBeforeBirth';
 /** What would be rejected by the server (or is not a date yet); `today` is an ISO day. */
 export function sheetErrors(d: Draft, today: string): SheetError[] {
   const out: SheetError[] = [];
   const partial = (p: DatePart) => (p.day !== undefined || p.month !== undefined || p.year !== undefined) && !dateOfPart(p);
   if (partial(d.birth)) out.push('partialBirth');
   if (d.deceased && partial(d.death)) out.push('partialDeath');
+  const outside = (p: DatePart) => p.year !== undefined && (p.year < YEAR_RANGE[0] || p.year > YEAR_RANGE[1]);
+  if (outside(d.birth) || (d.deceased && outside(d.death))) { out.push('yearRange'); return out; }
   const born = isoOfPart(d.birth);
   const died = d.deceased ? isoOfPart(d.death) : undefined;
   if (born && born > today) out.push('birthFuture');

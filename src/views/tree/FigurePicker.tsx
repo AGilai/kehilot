@@ -6,23 +6,15 @@ import { TOUCH } from '../../kit/theme.ts';
 import { Figure } from '../../tree/Figure.tsx';
 import { COVER_COLORS, HAIR, SKIN } from '../../tree/figures/parts.ts';
 import { resolveFigure, stageOf } from '../../tree/figures/figure.ts';
-import type { AgeStage } from '../../tree/figures/figure.ts';
+import { ENUM_CHOICES, enumPatch, withOption } from '../../tree/figureOptions.ts';
+import type { EnumKey } from '../../tree/figureOptions.ts';
+import { YOUNG, isoToday, rowsFor } from '../../tree/figureRows.ts';
+import type { Rows } from '../../tree/figureRows.ts';
 import type { FigureOptions, Person } from '../../tree/types.ts';
 
-type Rows = 'covering' | 'cover' | 'kippah' | 'beard' | 'skin' | 'hair' | 'glasses';
-const isoToday = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
-const YOUNG: AgeStage[] = ['baby', 'toddler', 'child', 'preteen', 'teen'];
 const HAIR_KEYS = ['brown', 'black', 'auburn', 'blond', 'grey', 'white'] as const;
 const COVER_KEYS = ['teal', 'coral', 'blue', 'rose', 'olive', 'purple'] as const;
 const SKIN_KEYS = ['light', 'medium', 'tan'] as const;
-
-/** At most five rows (§17.13 P35): women head covering (+ its colour), skin, hair, glasses; men kippah, beard, skin, hair, glasses;
- *  children skin, hair, glasses (the figure grows by itself). */
-export function rowsFor(person: Pick<Person, 'gender' | 'relation' | 'birth'>, today = isoToday()): Rows[] {
-  const stage = stageOf(person.birth, person.relation, today, person.gender);
-  if (YOUNG.includes(stage)) return ['skin', 'hair', 'glasses'];
-  return person.gender === 'f' ? ['covering', 'cover', 'skin', 'hair', 'glasses'] : ['kippah', 'beard', 'skin', 'hair', 'glasses'];
-}
 
 function Radio({ label, selected, onPress, swatch, testID }: { label: string; selected: boolean; onPress: () => void; swatch?: string; testID?: string }) {
   const k = useTokens();
@@ -47,23 +39,23 @@ export function FigurePicker({ person, onSave }: { person: Person; onSave: (figu
   const stage = stageOf(person.birth, person.relation, isoToday(), person.gender);
   const shown = resolveFigure(person.relation, person.gender, stage, own);
   const preview: Person = { ...person, figure: own };
-  const set = (patch: Partial<FigureOptions>) => setOwn(o => ({ ...(o ?? {}), ...patch }));
+  const set = (patch: Partial<FigureOptions>) => setOwn(o => withOption(o, patch));
   const row = (key: Rows, title: string, children: React.ReactNode) => (
     <View key={key} accessibilityRole="radiogroup" accessibilityLabel={title} style={{ gap: 6 }}>
       <Txt size="small" bold>{title}</Txt>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{children}</View>
     </View>
   );
-  const kind = (kindKey: 'covering' | 'kippah' | 'beard', values: readonly string[]) => values.map(v => (
-    <Radio key={v} testID={`fig-${kindKey}-${v}`} label={t(`tree.fig.${kindKey}.${v}`)} selected={(shown as Record<string, unknown>)[kindKey] === v} onPress={() => set({ [kindKey]: v } as Partial<FigureOptions>)} />
+  const kind = (key: EnumKey, titleKey: string) => ENUM_CHOICES[key].map(v => (
+    <Radio key={v} testID={`fig-${key}-${v}`} label={t(`tree.fig.${titleKey}.${v}`)} selected={shown[key] === v} onPress={() => set(enumPatch(key, v as never))} />
   ));
   const body: Record<Rows, () => React.ReactNode> = {
-    covering: () => row('covering', t('tree.fig.covering.title'), kind('covering', ['tichel', 'hat', 'wig', 'none'])),
+    covering: () => row('covering', t('tree.fig.covering.title'), kind('headCovering', 'covering')),
     cover: () => (shown.headCovering === 'tichel' ? row('cover', t('tree.fig.cover'), COVER_COLORS.map((c, i) => (
       <Radio key={c} testID={`fig-cover-${i}`} label={t(`tree.fig.coverColor.${COVER_KEYS[i]}`)} swatch={c} selected={shown.coverColor === c} onPress={() => set({ coverColor: c })} />
     ))) : null),
-    kippah: () => row('kippah', t('tree.fig.kippah.title'), kind('kippah', ['knitted', 'small', 'velvet', 'none'])),
-    beard: () => row('beard', t('tree.fig.beard.title'), kind('beard', ['none', 'short', 'full'])),
+    kippah: () => row('kippah', t('tree.fig.kippah.title'), kind('kippah', 'kippah')),
+    beard: () => row('beard', t('tree.fig.beard.title'), kind('beard', 'beard')),
     skin: () => row('skin', t('tree.fig.skin'), SKIN.map((s, i) => <Radio key={i} testID={`fig-skin-${i}`} label={t(`tree.fig.skinTone.${SKIN_KEYS[i]}`)} swatch={s.face} selected={(shown.skin ?? 1) === i} onPress={() => set({ skin: i as 0 | 1 | 2 })} />)),
     hair: () => row('hair', t('tree.fig.hair'), HAIR_KEYS.map(h => <Radio key={h} testID={`fig-hair-${h}`} label={t(`tree.fig.hairColor.${h}`)} swatch={HAIR[h]} selected={shown.hair?.toUpperCase() === HAIR[h].toUpperCase()} onPress={() => set({ hair: HAIR[h] })} />)),
     glasses: () => row('glasses', t('tree.fig.glasses.title'), [false, true].map(g => <Radio key={String(g)} testID={`fig-glasses-${g}`} label={t(g ? 'tree.fig.glasses.yes' : 'tree.fig.glasses.no')} selected={!!shown.glasses === g} onPress={() => set({ glasses: g })} />)),
