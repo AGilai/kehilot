@@ -1269,7 +1269,7 @@ Blocks are always listed right to left (ימין → שמאל), as they stand.
 
 ### 15.2 Home reminder card (P24)
 
-*Redrawn 2026-10-28: the card, its one-tap "לא מגיעים השבת", the push actions and the audience (system list "ראשי משפחה · מקומות", male heads of seat-holding families only) are in §15.10.13. Timing and the Home order below still hold.*
+*Redrawn 2026-10-28: the card, its one-tap "לא מגיעים השבת", the push actions and the audience (the male head of each member family, computed) are in §15.10.13. Timing and the Home order below still hold.*
 
 
 - **Who / when:** seat holders for the coming Shabbat (א household heads with an allocation), from the gabbai's reminder
@@ -1675,14 +1675,12 @@ Still open:
 
 Owner, 2026-10-28: a real one-click. **"לא מגיעים השבת" frees all the family's seats for both ליל שבת and שבת בבוקר
 at once.** Every other answer still goes through the form (P37). P24 is redrawn with the new card, the push and the
-audience. It replaces the older P24 card described in §15.2, which keeps its timing and its place in the Home order.
+audience note. It replaces the older P24 card described in §15.2, which keeps its timing and its place in the Home order.
 
-**Who gets it (rule).** The card and the push go **only to the male head of a family that holds seats**: one person per
-family. Women, other adults in the family, guests, and seat holders without an account don't get them (the gabbai
-answers for those, P27). This comes from the distribution lists (groups) feature: a **system list "ראשי משפחה ·
-מקומות"** that the gabbai sees in the groups screen. It is marked "מערכת", shows its count, and is filled automatically
-from the seat map: when the map changes, the list changes. It cannot be edited or deleted by hand, but the gabbai can
-send an ordinary message to it. Members don't see the list. (P24 panel "למי זה הולך".)
+**Who gets it (rule).** The card and the push go **only to the male head of each member family**: one person per
+family. In this Kehila being a member means holding seats, so the audience is worked out from the family records.
+There is no distribution list, and nothing for the gabbai to manage. Women, other adults in the family and guests
+don't get them. For a family without an account, the gabbai answers on its behalf (P27). (P24 panel "למי זה הולך".)
 
 **Card (Home, Thursday 12:00 → the deadline):** `Card` with a tekhelet edge. The title row has the chair glyph and
 "טופס מקומות לשבת". The question is "יש לכם {n} מקומות השבת. מגיעים?", and the muted line is "ליל שבת ושבת בבוקר · אפשר
@@ -1727,10 +1725,9 @@ asking. "עריכה" opens P37 with N chosen for both prayers. Other answered st
 | `seats.push.freedBody` | ליל שבת ושבת בבוקר. תודה! טעות? אפשר לבטל עד {day} {time}. | Friday night and Shabbat morning. Thanks! Mistake? You can undo until {day} {time}. |
 | `seats.push.actNotComing` / `actForm` | לא מגיעים השבת / למלא את הטופס | Not coming this Shabbat / Fill in the form |
 | `seats.form.preNotComing` | לא מגיעים השבת? זה מוכן, רק לשלוח. מגיעים? בחרו מספר אחר. | Not coming this Shabbat? It's ready, just send. Coming? Pick another number. |
-| `groups.system.seatHolders` | ראשי משפחה · מקומות | Heads of family · seats |
 
-Open point: a family that holds seats but **has no male head** (for example a widow). Is she on the list, or does the
-gabbai answer for her? The frames follow the rule as given.
+Open point: a member family that **has no male head** (for example a widow). Does she get the card and the push, or
+does the gabbai answer for her? The frames follow the rule as given.
 
 #### 15.10.12 Verification
 
