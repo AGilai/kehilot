@@ -692,6 +692,12 @@ svg.fi .solid{fill:currentColor;stroke:none}
 .fhA .cdl{position:absolute;bottom:-2px;inset-inline-start:-4px;width:24px;height:24px;border-radius:50%;background:var(--k-surface);border:1px solid var(--k-line);display:grid;place-items:center;color:var(--k-gold)}
 .fhA .cdl svg{width:16px;height:16px}
 .fmini .av{width:44px;height:44px}
+/* §17.15 ill (לרפואה שלמה): olive leaf badge + text, never red */
+.fig .ill,.fhA .ill,.srow .ill{position:absolute;bottom:-5px;inset-inline-start:-7px;width:24px;height:24px;border-radius:50%;background:var(--k-surface);border:1px solid var(--k-olive);display:grid;place-items:center;color:var(--k-olive)}
+.fig .ill svg,.fhA .ill svg{width:15px;height:15px}
+.fig .ill-t{display:block;color:var(--k-olive);font-weight:600;font-size:12px}
+.flegend .lg-ill svg{color:var(--k-olive)}
+.fname.heal{border-color:var(--k-olive)}.fname.heal .ov{color:var(--k-olive)}.fname.heal .n{font-size:24px}
 /* P36 upcoming simchas */
 .swk{margin:4px 0 0;font-size:12.5px;font-weight:700;color:var(--k-muted);display:flex;justify-content:space-between}
 .srow{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 10px;border:1px solid var(--k-line);border-radius:12px;background:var(--k-surface)}

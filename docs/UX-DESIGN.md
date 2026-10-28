@@ -2457,7 +2457,8 @@ Yahrzeit logic will be added later (owner: from "Noam"); it reads these exact da
 - Data: one `people` list per family (both adults edit it, like the children list in §10), each with `relation`
   (self, spouse, father/mother of a person id, child, child's spouse, grandchild), `gender`, `hebrewFirst`, `surname`,
   `fatherName`/`motherName` (only when no parent figure), `tribe` (men, when no father figure), `birth` (Hebrew +
-  Gregorian), `deceased`, `death` (Hebrew; month stores אדר א׳ / אדר ב׳ in leap years). The children list (P2/P3) and today's `torahName`,
+  Gregorian), `deceased`, `death` (Hebrew; month stores אדר א׳ / אדר ב׳ in leap years), `ill` (boolean, living only;
+  §17.15). The children list (P2/P3) and today's `torahName`,
   `barMitzvahParasha`, `children[].spouse*` fields migrate into it; deceased figures produce the yahrzeit entries
   (`relationship` gains `spouse`); yahrzeits for siblings stay in the manual "ימי זיכרון" list.
 - Limits: 20 children (as §10), 20 grandchildren per married child, 6 generations up.
@@ -2661,6 +2662,45 @@ Overview gets one card ("השבת: …", "ועוד n ב־8 השבועות הבא
 
 Verification (P31–P33 redraw, P36): rendered at 390 light and dark and at 1280. Not checked on devices.
 
+
+### 17.15 חולה — מי שברך
+
+Every figure collects its **father's name** (aliyah, blessings) and **mother's name** (Mi Sheberach for the sick).
+For our children they come from the tree; for the parents' generation and up they are typed in the figure's sheet
+(and fill that parent's figure, §17.4).
+
+**The toggle.** In a living figure's sheet, right under the "בחיים / נפטר/ה" Segmented: a Toggle row **"לרפואה שלמה"**
+with the line "חולה כרגע? השם יופיע במי שברך לחולים." (`role="switch"`, "פעיל / כבוי"). Not shown for a deceased figure.
+
+**On the tree.** An ill figure keeps its colours and gets a small **olive leaf badge** in a white circle with an olive
+ring (24 px, bottom corner of the disc — the place of the memorial candle, which it can never share) and the word
+**"לרפואה"** under the name in olive. Calm, never red; the text carries the meaning. Accessible label: "{relation}:
+{name}, חולה, לרפואה שלמה". The legend line gains "🌱 לרפואה שלמה". The person-sheet header (A figure) shows the same
+badge and "לרפואה" after the name.
+
+**In the sheet, when on.** The computed name card becomes the **Mi Sheberach name, prominent** (olive edge, overline
+"השם למי שברך לחולים", name in serif 24: "{hebrewFirst} בן/בת {mother}") with a quiet line **"השם יישלח לגבאי למי שברך
+לחולים (בקרוב)"**. If the mother's name is missing: the gold state (overline "… · חסר שם האם", "משה בן ___") and the
+mother's-name field ("השם העברי של אמא", saved also on the mother's figure).
+
+**Rules.** `ill` is for living figures only. Setting "נפטר/ה" clears `ill` and hides the toggle; going back to "בחיים"
+does not turn it on again. Turning it off (recovery) removes the badge and the name from the sick list, silently — no
+message to anyone. Same visibility as the rest of the tree (family and the Kehila's gabbaim, §17.11).
+
+**Future (not now):** sending the names to the gabbai's Mi Sheberach list for the sick, its preview, and how long a
+name stays. The M8 "מי שברך" tab and this flag will be joined then.
+
+**Data.** `Person.ill: boolean` (default false; only when `deceased` is false). Mi Sheberach name =
+`hebrewFirst + בן/בת + motherHebrewFirst` (§17.5).
+
+| Key | Hebrew | English |
+|---|---|---|
+| `tree.ill.toggle` / `.hint` | לרפואה שלמה / חולה כרגע? השם יופיע במי שברך לחולים. | For a full recovery / Ill at the moment? The name will appear in the Mi Sheberach for the sick. |
+| `tree.ill.badge` / `.a11y` / `.legend` | לרפואה / חולה, לרפואה שלמה / לרפואה שלמה | For recovery / Ill, for a full recovery / For a full recovery |
+| `tree.ill.nameTitle` / `.toGabbai` | השם למי שברך לחולים / השם יישלח לגבאי למי שברך לחולים (בקרוב) | Mi Sheberach name for the sick / The name will be sent to the gabbai for the Mi Sheberach (coming soon) |
+
+Frames: P31 (שרה, the grandmother, is ill in the test family), P32 (her sheet with the toggle on; the missing-mother and
+rules panels), P34 section 5 (both styles, light and dark, tile and header size).
 
 ## 18. Me and management — structure
 
