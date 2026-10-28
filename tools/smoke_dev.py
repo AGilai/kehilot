@@ -17,16 +17,22 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
+from datetime import date, timedelta
 from pathlib import Path
 
 import boto3
+from boto3.dynamodb.conditions import Key
+from pyluach import dates as hebdates, hebrewcal
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from server.cloud.ids import new_id  # noqa: E402
 from server.cloud.repo import Repo  # noqa: E402
+from server.cloud.repo_messages import local_date  # noqa: E402
+from server.hebrew_calendar import MONTH_NUMBERS, bar_mitzvah_date  # noqa: E402
 from tools.kehila_admin import create_kehila  # noqa: E402
 
+MONTH_KEYS = {number: key for key, number in MONTH_NUMBERS.items() if not key.startswith('adar')}
 HOLD_BACK_SECONDS = 2.5  # /changes holds back changes younger than 2 s
 
 
@@ -169,6 +175,8 @@ class Smoke:
         self.check_family_link_and_replies()
         self.check_phone_list_rules()
         self.check_children_hidden()
+        self.check_tree()
+        self.check_simchas()
         self.check_export()
         self.check_delete_posts()
         self.check_terms_and_age()
@@ -641,6 +649,115 @@ class Smoke:
             self.call(ta, 'PUT', f'/v1/kehilot/{k}/me/phone-list', {'show': False})
         print('PASS  check_children_hidden')
 
+    @staticmethod
+    def hebrew_of(day, years_back=0):
+        """A tree HebDate {day, month, year} of a Gregorian date (the year moved back by `years_back`)."""
+        hd = hebdates.HebrewDate.from_pydate(day)
+        leap = hebrewcal.Year(hd.year).leap
+        key = {12: 'adar_i' if leap else 'adar', 13: 'adar_ii'}.get(hd.month) or MONTH_KEYS[hd.month]
+        return {'day': hd.day, 'month': key, 'year': hd.year - years_back}
+
+    def check_tree(self):
+        """The family tree: save with server-assigned ids, stale version, ill and deceased, the account figure, other
+        families, gabbai read-only, listener refused. Only smoke families, invented names."""
+        k = self.k
+        t1, u1 = self.join_member('tr1', 'ניסיון', 'דוגמה')
+        t2, _ = self.join_member('tr2', 'ניסיון', 'אחר')
+        path = f'/v1/kehilot/{k}/family/tree'
+        status, body = self.call(t1, 'GET', path)
+        expect('tree_member_get', status == 200 and isinstance(body.get('people'), list) and body.get('version', 0) >= 1
+               and 'updatedAt' in body, f'{status} {body}')
+        v0 = body['version']
+        today = date.fromisoformat(local_date())
+        saturday = today + timedelta(days=(5 - today.weekday()) % 7 + 70)
+        person = lambda id_, relation, gender, first, **extra: {'id': id_, 'relation': relation, 'gender': gender,
+                                                               'hebrewFirst': first, 'surname': 'דוגמה', **extra}
+        people = [
+            person('me', 'self', 'm', 'ניסיון'),
+            person('wife', 'spouse', 'f', 'דוגמה', of='me', figure={'headCovering': 'tichel', 'skin': 1}),
+            person('dad', 'father', 'm', 'אב', of='me', deceased=True, birth=self.hebrew_of(date(1950, 3, 1)),
+                   death=self.hebrew_of(date(2015, 5, 1))),
+            person('mom', 'mother', 'f', 'אם', of='me', ill=True),
+            person('son', 'child', 'm', 'בן', of='me', birth=self.hebrew_of(today.replace(year=today.year - 10)),
+                   barMitzvah={'date': saturday.isoformat(), 'parasha': '', 'manual': False}),
+        ]
+        status, saved = self.call(t1, 'PUT', path, {'people': people, 'ifVersion': v0})
+        me = next((p for p in saved.get('people', []) if p['id'] == 'me'), {}) if status == 200 else {}
+        expect('tree_put_ok', status == 200 and saved['version'] > v0 and saved.get('updatedAt')
+               and len(saved['people']) == 5 and me.get('userId') == u1, f'{status} {saved}')
+        son = next(p for p in saved['people'] if p['id'] == 'son')
+        mom = next(p for p in saved['people'] if p['id'] == 'mom')
+        expect('tree_suggested_bar_mitzvah_stored', son.get('barMitzvah', {}).get('manual') is False
+               and son['barMitzvah']['date'] == saturday.isoformat() and mom.get('ill') is True, str(son))
+        status, again = self.call(t1, 'GET', path)
+        expect('tree_get_matches_put', status == 200 and again['version'] == saved['version']
+               and again['people'] == saved['people'], str(status))
+        status, body = self.call(t1, 'PUT', path, {'people': people, 'ifVersion': v0})
+        expect('tree_stale_version_409', (status, body) == (409, {'error': 'version_conflict'}), f'{status} {body}')
+        current = saved['version']
+        ill_dead = [dict(p, ill=True, deceased=True) if p['id'] == 'dad' else p for p in saved['people']]
+        status, body = self.call(t1, 'PUT', path, {'people': ill_dead, 'ifVersion': current})
+        expect('tree_ill_with_deceased_400', (status, body) == (400, {'error': 'invalid_ill'}), f'{status} {body}')
+        no_self = [dict(p, id='me2') if p['id'] == 'me' else dict(p, of='me2') if p.get('of') == 'me' else p
+                   for p in saved['people']]
+        status, body = self.call(t1, 'PUT', path, {'people': no_self, 'ifVersion': current})
+        expect('tree_account_figure_400', (status, body) == (400, {'error': 'account_figure'}), f'{status} {body}')
+        status, other = self.call(t2, 'GET', path)
+        expect('tree_other_family_not_shown', status == 200 and 'son' not in json.dumps(other)
+               and other['people'] != saved['people'], str(status))
+        admin = f'/v1/kehilot/{k}/admin/families/{self.family_of(t1)}/tree'
+        status, _ = self.call(t2, 'GET', admin)
+        expect('tree_other_member_admin_read_refused', status in (403, 404), str(status))
+        status, body = self.call(self.gab, 'GET', admin)
+        expect('tree_gabbai_reads', status == 200 and body['people'] == saved['people'], str(status))
+        status, _ = self.call(self.gab, 'PUT', admin, {'people': saved['people'], 'ifVersion': current})
+        expect('tree_gabbai_cannot_write', status == 405, str(status))
+        status, _ = self.call(self.people['lis'][0], 'GET', path)
+        expect('tree_listener_get_refused', status == 403, str(status))
+        status, _ = self.call(self.people['lis'][0], 'PUT', path, {'people': people, 'ifVersion': 1})
+        expect('tree_listener_put_refused', status == 403, str(status))
+        status, _ = self.call(self.people['lis'][0], 'GET', admin)
+        expect('tree_listener_admin_read_refused', status == 403, str(status))
+        print('PASS  check_tree')
+
+    def family_of(self, token):
+        return self.call(token, 'GET', f'/v1/kehilot/{self.k}/family')[1]['familyId']
+
+    def check_simchas(self):
+        """The gabbai's simchas list: 8 weeks, members refused, and a son turning 13 (Hebrew) in three weeks shows
+        with first name, surname and date only (his birth date is computed backwards from that day)."""
+        k = self.k
+        today = date.fromisoformat(local_date())
+        status, body = self.call(self.gab, 'GET', f'/v1/kehilot/{k}/admin/simchas?weeks=8')
+        expect('simchas_gabbai_8_weeks', status == 200 and len(body['weeks']) == 8
+               and all({'week', 'shabbat', 'parasha', 'label', 'items'} <= set(w) for w in body['weeks']), f'{status}')
+        status, _ = self.call(self.people['fam1'][0], 'GET', f'/v1/kehilot/{k}/admin/simchas?weeks=8')
+        expect('simchas_member_403', status == 403, str(status))
+        status, _ = self.call(self.people['lis'][0], 'GET', f'/v1/kehilot/{k}/admin/simchas?weeks=8')
+        expect('simchas_listener_403', status == 403, str(status))
+        status, _ = self.call(self.gab, 'GET', f'/v1/kehilot/{k}/admin/simchas?weeks=99')
+        expect('simchas_weeks_validated', status == 400, str(status))
+        token, _ = self.join_member('sim', 'ניסיון', 'דוגמה')
+        path = f'/v1/kehilot/{k}/family/tree'
+        status, tree = self.call(token, 'GET', path)
+        expect('simchas_tree_get', status == 200, str(status))
+        name = 'ניסיוני' + secrets.token_hex(2)
+        target = today + timedelta(days=21)
+        birth = self.hebrew_of(target, years_back=13)
+        people = [{'id': 'me', 'relation': 'self', 'gender': 'f', 'hebrewFirst': 'דוגמה', 'surname': 'ניסיון'},
+                  {'id': 'son', 'relation': 'child', 'of': 'me', 'gender': 'm', 'hebrewFirst': name, 'birth': birth}]
+        status, saved = self.call(token, 'PUT', path, {'people': people, 'ifVersion': tree['version']})
+        expect('simchas_tree_saved', status == 200, f'{status} {saved}')
+        due = bar_mitzvah_date(birth, today)
+        status, body = self.call(self.gab, 'GET', f'/v1/kehilot/{k}/admin/simchas?weeks=8')
+        items = [i for w in body['weeks'] for i in w['items'] if i['firstName'] == name] if status == 200 else []
+        expect('simchas_son_listed', len(items) == 1 and items[0]['kind'] == 'bar' and items[0]['surname'] == 'ניסיון'
+               and items[0]['date'] >= due.isoformat() and date.fromisoformat(items[0]['date']) <= due + timedelta(days=6),
+               f'{status} {items} due {due}')
+        expect('simchas_item_has_no_personal_data', set(items[0]) <= {'kind', 'firstName', 'surname', 'date', 'manual',
+                                                                      'label', 'familyId'}, str(sorted(items[0])))
+        print('PASS  check_simchas')
+
     def check_export(self):
         """POST /v1/me/export builds a ZIP with data.json and no other member's name; a second POST re-issues the
         link; the object is under x/<userId>/. Counts and statuses only: no URL or content is printed."""
@@ -945,6 +1062,12 @@ class Smoke:
                 except Exception as error:
                     print('cleanup: user delete failed', type(error).__name__)
         print(f'cleanup: {removed} items, {objects} media objects, {users} users removed')
+        try:  # the families (and their trees) live under K#<k>: none may be left
+            left = sum(len(self.repo.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}'), ConsistentRead=True)['Items'])
+                       for k in set(self.kehilot))
+            print(f"{'PASS' if not left else 'FAIL'}  no_kehila_items_left_after_cleanup" + (f'  {left} items' if left else ''))
+        except Exception as error:
+            print('cleanup: leftover check failed', type(error).__name__)
 
 
 if __name__ == '__main__':
