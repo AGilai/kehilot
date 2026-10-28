@@ -85,3 +85,36 @@ class SeatRemindersTest(test_seatweek.SeatWeekTest):
         out = self.me(week=friday(2))[1]
         self.assertEqual(out['seats'], 0)
         self.assertIs(out['hadSeats'], False)
+
+    def test_recipients_follow_the_audience_rule(self):
+        self.mine((5, 0))
+        self.join_family(self.quiet, self.fam)
+        self.set_people(self.fam, [(self.member, 'f', 'self'), (self.quiet, 'm', 'spouse')])
+        self.assertEqual(seat_reminders.recipients(self.repo, self.k, WEEK), [self.quiet])  # the man only
+        self.set_people(self.fam, [(self.member, 'f', 'self'), (self.quiet, 'f', 'spouse')])
+        self.assertEqual(seat_reminders.recipients(self.repo, self.k, WEEK), sorted([self.member, self.quiet]))  # no man
+
+    def test_either_prayer_counts_as_answered(self):
+        self.mine((5, 0))
+        self.assertEqual(self.put_me([1], 'day')[0], 200)
+        self.assertEqual(seat_reminders.unanswered_families(self.repo, self.k, WEEK), [])
+        self.assertEqual(seat_reminders.recipients(self.repo, self.k, WEEK), [])
+
+    def test_gabbai_and_upload_statuses(self):
+        self.give(f'family:{self.other}', (5, 3))
+        self.assertEqual(self.respond([{'household': f'family:{self.other}', 'released': 1}])[0], 200)
+        self.assertEqual(seat_reminders.unanswered_families(self.repo, self.k, WEEK), [self.other])
+        self.assertEqual(self.gput({self.at[(5, 3)]: False})[0], 200)
+        self.assertEqual(seat_reminders.unanswered_families(self.repo, self.k, WEEK), [])
+
+    def test_the_layout_version_of_that_friday_decides(self):
+        self.mine((5, 0))
+        nxt = friday(2)
+        status, out = self.call('PUT', f'{self.base()}/admin/seating/layouts/{nxt}',
+                                body={**copy.deepcopy(LAYOUT), 'ifUpdatedAt': None})
+        self.assertEqual(status, 200, out)
+        new_at = {(s['row'], s['col']): s['id'] for s in out['seats']}
+        self.assertEqual(self.call('PUT', f'{self.base()}/admin/seating/layouts/{nxt}/assignments', body={
+            'assignments': {new_at[(5, 3)]: f'family:{self.other}'}, 'ifUpdatedAt': None})[0], 200)
+        self.assertEqual(seat_reminders.recipients(self.repo, self.k, WEEK), [self.member])
+        self.assertEqual(seat_reminders.recipients(self.repo, self.k, nxt), [self.quiet])
