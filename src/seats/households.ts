@@ -7,6 +7,8 @@ import type { AdminFamily } from '../client/types.ts';
 import { countsByRef, seatsOf } from './editModel.ts';
 import type { Draft } from './editModel.ts';
 import { parsePos } from './grid.ts';
+import { holderOwner, seatOwnerLabel } from './ownerLabel.ts';
+import type { SeatOwner } from './ownerLabel.ts';
 
 export type Household = {
   ref: string; kind: 'family' | 'holder'; /** In the cell: surname[ initial.] */ short: string; /** In the list: surname and first names. */ full: string;
@@ -14,7 +16,7 @@ export type Household = {
 };
 type HolderIn = { holderId: string; name: string };
 
-const firstName = (f: AdminFamily, i: number): string => {
+export const firstName = (f: AdminFamily, i: number): string => {
   const n = (f.adults[i]?.displayName ?? '').trim();
   return n.endsWith(` ${f.name}`) ? n.slice(0, -f.name.length - 1).trim() : n.split(' ')[0] ?? '';
 };
@@ -26,17 +28,17 @@ export function blocksOfRef(d: Draft, ref: string): string[] {
 
 export function households(d: Draft, families: AdminFamily[], holders: HolderIn[], and = ' ו'): Household[] {
   const counts = countsByRef(d);
-  const sameName = (name: string) => families.filter((f) => f.name === name).length > 1;
   const out: Household[] = [];
-  const mk = (ref: string, kind: Household['kind'], short: string, full: string, noAccount: boolean, pending: boolean) =>
-    out.push({ ref, kind, short, full, count: counts.get(ref) ?? 0, noAccount, blocks: blocksOfRef(d, ref), pending });
+  const entries: Array<{ owner: SeatOwner; ref: string; kind: Household['kind']; full: string; noAccount: boolean; pending: boolean }> = [];
   for (const f of families) {
     const first = firstName(f, 0);
-    const firsts = [firstName(f, 0), firstName(f, 1)].filter(Boolean).join(and);
-    mk(`family:${f.familyId}`, 'family', sameName(f.name) && first ? `${f.name} ${[...first][0]}.` : f.name, firsts ? `${f.name} · ${firsts}` : f.name, false, false);
+    const firsts = [first, firstName(f, 1)].filter(Boolean).join(and);
+    entries.push({ owner: { surname: f.name, first }, ref: `family:${f.familyId}`, kind: 'family', full: firsts ? `${f.name} · ${firsts}` : f.name, noAccount: false, pending: false });
   }
-  for (const h of holders) mk(`holder:${h.holderId}`, 'holder', h.name, h.name, true, false);
-  for (const h of d.holders) mk(`new:${h.key}`, 'holder', h.name, h.name, true, true);
+  for (const h of holders) entries.push({ owner: holderOwner(h.name), ref: `holder:${h.holderId}`, kind: 'holder', full: h.name, noAccount: true, pending: false });
+  for (const h of d.holders) entries.push({ owner: holderOwner(h.name), ref: `new:${h.key}`, kind: 'holder', full: h.name, noAccount: true, pending: true });
+  const all = entries.map((e) => e.owner);
+  for (const e of entries) out.push({ ref: e.ref, kind: e.kind, short: seatOwnerLabel(e.owner, all) || e.full, full: e.full, count: counts.get(e.ref) ?? 0, noAccount: e.noAccount, blocks: blocksOfRef(d, e.ref), pending: e.pending });
   return out.sort((a, b) => a.full.localeCompare(b.full, 'he'));
 }
 

@@ -15,6 +15,10 @@ import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, legendItems, parseP
 import type { PrintStyle } from '../../seats/printStyle.ts';
 import type { Prayer } from '../../seats/release.ts';
 import { useShabbat } from '../../seats/useShabbat.ts';
+import { firstName } from '../../seats/households.ts';
+import { fitFontSize, holderOwner, ownerLabels } from '../../seats/ownerLabel.ts';
+import type { SeatOwner } from '../../seats/ownerLabel.ts';
+import type { AdminFamily } from '../../client/types.ts';
 import { whenParts } from '../../seats/window.ts';
 import { householdsOf, isNoLayout, layoutPrint, printGeometry } from '../../seats/wire.ts';
 import type { LayoutPrint, LayoutPrintSeat, PrintGeometry, PrintState, Rect, WeekWire } from '../../seats/wire.ts';
@@ -33,7 +37,7 @@ const PAPER = '#FFFFFF';
 type Load = { status: 'loading' } | { status: 'error'; text: string } | { status: 'empty' } | { status: 'ready'; week: WeekWire };
 
 /** P26: the gabbai's hall map, to print (UX-DESIGN §15.5), on the real layout and states; plus the on-behalf edit (§16). Web prints through the browser; the phone's PDF is not built yet. */
-export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /** Opens the seating editor (the empty state points there). */ onEditor?: () => void; onToast: (text: string) => void }) {
+export function SeatPrint({ onBack, onEditor, onToast, focusBehalf }: { onBack: () => void; /** Opened from "עדכון בשם משפחה": scrolls to the on-behalf panel once the week has loaded. */ focusBehalf?: boolean; /** Opens the seating editor (the empty state points there). */ onEditor?: () => void; onToast: (text: string) => void }) {
   const { t, lang, dir } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
@@ -56,6 +60,14 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
   }, [api, kehilaId, friday]); // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => { void fetchWeek(); }, [fetchWeek]);
 
+  // Owner names for the "names" toggle: surname, plus the first initial where a surname repeats in the Kehila (same rule as the editor).
+  const [families, setFamilies] = React.useState<AdminFamily[]>([]);
+  React.useEffect(() => {
+    if (!kehilaId) return;
+    let live = true;
+    api.adminFamilies(kehilaId).then(f => { if (live) setFamilies(f); }, () => {});
+    return () => { live = false; };
+  }, [api, kehilaId]);
   const [choice, setChoice] = React.useState<Choice>('arvit');
   const [names, setNames] = React.useState(false); // off by default and never remembered: the print may be posted in the hall
   const [style, setStyle] = React.useState<PrintStyle>(PRINT_STYLE_DEFAULT); // remembered per device, unlike the names
@@ -79,13 +91,28 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
     setSelected(ref);
     if (Platform.OS === 'web') setTimeout(() => (panelRef.current as unknown as { scrollIntoView?: (o: object) => void } | null)?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }), 0);
   };
+  const hasWeek = load.status === 'ready';
+  React.useEffect(() => {
+    if (!focusBehalf || !hasWeek || Platform.OS !== 'web') return;
+    const id = setTimeout(() => (panelRef.current as unknown as { scrollIntoView?: (o: object) => void } | null)?.scrollIntoView?.({ block: 'start' }), 50);
+    return () => clearTimeout(id);
+  }, [focusBehalf, hasWeek]);
   const prayers: Prayer[] = choice === 'both' ? ['arvit', 'shacharit'] : [choice];
-  const scale = width > 0 ? Math.min(1, width / PAGE_W) : 1;
+  const scale = width > 0 ? Math.min(1.1, width / PAGE_W) : 1; // 10% larger than life-size where the screen has room; phones still fit the width
   const week = load.status === 'ready' ? load.week : null;
   const picked = React.useMemo(() => {
     const h = week && selected ? householdsOf(week).find(x => x.ref === selected) : null;
     return new Set(h ? h.seats.map(x => x.id) : []);
   }, [week, selected]);
+  const ownerNames = React.useMemo(() => {
+    const out = new Map<string, SeatOwner>();
+    for (const [ref, name] of Object.entries(week?.households ?? {})) {
+      const f = ref.startsWith('family:') ? families.find(x => `family:${x.familyId}` === ref) : undefined;
+      // a family unknown to the list falls back to the server's adults string ("דנה כהן, יוסי כהן"): the first adult's last word
+      out.set(ref, f ? { surname: f.name, first: firstName(f, 0) } : ref.startsWith('family:') ? holderOwner(name.split(',')[0]!.trim().split(' ').slice(-1).join(' ')) : holderOwner(name));
+    }
+    return ownerLabels(out);
+  }, [week, families]);
   const closesAt = week ? new Date(week.deadline) : new Date();
   const sheet = {
     parasha: parasha ?? '',
@@ -173,7 +200,7 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
           <View style={{ flex: 1, minWidth: 0 }}>
       <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={{ width: '100%', gap: 16 }}>
         {prayers.map(p => {
-          const model = layoutPrint(load.week, p, { names });
+          const model = layoutPrint({ ...load.week, households: Object.fromEntries(ownerNames) }, p, { names });
           return (
             <View key={p} style={{ width: PAGE_W * scale, height: PAGE_H * scale, overflow: 'hidden', backgroundColor: '#e9e9e9', borderWidth: 1, borderColor: k.line }}>
               <View style={{ width: PAGE_W, height: PAGE_H, transformOrigin: dir === 'rtl' ? 'top right' : 'top left', transform: [{ scale }] } as object}>
@@ -207,7 +234,7 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
       <View ref={panelRef} style={{ width: '100%' }}><SeatBehalf week={load.week} selected={selected} onSelect={setSelected} save={saveBehalf} phone={phone} /></View>
       <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={{ width: '100%', gap: 16 }}>
         {prayers.map(p => {
-          const model = layoutPrint(load.week, p, { names });
+          const model = layoutPrint({ ...load.week, households: Object.fromEntries(ownerNames) }, p, { names });
           return (
             <View key={p} style={{ width: PAGE_W * scale, height: PAGE_H * scale, overflow: 'hidden', backgroundColor: '#e9e9e9', borderWidth: 1, borderColor: k.line }}>
               <View style={{ width: PAGE_W, height: PAGE_H, transformOrigin: 'top left', transform: [{ scale }] } as object}>
@@ -302,7 +329,7 @@ function PrintPage({ model, prayer, names, sheet, style, onSeat, picked, househo
 }
 
 /** Shapes never change with the style: taken 1 px line, pending 1 px line + black corner notch (top-left), released 2 px line + diagonal, free 1.2 px dashed line. Only the fill does (§15.9, §16.12.4). */
-function PaperBox({ state, style, w, h, label, strike }: { state: PrintState; style: PrintStyle; w: number; h: number; label?: string; strike?: boolean }) {
+function PaperBox({ state, style, w, h, label, strike, fit }: { state: PrintState; style: PrintStyle; w: number; h: number; label?: string; strike?: boolean; fit?: number }) {
   const base = { width: w, height: h, borderTopLeftRadius: 5, borderTopRightRadius: 5, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: seatFill(style, state) } as const;
   const diag = Math.sqrt(w * w + h * h);
   const L = pendingNotch(h);
@@ -310,14 +337,14 @@ function PaperBox({ state, style, w, h, label, strike }: { state: PrintState; st
     <View style={[base, state === 'taken' || state === 'pending' ? { borderWidth: 1, borderColor: INK } : state === 'released' ? { borderWidth: 2, borderColor: INK } : { borderWidth: 1.2, borderStyle: 'dashed', borderColor: INK }]}>
       {state === 'pending' ? <View style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, borderTopWidth: L, borderTopColor: INK, borderRightWidth: L, borderRightColor: 'transparent' }} /> : null}
       {state === 'released' ? <View style={{ position: 'absolute', width: diag, height: 2, backgroundColor: INK, transform: [{ rotate: `${-Math.atan2(h, w)}rad` }] }} /> : null}
-      {label ? <Txt color={INK} style={{ fontSize: 10, lineHeight: 12, textDecorationLine: strike ? 'line-through' : 'none', textAlign: 'center' }} numberOfLines={1}>{label}</Txt> : null}
+      {label ? <Txt color={INK} style={{ fontSize: fit ? fitFontSize(label, fit, 10, 6.5) : 10, lineHeight: 12, textDecorationLine: strike ? 'line-through' : 'none', textAlign: 'center' }} numberOfLines={1}>{label}</Txt> : null}
     </View>
   );
 }
 
 /** On screen (not on paper) an allocated seat opens "update for <household>" (§15.5); the picked household's seats get a 2 px tekhelet outline (§16.12.1). */
 function PaperSeat({ seat, left, top, g, names, style, onPress, outlined, label }: { seat: LayoutPrintSeat; left: number; top: number; g: PrintGeometry; names: boolean; style: PrintStyle; onPress?: () => void; outlined?: boolean; label?: string }) {
-  const box = <PaperBox state={seat.state} style={style} w={g.cellW} h={g.cellH} label={names ? seat.name : undefined} strike={seat.state === 'released'} />;
+  const box = <PaperBox state={seat.state} style={style} w={g.cellW} h={g.cellH} label={names ? seat.name : undefined} fit={g.cellW - 4} strike={seat.state === 'released'} />;
   return (
     <View style={{ position: 'absolute', left, top }}>
       {outlined ? <View pointerEvents="none" {...({ dataSet: { screenOnly: '1' } } as object)} style={{ position: 'absolute', left: -3, top: -3, right: -3, bottom: -3, borderWidth: 2, borderColor: '#2A3F94', borderRadius: 8 }} /> : null}
