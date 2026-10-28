@@ -299,14 +299,27 @@ export function figureA(l: Look): { markup: string; viewBox: string } {
 }
 
 // ---- badge, ghost, marker ------------------------------------------------------------------------------------------
-/** The memorial candle badge: a small disc with a glass candle and a gold flame. */
+/** The memorial candle badge (§17.15, P34): a small disc with a glass candle and a LIT flame (orange, with a soft glow). */
 export function candleBadge(cx: number, cy: number, r: number, dark: boolean): string {
   const k = r / 13;
-  const surface = dark ? '#1A1E3A' : '#FFFFFF', line = dark ? '#2E3358' : '#DDE0D4', gold = dark ? '#D9AD55' : '#8F6512';
+  const surface = dark ? '#1A1E3A' : '#FFFFFF', line = dark ? '#2E3358' : '#DDE0D4';
+  const glass = dark ? '#D9D2BF' : '#F4EEDD', rim = dark ? '#B9AE96' : '#8A7E6A';
   return `<g data-candle="1" transform="translate(${n(cx)} ${n(cy)}) scale(${String(Math.round(k * 1000) / 1000)})">`
     + `<circle r="13" fill="${surface}" stroke="${line}" stroke-width="1"/>`
-    + `<rect x="-4" y="0" width="8" height="9" rx="2" fill="${gold}" fill-opacity=".28" stroke="${gold}" stroke-width="1.2"/>`
-    + `<path d="M0 -9C2 -6 4 -4.6 4 -2a4 4 0 0 1 -8 0C-4 -4 -2 -5 0 -9Z" fill="${gold}"/></g>`;
+    + `<circle cx="0" cy="-4.5" r="6" fill="#FFB547" fill-opacity="${dark ? '.4' : '.3'}"/>`
+    + `<rect x="-4" y="0" width="8" height="9" rx="2" fill="${glass}" stroke="${rim}" stroke-width="1.2"/>`
+    + `<path d="M0 -10C2.2 -7.4 3 -6 3 -4.4a3 3 0 0 1 -6 0C-3 -6 -2.2 -7.4 0 -10Z" fill="#F28C1C"/>`
+    + `<path d="M0 -7.2C1 -6.1 1.4 -5.4 1.4 -4.7a1.4 1.4 0 0 1 -2.8 0C-1.4 -5.4 -1 -6.1 0 -7.2Z" fill="#FFE08A"/></g>`;
+}
+/** The "ill" badge: a soft-rose heart with a pulse line in a white circle with a rose ring (never alarm red). */
+export function healBadge(cx: number, cy: number, r: number, dark: boolean): string {
+  const k = r / 13;
+  const surface = dark ? '#1A1E3A' : '#FFFFFF', rose = dark ? '#F2A6C0' : '#B8507A';
+  return `<g data-heal="1" transform="translate(${n(cx)} ${n(cy)}) scale(${String(Math.round(k * 1000) / 1000)})">`
+    + `<circle r="13" fill="${surface}" stroke="${rose}" stroke-width="1.2"/>`
+    + `<g transform="translate(-9.5 -9.5) scale(.79)">`
+    + `<path d="M12 20.6s-7.8-4.7-7.8-10.4A4.4 4.4 0 0 1 12 7.5a4.4 4.4 0 0 1 7.8 2.7c0 5.7-7.8 10.4-7.8 10.4z" fill="${rose}" fill-opacity=".25" stroke="${rose}" stroke-width="1.8" stroke-linejoin="round"/>`
+    + `<path d="M5 12.6h3.4l1.5-2.8 2.3 5.2 1.7-3.4H19" fill="none" stroke="${rose}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></g>`;
 }
 export function ghost(style: 'A' | 'B'): { inner: string; viewBox: string } {
   if (style === 'B') return { inner: '<g fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="5 5" stroke-linecap="round"><circle cx="50" cy="50" r="48"/><circle cx="50" cy="42" r="17"/><path d="M22 90q4-24 28-24t28 24"/></g>', viewBox: '0 0 100 100' };

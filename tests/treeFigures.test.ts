@@ -186,3 +186,20 @@ test('the same input draws the same string (deterministic, ids included)', () =>
   const o = { style: 'B' as const, stage: 'adult' as const, gender: 'm' as const, options: defaultFigure('self', 'm', 'adult'), deceased: false, dark: false };
   assert.equal(figureSvg(o), figureSvg(o));
 });
+
+test('ill: a heart-with-pulse badge in both styles, light and dark; living and deceased never share it; candle is lit', () => {
+  const base = { stage: 'older' as const, gender: 'f' as const, options: defaultFigure('mother', 'f', 'older') };
+  for (const style of ['A', 'B'] as const) for (const dark of [false, true]) {
+    const well = figureSvg({ ...base, style, dark, deceased: false });
+    const ill = figureSvg({ ...base, style, dark, deceased: false, ill: true });
+    assert.ok(!well.includes('data-heal') && ill.includes('data-heal'));
+    assert.ok(!/<(clipPath|mask|filter)\b|clip-path=|mask=|filter=/i.test(ill));
+    assert.ok(ill.includes(dark ? '#F2A6C0' : '#B8507A'), 'soft rose, never red');
+    assert.ok(!ill.includes('data-candle'));
+    const gone = figureSvg({ ...base, style, dark, deceased: true, ill: true });
+    assert.ok(gone.includes('data-candle') && !gone.includes('data-heal'));
+    assert.ok(gone.includes('#F28C1C') && gone.includes('#FFE08A'), 'lit flame');
+    const couple = coupleSvg({ style, dark, child: { ...base, deceased: false, ill: true }, spouse: { ...base } });
+    assert.ok(couple.includes('data-heal'));
+  }
+});

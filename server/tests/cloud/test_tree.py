@@ -201,6 +201,20 @@ class TreeRulesTest(test_messages.MessagesTest):
         alive[2]['deceased'] = False
         self.assertEqual(code(alive), (400, 'invalid_death'))  # a death date for someone not deceased
 
+    def test_ill_is_for_living_figures_only(self):
+        people = basic()
+        people[3]['ill'] = True
+        self.assertIsNone(code(people))
+        people[3]['deceased'] = False
+        self.assertIsNone(code(people))
+        people[3]['deceased'] = True
+        self.assertEqual(code(people), (400, 'invalid_ill'))
+        people[3]['deceased'] = False
+        people[3]['ill'] = 'yes'
+        self.assertEqual(code(people), (400, 'invalid_people'))
+        people[3]['ill'] = False
+        self.assertIsNone(code(people))
+
     def test_children_conversion_round_trip(self):
         children = [{'id': pid(1), 'firstName': 'נועה', 'gender': 'f', 'birthDate': '2015-12-31'},
                     {'id': pid(2), 'firstName': 'בן', 'gender': 'm'}]
@@ -649,6 +663,17 @@ class MergeTest(test_messages.unittest.TestCase):
                      'birth': {'day': 1, 'month': 'tishrei', 'year': 5700}})
         moved[0].update(deceased=True, death={'day': 1, 'month': 'tishrei', 'year': 5650})
         self.assertIsNone(code(self.merge(keep, spouse_moved)))
+
+    def test_ill_survives_a_merge_but_deceased_wins(self):
+        keep = self.side(self.A, person(1, 'child', hebrewFirst='נועם', birth={'day': 5, 'month': 'sivan', 'year': 5780}, ill=True),
+                         person(3, 'child', hebrewFirst='דנה', gender='f', ill=True))
+        moved = self.side(self.B, person(11, 'child', hebrewFirst='נועם', birth={'day': 5, 'month': 'sivan', 'year': 5780}, deceased=True),
+                          person(13, 'child', hebrewFirst='דנה', gender='f'))
+        out = self.by_id(self.merge(keep, moved))
+        self.assertTrue(out[pid(1)].get('deceased'))
+        self.assertNotIn('ill', out[pid(1)])
+        self.assertTrue(out[pid(3)].get('ill'))
+        self.assertIsNone(code(list(out.values())))
 
     def test_same_children_merge_field_by_field(self):
         keep = self.side(self.A, person(1, 'child', hebrewFirst='נוֹעַם', birth={'day': 5, 'month': 'sivan'},

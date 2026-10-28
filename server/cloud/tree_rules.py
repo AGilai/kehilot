@@ -12,7 +12,7 @@ from .ids import new_id
 
 RELATIONS = ('self', 'spouse', 'formerSpouse', 'father', 'mother', 'child', 'childSpouse', 'grandchild')
 PERSON_KEYS = {'userId', 'id', 'relation', 'of', 'gender', 'hebrewFirst', 'surname', 'fatherName', 'motherName', 'tribe',
-               'birth', 'deceased', 'death', 'barMitzvah', 'figure'}
+               'birth', 'deceased', 'ill', 'death', 'barMitzvah', 'figure'}
 NAME_KEYS = ('hebrewFirst', 'surname', 'fatherName', 'motherName')
 MAX_NAME = 40
 MAX_TREE_BYTES = 300 * 1024
@@ -145,6 +145,12 @@ def _clean_person(raw, today):
         if not isinstance(raw['deceased'], bool):
             _bad('invalid_people')
         person['deceased'] = raw['deceased']
+    if 'ill' in raw:
+        if not isinstance(raw['ill'], bool):
+            _bad('invalid_people')
+        if raw['ill'] and raw.get('deceased'):
+            _bad('invalid_ill')  # ill is for living figures only
+        person['ill'] = raw['ill']
     born = None
     if 'birth' in raw:
         person['birth'], born = _hebrew_date(raw['birth'], 'invalid_hebrew_date')
@@ -374,7 +380,7 @@ def _merge_field(key, a, b):
         return b if not a.get('manual') and b.get('manual') else a
     if key == 'figure':
         return {**b, **a}
-    if key == 'deceased':
+    if key in ('deceased', 'ill'):
         return a or b
     return a
 
@@ -396,6 +402,8 @@ def _merge_entry(a, b):
         out.pop('barMitzvah', None)
     if 'death' in out:
         out['deceased'] = True
+    if out.get('deceased'):
+        out.pop('ill', None)  # deceased wins over ill
     return out
 
 

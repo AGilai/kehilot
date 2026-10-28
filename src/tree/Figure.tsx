@@ -15,8 +15,8 @@ export function Figure({ person, partner, size = 64, style = 'B' }: { person?: P
   const dark = useColorScheme() === 'dark';
   const svg = React.useMemo(() => {
     if (!person) return ghostSvg(style, dark);
-    if (partner) return coupleSvg({ style, dark, child: { ...member(person), deceased: !!person.deceased }, spouse: { ...member(partner), deceased: !!partner.deceased } });
-    return figureSvg({ style, dark, deceased: !!person.deceased, ...member(person) });
+    if (partner) return coupleSvg({ style, dark, child: { ...member(person), deceased: !!person.deceased, ill: !!person.ill }, spouse: { ...member(partner), deceased: !!partner.deceased, ill: !!partner.ill } });
+    return figureSvg({ style, dark, deceased: !!person.deceased, ill: !!person.ill, ...member(person) });
   }, [person, partner, style, dark]);
   const uri = React.useMemo(() => 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), [svg]);
   const width = Math.round(size * aspectOf(svg));

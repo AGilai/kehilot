@@ -105,7 +105,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
     const label = figureLabel({ relation: o.ring ? `${rel}, ${t('tree.fromHere')}` : rel, name, deceased: !o.partner && p.deceased, states }, t);
     return (
       <FigureTile key={p.id} testID={o.testID ?? `tree-fig-${p.id}`} person={p} partner={o.partner} name={name} label={label} big={o.big} box={o.box} ring={o.ring} size={o.box ? 52 : undefined}
-        dot={missing(p) || (!!o.partner && missing(o.partner))} deceased={!o.partner && p.deceased} me={!readOnly && mine(p) && !!p.hebrewFirst?.trim()} selected={selectedId === p.id || (!!o.partner && selectedId === o.partner.id)}
+        dot={missing(p) || (!!o.partner && missing(o.partner))} deceased={!o.partner && p.deceased} ill={!p.deceased && !!p.ill || (!!o.partner && !o.partner.deceased && !!o.partner.ill)} me={!readOnly && mine(p) && !!p.hebrewFirst?.trim()} selected={selectedId === p.id || (!!o.partner && selectedId === o.partner.id)}
         width={tileW} onPress={() => onOpenPerson(p.id)} />
     );
   };
@@ -155,6 +155,7 @@ export function TreeScreen({ onBack, onOpenPerson, onOpenSlot, selectedId, panel
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, columnGap: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: k.gold }} /><Txt size="caption" color={k.muted}>{t('tree.legend.missing')}</Txt></View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="flame" size={16} color={k.gold} /><Txt size="caption" color={k.muted}>{t('tree.legend.candle')}</Txt></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Txt size="caption" bold color={k.heal}>{'♡'}</Txt><Txt size="caption" color={k.muted}>{t('tree.ill.legend')}</Txt></View>
           <Txt size="caption" color={k.muted}>{t('tree.legend.tap')}</Txt>
         </View>
       ) : null}

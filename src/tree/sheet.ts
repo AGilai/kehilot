@@ -13,7 +13,7 @@ export type BarMitzvah = NonNullable<Person['barMitzvah']>;
 export type Draft = {
   id: string; relation: Relation; of?: string; gender: 'm' | 'f';
   hebrewFirst: string; surname: string; fatherName: string; motherName: string;
-  tribe?: Tribe; birth: DatePart; deceased: boolean; death: DatePart;
+  tribe?: Tribe; birth: DatePart; deceased: boolean; ill: boolean; death: DatePart;
   barMitzvah?: BarMitzvah; figure?: FigureOptions;
 };
 export type SheetState = {
@@ -25,6 +25,8 @@ export type SheetState = {
   initial: Draft;
   /** The birth date changed while a hand-picked Shabbat is kept: ask whether to take the new suggestion. */
   takePrompt: boolean;
+  /** A status button was pressed to turn ON: the inline question is open (§17.4, §17.15). */
+  ask: 'deceased' | 'ill' | null;
 };
 export type SheetAction =
   | { type: 'text'; key: 'hebrewFirst' | 'surname' | 'fatherName' | 'motherName'; value: string }
@@ -32,6 +34,11 @@ export type SheetAction =
   | { type: 'tribe'; tribe: Tribe }
   | { type: 'birth'; part: DatePart }
   | { type: 'alive'; deceased: boolean }
+  | { type: 'ill'; ill: boolean }
+  /** The round candle / heart: on asks first (`ask`), off applies at once. */
+  | { type: 'toggleStatus'; what: 'deceased' | 'ill' }
+  | { type: 'confirmStatus' }
+  | { type: 'cancelStatus' }
   | { type: 'death'; part: DatePart }
   | { type: 'shabbat'; info: ShabbatInfo }
   | { type: 'takeSuggestion' }
@@ -113,16 +120,16 @@ export function startSheet(base: Person[], target: Target, newId: string): Sheet
     const draft: Draft = {
       id: p.id, relation: p.relation, of: p.of, gender: p.gender,
       hebrewFirst: clean(p.hebrewFirst), surname: clean(p.surname), fatherName: clean(p.fatherName), motherName: clean(p.motherName),
-      tribe: p.tribe, birth: partOf(p.birth), deceased: !!p.deceased, death: partOf(p.death), barMitzvah: p.barMitzvah, figure: p.figure,
+      tribe: p.tribe, birth: partOf(p.birth), deceased: !!p.deceased, ill: !!p.ill && !p.deceased, death: partOf(p.death), barMitzvah: p.barMitzvah, figure: p.figure,
     };
-    return { base, draft, initial: draft, isNew: false, savedFirst: draft.hebrewFirst, takePrompt: false };
+    return { base, draft, initial: draft, isNew: false, savedFirst: draft.hebrewFirst, takePrompt: false, ask: null };
   }
   const { relation, of, gender } = target.create;
   const draft: Draft = {
     id: newId, relation, of, gender, hebrewFirst: '', surname: surnameFor(base, relation, of, gender), fatherName: '', motherName: '',
-    tribe: tribeFor(base, relation, of, gender), birth: {}, deceased: false, death: {},
+    tribe: tribeFor(base, relation, of, gender), birth: {}, deceased: false, ill: false, death: {},
   };
-  return { base, draft, initial: draft, isNew: true, savedFirst: '', takePrompt: false };
+  return { base, draft, initial: draft, isNew: true, savedFirst: '', takePrompt: false, ask: null };
 }
 
 // --- the bar mitzvah -----------------------------------------------------------------------------------------------
@@ -167,7 +174,19 @@ export function sheetReducer(s: SheetState, a: SheetAction): SheetState {
     }
     case 'tribe': return d.gender === 'm' ? { ...s, draft: { ...d, tribe: a.tribe } } : s;
     case 'birth': return syncBarMitzvah(s, { ...d, birth: patchPart(d.birth, a.part) });
-    case 'alive': return { ...s, draft: { ...d, deceased: a.deceased, death: a.deceased ? d.death : {} } };
+    // Deceased clears ill (the heart is for the living); going back to living does not turn it on again.
+    case 'alive': return { ...s, ask: null, draft: { ...d, deceased: a.deceased, ill: a.deceased ? false : d.ill, death: a.deceased ? d.death : {} } };
+    case 'ill': return { ...s, ask: null, draft: { ...d, ill: a.ill && !d.deceased } };
+    case 'toggleStatus': {
+      if (a.what === 'ill' && d.deceased) return s;
+      const on = a.what === 'ill' ? d.ill : d.deceased;
+      if (!on) return { ...s, ask: a.what };
+      return sheetReducer({ ...s, ask: null }, a.what === 'ill' ? { type: 'ill', ill: false } : { type: 'alive', deceased: false });
+    }
+    case 'confirmStatus':
+      if (!s.ask) return s;
+      return sheetReducer(s, s.ask === 'ill' ? { type: 'ill', ill: true } : { type: 'alive', deceased: true });
+    case 'cancelStatus': return { ...s, ask: null };
     case 'death': return d.deceased ? { ...s, draft: { ...d, death: patchPart(d.death, a.part) } } : s;
     case 'shabbat': {
       if (!hasBarMitzvah(d)) return s;
@@ -234,6 +253,7 @@ const strip = (p: Person): Person => {
   if (!out.tribe || out.gender !== 'm') delete out.tribe;
   if (!out.birth) delete out.birth;
   if (!out.deceased) { delete out.deceased; delete out.death; }
+  if (!out.ill || out.deceased) delete out.ill;
   if (!out.barMitzvah || out.gender !== 'm') delete out.barMitzvah;
   if (!out.figure) delete out.figure;
   if (out.of === undefined) delete out.of;
@@ -247,7 +267,7 @@ export function commit(state: SheetState, mkId: () => string): Person[] {
   const person: Person = {
     ...(existing ?? { id: d.id, relation: d.relation, gender: d.gender }), gender: d.gender,
     hebrewFirst: d.hebrewFirst, surname: d.surname, tribe: d.gender === 'm' ? d.tribe : undefined,
-    birth: dateOfPart(d.birth), deceased: d.deceased, death: d.deceased ? dateOfPart(d.death) : undefined,
+    birth: dateOfPart(d.birth), deceased: d.deceased, ill: d.ill && !d.deceased, death: d.deceased ? dateOfPart(d.death) : undefined,
     barMitzvah: hasBarMitzvah(d) ? (d.barMitzvah?.manual ? d.barMitzvah : barSuggested(d)) : undefined, figure: d.figure,
   };
   if (d.of !== undefined) person.of = d.of;

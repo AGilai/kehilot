@@ -4,12 +4,12 @@ export type MessageType = 'weekly' | 'celebration' | 'condolence' | 'event' | 'g
 
 const light = {
   stone: '#F6F7F2', ink: '#151A33', tekhelet: '#2A3F94', pomegranate: '#A32A47', ash: '#555B75',
-  gold: '#8F6512', olive: '#44652A', band: '#161C44',
+  gold: '#8F6512', olive: '#44652A', band: '#161C44', heal: '#B8507A', healBg: '#FBEAF0',
   surface: '#FFFFFF', line: '#DDE0D4', muted: '#555B75', onAction: '#FFFFFF', danger: '#A32A47',
 };
 const dark: typeof light = {
   stone: '#10132A', ink: '#ECEEF7', tekhelet: '#8FA2F0', pomegranate: '#E8829A', ash: '#AEB4CC',
-  gold: '#D9AD55', olive: '#93BC72', band: '#0A0D24',
+  gold: '#D9AD55', olive: '#93BC72', band: '#0A0D24', heal: '#F2A6C0', healBg: '#3A2232',
   surface: '#1A1E3A', line: '#2E3358', muted: '#AEB4CC', onAction: '#10132A', danger: '#E8829A',
 };
 export type Tokens = typeof light;

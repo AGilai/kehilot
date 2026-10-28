@@ -2,7 +2,7 @@
 // (no external references, no CSS variables: it is shown through an <img>, like kit/Icon.tsx).
 import { hebrewAge } from '../dates.ts';
 import type { FigureOptions, HebDate, Relation } from '../types.ts';
-import { ash, bodyB, candleBadge, COVER_COLORS, figureA, frameOf, ghost, head, HAIR, KNIT, n, safeColor, SHIRT_F, SHIRT_M, BERET, TEKHELET } from './parts.ts';
+import { ash, bodyB, candleBadge, healBadge, COVER_COLORS, figureA, frameOf, ghost, head, HAIR, KNIT, n, safeColor, SHIRT_F, SHIRT_M, BERET, TEKHELET } from './parts.ts';
 import type { Gender, Kind, Look } from './parts.ts';
 
 /** baby 0-1, toddler 1-3, child 4-8, preteen 9-12 boys / 9-11 girls, teen 13-17 boys / 12-17 girls, youngAdult 18+, adult (our generation), older (parents and up). */
@@ -50,8 +50,8 @@ export function resolveFigure(relation: Relation, gender: Gender, stage: AgeStag
   return out;
 }
 
-export type FigureArgs = { style: 'A' | 'B'; stage: AgeStage; gender: Gender; options: FigureOptions; deceased: boolean; dark: boolean; seed?: number };
-type Member = { stage: AgeStage; gender: Gender; options: FigureOptions; seed?: number; deceased?: boolean };
+export type FigureArgs = { style: 'A' | 'B'; stage: AgeStage; gender: Gender; options: FigureOptions; deceased: boolean; ill?: boolean; dark: boolean; seed?: number };
+type Member = { stage: AgeStage; gender: Gender; options: FigureOptions; seed?: number; deceased?: boolean; ill?: boolean };
 
 const DISC = { light: '#EAEDE2', dark: '#283058' };
 const SPOT = { light: { c: '#2A3F94', o: '.2' }, dark: { c: '#8FA2F0', o: '.38' } };
@@ -84,12 +84,15 @@ const ROOT = (viewBox: string, inner: string) => {
 };
 const fade = (markup: string, deceased: boolean, dark = false) => deceased ? `<g opacity="${dark ? '0.8' : '0.62'}">${ash(markup, dark)}</g>` : markup;
 
-function badgeFor(style: 'A' | 'B', viewBox: string, dark: boolean): string {
-  if (style === 'B') return candleBadge(75, 75, 11, dark); // inside the disc: the round clip is done by the Figure wrapper
+/** The corner badge: the lit candle for the deceased, else the rose heart for the ill (never both: ill is for the living). */
+function badgeFor(style: 'A' | 'B', viewBox: string, dark: boolean, kind: 'candle' | 'heal' = 'candle'): string {
+  const draw = kind === 'candle' ? candleBadge : healBadge;
+  if (style === 'B') return draw(75, 75, 11, dark); // inside the disc: the round clip is done by the Figure wrapper
   const [x, y, w, h] = box(viewBox);
   const r = Math.max(10, Math.min(w, h) * 0.17);
-  return candleBadge(x + w * 0.74, y + h - r - 2, r, dark);
+  return draw(x + w * 0.74, y + h - r - 2, r, dark);
 }
+const badgeOf = (style: 'A' | 'B', viewBox: string, dark: boolean, gone: boolean, ill: boolean) => gone ? badgeFor(style, viewBox, dark) : ill ? badgeFor(style, viewBox, dark, 'heal') : '';
 
 function figureBMarkup(m: Member) {
   const l = lookOf(m), hd = head(l);
@@ -102,10 +105,10 @@ export function figureSvg(a: FigureArgs): string {
   if (a.style === 'B') {
     // No clipPath (weak on iOS): the disc is a plain circle and Figure.tsx rounds the image with a clipping wrapper.
     const art = `<circle cx="50" cy="50" r="50" fill="${disc}"/>${figureBMarkup(m)}`;
-    return ROOT('0 0 100 100', `${fade(art, a.deceased, a.dark)}${a.deceased ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
+    return ROOT('0 0 100 100', `${fade(art, a.deceased, a.dark)}${badgeOf('B', '0 0 100 100', a.dark, a.deceased, !!a.ill)}`);
   }
   const fig = figureA(lookOf(m));
-  return ROOT(fig.viewBox, `${fade(fig.markup, a.deceased, a.dark)}${a.deceased ? badgeFor('A', fig.viewBox, a.dark) : ''}`);
+  return ROOT(fig.viewBox, `${fade(fig.markup, a.deceased, a.dark)}${badgeOf('A', fig.viewBox, a.dark, a.deceased, !!a.ill)}`);
 }
 
 /** A married child: one tile, our child in front on a tekhelet stage, the spouse a step behind (and a little smaller). */
@@ -117,14 +120,14 @@ export function coupleSvg(a: { style: 'A' | 'B'; dark: boolean; child: Member; s
       + fade(`<g transform="translate(35 56.2) scale(0.6615) translate(-50 -46)">${figureBMarkup(a.spouse)}</g>`, !!a.spouse.deceased, a.dark)
       + `<ellipse data-marker="1" cx="62" cy="100" rx="30" ry="9" fill="${spot.c}" fill-opacity="${spot.o}"/>`
       + fade(`<g transform="translate(62 52) scale(0.8) translate(-50 -46)">${figureBMarkup(a.child)}</g>`, !!a.child.deceased, a.dark);
-    return ROOT('0 0 100 100', `${art}${gone ? badgeFor('B', '0 0 100 100', a.dark) : ''}`);
+    return ROOT('0 0 100 100', `${art}${badgeOf('B', '0 0 100 100', a.dark, gone, !!(a.child.ill || a.spouse.ill))}`);
   }
   const vb = '18 0 70 150';
   const art = `<ellipse data-marker="1" cx="61" cy="145.5" rx="17" ry="3.6" fill="${spot.c}" fill-opacity="${spot.o}"/>`
     + fade(`<g transform="translate(-11 0) translate(50 146) scale(0.9) translate(-50 -146)">${figureA(lookOf(a.spouse)).markup}</g>`, !!a.spouse.deceased, a.dark)
     + fade(`<g transform="translate(11 0)">${figureA(lookOf(a.child)).markup}</g>`, !!a.child.deceased, a.dark)
     + `<rect data-marker="1" x="55" y="147" width="30" height="3" rx="1.5" fill="${spot.c}"/>`;
-  return ROOT(vb, `${art}${gone ? badgeFor('A', vb, a.dark) : ''}`);
+  return ROOT(vb, `${art}${badgeOf('A', vb, a.dark, gone, !!(a.child.ill || a.spouse.ill))}`);
 }
 
 /** An empty slot: a dashed outline (head and shoulders in a dashed circle in B, the body in A). */

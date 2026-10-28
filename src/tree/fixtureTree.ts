@@ -10,7 +10,7 @@ const core = (): Person[] => [
   { id: 'mf', relation: 'father', of: 'me', gender: 'm', hebrewFirst: 'משה', tribe: 'yisrael', deceased: true, fatherName: 'יצחק', motherName: 'רבקה', birth: bday(5715) },
   { id: 'mm', relation: 'mother', of: 'me', gender: 'f', hebrewFirst: 'רות', birth: bday(5718) },
   { id: 'sf', relation: 'father', of: 'sp', gender: 'm', hebrewFirst: 'אברהם', tribe: 'yisrael', deceased: true, fatherName: 'דוד', motherName: 'לאה', birth: bday(5712) },
-  { id: 'sm', relation: 'mother', of: 'sp', gender: 'f', hebrewFirst: 'שרה', birth: bday(5716) },
+  { id: 'sm', relation: 'mother', of: 'sp', gender: 'f', hebrewFirst: 'שרה', ill: true, birth: bday(5716) },
   { id: 'mff', relation: 'father', of: 'mf', gender: 'm', hebrewFirst: 'יצחק', deceased: true },
   { id: 'mfm', relation: 'mother', of: 'mf', gender: 'f', hebrewFirst: 'רבקה', deceased: true },
 ];

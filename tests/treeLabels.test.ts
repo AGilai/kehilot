@@ -60,3 +60,9 @@ test('israelDayMonth uses the Israel calendar day', () => {
   assert.equal(israelDayMonth(Date.parse('2026-10-27T12:00:00Z') / 1000), '27.10');
   assert.equal(israelDayMonth(Date.parse('2026-03-05T10:00:00Z') / 1000), '5.3');
 });
+
+test('ill: a state word and the label says so; deceased wins', () => {
+  const g: Person = { id: 'i', relation: 'mother', of: 'me', gender: 'f', hebrewFirst: 'שרה', ill: true, motherName: 'לאה', fatherName: 'דוד' };
+  assert.deepEqual(stateWords([me, g], g, t), ['tree.ill.a11y']);
+  assert.deepEqual(stateWords([me, { ...g, deceased: true }], { ...g, deceased: true }, t), ['tree.state.deceased']);
+});

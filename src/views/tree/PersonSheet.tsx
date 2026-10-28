@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, useColorScheme, View } from 'react-native';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Chip, Field, Segmented, Sheet, Tag, Txt, useTokens } from '../../kit/components.tsx';
 import { ForwardIcon } from '../../kit/Icon.tsx';
@@ -11,7 +11,7 @@ import { relationLabel, roleWord, nameOrRole } from '../../tree/labels.ts';
 import { aliyahName, prayerName } from '../../tree/names.ts';
 import { childrenOf, fatherNameOf, motherNameOf } from '../../tree/relations.ts';
 import {
-  batMitzvahOf, canClear, canRemove, clearPerson, commit, feedWarning, hasBarMitzvah, hasBatMitzvah, isDirty, parentField, removePerson,
+  batMitzvahOf, canClear, dateOfPart, canRemove, clearPerson, commit, feedWarning, hasBarMitzvah, hasBatMitzvah, isDirty, parentField, removePerson,
   sheetErrors, sheetReducer, startSheet, suggestionOf,
 } from '../../tree/sheet.ts';
 import type { SheetError, SheetState, Target } from '../../tree/sheet.ts';
@@ -19,6 +19,7 @@ import type { Person, Tribe } from '../../tree/types.ts';
 import { BarMitzvahPicker, shabbatLine } from './BarMitzvahPicker.tsx';
 import { FigurePicker } from './FigurePicker.tsx';
 import { HebrewDateField } from './HebrewDateField.tsx';
+import { StatusButtons } from './StatusButtons.tsx';
 
 export type SaveOutcome = { ok: true } | { ok: false; message: string };
 export type { SheetError };
@@ -66,6 +67,18 @@ function NameCard({ tree, p }: { tree: Person[]; p: Person }) {
   const miss = name.missing.includes('first') && name.missing.length === 1 ? t('tree.name.missFirst') : name.missing.includes(main) ? t(main === 'father' ? 'tree.name.missFather' : 'tree.name.missMother') : name.missing.includes('first') ? t('tree.name.missFirst') : '';
   const label = deceased ? t('tree.name.memorial') : man ? t('tree.name.aliyah') : t('tree.name.mi');
   const miLine = !deceased && man ? prayerName(tree, p.id) : null;
+  if (p.ill && !deceased) {
+    // Ill (§17.15): the card is the Mi Sheberach name for the sick, prominent; gold while the mother's name is missing.
+    const mi = prayerName(tree, p.id);
+    const noMother = mi.missing.includes('mother');
+    return (
+      <Card edgeColor={noMother ? k.gold : k.olive}>
+        <Txt size="caption" bold color={noMother ? k.gold : k.olive}>{noMother ? `${t('tree.ill.nameTitle')} · ${t('tree.name.missMother')}` : t('tree.ill.nameTitle')}</Txt>
+        <View testID="ill-name"><Name list={pieces(tree, p, 'mother', false, false)} /></View>
+        <Txt size="small" color={k.muted}>{t('tree.ill.toGabbai')}</Txt>
+      </Card>
+    );
+  }
   const edge = deceased ? k.ash : miss || (miLine && miLine.missing.length) ? k.gold : k.tekhelet;
   const death = deceased && p.death ? hebrewText(p.death) : '';
   return (
@@ -144,6 +157,7 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
   const feed = feedWarning(state);
   const existing = people.find(p => p.id === d.id);
   const mine = d.relation === 'self';
+  const dark = useColorScheme() === 'dark';
 
   const save = async (then?: () => void) => {
     if (errors.length) { setError(t(errKey[errors[0]!])); return; }
@@ -217,7 +231,7 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
           <Figure person={me} size={84} style="A" />
         </Pressable>
         <View style={{ flex: 1, gap: 2 }}>
-          <Txt serif size="title" content numberOfLines={2}>{`${me.hebrewFirst ?? ''} ${me.surname ?? ''}`.trim() || roleWord(me, t)}{me.deceased ? ` ${t('tree.zl')}` : ''}</Txt>
+          <Txt serif size="title" content numberOfLines={2}>{`${me.hebrewFirst ?? ''} ${me.surname ?? ''}`.trim() || roleWord(me, t)}{me.deceased ? ` ${t('tree.zl')}` : ''}{me.ill && !me.deceased ? <Txt size="small" bold color={k.heal}>{` ${t('tree.ill.badge')}`}</Txt> : null}</Txt>
           <Txt size="small" color={k.muted} content>{relationLabel(preview, me, t)}</Txt>
           <Pressable accessibilityRole="button" onPress={() => setPicker('figure')} style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}>
             <Txt size="small" bold color={k.tekhelet}>{`${t('tree.fig.link')} ${arrow}`}</Txt>
@@ -231,6 +245,17 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
       ) : null}
 
       <NameCard tree={preview} p={me} />
+
+      <StatusButtons name={nameOrRole(me, t)} dark={dark} showCandle={showAlive} showHeart={d.relation !== 'formerSpouse'} deceased={d.deceased} ill={d.ill} ask={state.ask}
+        deceasedCaption={d.deceased ? (dateOfPart(d.death) ? t('tree.dec.caption', { hdate: hebrewText(dateOfPart(d.death)!) }) : t('tree.dec.captionNoDate')) : ''}
+        onToggle={what => dispatch({ type: 'toggleStatus', what })} onConfirm={() => dispatch({ type: 'confirmStatus' })} onCancel={() => dispatch({ type: 'cancelStatus' })} />
+      {showAlive && d.deceased ? (
+        <View style={{ gap: 10 }}>
+          <HebrewDateField testID="sheet-death" label={t('tree.f.death')} part={d.death} onChange={part => dispatch({ type: 'death', part })} />
+          {errors.includes('deathBeforeBirth') ? <Banner tone="error" text={t('tree.err.deathBeforeBirth')} /> : null}
+          {errors.includes('deathFuture') ? <Banner tone="error" text={t('tree.err.future')} /> : null}
+        </View>
+      ) : null}
 
       {mine && account ? (
         <Card>
@@ -306,16 +331,6 @@ export function PersonSheet({ people, target, newId, readOnly, account, onOpenMe
           <Txt serif size="heading" content>{`${hebrewText(fromGregorian(bat))} · ${gregText(bat)}`}</Txt>
           <Txt size="caption" color={k.muted}>{t('tree.batm.note')}</Txt>
         </Card>
-      ) : null}
-
-      {showAlive ? (
-        <View style={{ gap: 10 }}>
-          <Segmented<'alive' | 'dead'> value={d.deceased ? 'dead' : 'alive'} onChange={key => dispatch({ type: 'alive', deceased: key === 'dead' })}
-            options={[{ key: 'alive', label: t('tree.f.alive') }, { key: 'dead', label: t('tree.f.deceased') }]} />
-          {d.deceased ? <HebrewDateField testID="sheet-death" label={t('tree.f.death')} part={d.death} onChange={part => dispatch({ type: 'death', part })} /> : null}
-          {d.deceased && errors.includes('deathBeforeBirth') ? <Banner tone="error" text={t('tree.err.deathBeforeBirth')} /> : null}
-          {d.deceased && errors.includes('deathFuture') ? <Banner tone="error" text={t('tree.err.future')} /> : null}
-        </View>
       ) : null}
 
       {d.relation === 'child' && existing && !spouse ? (

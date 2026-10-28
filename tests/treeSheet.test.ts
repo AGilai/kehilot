@@ -286,3 +286,53 @@ test('rebase: the draft is kept and the reloaded tree is the base (nobody else\'
   assert.equal(out.find(p => p.id === 'z')!.hebrewFirst, 'נוי');
   assert.equal(out.find(p => p.id === 'me')!.hebrewFirst, 'חדש');
 });
+
+// --- ill and deceased as round toggles (Task 6b) --------------------------------------------------------------------
+const grandma: Person = { id: 'g', relation: 'mother', of: 'me', gender: 'f', hebrewFirst: 'שרה', ill: true };
+const mumsMum: Person = { id: 'gg', relation: 'mother', of: 'g', gender: 'f', hebrewFirst: 'לאה' };
+
+test('ill is read into the draft and written back; false is not stored', () => {
+  const s = startSheet([dad, mum, grandma], { id: 'g' }, 'x');
+  assert.equal(s.draft.ill, true);
+  assert.equal(commit(s, ids()).find(p => p.id === 'g')!.ill, true);
+  const off = run(s, { type: 'ill', ill: false });
+  assert.equal('ill' in commit(off, ids()).find(p => p.id === 'g')!, false);
+});
+
+test('deceased clears ill, and going back to living does not turn it on again', () => {
+  const s = startSheet([dad, mum, grandma], { id: 'g' }, 'x');
+  const gone = run(s, { type: 'alive', deceased: true });
+  assert.equal(gone.draft.ill, false);
+  assert.equal('ill' in commit(gone, ids()).find(p => p.id === 'g')!, false);
+  assert.equal(run(gone, { type: 'alive', deceased: false }).draft.ill, false);
+});
+
+test('ill cannot be set on a deceased draft', () => {
+  const s = startSheet([dad, mum, { ...grandma, ill: undefined, deceased: true }], { id: 'g' }, 'x');
+  assert.equal(run(s, { type: 'ill', ill: true }).draft.ill, false);
+});
+
+test('turning on asks first; yes applies, cancel leaves it off; turning off needs no confirm', () => {
+  const s = startSheet([dad, mum, { ...grandma, ill: undefined }], { id: 'g' }, 'x');
+  const asked = run(s, { type: 'toggleStatus', what: 'ill' });
+  assert.equal(asked.ask, 'ill'); assert.equal(asked.draft.ill, false);
+  const yes = run(asked, { type: 'confirmStatus' });
+  assert.equal(yes.draft.ill, true); assert.equal(yes.ask, null);
+  assert.equal(run(asked, { type: 'cancelStatus' }).draft.ill, false);
+  const off = run(yes, { type: 'toggleStatus', what: 'ill' });
+  assert.equal(off.draft.ill, false); assert.equal(off.ask, null);
+  const dead = run(s, { type: 'toggleStatus', what: 'deceased' }, { type: 'confirmStatus' });
+  assert.equal(dead.draft.deceased, true);
+  assert.equal(run(dead, { type: 'toggleStatus', what: 'deceased' }).draft.deceased, false);
+});
+
+test('the heart does nothing for a deceased figure', () => {
+  const s = startSheet([dad, mum, { ...grandma, ill: undefined, deceased: true }], { id: 'g' }, 'x');
+  assert.equal(run(s, { type: 'toggleStatus', what: 'ill' }).ask, null);
+});
+
+test('ill: the Mi Sheberach name for the card, with the missing mother flagged', () => {
+  const tree = [dad, mum, grandma];
+  assert.deepEqual(prayerName(tree, 'g').missing, ['mother']);
+  assert.equal(prayerName([...tree, mumsMum], 'g').text, 'שרה בת לאה');
+});

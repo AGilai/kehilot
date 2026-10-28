@@ -13,7 +13,7 @@ export type Person = {
   of?: string;
   gender: 'm' | 'f';
   hebrewFirst?: string; surname?: string; fatherName?: string; motherName?: string;
-  tribe?: Tribe; birth?: HebDate; deceased?: boolean; death?: HebDate;
+  tribe?: Tribe; birth?: HebDate; deceased?: boolean; ill?: boolean; /* living only */ death?: HebDate;
   barMitzvah?: { date: string; parasha: string; manual: boolean; label?: string };
   figure?: FigureOptions;
 };

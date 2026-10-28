@@ -55,6 +55,7 @@ export function relationLabel(tree: Person[], p: Person, t: T): string {
 export function stateWords(tree: Person[], p: Person, t: T): string[] {
   const out: string[] = [];
   if (p.deceased) out.push(t('tree.state.deceased'));
+  else if (p.ill) out.push(t('tree.ill.a11y'));
   const miss = missingParts(tree, p);
   if (miss.length === 0) return out;
   const nothing = !first(p) && !p.fatherName && !p.motherName && !p.tribe && !p.birth && !tree.some(x => x.of === p.id && (x.relation === 'father' || x.relation === 'mother'));
