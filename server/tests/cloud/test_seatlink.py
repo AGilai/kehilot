@@ -1,9 +1,11 @@
+import json
 from unittest import mock
 
 from moto import mock_aws
 
 from server.cloud import seating_link
 from server.cloud.errors import ApiError
+from server.cloud.ids import new_id
 
 from server.tests.cloud import test_seatweek as sw
 from server.tests.cloud.test_groups import own_tests_only
@@ -305,3 +307,87 @@ class SeatLinkTest(sw.SeatWeekTest):
         self.assertEqual(seating_link.digits('+972-50-1234567'), '501234567')
         self.assertEqual(seating_link.digits('٠٥٠١٢٣٤٥٦٧'), '')
         self.assertIsNone(seating_link.match({'name': 'אחר', 'phone': '٠٥٠١٢٣٤٥٦٧'}, {'lastName': 'x', 'phones': ['٠٥٠١٢٣٤٥٦٧']}))
+
+    # review fixes
+    def test_family_merge_keeps_the_weekly_records(self):
+        seat = self.at[(4, 0)]
+        self.mine((4, 0))
+        old, new = f'family:{self.fam}', f'family:{self.other}'
+        self.repo.change_week(self.k, WEEK, 'erev', lambda _: {
+            'seats': {seat: {'r': 1, 'by': 'm', 'at': 5, 'h': old}}, 'requests': {old: {'ברחבה': 2}},
+            'answered': {old: 7}})
+        self.assertEqual(self.repo.link(self.k, self.quiet, self.member), self.other)
+        item = self.repo.get_week(self.k, WEEK, 'erev')
+        self.assertEqual(item['seats'][seat]['h'], new)
+        self.assertEqual(item['requests'], {new: {'ברחבה': 2}})
+        self.assertEqual(item['answered'], {new: 7})
+
+    def test_rename_week_ref_moves_answered(self):
+        self.repo.change_week(self.k, WEEK, 'day', lambda _: {'answered': {'holder:a': 3, 'family:z': 4}})
+        self.repo.rename_week_ref(self.k, 'holder:a', 'family:b')
+        self.assertEqual(self.repo.get_week(self.k, WEEK, 'day')['answered'], {'family:b': 3, 'family:z': 4})
+
+    def test_delete_holder_keeps_the_holder_until_assignments_are_rewritten(self):
+        self.give(f'holder:{self.holder}', (4, 0))
+        with mock.patch.object(self.repo, '_rewrite_assignments', side_effect=ApiError(409, 'try_again')):
+            self.assertEqual(self.call('DELETE', f'{self.base()}/admin/seating/holders/{self.holder}')[0], 409)
+        self.assertIsNotNone(self.repo.get_holder(self.k, self.holder))
+        self.assertEqual(self.call('DELETE', f'{self.base()}/admin/seating/holders/{self.holder}')[0], 204)
+        self.assertEqual(self.asg(), {})
+
+    def test_held_ignores_refs_to_vanished_holders(self):
+        from types import SimpleNamespace
+        from server.cloud import routes_seatweek
+        self.give(f'holder:{self.holder}', (4, 0))
+        self.mine((5, 0))
+        self.repo.delete_holder_record(self.k, self.holder)
+        layout = self.repo.layout_for(self.k, friday())
+        held = routes_seatweek._held(SimpleNamespace(repo=self.repo), self.k, layout)
+        self.assertEqual(held, {self.at[(5, 0)]: f'family:{self.fam}'})
+
+    def test_clear_notice_makes_no_phantom_membership(self):
+        self.repo.clear_seat_link_notice(self.k, 'ghost-user')
+        self.assertIsNone(self.repo.get_membership(self.k, 'ghost-user'))
+
+    def test_concurrent_notices_do_not_undercount(self):
+        stale = self.repo.get_membership(self.k, self.member)
+        with mock.patch.object(self.repo, 'get_membership', return_value=stale):
+            self.repo.add_seat_link_notice(self.k, self.member, 'h1', 2, 100)
+            self.repo.add_seat_link_notice(self.k, self.member, 'h2', 3, 101)
+            self.repo.add_seat_link_notice(self.k, self.member, 'h2', 3, 102)  # retried: once
+        self.assertEqual(self.cards('member-sub')['seatLink'], {'seats': 5, 'at': 101})
+        self.repo.clear_seat_link_notice(self.k, self.member)
+        self.assertIsNone(self.cards('member-sub')['seatLink'])
+        self.repo.add_seat_link_notice(self.k, self.member, 'h1', 1, 103)
+        self.assertEqual(self.cards('member-sub')['seatLink']['seats'], 1)
+
+    def test_holder_update_cannot_resurrect_a_deleted_holder(self):
+        item = self.repo.get_holder(self.k, self.holder)
+        self.repo.delete_holder_record(self.k, self.holder)
+        with self.assertRaises(ApiError) as caught:
+            self.repo.put_holder(self.k, self.holder, 'x', None, item['createdAt'], item['updatedAt'])
+        self.assertEqual(caught.exception.status, 404)
+        self.assertIsNone(self.repo.get_holder(self.k, self.holder))
+
+    def test_full_apply_stays_small(self):
+        from server.cloud.seating_rules import MAX_COLS, MAX_ROWS
+        cells = [['seat'] * MAX_COLS for _ in range(MAX_ROWS)]
+        out = self.call('PUT', f'{self.base()}/admin/seating/layouts/{friday(3)}', body={
+            'rows': MAX_ROWS, 'cols': MAX_COLS, 'cells': cells, 'blocks': [{'name': 'כל', 'colStart': 0, 'colEnd': MAX_COLS - 1}],
+            'rowLabels': [str(i) for i in range(MAX_ROWS)], 'ifUpdatedAt': None})[1]
+        ids = [s['id'] for s in out['seats']]
+        self.assertEqual(len(ids), 2400)
+        week = friday(3)
+        holders = [self.repo.put_holder(self.k, new_id(), f'בעל {i}', None)['holderId'] for i in range(600)]
+        asg = {sid: f'holder:{holders[i // 4]}' for i, sid in enumerate(ids)}
+        self.assertEqual(self.call('PUT', f'{self.base()}/admin/seating/layouts/{week}/assignments',
+                                   body={'assignments': asg, 'ifUpdatedAt': None})[0], 200)
+        for count in (4, 0):  # release everything, then keep everything: the undo holds the whole previous state
+            rows = [{'household': f'holder:{h}', 'released': count} for h in holders]
+            with self.now(at(9, week=week)):
+                status, body = self.call('POST', f'{self.base()}/admin/seats/week/{week}/responses',
+                                         body={'event': 'erev', 'rows': rows})
+            self.assertEqual(status, 200, body)
+        item = self.repo.get_week(self.k, week, 'erev')
+        size = len(json.dumps(item, ensure_ascii=False).encode())
+        self.assertLess(size, 350 * 1024, size)

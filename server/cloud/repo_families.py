@@ -269,6 +269,13 @@ class FamiliesRepo:
         except Exception as e:
             log.warning('family seats %s failed kehila=%s error=%s', what, k, type(e).__name__)
 
+    def _week_quietly(self, k, old, new):
+        """The weekly seat records (answers, requests) follow a merge; best effort like the seat move."""
+        try:
+            self.rename_week_ref(k, old, new)
+        except Exception as e:
+            log.warning('family week refs move failed kehila=%s error=%s', k, type(e).__name__)
+
     def _clear_quietly(self, k, users):
         for user in users:
             try:
@@ -381,6 +388,7 @@ class FamiliesRepo:
                 continue  # re-read once: a changed family maps to its own code, otherwise try_again
             self._clear_quietly(k, (keep_user, move_user))
             self._seats_quietly(k, 'move', move_id, keep_id)
+            self._week_quietly(k, f'family:{move_id}', f'family:{keep_id}')
             return keep_id
         raise ApiError(409, 'try_again')
 

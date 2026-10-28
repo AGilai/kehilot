@@ -86,14 +86,22 @@ class SeatingRepo:
                 'createdAt': created or now, 'updatedAt': _next(old_updated)}
         if phone:
             item['phone'] = phone
-        self.table.put_item(Item=item)
+        if old_updated is None:
+            self.table.put_item(Item=item)
+        else:  # an update never resurrects a holder that was deleted or linked meanwhile
+            try:
+                self.table.put_item(Item=item, ConditionExpression='attribute_exists(sk)')
+            except ClientError as error:
+                if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                    raise
+                raise ApiError(404, 'holder_not_found')
         return plain(item)
 
     def delete_holder(self, k, holder_id):
         """Remove the holder and every assignment of it, in every layout version."""
         ref = f'holder:{holder_id}'
-        self.table.delete_item(Key=self._key(k, f'SEATHOLDER#{holder_id}'))
         self._rewrite_assignments(k, lambda a: {s: r for s, r in a.items() if r != ref})
+        self.table.delete_item(Key=self._key(k, f'SEATHOLDER#{holder_id}'))  # last: a retry still finds it
 
     def _rewrite_assignments(self, k, change):
         """Apply change(assignments) -> assignments to every version's item that it alters; guarded, retried."""
@@ -131,20 +139,24 @@ class SeatingRepo:
     def add_seat_link_notice(self, k, user_id, holder_id, seats, now):
         """One-time Home card for an adult: seats that came to the family from linked holders. Idempotent per holder
         (a retried link does not count twice); several links before it is dismissed add up."""
-        member = self.get_membership(k, user_id)
-        if not member:
-            return
-        old = member.get('seatLinkNotice') or {}
-        linked = list(old.get('linked') or [])
-        if holder_id in linked:
-            return
-        self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression='SET seatLinkNotice = :n',
-                               ConditionExpression='attribute_exists(sk)',
-                               ExpressionAttributeValues={':n': {'seats': int(old.get('seats', 0)) + seats,
-                                                                 'at': now, 'linked': linked + [holder_id]}})
+        try:
+            self.table.update_item(
+                Key=self._key(k, f'M#{user_id}'),
+                UpdateExpression='SET seatLinkAt = :at ADD seatLinkSeats :n, seatLinkHolders :h',
+                ConditionExpression='attribute_exists(sk) AND NOT contains(seatLinkHolders, :id)',
+                ExpressionAttributeValues={':at': now, ':n': seats, ':h': {holder_id}, ':id': holder_id})
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise  # a missing member or an already counted holder: nothing to add
 
     def clear_seat_link_notice(self, k, user_id):
-        self.table.update_item(Key=self._key(k, f'M#{user_id}'), UpdateExpression='REMOVE seatLinkNotice')
+        try:
+            self.table.update_item(Key=self._key(k, f'M#{user_id}'),
+                                   UpdateExpression='REMOVE seatLinkSeats, seatLinkAt, seatLinkHolders',
+                                   ConditionExpression='attribute_exists(sk)')
+        except ClientError as error:
+            if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                raise
 
     def holder_ref_left(self, k, holder_id):
         """True while any layout version still assigns a seat to the holder."""
@@ -160,6 +172,8 @@ class SeatingRepo:
         undo data, so answers carry over. Records that do not mention it are not written."""
         def renamed(item):
             def seat(v):
+                if isinstance(v, list) and len(v) > 3 and v[3] == old:  # compact undo entry
+                    return v[:3] + [new]
                 return {**v, 'h': new} if isinstance(v, dict) and v.get('h') == old else v
             seats = {s: seat(v) for s, v in (item.get('seats') or {}).items()}
             reqs = dict(item.get('requests') or {})
@@ -168,6 +182,11 @@ class SeatingRepo:
                 reqs[new] = {**mine, **reqs.get(new, {})}
             fields = {key: v for key, v in item.items() if key not in ('pk', 'sk', 'updatedAt')}
             fields.update(seats=seats, requests=reqs)
+            if old in (item.get('answered') or {}):
+                ans = dict(item['answered'])
+                at = ans.pop(old)
+                ans[new] = max(at, ans.get(new, 0))
+                fields['answered'] = ans
             undo = item.get('undo')
             if undo:
                 ureq = dict(undo.get('requests') or {})

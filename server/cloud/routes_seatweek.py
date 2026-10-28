@@ -49,6 +49,28 @@ def _effective(item, held):
     return {**item, 'seats': {s: v for s, v in (item.get('seats') or {}).items() if v.get('h') == held.get(s)}}
 
 
+def _undo_entry(prev, new_ref):
+    """A seat record as the undo data keeps it, small: None (no record), or [r, by, at] plus a 4th item only when
+    the holder ref `h` differs from the apply's (0 = the record had none). Keeps a full apply's item bounded."""
+    if prev is None:
+        return None
+    entry = [prev['r'], prev['by'], prev['at']]
+    if prev.get('h') != new_ref:
+        entry.append(prev.get('h') or 0)
+    return entry
+
+
+def _undo_restore(prev, cur):
+    """The seat record an undo entry stands for; `cur` is the record the apply left (its `h` is the apply's)."""
+    if isinstance(prev, dict):  # entries written before the compact form
+        return prev
+    record = {'r': prev[0], 'by': prev[1], 'at': prev[2]}
+    ref = prev[3] if len(prev) > 3 else cur.get('h')
+    if ref:
+        record['h'] = ref
+    return record
+
+
 def _is_released(seats, sid):
     return bool((seats.get(sid) or {}).get('r'))
 
@@ -58,10 +80,15 @@ def _held(ctx, k, layout, only_family=None):
     `only_family`, liveness is checked for that family alone (a member's call never reads the whole hall)."""
     item = ctx.repo.get_assignments(k, layout['effectiveFrom'])
     ids = {s['id'] for s in layout['seats']}
-    live, out = {}, {}
+    live, out, holders = {}, {}, None
     for seat, ref in (item['assignments'] if item else {}).items():
         if seat not in ids:
             continue
+        if ref.startswith('holder:') and only_family is None:  # a deleted holder holds nothing
+            if holders is None:
+                holders = {h['holderId'] for h in ctx.repo.list_holders(k)}
+            if ref[len('holder:'):] not in holders:
+                continue
         if ref.startswith('family:') and (only_family is None or ref == f'family:{only_family}'):
             fid = ref[len('family:'):]
             if fid not in live:
@@ -297,7 +324,7 @@ def apply_responses(ctx, params):
             for sid in ordered:
                 want = int(sid in free)
                 if int(_is_released(eff, sid)) != want:
-                    undo_seats[sid] = seats.get(sid)
+                    undo_seats[sid] = _undo_entry(seats.get(sid), ref)
                     seats[sid] = {'r': want, 'by': 'g', 'at': now, 'h': ref}
             store_requests(ref, requests)
         result.update(households=applied, released=released_n, kept=kept_n, warnings=warnings, requestTotals=totals)
@@ -333,7 +360,7 @@ def undo_responses(ctx, params):
                 if prev is None:
                     seats.pop(sid, None)
                 else:
-                    seats[sid] = prev
+                    seats[sid] = _undo_restore(prev, cur)
             else:
                 skipped.append(sid)
         reqs = dict(item.get('requests') or {})

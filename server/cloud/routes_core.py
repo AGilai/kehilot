@@ -46,8 +46,8 @@ def kehila(ctx, params):
              'seatLink': None, 'phoneAsk': is_member and membership.get('phoneAsked') != consents.VERSIONS['phoneList'],
              'terms': False}
     if is_member:
-        notice = membership.get('seatLinkNotice')
-        cards['seatLink'] = {'seats': int(notice['seats']), 'at': int(notice['at'])} if notice else None
+        cards['seatLink'] = {'seats': int(membership['seatLinkSeats']), 'at': int(membership['seatLinkAt'])} \
+            if membership.get('seatLinkSeats') else None
         cards['gabbaiLink'] = notice_of(ctx.repo, params['k'], membership)
         cards['request'] = request_card(ctx.repo, params['k'], ctx.user_id, membership)
     if membership['role'] == 'gabbai':
