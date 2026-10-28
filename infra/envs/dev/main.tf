@@ -72,8 +72,12 @@ module "jobs" {
   table_name          = module.data.table_name
   table_arn           = module.data.table_arn
   token_parameter_arn = module.push.token_parameter_arn
-  log_retention_days  = 14
-  boundary_arn        = local.boundary_arn
+  push_queue_url      = module.push.queue_url
+  push_queue_arn      = module.push.queue_arn
+  # Owner decision: dev starts with the seat reminders on.
+  seat_reminders_state = "ENABLED"
+  log_retention_days   = 14
+  boundary_arn         = local.boundary_arn
 }
 
 module "web" {

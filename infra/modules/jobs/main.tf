@@ -21,10 +21,31 @@ resource "aws_iam_role" "jobs" {
 }
 
 data "aws_iam_policy_document" "jobs" {
-  # jobs.py lists push tickets (Query) and deletes tickets and dead devices (DeleteItem).
+  # push_receipts lists push tickets (Query) and deletes tickets and dead devices (DeleteItem).
+  # seat_reminders:
+  #   Query          lists the registry, families and seat-week rows it reads;
+  #   GetItem        reads one setting, layout, family or SEATWK row;
+  #   BatchGetItem   reads a family's adults' memberships;
+  #   PutItem        claims the conditional SEATREM#<friday>#<n> marker (once-only send);
+  #   UpdateItem     updates registry and family rows the repo layer touches;
+  #   DeleteItem     releases a SEATREM marker when queueing fails;
+  #   Scan           the one-time registry backfill.
   statement {
-    actions   = ["dynamodb:Query", "dynamodb:DeleteItem"]
+    actions = [
+      "dynamodb:Query",
+      "dynamodb:GetItem",
+      "dynamodb:BatchGetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:Scan",
+    ]
     resources = [var.table_arn]
+  }
+  # seat_reminders queues one seat_reminder job per Kehila on the push queue.
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [var.push_queue_arn]
   }
   statement {
     actions   = ["ssm:GetParameter"]
@@ -60,8 +81,9 @@ resource "aws_lambda_function" "jobs" {
 
   environment {
     variables = {
-      TABLE_NAME = var.table_name
-      ENV_NAME   = var.env_name
+      TABLE_NAME     = var.table_name
+      ENV_NAME       = var.env_name
+      PUSH_QUEUE_URL = var.push_queue_url
     }
   }
 
@@ -120,6 +142,32 @@ resource "aws_scheduler_schedule" "push_receipts" {
     retry_policy {
       maximum_retry_attempts       = 2
       maximum_event_age_in_seconds = 3600
+    }
+  }
+
+  depends_on = [aws_iam_role_policy.scheduler]
+}
+
+resource "aws_scheduler_schedule" "seat_reminders" {
+  name                         = "${var.name_prefix}-seat-reminders"
+  group_name                   = aws_scheduler_schedule_group.jobs.name
+  schedule_expression          = "cron(*/5 * ? * THU-FRI *)"
+  schedule_expression_timezone = "Asia/Jerusalem"
+  state                        = var.seat_reminders_state
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_function.jobs.arn
+    role_arn = aws_iam_role.scheduler.arn
+    input    = jsonencode({ job = "seat_reminders" })
+
+    # A retry never outlives the next 5-minute tick.
+    retry_policy {
+      maximum_retry_attempts       = 1
+      maximum_event_age_in_seconds = 240
     }
   }
 

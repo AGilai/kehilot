@@ -51,7 +51,8 @@ resource "aws_iam_role" "worker" {
 data "aws_iam_policy_document" "worker" {
   # push_worker.py reads members, messages, channels, profiles, devices (GetItem, Query), a family's
   # adults' memberships (BatchGetItem, via live_adults) and writes tickets / removes dead devices
-  # (PutItem, DeleteItem). It never queries a GSI.
+  # (PutItem, DeleteItem). It never queries a GSI. seat_reminder jobs also read the seat week
+  # (SEATWK rows, GetItem) and settings; these actions already suffice.
   statement {
     actions   = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:DeleteItem"]
     resources = [var.table_arn]
