@@ -26,7 +26,7 @@ MIN_BIRTH_DATE = '1900-01-01'
 
 def clean_child(d, today):
     """Validated {firstName, gender, birthDate?} from a request body; `today` is yyyy-mm-dd (Israel)."""
-    child = {'firstName': inputs.text(d, 'firstName', 60, required=True),
+    child = {'firstName': inputs.text(d, 'firstName', 40, required=True),
              'gender': inputs.choice(d, 'gender', ('m', 'f'))}
     birth = d.get('birthDate')
     if birth is None or birth == '':

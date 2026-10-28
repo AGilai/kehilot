@@ -1,4 +1,5 @@
 """Family items (K#<k> / F#<familyId>): one per member or gabbai household."""
+import json
 import logging
 import time
 
@@ -340,11 +341,13 @@ class FamiliesRepo:
             others = [a for a in family['adults'] if a != user_id]
             try:
                 if others:
-                    self.table.update_item(
-                        Key=self._key(k, f'F#{family_id}'), UpdateExpression='SET adults = :a, version = :v1',
-                        ConditionExpression='version = :v',
-                        ExpressionAttributeValues={':a': others, ':v': int(family['version']),
-                                                   ':v1': int(family['version']) + 1})
+                    values = {':a': others, ':v': int(family['version']), ':v1': int(family['version']) + 1}
+                    expression = 'SET adults = :a, version = :v1'
+                    if family.get('people') is not None:  # the remaining adult keeps their own figure and lineage
+                        values[':p'] = tree_rules.split_people(tree_rules.people_of(family), user_id, others[0])[1]
+                        expression += ', people = :p'
+                    self.table.update_item(Key=self._key(k, f'F#{family_id}'), UpdateExpression=expression,
+                                           ConditionExpression='version = :v', ExpressionAttributeValues=values)
                     for other in others:
                         self.clear_family_notice(k, other)
                 else:
@@ -380,7 +383,9 @@ class FamiliesRepo:
             member_roles = {':member': 'member', ':gabbai': 'gabbai'}
             kp, mp = tree_rules.people_of(keep), tree_rules.people_of(moved)
             if keep.get('people') is not None or moved.get('people') is not None:
-                merged = ('people', tree_rules.merge_people(kp, mp, tree_rules.self_id_of(kp), tree_rules.self_id_of(mp)))
+                merged = ('people', tree_rules.merge_people(kp, mp, keep_user, move_user))
+                if len(json.dumps(merged[1], ensure_ascii=False).encode('utf-8')) > tree_rules.MAX_TREE_BYTES:
+                    log.warning('merged tree over the size limit kehila=%s people=%d', k, len(merged[1]))
             else:
                 merged = ('children', list(keep.get('children') or []) + list(moved.get('children') or []))
             items = [
@@ -436,11 +441,14 @@ class FamiliesRepo:
             if len(self.live_adults(k, family)) != 2:  # the partner is gone: prune, nothing to unlink
                 self.prune_family(k, family)
                 raise ApiError(409, 'not_linked')
-            other = next(a for a in family['adults'] if a != user_id)
             old_id, new_id_ = family['familyId'], new_id()
             table = self.table.name
-            copied = ({'people': tree_rules.child_side(tree_rules.people_of(family))} if family.get('people') is not None
-                      else {'children': list(family.get('children') or [])})
+            other = next(a for a in family['adults'] if a != user_id)
+            if family.get('people') is not None:
+                leaver_people, other_people = tree_rules.split_people(tree_rules.people_of(family), user_id, other)
+                copied = {'people': leaver_people}
+            else:
+                copied, other_people = {'children': list(family.get('children') or [])}, None
             try:
                 self._txn([
                     {'Put': {'TableName': table, 'ConditionExpression': 'attribute_not_exists(sk)',
@@ -448,10 +456,12 @@ class FamiliesRepo:
                                       'adults': [user_id], **copied,
                                       'version': 1, 'createdAt': int(time.time())}}},
                     {'Update': {'TableName': table, 'Key': self._key(k, f'F#{old_id}'),
-                                'UpdateExpression': 'SET adults = :other, version = :v1',
+                                'UpdateExpression': 'SET adults = :other, version = :v1'
+                                                    + (', people = :p' if other_people is not None else ''),
                                 'ConditionExpression': 'version = :v',
                                 'ExpressionAttributeValues': {':other': [other], ':v': int(family['version']),
-                                                              ':v1': int(family['version']) + 1}}},
+                                                              ':v1': int(family['version']) + 1,
+                                                              **({':p': other_people} if other_people is not None else {})}}},
                     {'Update': {'TableName': table, 'Key': self._key(k, f'M#{user_id}'),
                                 'UpdateExpression': 'SET familyId = :new REMOVE familyNotice',
                                 'ConditionExpression': 'familyId = :old',

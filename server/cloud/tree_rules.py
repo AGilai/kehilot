@@ -8,12 +8,14 @@ from pyluach import dates, hebrewcal
 
 from ..hebrew_calendar import MONTH_NUMBERS
 from .errors import ApiError
+from .ids import new_id
 
-RELATIONS = ('self', 'spouse', 'father', 'mother', 'child', 'childSpouse', 'grandchild')
-PERSON_KEYS = {'id', 'relation', 'of', 'gender', 'hebrewFirst', 'surname', 'fatherName', 'motherName', 'tribe',
+RELATIONS = ('self', 'spouse', 'formerSpouse', 'father', 'mother', 'child', 'childSpouse', 'grandchild')
+PERSON_KEYS = {'userId', 'id', 'relation', 'of', 'gender', 'hebrewFirst', 'surname', 'fatherName', 'motherName', 'tribe',
                'birth', 'deceased', 'death', 'barMitzvah', 'figure'}
 NAME_KEYS = ('hebrewFirst', 'surname', 'fatherName', 'motherName')
 MAX_NAME = 40
+MAX_TREE_BYTES = 300 * 1024
 MAX_CHILDREN = 20
 MAX_GRANDCHILDREN = 20
 MAX_GENERATIONS = 6
@@ -27,6 +29,7 @@ FIGURE_ENUMS = {'headCovering': ('tichel', 'hat', 'wig', 'none'), 'kippah': ('kn
                 'beard': ('none', 'short', 'full')}
 FIGURE_COLORS = ('coverColor', 'hair')
 CHILD_SIDE = ('child', 'childSpouse', 'grandchild')
+PARENT_OF = ('self', 'spouse', 'father', 'mother')  # whose parents the tree may hold
 
 
 def _bad(code):
@@ -94,22 +97,29 @@ def _figure(value):
 
 
 def _bar_mitzvah(value, gender):
-    if gender != 'm' or not isinstance(value, dict) or set(value) != {'date', 'parasha', 'manual'}:
+    if gender != 'm' or not isinstance(value, dict) or not {'date', 'parasha', 'manual'} <= set(value) <= {'date', 'parasha', 'manual', 'label'}:
         _bad('invalid_bar_mitzvah')
     when, parasha, manual = value['date'], value['parasha'], value['manual']
+    # parasha is '' on a holiday Shabbat; `label` then names the Shabbat
     if not isinstance(when, str) or not DATE_RE.fullmatch(when) or not isinstance(manual, bool) \
-            or not isinstance(parasha, str) or not parasha.strip() or len(parasha) > MAX_NAME:
+            or not isinstance(parasha, str) or len(parasha) > MAX_NAME:
         _bad('invalid_bar_mitzvah')
     try:
         date.fromisoformat(when)
     except ValueError:
         _bad('invalid_bar_mitzvah')
-    return {'date': when, 'parasha': parasha, 'manual': manual}
+    clean = {'date': when, 'parasha': parasha, 'manual': manual}
+    if 'label' in value:
+        if not isinstance(value['label'], str) or len(value['label']) > MAX_NAME:
+            _bad('invalid_bar_mitzvah')
+        clean['label'] = value['label']
+    return clean
 
 
 def _clean_person(raw, today):
     if not isinstance(raw, dict) or not set(raw) <= PERSON_KEYS:
         _bad('invalid_people')
+    raw = {k: v for k, v in raw.items() if k != 'userId'}
     pid = raw.get('id')
     if not isinstance(pid, str) or not ID_PATTERN.fullmatch(pid):
         _bad('invalid_people')
@@ -188,10 +198,10 @@ def validate_people(people, today):
         if relation == 'self':
             if of is not None:
                 _bad('invalid_relation')
-        elif relation in ('spouse', 'child'):
-            if (of is None and relation == 'spouse') or (of is not None and of != self_id):
+        elif relation in ('spouse', 'formerSpouse', 'child'):
+            if (of is None and relation != 'child') or (of is not None and of != self_id):
                 _bad('invalid_relation')
-            slot = ('spouse',) if relation == 'spouse' else None
+            slot = (relation,) if relation != 'child' else None
             if slot:
                 if slot in seen_slots:
                     _bad('invalid_relation')
@@ -199,7 +209,8 @@ def validate_people(people, today):
             else:
                 counts['child'] += 1
         elif relation in ('father', 'mother'):
-            if target is None or p['gender'] != ('m' if relation == 'father' else 'f'):
+            if target is None or target['relation'] not in PARENT_OF \
+                    or p['gender'] != ('m' if relation == 'father' else 'f'):
                 _bad('invalid_relation')
             slot = (relation, of)
             if slot in seen_slots:
@@ -369,9 +380,22 @@ def _merge_field(key, a, b):
 
 
 def _merge_entry(a, b):
+    """Fields of `a` win; empty ones are filled from `b`; the more complete date or manual choice wins."""
     out = dict(a)
     for key, value in b.items():
         out[key] = _merge_field(key, a[key], value) if key in a else value
+    born, died = iso_from_hebrew(out.get('birth')), iso_from_hebrew(out.get('death'))
+    if born and died and died < born:  # dates from two sources contradict each other: `a`'s stand
+        for key in ('birth', 'death'):
+            if key in a:
+                out[key] = a[key]
+            else:
+                out.pop(key, None)
+    if out.get('gender') == 'f':
+        out.pop('tribe', None)
+        out.pop('barMitzvah', None)
+    if 'death' in out:
+        out['deceased'] = True
     return out
 
 
@@ -392,10 +416,10 @@ def _dedupe(first, second):
 
 
 def _ancestors(people, root):
-    """Parent figures reachable from `root` through father/mother links (root excluded)."""
+    """Parent figures reachable from `root` through father/mother links (root excluded), parents first."""
     found, queue = [], [root]
     while queue:
-        top = queue.pop()
+        top = queue.pop(0)
         for p in people:
             if p['relation'] in ('father', 'mother') and p.get('of') == top and p not in found:
                 found.append(p)
@@ -407,39 +431,176 @@ def self_id_of(people):
     return next((p['id'] for p in people if p['relation'] == 'self'), None)
 
 
-def merge_people(keep, moved, keep_self_id, moved_self_id):
-    """People of a family after `moved` (the other user's) joins `keep`. The kept self stays `self`; the moved
-    self becomes the spouse with their parents; the moved user's own spouse figure (the kept user) is dropped.
-    Children, their spouses and grandchildren are matched by normalized Hebrew first name, gender and
-    non-contradicting birth, and merged; the rest is kept. No limit is enforced here: a merge over a limit is
-    kept whole (the next tree save asks the family to trim)."""
-    keep, moved = [dict(p) for p in keep], [dict(p) for p in moved]
-    if keep_self_id is None and moved_self_id is not None:  # the kept side has only children: use the moved tree
-        keep, moved, keep_self_id, moved_self_id = moved, keep, moved_self_id, None
-    base = [p for p in keep if p['relation'] not in CHILD_SIDE]
-    if moved_self_id is not None and keep_self_id is not None:
-        me = next(p for p in moved if p['id'] == moved_self_id)
-        spouse = next((p for p in base if p['relation'] == 'spouse'), None)
-        parents = _ancestors(moved, moved_self_id)
-        if spouse is None:
-            base.append(dict(me, relation='spouse', of=keep_self_id))
-            base += parents
-        else:
-            spouse.update(_merge_entry(spouse, {k: v for k, v in me.items() if k not in ('id', 'relation', 'of')}))
-            taken = {p['relation'] for p in base if p['relation'] in ('father', 'mother') and p.get('of') == spouse['id']}
-            dropped = set()
-            for p in parents:  # parents come before their own parents
-                if p['of'] in dropped or (p['of'] == moved_self_id and p['relation'] in taken):
-                    dropped.add(p['id'])  # ancestors are never merged
-                else:
-                    base.append(dict(p, of=spouse['id'] if p['of'] == moved_self_id else p['of']))
-    kids_a = [p for p in keep if p['relation'] == 'child']
-    kids_b = [p for p in moved if p['relation'] == 'child']
-    kids, mapping = _dedupe(kids_a, kids_b)
-    out = list(base) + kids
+def _replace(people, old, new):
+    for i, p in enumerate(people):
+        if p['id'] == old['id']:
+            people[i] = new
+            return
+
+
+def _names_compatible(a, b):
+    x, y = normalize_name(a.get('hebrewFirst')), normalize_name(b.get('hebrewFirst'))
+    return not x or not y or x == y
+
+
+def _names_only(entry, people, relation, of):
+    """A figure reduced to names: first name, surname, tribe, deceased and the parents' first names as text."""
+    out = {'id': entry['id'], 'relation': relation, 'of': of, 'gender': entry['gender']}
+    for key in ('hebrewFirst', 'surname', 'tribe', 'deceased', 'fatherName', 'motherName'):
+        if key in entry:
+            out[key] = entry[key]
+    for parent, key in (('father', 'fatherName'), ('mother', 'motherName')):
+        found = next((p for p in people if p['relation'] == parent and p.get('of') == entry['id']), None)
+        if found and found.get('hebrewFirst'):
+            out[key] = found['hebrewFirst']
+    return out
+
+
+def _merge_ancestors(base, target_id, other, other_id, other_wins):
+    """Merge the parent figures of `other_id` into those of `target_id` slot by slot (father, mother), recursively."""
+    for relation in ('father', 'mother'):
+        mine = next((p for p in base if p['relation'] == relation and p.get('of') == target_id), None)
+        theirs = next((p for p in other if p['relation'] == relation and p.get('of') == other_id), None)
+        if theirs is None:
+            continue
+        if mine is None:
+            base.append(dict(theirs, of=target_id))
+            base.extend(_ancestors(other, theirs['id']))
+            continue
+        merged = _merge_entry(theirs, mine) if other_wins else _merge_entry(mine, theirs)
+        merged.update(id=mine['id'], of=target_id, relation=relation)
+        _replace(base, mine, merged)
+        _merge_ancestors(base, mine['id'], other, theirs['id'], other_wins)
+
+
+def _reid(people, taken):
+    """`people` with every id in `taken` replaced by a new one (and the `of` links rewritten)."""
+    mapping = {p['id']: new_id() for p in people if p['id'] in taken}
+    return [dict(p, id=mapping.get(p['id'], p['id']), **({'of': mapping.get(p['of'], p['of'])} if 'of' in p else {}))
+            for p in people]
+
+
+def _to_former(base, spouse, self_entry):
+    """The spouse figure becomes the (names-only) former spouse; its parent figures are dropped."""
+    gone = {p['id'] for p in _ancestors(base, spouse['id'])} | {spouse['id']}
+    former = _names_only(spouse, base, 'formerSpouse', self_entry['id'])
+    base[:] = [p for p in base if p['id'] not in gone]
+    existing = next((p for p in base if p['relation'] == 'formerSpouse'), None)
+    if existing:
+        _replace(base, existing, _merge_entry(existing, {k: v for k, v in former.items() if k not in ('id', 'relation', 'of')}))
+    else:
+        base.append(former)
+
+
+def _merge_children(keep, moved):
+    kids, mapping = _dedupe([p for p in keep if p['relation'] == 'child'], [p for p in moved if p['relation'] == 'child'])
+    out = list(kids)
     for kind in ('childSpouse', 'grandchild'):
         for kid in kids:
-            theirs = [dict(p, of=kid['id']) for p in moved if p['relation'] == kind and mapping.get(p['of'], p['of']) == kid['id']]
             mine = [p for p in keep if p['relation'] == kind and p.get('of') == kid['id']]
-            out += _dedupe(mine, theirs)[0]
+            theirs = [dict(p, of=kid['id']) for p in moved if p['relation'] == kind
+                      and mapping.get(p['of'], p['of']) == kid['id']]
+            merged = _dedupe(mine, theirs)[0]
+            if kind == 'childSpouse' and len(merged) > 1:  # one spouse per child: fold the duplicates
+                first = merged[0]
+                for other in merged[1:]:
+                    first = _merge_entry(first, {k: v for k, v in other.items() if k not in ('id', 'of', 'relation')})
+                merged = [first]
+            out += merged
+    return out
+
+
+def merge_people(keep, moved, keep_user=None, moved_user=None):
+    """People of a family after the `moved` user's family joins `keep`. Ids of `moved` that collide are replaced.
+    The kept `self` stays; the moved self becomes the spouse (its values win for its own figure and parents),
+    merged into an existing spouse figure unless that one contradicts it (other name or gender, or deceased),
+    in which case the old figure becomes the names-only `formerSpouse`. The moved tree's figure of the kept user
+    merges into the kept self (kept values win), parents slot by slot. The moved tree's own former spouse and
+    its non-matching spouse parents are the only data not carried. Children, their spouses and grandchildren
+    are matched by normalized first name, gender and non-contradicting birth and merged; the rest is kept.
+    Limits are not enforced here (the next save asks the family to trim). `userId`s of the two adults are set."""
+    keep = [dict(p) for p in keep]
+    moved = _reid([dict(p) for p in moved], {p['id'] for p in keep})
+    ks = next((p for p in keep if p['relation'] == 'self'), None)
+    ms = next((p for p in moved if p['relation'] == 'self'), None)
+    if ks is None and ms is not None:  # the kept side holds only children: the moved tree is the base
+        keep, moved, ks, ms, keep_user, moved_user = moved, keep, ms, None, moved_user, None
+    base = [p for p in keep if p['relation'] not in CHILD_SIDE]
+    if ks is not None:
+        if keep_user:
+            ks['userId'] = keep_user
+        if ms is not None:
+            theirs_of_mine = next((p for p in moved if p['relation'] == 'spouse' and p.get('of') == ms['id']), None)
+            if theirs_of_mine is not None:
+                if theirs_of_mine['gender'] == ks['gender']:
+                    merged = _merge_entry(ks, {k: v for k, v in theirs_of_mine.items() if k not in ('id', 'of', 'relation', 'userId')})
+                    _replace(base, ks, merged)
+                    ks = merged
+                _merge_ancestors(base, ks['id'], moved, theirs_of_mine['id'], other_wins=False)
+            spouse = next((p for p in base if p['relation'] == 'spouse'), None)
+            fresh = dict(ms)
+            if moved_user:
+                fresh['userId'] = moved_user
+            if spouse is not None and spouse['gender'] == ms['gender'] and not spouse.get('deceased') \
+                    and _names_compatible(spouse, ms):
+                merged = _merge_entry({k: v for k, v in fresh.items() if k not in ('id', 'of', 'relation')}, spouse)
+                merged.update(id=spouse['id'], relation='spouse', of=ks['id'])
+                _replace(base, spouse, merged)
+                _merge_ancestors(base, spouse['id'], moved, ms['id'], other_wins=True)
+            else:
+                if spouse is not None:
+                    _to_former(base, spouse, ks)
+                base.append(dict(fresh, relation='spouse', of=ks['id']))
+                base.extend(_ancestors(moved, ms['id']))
+    out = base + _merge_children(keep, moved)
+    self_id = self_id_of(out)
+    return [dict(p, of=self_id) if p['relation'] == 'child' and 'of' in p and self_id else p for p in out]
+
+
+def _figure_of(people, user_id):
+    return next((p for p in people if p.get('userId') == user_id and p['relation'] in ('self', 'spouse')), None)
+
+
+def _view(people, me, other):
+    """The tree as `me` keeps it after a split: me as `self` with their own parents, the other as a names-only
+    spouse, the children side as is."""
+    original_self = next((p for p in people if p['relation'] == 'self'), None)
+    mine = {k: v for k, v in me.items() if k != 'of'}
+    mine['relation'] = 'self'
+    out = [mine]
+    if other is not None:
+        out.append(_names_only(other, people, 'spouse', me['id']))
+    out += _ancestors(people, me['id'])
+    if original_self is not None and original_self['id'] == me['id']:
+        out += [p for p in people if p['relation'] == 'formerSpouse']
+    out += [dict(p, of=me['id']) if p['relation'] == 'child' and 'of' in p else p for p in child_side(people)]
+    return out
+
+
+def split_people(people, leaver, other):
+    """(leaver's people, remaining adult's people) when `leaver` leaves a family of two (unlink, leaving the
+    Kehila, account deletion). Figures are found by their server-set `userId`. Each adult keeps their own figure
+    and ancestors; the other becomes a names-only spouse; children are copied to both. Without figures the
+    leaver gets the children side and the remaining adult keeps the tree as it is."""
+    mine, theirs = _figure_of(people, leaver), _figure_of(people, other)
+    if mine is None:
+        return child_side(people), list(people)
+    return _view(people, mine, theirs), (_view(people, theirs, mine) if theirs is not None else child_side(people))
+
+
+def assign_user_ids(new, stored, caller, adults):
+    """`new` (validated, so without userIds) with the server-managed `userId`s: stored ones stay on their figures;
+    adults who have none take a free `self` / `spouse` slot, the caller first."""
+    held = {p['id']: p['userId'] for p in stored if p.get('userId')}
+    out = []
+    for p in new:
+        p = dict(p)
+        if p['id'] in held and p['relation'] in ('self', 'spouse'):
+            p['userId'] = held[p['id']]
+        out.append(p)
+    used = {p['userId'] for p in out if 'userId' in p}
+    pending = [u for u in [caller] + [a for a in adults if a != caller] if u in adults and u not in used]
+    slots = [p for rel in ('self', 'spouse') for p in out if p['relation'] == rel and 'userId' not in p]
+    for user, slot in zip(pending, slots):
+        slot['userId'] = user
     return out

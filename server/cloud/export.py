@@ -1,5 +1,5 @@
 """Download my data (spec §7): one ZIP with the person's own data. Nothing of other people except the partner's
-name, the children, and the target name of the person's own blessings. Logs carry counts only."""
+name, the family tree the family itself entered (the partner's and parents' figures included), and the target name of the person's own blessings. Logs carry counts only."""
 import json
 import logging
 import os

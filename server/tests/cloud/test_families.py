@@ -180,7 +180,7 @@ class FamiliesTest(test_messages.MessagesTest):
                 del body['gender']
             self.assertEqual(self.call('POST', self.fam('/children'), sub='member-sub', body=body),
                              (400, {'error': code}), change)
-        self.assertEqual(self.add_child(firstName='א' * 60, birthDate='')[0], 201)
+        self.assertEqual(self.add_child(firstName='א' * 40, birthDate='')[0], 201)
         self.assertEqual(self.add_child(birthDate=repo_messages.local_date())[0], 201)
         self.assertEqual(self.add_child(birthDate='1900-01-01')[0], 201)
 
