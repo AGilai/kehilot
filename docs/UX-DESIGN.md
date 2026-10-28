@@ -1570,7 +1570,9 @@ rises from the bottom, with a light haptic tick (`selection`). With reduce motio
 - **"The aisle" in data:** the seat map knows aisle cells and block edges from the editor (§16: empty columns between
   blocks are aisles, and the hall's outer edges are walls). A seat's aisle distance = the number of seats between it and
   the nearest aisle in its row. **Automatic order:** rear row first, then the rows in front; within a row, the largest
-  aisle distance first. The head's seat (the front row's aisle seat) is freed last. This also applies when a gabbai or
+  aisle distance first. The head's seat (the front row's aisle seat) is freed last. **In a middle block with aisles on
+  both sides** (owner, 2026-10-28), "the aisle" is the one **closer to the bimah (תיבה)**: the head's seat is the
+  family's seat next to that aisle, and automatic freeing starts from the side farthest from it. This also applies when a gabbai or
   the Form upload enters a count (it refines CTO ruling 4 from "−n first" to this order).
 
 #### 15.10.5 Special event — future, not in this phase (P39)
@@ -1668,8 +1670,8 @@ occupied · big family in two rows replaces "seats in two places" · rear row fi
 Still open:
 1. **Special events** (P39, future): whether to have them, which events, the question wording, and the default for
    families that don't answer.
-2. For a **middle block with aisles on both sides**, which aisle seat is the head's: the one nearer the bimah, or the
-   gabbai's choice?
+2. ~~Middle block with aisles on both sides~~ — **decided (owner, 2026-10-28):** the head's seat is the aisle seat
+   **closer to the bimah (תיבה)**, see §15.10.4.
 
 #### 15.10.13 One tap "לא מגיעים השבת" from Home and the push (P24, redrawn)
 
@@ -1726,8 +1728,9 @@ asking. "עריכה" opens P37 with N chosen for both prayers. Other answered st
 | `seats.push.actNotComing` / `actForm` | לא מגיעים השבת / למלא את הטופס | Not coming this Shabbat / Fill in the form |
 | `seats.form.preNotComing` | לא מגיעים השבת? זה מוכן, רק לשלוח. מגיעים? בחרו מספר אחר. | Not coming this Shabbat? It's ready, just send. Coming? Pick another number. |
 
-Open point: a member family that **has no male head** (for example a widow). Does she get the card and the push, or
-does the gabbai answer for her? The frames follow the rule as given.
+**A member family with no male head** (for example a widow) — **ברירת מחדל — לאישור** (CTO default, the owner may
+revise it): the woman who heads the family gets the card and the push and answers herself. The gabbai can still answer
+on her behalf (P27). The frames follow the rule as given.
 
 #### 15.10.12 Verification
 
