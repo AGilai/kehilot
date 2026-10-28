@@ -2388,7 +2388,7 @@ content is a side panel (§17.6).
 1. **Header**: the icon, full name (with ז״ל), the relation in words ("אבא של יוסף", "אני · בעלה של מרים",
    "הבת שלנו ובן הזוג שלה").
 2. **Computed name card** (tekhelet 6 px start edge): overline "השם לעלייה לתורה", the name in serif 21, and a line
-   "למי שברך: יוסף בן שרה". Women: overline "השם של נועה", "נועה בת יוסף". Deceased: ash edge, overline "השם לאזכרה",
+   "למי שברך: יוסף בן שרה". Women (no aliyah name, owner 2026-10-28): overline "השם למי שברך", "נועה בת מרים" (the mother's name); no aliyah line. Deceased: ash edge, overline "השם לאזכרה",
    "אברהם בן יצחק הלוי ז״ל", and "נפטר בכ״ג בשבט תשע״ח".
    **Incomplete**: gold edge, overline "השם לעלייה לתורה · חסר שם האב", the missing part as a gold dashed blank
    ("יוסף בן ___"); same for "חסר שם האם" in the Mi Sheberach line. This is where "missing" is spelled out.
@@ -2502,7 +2502,7 @@ candle / empty / selected / path), **`FaceIcon`** (`oldman`, `oldwoman`, `man`, 
 | `tree.start` / `.startBody` | מתחילים מכם / לחצו על דמות ומלאו את השם העברי. שם האב עובר מעצמו לילדים, וכך נבנה השם לעלייה לתורה. | Start with you / Tap a person and fill in the Hebrew name. A father's name passes to the children, building the aliyah name. |
 | `tree.privacy` | את העץ והפרטים רואים אתם, {partner} והגבאים של הקהילה. | You, {partner} and the Kehila's gabbaim see the tree and details. |
 | `tree.rel.*` | אבא של {name} · אמא של {name} · בעלה של {name} · אשתו של {name} · הבת שלנו · הבן שלנו · בן הזוג של {name} · נכד/ה | {name}'s father · mother · husband · wife · our daughter · our son · {name}'s spouse · grandchild |
-| `tree.name.aliyah` / `.mi` / `.memorial` / `.her` | השם לעלייה לתורה / למי שברך: {name} / השם לאזכרה / השם של {name} | Aliyah name / Mi Sheberach: {name} / Memorial name / {name}'s name |
+| `tree.name.aliyah` / `.mi` / `.memorial` / `.her` | השם לעלייה לתורה / למי שברך: {name} / השם לאזכרה / השם למי שברך | Aliyah name / Mi Sheberach: {name} / Memorial name / Mi Sheberach name |
 | `tree.missFather` / `.missMother` | חסר שם האב / חסר שם האם | Father's name missing / Mother's name missing |
 | `tree.f.first` / `.firstHint` / `.surname` | שם פרטי עברי / שם פרטי כמו שקוראים לתורה. שם כפול? כתבו את שניהם. / שם משפחה | Hebrew first name / As called to the Torah. Two names? Write both. / Surname |
 | `tree.f.father` / `.mother` / `.fromTree` / `.fillsParent` | שם האב / שם האם / מהעץ / השם יישמר גם בדמות של {אבא/אמא} בעץ. | Father's name / Mother's name / From the tree / Also saved on the {father/mother} in the tree. |
@@ -2549,10 +2549,12 @@ candle / empty / selected / path), **`FaceIcon`** (`oldman`, `oldwoman`, `man`, 
 
 Still open: the figure style direction and the figure options (§17.13).
 
-**Changed by §18 (2026-10-28):** my own figure's sheet is the **My details sheet**: it adds a "בקהילה" block on top
-(app name, phone with remove, show-in-phone-list switch, privacy line) and is the same sheet as Me › "עריכה". The
-P2 partner and children states move into the tree (table in §18.2). Me's entry to the tree is the single "המשפחה
-שלי" row, which replaces "Where" above.
+**Changed by §18 (2026-10-28, owner rounds 2–3):** one place edits each field. The tree edits the Hebrew names
+(the aliyah name for men, the Mi Sheberach name for women; women have no aliyah name), parents, tribe and dates. My
+own figure's sheet shows my app name and phone **read-only**, with a link "לעריכה ב״הפרטים שלי״ ‹" to Me. Me's
+details card shows my tree name read-only with "לעדכון בעץ המשפחה ‹", which opens my figure. The P2 partner and
+children states move into the tree (table in §18.2). Me's entry to the tree is the single "המשפחה שלי" row, which
+replaces "Where" above.
 
 ### 17.12 Verification
 
@@ -2740,9 +2742,13 @@ Anything about the Kehila as a whole is in the Kehila menu (§18.2a), not on Me.
 
 1. **הפרטים שלי** (one Card, read mode): avatar disc 56 (initials; later the P35 figure), name serif 21, role line
    ("חבר/ת קהילה", "גבאי", "מתפלל אורח"), my role tags as Tags, then a hairline and two label/value lines:
-   "טלפון — 054-000-1234" (LTR isolate; "לא הוזן" muted when empty) and "ברשימת הטלפונים — מופיע / לא". **One** action,
-   a 44-high "✎ עריכה" link in the card corner, opens the **My details sheet**. Nothing else on Me edits a personal
-   detail. Listener: name and role only (no phone, §10).
+   "טלפון — 054-000-1234" (LTR isolate; "לא הוזן" muted when empty) and "ברשימת הטלפונים — מוצג / לא מוצג לאף אחד".
+   Below them is a read-only box (stone fill, dashed line, muted serif 17) with the name from the tree, labelled by
+   gender: men "השם לעלייה לתורה" ("דוד בן אברהם הלוי"), women "השם למי שברך" ("יעל בת רחל"). **Women never get an
+   aliyah label.** Next to it is the link "לעדכון בעץ המשפחה ‹", which opens the tree with my figure's sheet open. When
+   the name is incomplete, the box shows the gold "חסר שם האב / האם" state from §17.4. **One** action, the 44-high
+   "✎ עריכה" link in the card corner, opens the **My details sheet**. Listener: name and role only (no phone, no tree,
+   §10).
 2. **שלי בקהילה**: **המשפחה שלי** (72 high, `tree` icon, one status line, opens the tree, §17 P31; members and gabbaim
    only) · **הקבוצות שלי** ("חבר/ה ב־{n} קבוצות", plus "· מנהל/ת את {group}" when I administer one). The family row
    shows the first state that applies:
@@ -2763,18 +2769,17 @@ Anything about the Kehila as a whole is in the Kehila menu (§18.2a), not on Me.
 
 The gabbai's Me is the same screen. The way into management is in the Kehila menu.
 
-**My details sheet (P41 phone 3). Rule: one place edits me.** The sheet is the same component as the tree's person
-sheet for **my own figure** (§17.4, P32). Me › "עריכה" opens it, and so does tapping "אני" in the tree. It is a
-90%-height Sheet with a sticky "שמירה" footer, and one save updates everything:
-- **בקהילה**: שם פרטי + שם משפחה (the name shown in the app; one row) · טלפון (phone-pad, LTR) with a "הסרה" text link
-  inside the field's end (removes on save; no separate confirm) · Toggle "להציג את הטלפון שלי ברשימה של {kehila}"
-  (disabled and off while there is no number) · lock line "את הרשימה רואים רק חברים וגבאים של {kehila}. מתפללים אורחים
-  וקהילות אחרות לא רואים אותה." (the existing `me.phone.who` copy).
-- **לעלייה לתורה ולמי שברך**: the computed name card and the P32 fields (Hebrew first name, father/mother from the
-  tree, tribe for men, Hebrew dates), unchanged from §17.4.
-The app name and the Hebrew name are separate fields because they are different names, but they are in one sheet.
-Other people's figures never show the "בקהילה" block. Listeners have no tree, so their sheet has only the name fields.
-Errors stay inline per field, and a failed save keeps the sheet open.
+**My details sheet (P41 phone 3). Rule: one place edits each field.** Me edits the app name, the phone and the
+phone-list switch. The tree (§17.4) edits the Hebrew names and family details. Neither one has the other's controls.
+The sheet is a Sheet with a sticky "שמירה" footer; one save updates everything in it:
+- שם פרטי + שם משפחה (the name shown in the app; one row).
+- טלפון (phone-pad, LTR) with a "הסרה" text link at the field's end (removes on save, no separate confirm).
+- Toggle **"המספר שלי ברשימת הטלפונים של {kehila}"**, disabled and off while there is no number. Helper under it
+  says exactly what happens. **On:** "חברים וגבאים של {kehila} רואים אותו ברשימה." **Off:** "המספר לא מוצג לאף אחד
+  בקהילה, גם לא לגבאים." (Server fact: the phone list is the only place numbers appear; gabbai screens show none.)
+- A muted line: "השמות העבריים ושאר פרטי המשפחה מתעדכנים בעץ המשפחה."
+Errors stay inline per field, and a failed save keeps the sheet open. **Tree side:** my own figure's sheet (P32) keeps
+the Hebrew-name fields and shows "השם באפליקציה" and "טלפון" read-only, with "לעריכה ב״הפרטים שלי״ ‹" (P41 panel).
 
 ### 18.2a The Kehila menu (P41 phone 4): one place for community-level things
 
@@ -2803,7 +2808,7 @@ people:
 | Unlink | At the bottom of the partner's person sheet (P32), with the P2 confirm |
 | Children list / add / edit | Child tiles and "+ ילד/ה" (already in P31); the P3 fields are part of the P32 sheet |
 | "Children are shared" note | The tree's privacy line |
-| My own figure | Opens the My details sheet (§18.2), the same sheet as Me › "עריכה" |
+| My own figure | P32 as before (Hebrew names); app name and phone read-only, with a link to Me's details sheet |
 
 The developer working in `src/tree/` owns these. Until they ship, the row can open the tree with the P2 card shown
 above it as a stopgap, so no state becomes unreachable.
@@ -2853,7 +2858,8 @@ tool is one click from the overview. A group in the sidebar opens the same group
   description of the feature.
 - Personal things go on Me. Things about the whole Kehila that everyone uses go in the **Kehila menu** (§18.2a).
   Things only gabbaim do go in management. A gabbai's own details, family and notifications stay on Me.
-- **One place edits me**: the My details sheet (§18.2), from Me or from my figure in the tree.
+- **One place edits each field**: app name, phone and list visibility on Me; Hebrew names in the tree. The other
+  place shows the value read-only with a link. Women have no aliyah name: label their name "השם למי שברך".
 
 ### 18.5 Components
 
@@ -2867,8 +2873,8 @@ tool is one click from the overview. A group in the sidebar opens the same group
 - **Manage row** (in the Kehila menu): a `NavRow` on a `k.band` background with white text and a count badge (same badge
   as the tabs).
 - **`DetailsCard`**: Card with the profile header, then a two-column label/value list (`Txt size="small"`, label muted,
-  value bold) and a single edit link. **`MyDetailsSheet`**: the §17.4 person sheet with the "בקהילה" block first; one
-  save.
+  value bold), the read-only tree-name box with its tree link, and a single edit link. **`MyDetailsSheet`**: name,
+  phone and the switch only; one save.
 - **Kehila menu**: `KehilaSwitcher` grows into it. TopBar's name button is no longer `disabled` when there is one
   Kehila.
 - **Inline language switch**: the §11 segmented control, compact (40 high), inside a `NavRow` without a chevron.
@@ -2879,8 +2885,10 @@ tool is one click from the overview. A group in the sidebar opens the same group
 
 | Key | Hebrew | English |
 |---|---|---|
-| `me.details.title` / `.edit` / `.phone` / `.inList` / `.yes` / `.no` / `.none` | הפרטים שלי / עריכה / טלפון / ברשימת הטלפונים / מופיע / לא / לא הוזן | My details / Edit / Phone / In the phone list / Shown / No / Not added |
-| `me.details.removePhone` / `.section.community` / `.section.names` | הסרה / בקהילה / לעלייה לתורה ולמי שברך | Remove / In the community / For aliyot and Mi Sheberach |
+| `me.details.title` / `.edit` / `.phone` / `.inList` / `.shown` / `.hiddenAll` / `.none` | הפרטים שלי / עריכה / טלפון / ברשימת הטלפונים / מוצג / לא מוצג לאף אחד / לא הוזן | My details / Edit / Phone / In the phone list / Shown / Shown to no one / Not added |
+| `me.details.aliyah` / `.mi` / `.toTree` | השם לעלייה לתורה / השם למי שברך / לעדכון בעץ המשפחה ‹ | Aliyah name / Mi Sheberach name / Update in the family tree › |
+| `me.details.switch` / `.on` / `.off` | המספר שלי ברשימת הטלפונים של {kehila} / חברים וגבאים של {kehila} רואים אותו ברשימה. / המספר לא מוצג לאף אחד בקהילה, גם לא לגבאים. | My number in {kehila}'s phone list / Members and gabbaim of {kehila} see it in the list. / Your number is shown to no one in the community, not even the gabbaim. |
+| `me.details.removePhone` / `.treeNote` / `tree.self.editInMe` | הסרה / השמות העבריים ושאר פרטי המשפחה מתעדכנים בעץ המשפחה. / לעריכה ב״הפרטים שלי״ ‹ | Remove / Hebrew names and other family details are updated in the family tree. / Edit in My details › |
 | `kehila.menu.about` / `.mine` / `.join` | על הקהילה / הקהילות שלי / הצטרפות לקהילה נוספת | About the community / My communities / Join another community |
 | `me.groups.mine` / `.notify` / `.account` | שלי בקהילה / התראות ושפה / החשבון | Mine in the community / Notifications and language / Account |
 | `me.family.request` / `.missing` / `.empty` / `.sent` / `.updated` | {name} ביקש/ה לקשר אתכם · לאישור / חסרים פרטים אצל {n} / לא מולא · מתחילים מכם / נשלחה בקשה ל{name} / עודכן ב־{date} | {name} asked to link with you · confirm / Details missing for {n} / Not filled in · start with you / Request sent to {name} / Updated {date} |
