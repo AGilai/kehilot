@@ -45,8 +45,8 @@ test('translate isolates string parameters, leaves numbers alone', () => {
 });
 
 test('dates follow the UI language; the Hebrew date is in letters', () => {
-  assert.equal(displayDate('2026-10-27', 'en'), 'Tuesday 27 October');
-  assert.equal(displayDate('2026-10-27', 'he'), 'יום שלישי, 27 באוקטובר');
+  assert.equal(displayDate('2026-10-27', 'en'), 'Tuesday, 16 Cheshvan (27.10)');
+  assert.equal(displayDate('2026-10-27', 'he'), 'יום ג׳, ט״ז בחשוון (27.10)');
   assert.equal(hebrewDate('2026-10-27', 'he'), 'ט״ז בחשוון תשפ״ז');
-  assert.equal(hebrewDate('2026-10-27', 'en'), '16 Heshvan 5787');
+  assert.equal(hebrewDate('2026-10-27', 'en'), '16 Cheshvan 5787');
 });

@@ -58,14 +58,59 @@ export function upcomingFriday(date: string): string {
   d.setUTCDate(d.getUTCDate() + (5 - d.getUTCDay() + 7) % 7);
   return d.toISOString().slice(0, 10);
 }
-export function hebrewDate(date: string, lang: Lang = 'he'): string {
-  if (lang === 'en') return new Intl.DateTimeFormat('en-GB-u-ca-hebrew', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' }).format(civilDate(date));
-  // Day and year in letters (ט״ז, תשפ״ז) instead of digits.
-  const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' }).formatToParts(civilDate(date));
-  return parts.map(p => p.type === 'day' || p.type === 'year' ? gematriya(Number(p.value)) : p.value).join('');
+// The Hebrew calendar is computed with @hebcal/hdate (pure JS), never with Intl `-u-ca-hebrew`: Hermes (the Android
+// runtime) has no dependable non-Gregorian calendar support in Intl. Month 12 is Adar (Adar I in a leap year), 13 is Adar II.
+const HE_MONTHS = ['', 'ניסן', 'אייר', 'סיוון', 'תמוז', 'אב', 'אלול', 'תשרי', 'חשוון', 'כסלו', 'טבת', 'שבט', 'אדר', 'אדר ב׳'];
+const EN_MONTHS = ['', 'Nisan', 'Iyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Tishrei', 'Cheshvan', 'Kislev', 'Tevet', 'Shevat', 'Adar', 'Adar II'];
+const HE_WEEKDAYS = ['יום א׳', 'יום ב׳', 'יום ג׳', 'יום ד׳', 'יום ה׳', 'יום ו׳', 'שבת'];
+const EN_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const LRI = '\u2066', PDI = '\u2069';
+function hdateOf(date: string): HDate {
+  const [y, m, d] = date.split('-').map(Number);
+  return new HDate(new Date(y!, m! - 1, d!, 12));
 }
-export function displayDate(date: string, lang: Lang = 'he'): string {
-  return new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'he-IL', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(civilDate(date));
+function monthName(h: HDate, lang: Lang): string {
+  const month = h.getMonth(), leapAdarI = month === 12 && HDate.isLeapYear(h.getFullYear());
+  if (lang === 'en') return leapAdarI ? 'Adar I' : EN_MONTHS[month]!;
+  return leapAdarI ? 'אדר א׳' : HE_MONTHS[month]!;
+}
+const dayLabel = (h: HDate, lang: Lang): string => lang === 'en' ? String(h.getDate()) : HEBREW_DAY_LABELS[h.getDate() - 1]!;
+const heMonth = (h: HDate): string => `ב${monthName(h, 'he')}`;
+const hebrewYear = (h: HDate, lang: Lang): string => lang === 'en' ? String(h.getFullYear()) : gematriya(h.getFullYear());
+/** "d.m" without leading zeros; with `year`, "d.m.yyyy". */
+function civilShort(date: string, year = false): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return `${d}.${m}${year ? `.${y}` : ''}`;
+}
+export function hebrewDate(date: string, lang: Lang = 'he'): string {
+  const h = hdateOf(date);
+  return lang === 'en' ? `${h.getDate()} ${monthName(h, 'en')} ${h.getFullYear()}` : `${dayLabel(h, 'he')} ${heMonth(h)} ${hebrewYear(h, 'he')}`;
+}
+/** Owner rule: a Gregorian date is never shown alone. "י״ב בחשוון (23.10)", with `weekday` "יום ו׳, י״ב בחשוון (23.10)", with `year` "י״ב בחשוון תשפ״ז (23.10.2026)". */
+export function dualDate(date: string, lang: Lang = 'he', opts: { weekday?: boolean; year?: boolean } = {}): string {
+  const h = hdateOf(date);
+  const day = dayOfWeek(date);
+  const core = lang === 'en' ? `${h.getDate()} ${monthName(h, 'en')}` : `${dayLabel(h, 'he')} ${heMonth(h)}`;
+  const weekday = opts.weekday ? `${(lang === 'en' ? EN_WEEKDAYS : HE_WEEKDAYS)[day]}, ` : '';
+  const year = opts.year ? ` ${hebrewYear(h, lang)}` : '';
+  return `${weekday}${core}${year} (${civilShort(date, opts.year)})`;
+}
+/** "י״ב–י״ח בחשוון (23.10–29.10)"; across Hebrew months "כ״ח בתשרי–ד׳ בחשוון (9.10–15.10)". The numbers are isolated left-to-right in Hebrew. */
+export function dualRange(from: string, to: string, lang: Lang = 'he'): string {
+  if (from === to) return dualDate(from, lang);
+  const a = hdateOf(from), b = hdateOf(to);
+  const same = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  const heb = same
+    ? lang === 'en' ? `${a.getDate()}–${b.getDate()} ${monthName(a, 'en')}` : `${dayLabel(a, 'he')}–${dayLabel(b, 'he')} ${heMonth(a)}`
+    : lang === 'en' ? `${a.getDate()} ${monthName(a, 'en')}–${b.getDate()} ${monthName(b, 'en')}` : `${dayLabel(a, 'he')} ${heMonth(a)}–${dayLabel(b, 'he')} ${heMonth(b)}`;
+  const greg = `${civilShort(from)}–${civilShort(to)}`;
+  return `${heb} (${lang === 'he' ? `${LRI}${greg}${PDI}` : greg})`;
+}
+/** A day with its weekday: "יום ו׳, י״ב בחשוון (23.10)". */
+export function displayDate(date: string, lang: Lang = 'he'): string { return dualDate(date, lang, { weekday: true }); }
+/** The Israel calendar day of an instant (epoch milliseconds), as a dual date. */
+export function dualDateAt(ms: number, lang: Lang = 'he', opts: { weekday?: boolean; year?: boolean } = {}): string {
+  return dualDate(israelDate(new Date(ms)), lang, opts);
 }
 export function clockTime(iso?: string | null): string {
   if (!iso || Number.isNaN(Date.parse(iso))) return '—';
