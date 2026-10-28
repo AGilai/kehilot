@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P45 לוגו הקהילה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* §19 frame helpers. Nothing added to shared.css. Kit equivalents are named in UX-DESIGN §19.6. */
+.phone.xm{width:390px;height:844px}
+.xfig{margin:0;display:flex;flex-direction:column;gap:8px;align-items:center}
+.xfig .cap{text-align:center;max-width:390px}
+.xs{gap:12px!important}
+.ycv{color:var(--k-muted);width:18px;height:18px}
+/* ListGroup + NavRow (as §18.5) */
+.xgh{margin:6px 4px -4px;font-size:14px;font-weight:700;color:var(--k-muted)}
+.xl{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.xl.e{border-inline-start:6px solid var(--e,var(--k-pom))}
+.xl>.hd{margin:0;padding:12px 16px 4px;font:700 17px/1.4 var(--f-serif);display:flex;align-items:center;gap:8px}
+.xr{display:flex;align-items:center;gap:12px;min-height:56px;padding-block:8px;padding-inline:16px 10px;border-top:1px solid var(--k-line);color:var(--k-ink);text-decoration:none}
+.xr:first-child,.xl>.hd+.xr,.xl>.hd+.yit{border-top:0}
+.xr>.i{color:var(--k-tek)}
+.xr .g{flex:1;min-width:0;display:flex;flex-direction:column}
+.xr .t{font-weight:700;font-size:16px;line-height:1.4}
+.xr .s{font-size:14px;line-height:1.4;color:var(--k-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xr .s.w{color:var(--k-gold);font-weight:700}.xr .s.a{color:var(--k-pom);font-weight:700}
+.xr .cv{color:var(--k-muted);width:20px;height:20px}
+.xr .v{font-size:14px;color:var(--k-muted);font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.xr.act{min-height:52px}.xr.act .t{font-weight:500}
+.bdg{flex:none;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--k-pom);color:#fff;font-size:12.5px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.xsh{padding:8px 0 0!important;gap:0!important}
+.xshh{display:flex;align-items:center;justify-content:space-between;padding:0 16px 4px}
+.xshb{flex:1;min-height:0;overflow:hidden;padding:4px 16px 12px;display:flex;flex-direction:column;gap:12px}
+.xshf{flex:none;padding:12px 16px 16px;border-top:1px solid var(--k-line);background:var(--k-stone);display:flex;flex-direction:column;gap:8px}
+/* type cards (P17) */
+.ktys{display:flex;flex-wrap:wrap;gap:8px}
+.kty{flex:1 1 40%;min-height:52px;display:flex;align-items:center;padding:10px 12px;border-radius:12px;background:var(--k-surface);border:1px solid var(--k-line);border-inline-start:6px double var(--e,var(--k-tek));font-weight:700}
+.kty.on{border-width:2px;border-color:var(--k-tek);border-inline-start:6px double var(--e,var(--k-tek))}
+/* NEW: choice chips that wrap (kit Chip size="filter", radio) */
+.ychs{display:flex;flex-wrap:wrap;gap:8px}
+.ychs .kfc{height:40px}
+.ychs .kfc.on::before{content:"";width:16px;height:16px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12l5 5 9-10' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat}
+.yopt{font-weight:400;color:var(--k-muted)}
+.yhelp{margin:0;font-size:12.5px;color:var(--k-muted);line-height:1.45}
+.yerr{margin:0;font-size:14px;color:var(--k-danger);font-weight:700;display:flex;gap:6px;align-items:center}
+.ypair{display:flex;gap:8px}.ypair>*{flex:1;min-width:0}
+.yfam{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 12px;border-radius:10px;border:2px solid var(--k-tek);background:var(--k-surface)}
+.yfam .g{flex:1;display:flex;flex-direction:column}
+.yfam .g b{font-size:16px}.yfam .g span{font-size:14px;color:var(--k-muted)}
+/* NEW: TemplatePreview = the real message card + the sheet line */
+.ypv{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;border:1.5px dashed var(--k-line);background:var(--k-stone)}
+.ypv>.lb{margin:0;font-size:12.5px;font-weight:700;color:var(--k-muted);display:flex;align-items:center;gap:6px}
+.ypv .kmsg{box-shadow:0 1px 4px rgba(20,30,90,.08)}
+.ypv .kmsg .bd{color:var(--k-ink)}
+.ymiss{display:inline-block;padding:0 6px;border-radius:6px;border:1.5px dashed var(--k-gold);color:var(--k-gold);font-weight:700;font-size:.92em;line-height:1.5}
+.ysl{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:8px;background:#FCFCF9;color:#151A33;border:1px solid #C3CADF;font-size:13px;text-align:center}
+.ysl b{color:#A32A47;font-weight:800}
+.ysl small{font-size:11.5px;color:#4B516E}
+.ysl.ev b{color:#2A3F94}
+/* sheet items */
+.yit{display:flex;align-items:flex-start;gap:10px;padding:10px 6px 10px 0;padding-inline:14px 6px;border-top:1px solid var(--k-line)}
+.yit>.ii{flex:none;margin-top:2px;width:20px;height:20px}
+.yit .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.yit .ln{font-size:15px;line-height:1.45}
+.yit .ln b{font-weight:800}
+.yit .src{font-size:12.5px;color:var(--k-muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.yit .kib{width:44px;height:44px;color:var(--k-muted)}
+.yit.out{background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(143,101,18,.07) 8px 16px)}
+.yit.out .ln{color:var(--k-muted)}
+.ypend{display:flex;gap:8px;margin-top:6px}
+.ypend .kb{min-height:40px;font-size:14px;padding:0 14px;width:auto}
+.ytg{display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:700;border:1px solid var(--k-line);background:var(--k-stone);color:var(--k-muted);white-space:nowrap}
+.ytg.auto{border-color:var(--k-olive);color:var(--k-olive)}
+.ytg.wait{border-color:var(--k-pom);color:var(--k-pom)}
+.ytg.out{border-color:var(--k-gold);color:var(--k-gold);border-style:dashed}
+.ytg.free{border-color:var(--k-tek);color:var(--k-tek)}
+.yfit{display:flex;flex-direction:column;gap:8px}
+.yfit .hd{display:flex;align-items:center;gap:8px}
+.yfit .hd b{flex:1}
+.ymeter{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:13px}
+.ymeter .bar{height:8px;border-radius:4px;background:var(--k-line);overflow:hidden;display:flex}
+.ymeter .bar i{display:block;height:100%;background:var(--k-tek)}
+.ymeter .bar i.o{background:var(--k-gold)}
+.ymeter .n{font-weight:700;font-variant-numeric:tabular-nums;color:var(--k-muted)}
+.yok{color:var(--k-olive)}.ywarn{color:var(--k-gold)}
+.yadd{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:12px;border:1.5px dashed var(--k-tek);color:var(--k-tek);font-weight:700;background:transparent}
+/* Home: this week card */
+.ywk .ov{font-size:12.5px;font-weight:700;color:var(--k-muted);margin:0}
+.ywk .it{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--k-line);font-size:15px;line-height:1.45}
+.ywk .it:first-of-type{border-top:0}
+.ywk .it>svg{flex:none;margin-top:2px;width:20px;height:20px}
+.ywk .it b{font-weight:800}
+.ywk .it .m{display:block;font-size:13px;color:var(--k-muted)}
+/* logo */
+.klogo.ylg{background:#fff;border:1px solid var(--k-line);padding:2px}
+.klogo.ylg svg{width:100%;height:100%}
+.ytile{flex:none;display:grid;place-items:center;border-radius:16px;background:#fff;border:1px solid var(--k-line);padding:8px}
+.ytile svg{width:100%;height:100%}
+.ytile.let{background:var(--k-tek);color:var(--k-on);font:700 44px/1 var(--f-serif);border:0}
+.ywhere{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ywh{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:10px;border:1px solid var(--k-line);background:var(--k-surface);font-size:12.5px;color:var(--k-muted);font-weight:700}
+.ywh .strip{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;font-size:12px;font-weight:700;min-height:40px;overflow:hidden;white-space:nowrap}
+.ywh .strip.l{background:#F6F7F2;color:#151A33;border:1px solid #DDE0D4}
+.ywh .strip.d{background:#10132A;color:#ECEEF7;border:1px solid #2E3358}
+.ywh .strip.p{background:#FCFCF9;color:#2A3F94;border:1px solid #C3CADF;font-family:var(--f-serif);font-size:13px;justify-content:space-between}
+.ywh .lg{width:26px;height:26px;border-radius:6px;background:#fff;border:1px solid #DDE0D4;padding:2px;flex:none;display:grid}
+.ywh .lg svg{width:100%;height:100%}
+.ywh .lg.b{width:34px;height:34px;border-radius:6px}
+.yrules{margin:0;padding:10px 12px;border-radius:10px;background:var(--k-stone);border:1px solid var(--k-line);font-size:13px;line-height:1.5;color:var(--k-muted);display:flex;flex-direction:column;gap:2px}
+.yrules b{color:var(--k-ink)}
+.ydanger{min-height:48px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--k-danger);font-weight:700}
+/* crop screen */
+.ycrop{position:absolute;inset:0;z-index:8;background:#0B0E20;color:#ECEEF7;display:flex;flex-direction:column}
+.ycrop .hdr{display:flex;align-items:center;justify-content:space-between;min-height:56px;padding:0 8px 0 8px;padding-inline:16px 8px}
+.ycrop .hdr b{font:700 19px/1.4 var(--f-serif)}
+.ycrop .hdr .kib{color:#ECEEF7}
+.ycrop .area{position:relative;height:358px;flex:none;overflow:hidden;background:repeating-conic-gradient(#2a2e48 0 25%,#202439 0 50%) 0 0/20px 20px}
+.ycrop .img{position:absolute;left:-30px;top:-14px;width:450px;height:386px;background:#fff;display:grid;place-items:center}
+.ycrop .img svg{width:300px;height:300px;margin-inline-start:22px}
+.ycrop .img .tx{position:absolute;bottom:18px;inset-inline:0;text-align:center;color:#2A3F94;font:800 26px/1 var(--f-serif)}
+.ycrop .mask{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 999px rgba(5,7,20,.55);}
+.ycrop .sq{position:absolute;left:40px;top:24px;width:310px;height:310px;outline:2px solid #fff;box-shadow:0 0 0 999px rgba(5,7,20,.6);background:linear-gradient(#fff6 0 0) 33.3% 0/1px 100% no-repeat,linear-gradient(#fff6 0 0) 66.6% 0/1px 100% no-repeat,linear-gradient(#fff6 0 0) 0 33.3%/100% 1px no-repeat,linear-gradient(#fff6 0 0) 0 66.6%/100% 1px no-repeat}
+.ycrop .sq i{position:absolute;width:22px;height:22px;border:4px solid #fff}
+.ycrop .sq i:nth-child(1){top:-4px;left:-4px;border-right:0;border-bottom:0}.ycrop .sq i:nth-child(2){top:-4px;right:-4px;border-left:0;border-bottom:0}
+.ycrop .sq i:nth-child(3){bottom:-4px;left:-4px;border-right:0;border-top:0}.ycrop .sq i:nth-child(4){bottom:-4px;right:-4px;border-left:0;border-top:0}
+.ycrop .ctl{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;padding:14px 16px 16px}
+.ycrop .zoom{display:flex;align-items:center;gap:8px}
+.ycrop .zoom .kib{color:#ECEEF7;width:44px;height:44px}
+.ycrop .rng{flex:1;height:4px;border-radius:2px;background:#3a3f66;position:relative}
+.ycrop .rng::before{content:"";position:absolute;inset-inline-start:0;width:38%;height:100%;background:#8FA2F0;border-radius:2px}
+.ycrop .rng::after{content:"";position:absolute;inset-inline-start:calc(38% - 12px);top:-10px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(143,162,240,.35)}
+.ycrop .pvs{display:flex;align-items:flex-end;gap:12px;justify-content:center;font-size:12px;color:#AEB4CC}
+.ycrop .pvs figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.ycrop .pvs .t{background:#fff;border-radius:8px;padding:2px;display:grid}
+.ycrop .pvs .t svg{width:100%;height:100%}
+.ycrop .note{margin:0;font-size:13px;color:#AEB4CC;text-align:center}
+.ycrop .btns{display:flex;gap:8px;margin-top:auto}
+.ycrop .btns .kb{flex:1}
+.ycrop .btns .kb.s{color:#ECEEF7;border-color:#8FA2F0}
+.ycrop .btns .kb:not(.s){background:#8FA2F0;color:#10132A}
+.ydrop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:150px;border-radius:12px;border:2px dashed var(--k-tek);background:var(--k-surface);color:var(--k-tek);text-align:center;font-weight:700;padding:12px}
+.ydrop span{font-weight:400;color:var(--k-muted);font-size:13px}
+/* 1280 glance (as P42) */
+.xwide{flex:1 1 100%;width:100%;min-width:0;display:flex;flex-direction:column;gap:8px}
+.xwide .hscroll{min-width:0;overflow-x:auto}
+.xweb{width:1280px;height:860px;background:var(--k-stone);color:var(--k-ink);display:flex;flex-direction:column;overflow:hidden}
+.xweb .ktop{border-bottom:1px solid var(--k-line);background:var(--k-surface)}
+.xwb{flex:1;min-height:0;display:grid;grid-template-columns:272px 1fr}
+.xside{border-inline-end:1px solid var(--k-line);background:var(--k-surface);padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.xside a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;text-decoration:none;color:var(--k-ink);font-size:15px}
+.xside a .i{color:var(--k-muted);width:20px;height:20px}
+.xside a.on{background:var(--k-stone);color:var(--k-tek);font-weight:700;box-shadow:inset -3px 0 0 var(--k-tek)}
+.xside a.on .i{color:var(--k-tek)}
+.xside a .bdg{margin-inline-start:auto}
+.xside .lb{margin:10px 12px 2px;font-size:12.5px;font-weight:700;color:var(--k-muted)}
+.xside hr{border:0;border-top:1px solid var(--k-line);margin:8px 4px;width:auto}
+.xmain{padding:20px 28px;display:flex;flex-direction:column;gap:14px;overflow:hidden;min-width:0}
+.ycols{display:grid;gap:20px;align-items:start;min-height:0}
+.ypvw{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;align-items:center;overflow:hidden}
+.ypvw .scale{width:476px;height:674px;overflow:hidden;position:relative}
+.ypvw .scale>.sht{transform:scale(.8);transform-origin:top right;position:absolute;top:0;right:0}
+@media (max-width:440px){
+  .stage.xst{padding:0 0 40px;gap:24px}
+  .stage.xst>.xfig{width:100%}
+  .stage.xst .phone.xm{width:100%;margin:0;outline:0;border-radius:0}
+  .stage.xst>.kstates,.stage.xst>.notes,.stage.xst>.xwide{margin:0 16px;width:auto}
+}
+</style>
+</head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="belloff" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M3 12L21 4l-6 16-3-7z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="chair" viewBox="0 0 24 24"><path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/></symbol>
+<symbol id="mega" viewBox="0 0 24 24"><path d="M3 10v4h4l8 4V6L7 10zM18 9a4 4 0 0 1 0 6"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+<symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="scroll" viewBox="0 0 24 24"><path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V6a2 2 0 0 0-2-2zM9 20H6"/><path d="M11 9h4M11 13h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+<symbol id="tree" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="3" y="16" width="6" height="5" rx="1.5"/><rect x="15" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M6 16v-4h12v4"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol>
+<symbol id="out" viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l-4 4 4 4M10 12h10"/></symbol>
+<symbol id="door" viewBox="0 0 24 24"><path d="M6 20V4h9v16M15 20h3M11 12h.01"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 8V4h10v4M6 17H4v-7h16v7h-2M7 14h10v6H7z"/></symbol>
+<symbol id="upload" viewBox="0 0 24 24"><path d="M12 16V5M7 9l5-5 5 5M5 20h14"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5l-5.3 2.9 1.2-6-4.5-4.1 6-.7z"/></symbol>
+<symbol id="tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></symbol>
+<symbol id="lang" viewBox="0 0 24 24"><path d="M4 6h9M8.5 4v2M11 6c-1 4-3.5 7-7 8.5M6 9c1.3 2.4 3.4 4.3 6 5.2M13 20l4-9 4 9M14.5 17h5"/></symbol>
+<symbol id="hand" viewBox="0 0 24 24"><path d="M5 12h3l3 3h3a2 2 0 0 1 0 4H9M5 9h4l3-3h3a2 2 0 0 1 0 4"/></symbol>
+<symbol id="alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+<symbol id="image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 8"/></symbol>
+<symbol id="eyeoff" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.2 3.7M6.3 7.4C3.7 9.2 2 12 2 12s4 6 10 6c1.6 0 3-.4 4.3-1"/></symbol>
+<symbol id="zoomin" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4M8.5 11h5M11 8.5v5"/></symbol>
+<symbol id="zoomout" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4M8.5 11h5"/></symbol>
+<symbol id="rotate" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5M4 4v4.5h4.5"/></symbol>
+<symbol id="tpl" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h3M13 12h3M8 16h5"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19zM4 20h16"/></symbol>
+<symbol id="undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+<symbol id="orlogo" viewBox="0 0 100 100"><circle cx="50" cy="50" r="43" fill="none" stroke="#2A3F94" stroke-width="6"/><path d="M33 72V46a17 17 0 0 1 34 0v26" fill="none" stroke="#2A3F94" stroke-width="6"/><path d="M50 39c4 6 8 9 8 15a8 8 0 0 1-16 0c0-6 4-9 8-15z" fill="#C8962E" stroke="none"/><path d="M27 72h46M32 80h36" stroke="#2A3F94" stroke-width="4" fill="none"/></symbol>
+</defs></svg>
+
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P45 · לוגו הקהילה</b><span>UX-DESIGN §19.4: הגבאי מעלה, מחליף ומסיר את הלוגו בהגדרות הקהילה; חיתוך לריבוע, כללים ואיפה הוא מופיע.</span></div><nav class="pn"><a href="P44.html" aria-label="הקודם">הקודם</a></nav></header>
+<main class="stage fts xst">
+<figure class="xfig"><figcaption class="cap">1 · ניהול › הגדרות הקהילה, בלי לוגו (האות במקום)</figcaption><div class="phone kit xm" id="settings"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s ycv" aria-hidden="true"><use href="#chev"/></svg></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kband"><span>מצב ניהול</span><small>יציאה ממצב ניהול</small></div><div class="kscroll xs fade"><div class="kback"><svg class="i s" aria-hidden="true"><use href="#back"/></svg>סקירה</div><h1 class="ktitle">הגדרות הקהילה</h1><p class="xgh">הגדרות הקהילה</p><div class="xl"><a class="xr" href="#" style="min-height:72px"><span class="klogo" style="width:40px;height:40px">א</span><span class="g"><span class="t">לוגו הקהילה</span><span class="s w">אין לוגו · מוצגת האות א</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">תקרת מאזינים</span></span><span class="v">38 / 50</span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#shield"/></svg><span class="g"><span class="t">איש קשר לפרטיות</span><span class="s ">רחל דוגמה · 050-000-0000</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#file"/></svg><span class="g"><span class="t">התנאים בין הקהילה לבין קהילות</span><span class="s ">אושרו ב־12.10</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<p class="yhelp">"לוגו הקהילה" ראשון: זה ההגדרה שכולם רואים. עד היום רק כלי מנהל יכול היה להעלות.</p></div><nav class="ktabs"><a href="#" class="on"><b><svg class="i " aria-hidden="true"><use href="#grid"/></svg></b>סקירה</a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#check"/></svg></b>אישורים<span class="kbd">3</span></a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#users"/></svg></b>חברים</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">2 · אחרי העלאה: הלוגו בסרגל, ונגיעה בשורה פותחת את החלון</figcaption><div class="phone kit xm" id="logo-sheet"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo ylg " aria-label="לוגו הקהילה"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span>קהילת אור הדוגמה</span><svg class="i s ycv" aria-hidden="true"><use href="#chev"/></svg></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kband"><span>מצב ניהול</span><small>יציאה ממצב ניהול</small></div><div class="kscroll xs fade"><div class="kback"><svg class="i s" aria-hidden="true"><use href="#back"/></svg>סקירה</div><h1 class="ktitle">הגדרות הקהילה</h1><p class="xgh">הגדרות הקהילה</p><div class="xl"><a class="xr" href="#" style="min-height:72px"><span class="klogo ylg" style="width:40px;height:40px"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span class="g"><span class="t">לוגו הקהילה</span><span class="s ">הועלה ב־28.10 · בסרגל, בגיליון ובהזמנות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">תקרת מאזינים</span></span><span class="v">38 / 50</span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#shield"/></svg><span class="g"><span class="t">איש קשר לפרטיות</span><span class="s ">רחל דוגמה · 050-000-0000</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#file"/></svg><span class="g"><span class="t">התנאים בין הקהילה לבין קהילות</span><span class="s ">אושרו ב־12.10</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div></div><nav class="ktabs"><a href="#" class="on"><b><svg class="i " aria-hidden="true"><use href="#grid"/></svg></b>סקירה</a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#check"/></svg></b>אישורים<span class="kbd">3</span></a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i " aria-hidden="true"><use href="#users"/></svg></b>חברים</a></nav><div class="kscrim"></div><section class="ksheet fs xsh" role="dialog" aria-modal="true" aria-labelledby="lg-t"><div class="grab"></div>
+<div class="xshh"><b id="lg-t" class="kh">לוגו הקהילה</b><span class="kib"><svg class="i " aria-hidden="true"><use href="#x"/></svg></span></div>
+<div class="xshb"><div style="display:flex;gap:14px;align-items:center"><span class="ytile" style="width:112px;height:112px"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><div style="display:flex;flex-direction:column;gap:2px"><b>הלוגו הנוכחי</b><span class="kt s m">512×512 · 38KB</span><span class="kt s m">הועלה בידי משה כהן ב־28.10</span></div></div>
+<p class="xgh" style="margin:0">איפה הוא מופיע</p><div class="ywhere">
+<div class="ywh">סרגל עליון<span class="strip l"><span class="lg "><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span>קהילת אור הדוגמה</span><span class="strip d"><span class="lg "><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span>קהילת אור הדוגמה</span></div>
+<div class="ywh">גיליון שבועי<span class="strip p"><span class="lg b"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span>שבת פרשת <b>וירא</b></span></span><span style="font-weight:400">גם בריבוע לוואטסאפ</span></div>
+<div class="ywh">תפריט הקהילה<span class="strip l"><span class="lg b"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span>קהילת אור הדוגמה<br><span style="font-weight:400;color:#555B75">גבאי</span></span></span></div>
+<div class="ywh">הזמנה (קישור ודף ההצטרפות)<span class="strip l" style="justify-content:center;flex-direction:column;gap:2px;padding:6px"><span class="lg b"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span style="font-weight:400">משה מזמין אתכם</span></span></div>
+</div><p class="yrules"><b>PNG או JPEG, עד 10MB מהטלפון.</b><span>חותכים לריבוע באפליקציה. נשמר כ־PNG ריבועי, 64 עד 512 פיקסלים, עד 64KB (מקטינים בשבילכם).</span><span>הכי טוב: סמל פשוט על רקע לבן או שקוף, בלי טקסט קטן.</span></p></div>
+<div class="xshf"><button class="kb"><svg class="i s" aria-hidden="true"><use href="#upload"/></svg>החלפת הלוגו</button><button class="ydanger" style="min-height:44px"><svg class="i s" aria-hidden="true"><use href="#trash"/></svg>הסרת הלוגו</button></div></section></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">3 · אחרי בחירת תמונה: חיתוך לריבוע ותצוגה בשלושה גדלים</figcaption><div class="phone kit xm" id="crop"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s ycv" aria-hidden="true"><use href="#chev"/></svg></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kband"><span>מצב ניהול</span><small>יציאה ממצב ניהול</small></div><div class="kscroll xs fade"><div class="kback"><svg class="i s" aria-hidden="true"><use href="#back"/></svg>סקירה</div></div><div class="ycrop" role="dialog" aria-modal="true" aria-labelledby="cr-t"><div class="hdr"><b id="cr-t">חיתוך לריבוע</b><span class="kib" aria-label="סגירה"><svg class="i " aria-hidden="true"><use href="#x"/></svg></span></div>
+<div class="area" aria-label="אזור החיתוך. גוררים להזזה, צובטים להגדלה"><div class="img"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg><span class="tx">קהילת אור הדוגמה</span></div><div class="sq"><i></i><i></i><i></i><i></i></div></div>
+<div class="ctl"><div class="zoom"><span class="kib" aria-label="הקטנה"><svg class="i " aria-hidden="true"><use href="#zoomout"/></svg></span><span class="rng" role="slider" aria-label="הגדלה" aria-valuenow="138"></span><span class="kib" aria-label="הגדלה"><svg class="i " aria-hidden="true"><use href="#zoomin"/></svg></span><span class="kib" aria-label="סיבוב"><svg class="i " aria-hidden="true"><use href="#rotate"/></svg></span></div>
+<div class="pvs"><figure><span class="t" style="width:32px;height:32px"><svg viewBox="0 0 100 100"><use href="#orlogo"/></svg></span>סרגל</figure><figure><span class="t" style="width:44px;height:44px"><svg viewBox="0 0 100 100"><use href="#orlogo"/></svg></span>תפריט</figure><figure><span class="t" style="width:66px;height:66px"><svg viewBox="0 0 100 100"><use href="#orlogo"/></svg></span>גיליון</figure></div>
+<p class="note">הטקסט הקטן לא ייקרא בסרגל, אז השארנו אותו מחוץ לריבוע. יישמר כ־PNG בגודל 512×512.</p>
+<div class="btns"><button class="kb s">ביטול</button><button class="kb">שמירה</button></div></div></div></div><div class="gest"></div></div></figure><div class="kstates">
+<section class="kpanel" ><h3 class="plabel">בלי לוגו: החלון</h3><div class="kbody"><div style="display:flex;gap:14px;align-items:center"><span class="ytile let" style="width:96px;height:96px">א</span><div style="display:flex;flex-direction:column;gap:2px"><b>אין לוגו</b><span class="kt s m">בינתיים מוצגת האות הראשונה של שם הקהילה, על תכלת.</span></div></div><p class="yrules"><b>PNG או JPEG, עד 10MB מהטלפון.</b><span>חותכים לריבוע באפליקציה. נשמר כ־PNG ריבועי, 64 עד 512 פיקסלים, עד 64KB (מקטינים בשבילכם).</span><span>הכי טוב: סמל פשוט על רקע לבן או שקוף, בלי טקסט קטן.</span></p><button class="kb"><svg class="i s" aria-hidden="true"><use href="#upload"/></svg>העלאת לוגו</button></div></section>
+<section class="kpanel" ><h3 class="plabel">בחירת מקור (טלפון)</h3><div class="kbody"><div class="xl"><a class="xr act" href="#"><svg class="i " aria-hidden="true"><use href="#image"/></svg><span class="g"><span class="t">מהתמונות</span></span></a><a class="xr act" href="#"><svg class="i " aria-hidden="true"><use href="#file"/></svg><span class="g"><span class="t">מהקבצים</span></span></a></div><p class="yhelp">באתר: "בחירת קובץ" או גרירה לחלון. אין צילום במצלמה: לוגו מגיע כקובץ.</p></div></section>
+<section class="kpanel" ><h3 class="plabel">שמירה</h3><div class="kbody"><button class="kb busy">שומרים</button><p class="yhelp">ואז Toast: "הלוגו עודכן. אצל כולם הוא יתחלף תוך כמה דקות."</p></div></section>
+<section class="kpanel" ><h3 class="plabel">שגיאות</h3><div class="kbody"><div class="kbn err"><b>אפשר להעלות PNG או JPEG.</b><span>הקובץ שבחרתם הוא GIF. שמרו אותו כ־PNG ונסו שוב.</span></div><div class="kbn err"><b>התמונה קטנה מדי.</b><span>אחרי החיתוך יש 48×48 פיקסלים, וצריך לפחות 64×64. הגדילו את הריבוע או בחרו תמונה גדולה יותר.</span></div><div class="kbn err"><b>הלוגו מפורט מדי לגודל המותר.</b><span>גם בגודל 256×256 הוא יותר מ־64KB. נסו גרסה פשוטה יותר (פחות פרטים, רקע אחיד).</span></div><div class="kbn err"><b>לא הצלחנו לשמור את הלוגו.</b><span>הלוגו הקודם נשאר. בדקו את החיבור ונסו שוב.</span></div></div></section>
+<section class="kpanel" ><h3 class="plabel">הסרה (אישור בתוך החלון)</h3><div class="kbody"><div class="kbn"><b>להסיר את הלוגו?</b><span>הוא יוסר מהסרגל, מהגיליון ומההזמנות, ובמקומו תוצג האות א. אפשר להעלות שוב בכל עת.</span><div class="krow"><button class="kb d">הסרה</button><button class="kb s">ביטול</button></div></div></div></section>
+</div><aside class="notes"><h2>מה רואים כאן (§19.4)</h2><ul>
+<li>ניהול › הגדרות הקהילה › "לוגו הקהילה": השורה מראה את הלוגו עצמו (או האות) ואת המצב.</li>
+<li>החלון מראה איפה הלוגו מופיע: סרגל בהיר וכהה, גיליון, תפריט הקהילה, הזמנה.</li>
+<li>JPEG מתקבל ומומר ל־PNG במכשיר, כי השרת מקבל PNG ריבועי בלבד (server/cloud/logo.py).</li>
+<li>הלוגו תמיד על אריח לבן, גם במצב כהה: רוב הלוגואים מצוירים על לבן.</li>
+<li>הלוגו כאן בדוי.</li></ul></aside><section class="xwide" aria-label="מבט ב־1280"><p class="cap">4 · ב־1280: הגדרות הקהילה, ולוגו נפתח כלוח בצד (גרירת קובץ, חיתוך ותצוגה במקום אחד)</p><div class="hscroll"><div class="xweb kit">
+<div class="ktop"><div class="kn"><span class="klogo ylg " aria-label="לוגו הקהילה"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span>קהילת אור הדוגמה</span><svg class="i s ycv" aria-hidden="true"><use href="#chev"/></svg></div><span class="bell" aria-label="התראות"><svg class="i " aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kband"><span>מצב ניהול</span><small>יציאה ממצב ניהול</small></div><div class="xwb"><nav class="xside" aria-label="ניהול">
+<a href="#"><svg class="i " aria-hidden="true"><use href="#grid"/></svg>סקירה</a><a href="#"><svg class="i " aria-hidden="true"><use href="#check"/></svg>אישורים<span class="bdg">3</span></a><a href="#"><svg class="i " aria-hidden="true"><use href="#msg"/></svg>הודעות</a><a href="#"><svg class="i " aria-hidden="true"><use href="#users"/></svg>חברים</a><hr><p class="lb">תחומים</p>
+<a href="#"><svg class="i " aria-hidden="true"><use href="#clock"/></svg>תפילות וזמנים</a><a href="#"><svg class="i " aria-hidden="true"><use href="#chair"/></svg>מקומות ישיבה</a><a href="#"><svg class="i " aria-hidden="true"><use href="#msg"/></svg>הודעות וערוצים</a><a href="#"><svg class="i " aria-hidden="true"><use href="#star"/></svg>שמחות ועליות</a><a href="#"><svg class="i " aria-hidden="true"><use href="#users"/></svg>חברים ומשפחות</a><a href="#" class="on"><svg class="i " aria-hidden="true"><use href="#gear"/></svg>הגדרות הקהילה</a></nav>
+<div class="xmain"><h1 class="ktitle">הגדרות הקהילה</h1><div class="ycols" style="grid-template-columns:420px 1fr">
+<div class="xl"><a class="xr" style="min-height:72px;background:var(--k-stone);box-shadow:inset -3px 0 0 var(--k-tek)" href="#" style="min-height:72px"><span class="klogo ylg" style="width:40px;height:40px"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span class="g"><span class="t">לוגו הקהילה</span><span class="s ">הועלה ב־28.10 · בסרגל, בגיליון ובהזמנות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">תקרת מאזינים</span></span><span class="v">38 / 50</span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#shield"/></svg><span class="g"><span class="t">איש קשר לפרטיות</span><span class="s ">רחל דוגמה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a><a class="xr " href="#"><svg class="i " aria-hidden="true"><use href="#file"/></svg><span class="g"><span class="t">התנאים</span><span class="s ">אושרו ב־12.10</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<section class="kc" style="gap:14px"><h2 class="kh">לוגו הקהילה</h2><div style="display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:10px"><span class="ytile" style="width:200px;height:200px"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><div class="krow"><button class="kb s"><svg class="i s" aria-hidden="true"><use href="#upload"/></svg>החלפה</button></div><button class="ydanger"><svg class="i s" aria-hidden="true"><use href="#trash"/></svg>הסרת הלוגו</button></div>
+<div style="display:flex;flex-direction:column;gap:12px"><div class="ydrop"><svg class="i " aria-hidden="true"><use href="#upload"/></svg>גוררים לכאן קובץ PNG או JPEG<span>או לוחצים לבחירת קובץ. החיתוך נפתח כאן, במקום התמונה.</span></div><div class="ywhere">
+<div class="ywh">סרגל עליון<span class="strip l"><span class="lg "><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span>קהילת אור הדוגמה</span><span class="strip d"><span class="lg "><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span>קהילת אור הדוגמה</span></div>
+<div class="ywh">גיליון שבועי<span class="strip p"><span class="lg b"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span>שבת פרשת <b>וירא</b></span></span><span style="font-weight:400">גם בריבוע לוואטסאפ</span></div>
+<div class="ywh">תפריט הקהילה<span class="strip l"><span class="lg b"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span>קהילת אור הדוגמה<br><span style="font-weight:400;color:#555B75">גבאי</span></span></span></div>
+<div class="ywh">הזמנה (קישור ודף ההצטרפות)<span class="strip l" style="justify-content:center;flex-direction:column;gap:2px;padding:6px"><span class="lg b"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#orlogo"/></svg></span><span style="font-weight:400">משה מזמין אתכם</span></span></div>
+</div><p class="yrules"><b>PNG או JPEG, עד 10MB מהטלפון.</b><span>חותכים לריבוע באפליקציה. נשמר כ־PNG ריבועי, 64 עד 512 פיקסלים, עד 64KB (מקטינים בשבילכם).</span><span>הכי טוב: סמל פשוט על רקע לבן או שקוף, בלי טקסט קטן.</span></p></div></div></section>
+</div></div></div></div></div></section>
+</main>
+</body>
+</html>

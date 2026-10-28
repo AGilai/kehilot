@@ -2993,3 +2993,296 @@ dark; P42 panel 4 at 1280. Checked: no horizontal scroll at 390, no row title or
 scrollWidth), and the badges, gold and pomegranate statuses in dark mode. Not checked: real devices, 360-wide
 Android, English (LTR), screen readers, web fonts (the shots may use fallback fonts), and the tree-side partner
 flows, which are only specified in the table in §18.2 and not drawn.
+
+## 19. Message templates, the weekly sheet's items, and the Kehila logo
+
+Added 2026-10-28 for three owner requests: (A) post an announcement from a template or as free text, (B) decide which
+mazal tovs and events reach the weekly sheet and Home, and who approves them, (C) let gabbaim upload the Kehila logo
+(until now only an admin tool could). Frames: `P43` (templates in Compose), `P44` (sheet items, Home card, A4, 1280),
+`P45` (logo), index section "י. תבניות הודעה, הגיליון השבועי ולוגו". Kit-drawn like §18. The frames carry their own
+style block, and nothing was added to `shared.css`. All names, texts and the logo are invented.
+
+### 19.1 Terms
+
+- **Template**: a fixed set of fields for one message type. From those fields the app builds the message title and
+  body, and the line for the sheet. A message posted from a template stores `templateId` and `fields` next to the
+  title and body it produced, so the sheet and Home can use the short form without parsing text.
+- **Sheet item**: one line under the times on the weekly sheet (§14.5) and in Home's "השבוע בקהילה" card. It is either
+  a message (mazal tov or event) or a **free item** that a gabbai typed for one week only. Each item has a **sheet
+  line** (editable by the gabbai, the message itself does not change), a state (`in`, `pending`, `removed`) and an
+  order.
+- **Sheet week**: the schedule week of §14.1 (Friday to Thursday), named by its Shabbat.
+
+### 19.2 Compose: template or free text (P43)
+
+**Where:** Compose (M4, §12.3), after the type cards. Nothing else in Compose moves: channel row, family picker,
+image, audience line and "פרסום" stay as they are.
+
+1. **"איך כותבים"**, a `Segmented` with two options: **מילוי תבנית** (`tpl` icon) / **טקסט חופשי** (`pen` icon).
+   Shown only when the chosen type has a template. Default: מילוי תבנית for אירוע, מזל טוב and השתתפות בצער. הודעה and
+   עדכון שבועי have no template in v1, so the control is not rendered and the form is today's form.
+2. **Template fields** (below). Required fields carry no mark; optional ones end with a muted "(לא חובה)". Chips are
+   the kit `Chip size="filter"` in a wrapping row, radio semantics, 40 high with a 48 hit area; the selected chip is ink
+   filled with a check (as §12.4).
+3. **Live preview**, a `TemplatePreview` box (dashed `k.line` border, `k.stone`, label "כך תיראה ההודעה" with `eye`):
+   the real `MessageRow` card exactly as members will see it, updated on each keystroke (no debounce needed; it is
+   local). For mazal tov and event, a second label "בגיליון השבועי" with the sheet line drawn in the paper colours (§14.5)
+   and one caption saying what will happen: "נכנס לגיליון מיד (פורסם בידי גבאי)" or "ייכנס לגיליון אחרי אישור
+   הגבאים" (§19.3). On a phone the preview sits under the fields; at ≥ 1024 the form is 560 wide and the preview is a
+   sticky column beside it.
+4. **Missing required fields**: the preview shows a gold dashed placeholder with the field's name (`ymiss`, e.g.
+   "שעות"), never colour alone. "פרסום" stays enabled; pressing it with something missing marks each missing field with
+   the error line "צריך למלא {field}" (kit `Field` error), moves focus to the first one, and publishes nothing.
+5. **Switching to free text** copies the built title and body into the free fields (only if they are still empty or
+   untouched since the last copy) with an info `Banner`: "הנוסח מהתבנית הועתק לכאן. אפשר לערוך אותו חופשי." Switching
+   back keeps the template fields as they were. Nothing is lost while Compose is open. Publishing uses the visible mode.
+   A free-text message stores no `fields`; its sheet line is the title (with the picked family's surname in bold).
+6. Draft saving (M4) covers the mode and the fields.
+
+**Template fields, v1.** Text in "…" is what the app builds; {…} are fields.
+
+| Type | Fields (order) | Built title / body | Sheet line |
+|---|---|---|---|
+| **אירוע** | שם האירוע · יום ותאריך (date picker; shown "ג׳, 3.11", Hebrew date added by the app) · שעה · מקום · למי (chips: לכולם, גברים, נשים, נוער, ילדים; default לכולם) · מארגנים (לא חובה) · פרטים נוספים (לא חובה) | "{שם}" / "{יום}, {תאריך עברי} ({תאריך}), בשעה {שעה} · {מקום} · {למי}." + "מארגנים: …" + details | **{שם}** · {יום קצר} {שעה} · {מקום} |
+| **מזל טוב** | השמחה (chips: הולדת בן, הולדת בת, בר מצווה, בת מצווה, אירוסין, חתונה, אחר → field "איזו שמחה") · המשפחה (P14 picker) · השמחה של (chips: ההורים, הסבים, אחר → free "של מי") · שם בעל/ת השמחה (label follows the occasion: "שם התינוק", "שם הנכדה", "שם החתן"…; לא חובה) · ההורים (only when "הסבים"; לא חובה) · שורת ברכה (prefilled per occasion, editable, can be emptied) | "מזל טוב למשפחת {surname}" / "ל{occasion phrase} {name}, {relation} ל{parents}. {blessing}" | "מזל טוב ל{adults' first names} **{surname}**" + new line "ל{occasion phrase} {name}" (+ ", בת/בן ל{parents}" for grandparents; blessing only if it fits, §19.3) |
+| **השתתפות בצער** | המשפחה (P14 picker) · הנפטר/ת (name, with ז״ל / ע״ה added if missing) · קרבה (free, "אביו של משה") · כתובת השבעה · ניחום אבלים בשעות (free, "10:00–13:00, 17:00–22:00") · השבעה עד (date) · זמני תפילה בבית האבלים (לא חובה) | "משפחת {surname}" / "אנו משתתפים בצערו/ה של … במות …. השבעה ב…, עד …. ניחום אבלים בשעות …. תפילות: …. המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים." | none by default (§19.3) |
+| הודעה, עדכון שבועי | no template (free text) | — | title |
+
+Default blessing lines: birth "שיזכו לגדלו/ה לתורה, לחופה ולמעשים טובים"; bar mitzvah "שיזכה לגדול בתורה
+ובמצוות", bat mitzvah "שתזכה לגדול בתורה ובמעשים טובים"; engagement and wedding "שיזכו לבנות בית נאמן בישראל"; other: empty. Grammar (son/daughter, he/she,
+singular/plural) follows the chosen chips; the developer keeps the phrases in the i18n file, not in code.
+
+**Gabbai-managed templates (future, kept light).** v1 ships the templates above, fixed and the same for every Kehila.
+Later: management › הודעות וערוצים › **תבניות הודעה**, a list of one row per type (P43 panel). A gabbai can hide an
+optional field, change the default blessing and closing line, and duplicate a template under another name. When a
+type has more than one template, Compose shows a "תבנית" select under "איך כותבים"; with one template it is not shown.
+No free-form template editor.
+
+**A11y:** "איך כותבים" is a `radiogroup`; chip rows are `radiogroup`s labelled by their field; the preview box is a
+`region` labelled "תצוגה מקדימה", **not** a live region (it would read every keystroke); a "הקראת התצוגה" is not
+needed because the fields carry the same data. Error lines are linked to their fields.
+
+### 19.3 What goes on the weekly sheet and Home (P44)
+
+**The rule (CTO suggestion adopted, with one switch):**
+
+| Posted by | Mazal tov, event | Condolence | General, weekly |
+|---|---|---|---|
+| Gabbai or management | **On the sheet automatically** | Not on the sheet; a gabbai may add it | Not on the sheet |
+| Member with broadcast permission | **Pending** until a gabbai taps "להוסיף לגיליון" | as above | as above |
+
+A Kehila setting, **"מה שחברים מפרסמים"**, switches the second row to "נכנס אוטומטית" (owner's alternative). Default:
+"אחרי אישור של גבאי". Whatever the setting, the gabbai can always remove an item, edit its sheet line, reorder, and
+add a free item for the week. Which week: an event goes to the sheet week its date falls in (free-text events: the
+week they were posted); a mazal tov goes to the sheet week it was posted in, and one posted after Friday 12:00 goes to
+the next week (the sheet is usually printed on Friday). A pending item not approved by the end of Shabbat leaves the
+list; the message stays in Messages. The §14.4 guest rule still applies (mazal tov is left out of a guest's print
+when guests may not see mazal tov).
+
+**Trade-off, briefly.** Fully automatic is zero work and matches today's paper (two mazal tovs appear without anyone
+deciding). But the sheet is printed, hung in the hall and sent as a WhatsApp image beyond the members, so a member's
+typo, a wrong family or something a family wanted kept quiet goes out with the Kehila's name and logo on it. Approval
+costs one tap per item, from the "לטיפול עכשיו" list the gabbai already opens, and if he does not tap, the item is
+simply missing (the safe failure). Gabbai posts need no second look. The switch lets a Kehila that trusts its posters
+choose automatic.
+
+**Where the gabbai sees it.** Management › תפילות וזמנים › **הגיליון השבועי** (the row §18.3 already reserves). It
+also replaces the "בגיליון השבוע" card in the §14.2 editor (that card now links here). Phone (P44 phones 1–3):
+
+1. Back "תפילות וזמנים", title "הגיליון השבועי", caption "שבת פרשת {X} · {date} · מה שנכנס מתחת לזמנים".
+2. **Fit card**: "נכנס בעמוד אחד" (olive check) or "{n} {items} לא נכנסים לגיליון" (gold alert), a link "תצוגה"
+   (opens the P22 print preview), and three meters: מזל טוב "{n} מתוך 6", אירועים "{n} מתוך 3", תמונה נעוצה
+   "יש / אין". Bars carry numbers; colour is never the only signal.
+3. **ממתין לאישור** (pomegranate-edged list group with a count badge; only when something waits). Each item: type
+   icon, the sheet line (surname bold), Tag "ממתין" + "פורסם בידי {name} · {when}", and two 40-high buttons:
+   primary **"להוסיף לגיליון"**, secondary **"לא בגיליון"**. Either one moves the item at once and shows a Toast with
+   "ביטול" ("נוסף לגיליון" / "לא ייכנס לגיליון").
+4. **מזל טוב בגיליון · {n}** and **אירועים בגיליון · {n}**: one row per item in sheet order. Under the line, a source
+   Tag: "אוטומטי" (olive; gabbai post), "אושר" (+ who approved), "נוסף בידי גבאי" (from §17.14 upcoming simchas),
+   "פריט חופשי" (tekhelet), "לא נכנס" (gold dashed; over the limit, hatched row). A `more` button (44) opens the item
+   Sheet; tapping the row does the same.
+5. **תמונה נעוצה**: one row (the §14 pinned notice) → its existing picker.
+6. Dashed button **"+ פריט לשבוע הזה"** → Sheet: Segmented מזל טוב / אירוע / הודעה, "שם המשפחה (מודגש)" (mazal tov
+   only), "הטקסט", the line preview in paper colours, the note "לשבוע הזה בלבד. לא נשלחת הודעה ולא התראה.", and
+   "הוספה לגיליון".
+7. **כללים**: "מה שחברים מפרסמים" (value "אחרי אישור" / "אוטומטי"; Sheet with two `Choice` rows, saves on tap as
+   §12.2) and "השתתפות בצער" (value "רק בהוספה"; read-only in v1, see open questions).
+
+**Item Sheet** (P44 phone 3): "השורה בגיליון" `Field` (multi-line; the surname is kept bold: the field shows the
+family as a separate bold token and the line is rebuilt around it), the paper-colour preview, "הזזה למעלה" / "הזזה
+למטה" action rows (drag is never the only way), "פתיחת ההודעה" (to the message; hidden for free items), the danger
+action **"הסרה מהגיליון"** (no confirm; Toast with "ביטול"), and "שמירה". A removed message item goes to a collapsed
+"הוסרו השבוע ({n})" line at the end of its group, from which it can be put back.
+
+**לטיפול עכשיו** (§18.3) gets one row while anything is pending: "{n} פריטים מחכים לאישור לגיליון" with the badge and
+the caption "{types} · הגיליון של שבת {X}". It opens this screen scrolled to the pending group. The תפילות וזמנים row
+in the 1280 sidebar shows the same badge.
+
+**1280 glance** (P44 panel 5): sidebar as §18.3; the content column has the title with "הדפסה" and "שיתוף" buttons, the
+lists on the start side, and on the end side a live A4 preview at 80% that redraws after each approve, remove, edit or
+reorder.
+
+**How the sheet shows them** (extends §14.5; A4 values, the square in brackets):
+
+- **Order**: the gabbai's order; by default, mazal tov by posting time (oldest first, so early posters are not pushed
+  out), events by date and time. Approving appends to the end.
+- **Place**: mazal tov under the weekday column; events as tekhelet-bold lines under the pinned image in the Shabbat
+  column. No pinned image: events head that column. No events and no image: mazal tov spans both columns (§14.5).
+- **Line**: "מזל טוב ל{names} **{surname}**" / "ל{occasion} {name}" with the occasion icon (`heart`; `star` for bar/bat
+  mitzvah), blessing as a third line when it fits. Event: "**{name}** · {day} {time} · {place}".
+- **Max**: 6 mazal tov and 3 events on A4 (square: one band, up to 4 surnames: "מזל טוב: משפחת ניסיון · משפחת
+  בדיוני · … ועוד 2"; events are not on the square, they go in the second picture with the pinned notice).
+- **Fitting** (never a second page, never a clipped line). Before the §14.5 steps: (1) drop all blessing lines
+  together; (2) the §14.5 steps (mazal tov 12, pinned image down to 30% of the height, rows 12.5); (3) items beyond
+  the max or still not fitting are left out from the end of the order, and the last line reads "ועוד {n} ברכות
+  באפליקציה" (9.5 muted). The gabbai sees those rows as "לא נכנס" and the gold fit card; he decides whether to remove,
+  reorder or accept. Nothing is silently dropped.
+
+**Home: "השבוע בקהילה"** (P44 phone 4). A `Card` under the schedule card (before the zmanim card): overline "השבוע
+בקהילה · שבת {X}", the same items in the same order (mazal tov first, then events; up to 5 rows, then "ועוד {n}"),
+each row tapping through to its message (free items have no target and are not buttons), and the link "הגיליון
+להדפסה". It follows each viewer's visibility (a guest without mazal tov sees events only) and is hidden when empty.
+Pending items never show. This is one list: the sheet and Home cannot disagree.
+
+### 19.4 Kehila logo (P45)
+
+**Where:** management › הגדרות הקהילה, first row **"לוגו הקהילה"** (72 high): the logo itself at 40 as the row's
+icon (or the letter tile), status "הועלה ב־{date} · בסרגל, בגיליון ובהזמנות" or, in gold, "אין לוגו · מוצגת האות
+{letter}". Tap → Sheet (phone) or a side panel (≥ 1024).
+
+**The Sheet** (P45 phone 2): current logo at 112 on its white tile with "512×512 · 38KB" and "הועלה בידי {name} ב־
+{date}"; **"איפה הוא מופיע"**, four small true-to-size previews: top bar in light and dark (32), the weekly sheet
+header (66 on paper; also the WhatsApp square), the Kehila menu (44), and the invite landing (M11) and link preview;
+then the rules box; footer: primary **"החלפת הלוגו"** ("העלאת לוגו" when there is none) and the danger text action
+**"הסרת הלוגו"** with an inline confirm Banner ("…ובמקומו תוצג האות א. אפשר להעלות שוב בכל עת." / "הסרה" / "ביטול").
+Without a logo the Sheet shows the letter tile at 96 and the line "בינתיים מוצגת האות הראשונה של שם הקהילה, על
+תכלת."
+
+**Upload flow.**
+1. Source: phone → a small Sheet "מהתמונות" / "מהקבצים"; web → file chooser or drop on the panel's drop zone
+   ("גוררים לכאן קובץ PNG או JPEG"). No camera.
+2. **Crop** (P45 phone 3), full-screen on a dark backdrop: a 310 square frame with a rule-of-thirds grid over a
+   checkerboard (shows transparency); drag to move, pinch or the zoom slider (with − / + buttons, 44) to scale,
+   `rotate` 90°. Live previews at 32, 44 and 66 on white tiles. Caption "יישמר כ־PNG בגודל 512×512." Buttons "ביטול"
+   / "שמירה". Keyboard (web): arrows move 1 px (Shift 10), +/− zoom, R rotates, Enter saves, Esc cancels.
+3. On save the app crops, scales to 512 (or to the cropped side if it is smaller, never up-scales), and encodes PNG.
+   If the PNG is over 64KB it retries at 384 and 256, then quantises colours; if still over, it shows an error.
+4. Upload with the button busy ("שומרים"), then Toast "הלוגו עודכן. אצל כולם הוא יתחלף תוך כמה דקות." The new
+   `logoVersion` invalidates `logoCache` on every device on its next Kehila fetch.
+
+**Rules (from `server/cloud/logo.py`)**: the server accepts **PNG only, square, 64 to 512 px a side, at most 65,536
+bytes**. The UI therefore accepts **PNG or JPEG** (owner's request; HEIC from iPhone arrives as JPEG through the
+picker) up to 10MB as input, and always sends a square PNG within those limits. Rules box copy: "PNG או JPEG, עד 10MB
+מהטלפון. חותכים לריבוע באפליקציה. נשמר כ־PNG ריבועי, 64 עד 512 פיקסלים, עד 64KB (מקטינים בשבילכם). הכי טוב: סמל
+פשוט על רקע לבן או שקוף, בלי טקסט קטן."
+
+**Display rule:** the logo always sits on a white rounded tile (`contain`, 2 px inset, `k.line` hairline), also in
+dark mode, because most logos are drawn for white. Fallback everywhere is the existing tekhelet letter tile (§11,
+§14.5).
+
+**Errors** (error `Banner` in the Sheet; the previous logo stays): wrong format "אפשר להעלות PNG או JPEG." (+ what
+was chosen); too small after crop "התמונה קטנה מדי…צריך לפחות 64×64"; too detailed "הלוגו מפורט מדי לגודל המותר…";
+network/server "לא הצלחנו לשמור את הלוגו. הלוגו הקודם נשאר…". A server 400 maps to the matching message, not raw text.
+
+**For the developer:** today the logo can only be written by the admin tool; this needs a gabbai-authorised write
+(and delete) endpoint next to the existing `GET` in `server/cloud/routes_core.py`, validated by the same
+`validate_logo`, bumping `logoVersion`. Not designed here.
+
+### 19.5 Accessibility
+
+- Compose: see §19.2. Template chips and Segmented are radios; required errors are announced on publish.
+- Sheet items: pending buttons read "להוסיף לגיליון: מזל טוב למשפחת ניסיוני"; rows read "{line}. {source}. פריט {i}
+  מתוך {n}"; moving an item announces "הועבר למקום {i} מתוך {n}"; the fit card is a polite live region (it changes
+  after approve/remove). "לא נכנס" is a word, not only hatching.
+- Logo: the crop area is labelled "אזור החיתוך. גוררים להזזה, צובטים להגדלה"; the slider has `accessibilityRole=
+  "adjustable"` with increment/decrement; the previews are `aria-hidden` (the same image). The logo image has the
+  label "לוגו {kehila}".
+- All targets ≥ 48 on phone (chips 40 + hit slop to 48; item `more` 44 inside a 56 row).
+
+### 19.6 Components
+
+- **`TemplateForm`** (new, Compose): renders a template's fields from a small schema (`{ key, kind: text|date|time|
+  chips|family, required, labelByOccasion }`) and returns `fields`; `buildMessage(templateId, fields, lang)` and
+  `buildSheetLine(...)` are pure functions shared with the sheet and Home, unit-testable.
+- **`TemplatePreview`** (new): the existing `MessageRow` in a dashed box + the paper-style sheet line.
+- **Chip row that wraps** (kit `Chip size="filter"` in a wrapping row, radio): reused by templates.
+- **`SheetItemRow`** (new, management): icon, line, source Tag, `more`, or the two pending buttons.
+- **`FitCard`** (new): the meter rows; uses the §14.5 fitting result (`SheetClassic` must expose which items fit).
+- **`WeekCard`** (new, Home): "השבוע בקהילה".
+- **`LogoTile`** (kit): image on white tile or the letter fallback at any size; replaces the ad-hoc logo in TopBar,
+  Kehila menu, sheet and invite.
+- **`LogoCropper`** (new): pan/zoom/rotate square crop + export to PNG with the size loop.
+- Reused: `Segmented`, `Field`, `Card`, `ListGroup`/`NavRow` (§18.5), `Sheet`, `Banner`, `Toast`, `Tag`, `Button`.
+  Icons to add: `tpl`, `pen`, `image`, `eyeoff`, `zoomin`, `zoomout`, `rotate`, `undo` (frame sprite has them).
+
+### 19.7 Copy
+
+| Key | Hebrew | English |
+|---|---|---|
+| `compose.tpl.mode` / `.template` / `.free` | איך כותבים / מילוי תבנית / טקסט חופשי | How to write / Fill a template / Free text |
+| `compose.tpl.optional` | (לא חובה) | (optional) |
+| `compose.tpl.preview` / `.previewSheet` | כך תיראה ההודעה / בגיליון השבועי | How the message will look / On the weekly sheet |
+| `compose.tpl.sheetAuto` / `.sheetPending` | נכנס לגיליון מיד (פורסם בידי גבאי) / ייכנס לגיליון אחרי אישור הגבאים | Goes on the sheet now (posted by a gabbai) / Goes on the sheet once a gabbai approves |
+| `compose.tpl.required` | צריך למלא {field} | Please fill in {field} |
+| `compose.tpl.copied` | הנוסח מהתבנית הועתק לכאן. אפשר לערוך אותו חופשי. הפרטים בתבנית נשמרים אם חוזרים אליה. | The template text was copied here. Edit it freely. Your template details are kept if you switch back. |
+| `compose.tpl.choose` | תבנית | Template |
+| `tpl.event.name` / `.date` / `.time` / `.place` / `.for` / `.organisers` / `.more` | שם האירוע / יום ותאריך / שעה / מקום / למי / מארגנים / פרטים נוספים | Event name / Day and date / Time / Place / For whom / Organisers / More details |
+| `tpl.event.forAll` / `.men` / `.women` / `.youth` / `.kids` | לכולם / גברים / נשים / נוער / ילדים | Everyone / Men / Women / Youth / Children |
+| `tpl.mazal.occasion` / `.whose` / `.name` / `.parents` / `.blessing` / `.other` | השמחה / השמחה של / שם {who} / ההורים / שורת ברכה / איזו שמחה | Occasion / Whose simcha / {who}'s name / Parents / Blessing line / Which simcha |
+| `tpl.mazal.birthSon` / `.birthDaughter` / `.barMitzvah` / `.batMitzvah` / `.engagement` / `.wedding` / `.otherChip` | הולדת בן / הולדת בת / בר מצווה / בת מצווה / אירוסין / חתונה / אחר | Birth of a son / Birth of a daughter / Bar mitzvah / Bat mitzvah / Engagement / Wedding / Other |
+| `tpl.mazal.parentsChip` / `.grandparentsChip` | ההורים / הסבים | Parents / Grandparents |
+| `tpl.mazal.blessingHint` | הצעה לפי השמחה. אפשר לשנות או למחוק. | Suggested for this occasion. Change or delete it. |
+| `tpl.mazal.title` | מזל טוב למשפחת {surname} | Mazal tov to the {surname} family |
+| `tpl.condolence.deceased` / `.relation` / `.address` / `.hours` / `.until` / `.prayers` | הנפטר/ת / קרבה / כתובת השבעה / ניחום אבלים בשעות / השבעה עד / זמני תפילה בבית האבלים | The deceased / Relation / Shiva address / Visiting hours / Shiva until / Prayer times at the shiva house |
+| `tpl.condolence.closing` | המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים. | May the Almighty comfort you among the mourners of Zion and Jerusalem. |
+| `sheetItems.title` / `.caption` | הגיליון השבועי / שבת פרשת {parasha} · {date} · מה שנכנס מתחת לזמנים | Weekly sheet / Shabbat {parasha} · {date} · what goes under the times |
+| `sheetItems.fits` / `.over` / `.preview` | נכנס בעמוד אחד / {n} פריטים לא נכנסים לגיליון / תצוגה | Fits on one page / {n} items don't fit / Preview |
+| `sheetItems.meter.mazal` / `.events` / `.image` / `.of` | מזל טוב / אירועים / תמונה נעוצה / {n} מתוך {max} | Mazal tov / Events / Pinned image / {n} of {max} |
+| `sheetItems.pending` / `.add` / `.skip` | ממתין לאישור / להוסיף לגיליון / לא בגיליון | Waiting for approval / Add to the sheet / Not on the sheet |
+| `sheetItems.added` / `.skipped` / `.undo` | נוסף לגיליון / לא ייכנס לגיליון / ביטול | Added to the sheet / Won't go on the sheet / Undo |
+| `sheetItems.src.auto` / `.approved` / `.byGabbai` / `.free` / `.out` / `.postedBy` | אוטומטי / אושר / נוסף בידי גבאי / פריט חופשי / לא נכנס / פורסם בידי {name} | Automatic / Approved / Added by a gabbai / Free item / Doesn't fit / Posted by {name} |
+| `sheetItems.groupMazal` / `.groupEvents` / `.groupImage` / `.removed` | מזל טוב בגיליון / אירועים בגיליון / תמונה נעוצה / הוסרו השבוע ({n}) | Mazal tov on the sheet / Events on the sheet / Pinned image / Removed this week ({n}) |
+| `sheetItems.addFree` / `.freeNote` / `.freeSurname` / `.freeText` / `.addBtn` | פריט לשבוע הזה / לשבוע הזה בלבד. לא נשלחת הודעה ולא התראה. / שם המשפחה (מודגש) / הטקסט / הוספה לגיליון | Item for this week / This week only. No message or notification is sent. / Family name (bold) / Text / Add to the sheet |
+| `sheetItems.item.title` / `.line` / `.lineHelp` / `.up` / `.down` / `.open` / `.remove` | פריט בגיליון / השורה בגיליון / משנה רק את הגיליון ואת "השבוע בקהילה". ההודעה עצמה לא משתנה. / הזזה למעלה / הזזה למטה / פתיחת ההודעה / הסרה מהגיליון | Sheet item / Line on the sheet / Changes only the sheet and "This week". The message itself stays. / Move up / Move down / Open the message / Remove from the sheet |
+| `sheetItems.rule.members` / `.approve` / `.auto` / `.condolence` / `.onlyAdded` | מה שחברים מפרסמים / אחרי אישור / אוטומטי / השתתפות בצער / רק בהוספה | What members post / After approval / Automatic / Condolences / Only when added |
+| `sheetItems.rule.approveNote` / `.autoNote` | ברירת המחדל. נגיעה אחת "להוסיף לגיליון" בלטיפול עכשיו. / כמו הודעות של גבאים. אפשר תמיד להסיר מהגיליון. | Default. One tap "Add to the sheet" in Needs attention. / Like gabbai posts. You can always remove an item. |
+| `sheetItems.empty` | אין השבוע מזל טוב או אירועים בגיליון. | No mazal tov or events on the sheet this week. |
+| `admin.todo.sheet` / `.sheetCaption` | {n} פריטים מחכים לאישור לגיליון / {types} · הגיליון של שבת {parasha} | {n} items waiting for the sheet / {types} · Shabbat {parasha} sheet |
+| `sheet.more` | ועוד {n} ברכות באפליקציה | {n} more in the app |
+| `home.week.title` / `.more` / `.print` | השבוע בקהילה · שבת {parasha} / ועוד {n} / הגיליון להדפסה | This week · Shabbat {parasha} / {n} more / Printable sheet |
+| `logo.row` / `.rowSet` / `.rowNone` | לוגו הקהילה / הועלה ב־{date} · בסרגל, בגיליון ובהזמנות / אין לוגו · מוצגת האות {letter} | Community logo / Uploaded {date} · top bar, sheet and invites / No logo · showing the letter {letter} |
+| `logo.current` / `.meta` / `.where` | הלוגו הנוכחי / הועלה בידי {name} ב־{date} / איפה הוא מופיע | Current logo / Uploaded by {name} on {date} / Where it appears |
+| `logo.where.top` / `.sheet` / `.menu` / `.invite` | סרגל עליון / גיליון שבועי / תפריט הקהילה / הזמנה (קישור ודף ההצטרפות) | Top bar / Weekly sheet / Community menu / Invite (link and join page) |
+| `logo.none` | בינתיים מוצגת האות הראשונה של שם הקהילה, על תכלת. | For now, the first letter of the community's name is shown. |
+| `logo.upload` / `.replace` / `.remove` | העלאת לוגו / החלפת הלוגו / הסרת הלוגו | Upload a logo / Replace the logo / Remove the logo |
+| `logo.rules` | PNG או JPEG, עד 10MB מהטלפון. חותכים לריבוע באפליקציה. נשמר כ־PNG ריבועי, 64 עד 512 פיקסלים, עד 64KB (מקטינים בשבילכם). הכי טוב: סמל פשוט על רקע לבן או שקוף, בלי טקסט קטן. | PNG or JPEG, up to 10MB. You crop it to a square here. Saved as a square PNG, 64 to 512 pixels, up to 64KB (we shrink it for you). Best: a simple mark on white or transparent, no small text. |
+| `logo.source.photos` / `.files` / `.drop` | מהתמונות / מהקבצים / גוררים לכאן קובץ PNG או JPEG | From photos / From files / Drop a PNG or JPEG here |
+| `logo.crop.title` / `.zoom` / `.rotate` / `.note` / `.area` | חיתוך לריבוע / הגדלה / סיבוב / יישמר כ־PNG בגודל {size}×{size}. / אזור החיתוך. גוררים להזזה, צובטים להגדלה | Crop to a square / Zoom / Rotate / Saved as a {size}×{size} PNG. / Crop area. Drag to move, pinch to zoom |
+| `logo.saving` / `.saved` | שומרים / הלוגו עודכן. אצל כולם הוא יתחלף תוך כמה דקות. | Saving / Logo updated. Everyone will see it within a few minutes. |
+| `logo.removeConfirm` | להסיר את הלוגו? הוא יוסר מהסרגל, מהגיליון ומההזמנות, ובמקומו תוצג האות {letter}. אפשר להעלות שוב בכל עת. | Remove the logo? It will be removed from the top bar, sheet and invites, and the letter {letter} shown instead. You can upload again any time. |
+| `logo.err.format` / `.small` / `.big` / `.save` | אפשר להעלות PNG או JPEG. / התמונה קטנה מדי. צריך לפחות 64×64 פיקסלים אחרי החיתוך. / הלוגו מפורט מדי לגודל המותר. נסו גרסה פשוטה יותר (פחות פרטים, רקע אחיד). / לא הצלחנו לשמור את הלוגו. הלוגו הקודם נשאר. | Please upload a PNG or JPEG. / The image is too small: at least 64×64 pixels after cropping. / The logo is too detailed for the size limit. Try a simpler version. / We couldn't save the logo. The previous one stays. |
+
+### 19.8 What this supersedes
+
+- §14.2 editor's **"בגיליון השבוע"** card (mazal tov checklist, pinned image): its content moves to הגיליון השבועי
+  (§19.3); the editor keeps a link and the candle-city and template choices.
+- §14.5 **fitting**: the new first step (drop blessing lines) and the "ועוד {n}" line are added before/after it.
+- §17.14 "הוספה למזל טוב בגיליון השבועי" now adds a gabbai item (source "נוסף בידי גבאי"), no separate confirm.
+- §18.3 **לטיפול עכשיו** gains the sheet row; **הגדרות הקהילה** gains "לוגו הקהילה" as its first row.
+- M4 / §12.3 Compose: unchanged apart from "איך כותבים", template fields and the preview.
+
+### 19.9 Open questions
+
+1. Approval default: "אחרי אישור של גבאי" (assumed) or "נכנס אוטומטית" as on today's paper? The switch exists either way.
+2. Condolences on the sheet: never automatic (assumed; gabbai can add a free item). Should a condolence posted by a
+   gabbai go on automatically, like mazal tov?
+3. Mazal tov week cut-off: posted after Friday 12:00 goes to next week's sheet (assumed). Is Friday noon right, or
+   should it follow the moment the gabbai prints?
+4. Logo in dark mode always on a white tile (assumed). Or allow a second, dark-mode logo later?
+
+### 19.10 Verification
+
+Frames built from `src/kit` classes and checked for balanced markup. **Screenshots pending**: rendering at 390 × 844
+(light and dark) and the 1280 glances is the next step, done only when the machine has memory free. Not checked:
+real devices, English (LTR) layout, screen readers, the Hebrew grammar of the built phrases (needs a native editor),
+and the PNG size loop on real logos.
