@@ -2,7 +2,7 @@
 // history, conflict. All decisions are in src/seats (pure, tested): editModel (draft, assign, move, paint, caps, diff and rebase), grid (selection),
 // mapSave (save/conflict/history). This file is the wiring. Gabbaim only; a phone gets the hall and the list, read-only.
 import React from 'react';
-import { Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useAuth } from '../../../auth/AuthProvider.tsx';
 import { fixtureNow } from '../../../client/fixtures.ts';
 import type { SeatHolder, SeatLayoutRow } from '../../../client/endpoints.ts';
@@ -36,7 +36,7 @@ import { ConflictDialog } from './ConflictDialog.tsx';
 import type { ConflictLine, ConflictState } from './ConflictDialog.tsx';
 import { Dialog } from './Dialog.tsx';
 import { FamilyPicker } from './FamilyPicker.tsx';
-import { HallGrid, ZOOMS } from './HallGrid.tsx';
+import { HallGrid } from './HallGrid.tsx';
 import type { Mods, Zoom } from './HallGrid.tsx';
 import { HistoryDialog } from './HistoryDialog.tsx';
 import { LayoutPanel } from './LayoutPanel.tsx';
@@ -103,10 +103,9 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
 
   // ---- interaction state ----
   const [mode, setMode] = React.useState<'assign' | 'layout'>(scratch ? 'layout' : 'assign');
-  // a hall that does not fit the canvas at 100% opens at "fit" (wide halls may scroll, but the first view should show the room)
-  const { width: winW } = useWindowDimensions();
+  // opens at 100% (the former size x1.1) on wide screens; the map scrolls inside its own column. Phones keep "fit": at 100% a 29-column hall is ~2000 px wide.
   const [zoomPick, setZoom] = React.useState<Zoom | null>(null);
-  const zoom: Zoom = zoomPick ?? (phone || edit.draft.layout.cols * ZOOMS.z100.w + 120 > winW - 360 ? 'fit' : 'z100');
+  const zoom: Zoom = zoomPick ?? (phone ? 'fit' : 'z100');
   const [selRef, setSelRef] = React.useState<string | null>(null);
   const [sel, dispatchSel] = React.useReducer(selReducer, undefined, emptySel);
   const [focus, setFocus] = React.useState<Pos | null>(null);
@@ -439,8 +438,8 @@ export function MapEditor({ families, holders, layouts, scratch, phone, onLayout
       {toolbar}
       {band}
       <View style={{ flex: 1, flexDirection: 'row' }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90 }}>
+        <View style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 90, width: '100%' }}>
             <HallGrid {...hallProps} />
           </ScrollView>
           {bar}
