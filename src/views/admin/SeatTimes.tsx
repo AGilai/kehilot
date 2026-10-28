@@ -15,25 +15,14 @@ import { PadScroll } from '../../kit/PadScroll.tsx';
 import { TOUCH } from '../../kit/theme.ts';
 import { allowedRange, dayLabel, fits, neighbours, slotLabel, weekMinute } from '../../seats/times.ts';
 import type { Day, SeatTimes as Times, Slot, Which } from '../../seats/times.ts';
+import { applyTimes, failMessage } from '../../seats/timesSave.ts';
+import type { Failure, TimesBody } from '../../seats/timesSave.ts';
 import { useShabbat } from '../../seats/useShabbat.ts';
 import { BackLink } from '../Me.tsx';
 import { useAdminErrText } from './shared.tsx';
 import { TimeField } from './scheduleEditor/controls.tsx';
 
-type Put = Parameters<ReturnType<typeof useAuth>['api']['putSeatTimes']>[1];
-const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-const RETRIES = 3;
-const NBSP = ' ';
-
-/** A write that repeats on 409 `try_again` (a DynamoDB conflict: nothing changed) a few times, half a second apart. */
-async function withRetry<T>(call: () => Promise<T>): Promise<T> {
-  for (let i = 0; ; i++) {
-    try { return await call(); } catch (e) {
-      if (i >= RETRIES || (e as { code?: unknown } | null)?.code !== 'try_again') throw e;
-      await wait(500);
-    }
-  }
-}
+const NBSP = '\u00a0';
 
 /** LTR-isolated, tabular: "ה׳ 20:00" stays one piece inside Hebrew text. */
 function Value({ children, color }: { children: string; color?: string }) {
@@ -152,7 +141,7 @@ export function SeatTimes({ onBack, onToast }: { onBack: () => void; onToast: (t
 
   React.useEffect(() => {
     let live = true;
-    withRetry(() => api.seatTimes(kehilaId)).then(v => { if (live) setTimes(v); }, e => { if (live) setError(errText(e)); });
+    api.seatTimes(kehilaId).then(v => { if (live) setTimes(v); }, e => { if (live) setError(errText(e)); });
     return () => { live = false; };
   }, [api, kehilaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -169,61 +158,43 @@ export function SeatTimes({ onBack, onToast }: { onBack: () => void; onToast: (t
   const slotOf = (w: Which): Slot => (w === 'deadline' ? { day: 'fri', time: times.deadline } : times.reminders[w]);
   const shabbat = parasha ? t('seats.row.shabbat', { parasha }) : t('admin.seats.shabbatFallback');
 
-  const save = async (body: Put): Promise<Times | null> => {
-    setBusy(true);
-    try {
-      const next = await withRetry(() => api.putSeatTimes(kehilaId, body));
-      setTimes(next);
-      return next;
-    } catch (e) {
-      setEdit(cur => cur ? { ...cur, error: failText(e, cur) } : cur);
-      throw e;
-    } finally { setBusy(false); }
+  const put = (body: TimesBody) => api.putSeatTimes(kehilaId, body);
+  /** The text of a refusal about `which`: its own message, or the generic one for the code. */
+  const failText = (w: Which, f: Failure): string => {
+    const m = failMessage(times, w, f, lang);
+    return m ? t(m.key, m.key === 'admin.seats.errDeadline' ? { ...m.params, reminder: t(m.params.reminder!) } : m.params) : errText(new ApiCodeError(0, f.code));
   };
-  // The sheet's message for a refused save.
-  const failText = (e: unknown, cur: { which: Which }): string => {
-    const code = (e as { code?: unknown } | null)?.code;
-    if (code === 'seat_reminder_after_deadline') {
-      const field = String((e as { field?: unknown } | null)?.field ?? '').match(/^reminders\.([12])$/)?.[1] as '1' | '2' | undefined;
-      const late = field ?? (times.reminders['2'].on ? '2' : '1');
-      return t('admin.seats.errDeadline', { reminder: name(late), when: slotLabel(times.reminders[late], lang) });
-    }
-    if (code === 'seat_times_order') return orderError(cur.which);
-    return errText(e);
-  };
-  const orderError = (w: Which): string => {
-    const n = neighbours(times, w);
-    return n.next ? t('admin.seats.errOrder', { prev: slotLabel(n.prev, lang), next: slotLabel(n.next, lang) }) : t('admin.seats.errAfter', { prev: slotLabel(n.prev, lang) });
-  };
+  const orderError = (w: Which): string => failText(w, { code: 'seat_times_order' });
 
   const open = (w: Which) => { const s = slotOf(w); setEdit({ which: w, day: s.day, time: s.time, error: null }); };
   const draft = edit ? { day: edit.which === 'deadline' ? ('fri' as const) : edit.day, time: edit.time } : null;
   const draftOk = edit && draft ? fits(times, edit.which, draft) : false;
   const range = edit ? allowedRange(times, edit.which) : null;
-  const orderMsg = edit && !draftOk ? (/^([01]\d|2[0-3]):[0-5]\d$/.test(edit.time) && Number(edit.time.slice(3)) % 15 !== 0 ? t('admin.seats.errStep') : orderError(edit.which)) : null;
+  const complete = !!edit && /^([01]\d|2[0-3]):[0-5]\d$/.test(edit.time);
+  const orderMsg = edit && !draftOk ? (!complete ? t('editor.timeInvalid') : Number(edit.time.slice(3)) % 15 !== 0 ? t('admin.seats.errStep') : orderError(edit.which)) : null;
 
   const onSave = async () => {
     if (!edit || !draft || !draftOk) return;
-    const body: Put = edit.which === 'deadline' ? { deadline: draft.time } : { reminders: { [edit.which]: { day: draft.day, time: draft.time } } };
-    try { await save(body); setEdit(null); onToast(t('admin.seats.saved')); } catch { /* the sheet shows why */ }
+    const body: TimesBody = edit.which === 'deadline' ? { deadline: draft.time } : { reminders: { [edit.which]: { day: draft.day, time: draft.time } } };
+    setBusy(true);
+    const r = await applyTimes(put, times, body);
+    setBusy(false);
+    if (r.failure) { setEdit(cur => cur ? { ...cur, error: failText(edit.which, r.failure!) } : cur); return; }
+    setTimes(r.times); setEdit(null); onToast(t('admin.seats.saved'));
   };
 
   const flip = async (n: '1' | '2') => {
     if (busy) return;
     const on = !times.reminders[n].on;
-    const before = times;
     setTimes({ ...times, reminders: { ...times.reminders, [n]: { ...times.reminders[n], on } } });
     setError(null);
     setBusy(true);
-    try {
-      setTimes(await withRetry(() => api.putSeatTimes(kehilaId, { reminders: { [n]: { on } } })));
-      onToast(t(on ? 'admin.seats.onToast' : 'admin.seats.offToast'));
-    } catch (e) {
-      setTimes(before);
-      setError((e as { code?: unknown } | null)?.code === 'seat_times_order' ? `${name(n)}: ${t('errors.seat_times_order')}` : errText(e));
-    } finally { setBusy(false); }
+    const r = await applyTimes(put, times, { reminders: { [n]: { on } } });
+    setBusy(false);
+    setTimes(r.times);
+    if (r.failure) setError(r.failure.code === 'seat_times_order' ? `${name(n)}: ${t('errors.seat_times_order')}` : failText(n, r.failure));
+    else onToast(t(on ? 'admin.seats.onToast' : 'admin.seats.offToast'));
   };
-
   const r1 = times.reminders['1'];
   const r2 = times.reminders['2'];
   const when = (s: Slot) => `${slotLabel(s, lang)}`;
