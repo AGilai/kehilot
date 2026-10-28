@@ -164,7 +164,19 @@
     "invalid_seat_deadline": "The deadline time is not valid.",
     "generations_limit": "The tree goes up to 6 generations. Remove some distant figures and save again.",
     "grandchildren_limit": "Up to 20 grandchildren per child. Remove some and save again.",
-    "account_figure": "You can't remove or mark as deceased the figure of someone with an account in this family."
+    "account_figure": "You can't remove or mark as deceased the figure of someone with an account in this family.",
+    "cannot_move": "This item can't move there.",
+    "invalid_bold": "The bold part is not valid.",
+    "invalid_direction": "The move direction is not valid.",
+    "invalid_fields": "Template details are missing or not valid.",
+    "invalid_line": "The sheet line is not valid.",
+    "invalid_sheet_members": "This setting is not valid.",
+    "invalid_source": "The source is not valid.",
+    "invalid_state": "The state is not valid.",
+    "invalid_template_id": "The template is not valid.",
+    "item_not_found": "Item not found. It may have been removed.",
+    "too_many_items": "This week's sheet has too many items.",
+    "witness_changed": "The data changed meanwhile. Refresh and try again."
   },
   "app": {
     "name": "Kehilot"
