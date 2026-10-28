@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P40 הודעות · סינון לפי סוג</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Noto+Serif+Hebrew:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="../shared.css">
+<style>
+/* §12.8 frame helpers (kit equivalents named in UX-DESIGN §12.8). Nothing added to shared.css. */
+.phone.mf{width:390px;height:844px}
+.mfig{margin:0;display:flex;flex-direction:column;gap:8px;align-items:center}
+.mfig .cap{text-align:center}
+.mfh{gap:12px!important}
+.kday{margin:4px 0 0;font-size:12.5px;font-weight:700;color:var(--k-muted)}
+.ksrch{min-height:48px;border:1px solid var(--k-line);border-radius:10px;background:var(--k-surface);padding:0 4px;display:flex;align-items:center;gap:4px;font-size:16px;color:var(--k-ink)}
+.ksrch>svg{margin-inline:8px 0;color:var(--k-muted)}
+.ksrch>span{flex:1}.ksrch>span.ph{color:var(--k-muted)}
+.ksrch .kib{width:44px;height:44px;color:var(--k-muted)}
+.kcount{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;color:var(--k-muted);min-height:44px;margin-block:-6px}
+/* NEW kit SelectButton: one control that opens the type list */
+.ksel{min-height:48px;width:100%;display:flex;align-items:center;gap:8px;padding-inline:12px 8px;border:1px solid var(--k-line);border-radius:10px;background:var(--k-surface);color:var(--k-ink);font:400 16px/1.4 var(--f-ui);text-align:start;cursor:pointer}
+.ksel>svg:first-child{color:var(--k-muted)}
+.ksel .lb{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ksel .lb b{font-weight:700}.ksel .lb span{color:var(--k-muted)}
+.ksel .cv{color:var(--k-muted);transition:transform .15s}
+.ksel.open .cv{transform:rotate(180deg)}
+.ksel.on{border:2px solid var(--k-ink);padding-inline:11px 7px}
+.ksel.on>svg:first-child{color:var(--k-ink)}
+.ksel .bdg{flex:none;min-width:24px;height:24px;padding:0 7px;border-radius:12px;background:var(--k-ink);color:var(--k-stone);font-size:12.5px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+/* type rows: Check + stripe dot + count */
+.kcrs{padding:0 16px!important;gap:0!important}
+.kcr{min-height:48px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--k-line)}
+.kcr:first-child{border-top:0}
+.kcr>.bx{flex:none;width:24px;height:24px;border-radius:6px;border:2px solid var(--k-muted);background:var(--k-surface);display:grid;place-items:center;color:var(--k-on)}
+.kcr.on>.bx{background:var(--k-tek);border-color:var(--k-tek)}
+.kcr>.bx svg{stroke-width:3;color:var(--k-on)!important;stroke:var(--k-on)}
+.kcr .kdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--e)}
+.kcr .g{flex:1;min-width:0}
+.kcr.on .g,.kcr.all .g{font-weight:700}
+.kcr .n{min-width:28px;text-align:end;font-size:14px;font-weight:700;color:var(--k-muted);font-variant-numeric:tabular-nums}
+.kcr.off{opacity:.6}
+.mfsheet{gap:10px!important;padding-top:8px!important}
+.mfsheet .grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--k-line);margin:0 auto 2px}
+.mfsheet .kc{flex:none}
+.mfmute{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--k-line);padding-top:4px}
+.mfmute .ktg>i{font-style:normal}
+.kmend{display:flex;align-items:center;gap:8px;min-height:48px;font-size:14px;color:var(--k-muted)}
+.kmend span{flex:1}
+.kmsg.mu{background:transparent;border-style:dashed;border-inline-start:6px dotted var(--k-line)}
+.kmsg.mu .ttl{font-weight:500;color:var(--k-muted)}
+.kmsg.mu .ktag{margin-inline-start:auto}
+.mfempty{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;padding:16px 0}
+/* 1280 glance */
+.mfwide{flex:1 1 100%;width:100%;min-width:0;display:flex;flex-direction:column;gap:8px}
+.mfwide .hscroll{min-width:0}
+.mfweb{width:1280px;height:560px;background:var(--k-stone);color:var(--k-ink);position:relative;overflow:hidden}
+.mfweb .ktop{border-bottom:1px solid var(--k-line);background:var(--k-surface)}
+.mfcol{max-width:720px;margin:0 auto;padding:24px 16px;display:flex;flex-direction:column;gap:12px}
+.mfrow{display:flex;gap:12px;align-items:flex-start}
+.mfrow .ksrch{flex:1}
+.mfanchor{position:relative;width:300px;flex:none}
+.kpop{position:absolute;top:56px;inset-inline-end:0;z-index:6;width:340px;background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;box-shadow:0 10px 28px rgba(20,30,90,.22);padding:4px 0 8px;display:flex;flex-direction:column;gap:4px}
+.kpop .mfmute{padding:4px 16px 0}
+@media (max-width:440px){
+  .stage.mfs{padding:0 0 40px;gap:24px}
+  .stage.mfs>.mfig{width:100%}
+  .stage.mfs .phone.mf{width:100%;margin:0;outline:0;border-radius:0}
+  .stage.mfs>.kstates,.stage.mfs>.notes,.stage.mfs>.mfwide{margin:0 16px;width:auto}
+}
+</style>
+</head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="belloff" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M3 12L21 4l-6 16-3-7z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="chair" viewBox="0 0 24 24"><path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/></symbol>
+<symbol id="mega" viewBox="0 0 24 24"><path d="M3 10v4h4l8 4V6L7 10zM18 9a4 4 0 0 1 0 6"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+<symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="scroll" viewBox="0 0 24 24"><path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V6a2 2 0 0 0-2-2zM9 20H6"/><path d="M11 9h4M11 13h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol></defs></svg>
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P40 · הודעות · סינון לפי סוג</b><span>UX-DESIGN §12.8: כפתור אחד "סוג הודעה" במקום שורת השבבים, רשימה עם מספר הודעות לכל סוג, ו"שלי / הכול" הופך למתג "להציג גם הודעות מושתקות".</span></div><nav class="pn"><a href="P39.html" aria-label="הקודם">הקודם</a><a href="../index.html" aria-label="חזרה לאינדקס">אינדקס</a></nav></header>
+<main class="stage mfs">
+
+<!-- 1. closed, no filter -->
+<figure class="mfig"><figcaption class="cap">1 · סגור, בלי סינון</figcaption>
+<div class="phone kit mf" id="closed"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app">
+<div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span></div><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div>
+<div class="kscroll fade mfh">
+<h1 class="ktitle">הודעות</h1>
+<div class="ksrch" role="search"><svg class="i s" aria-hidden="true"><use href="#search"/></svg><span class="ph">חיפוש בהודעות</span></div>
+<button class="ksel" aria-haspopup="dialog" aria-label="סוג הודעה: הכול. 23 הודעות. פתיחת רשימת הסוגים"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>סוג הודעה</b><span> · הכול</span></span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></button>
+<p class="kday">היום</p>
+<article class="kmsg" style="--e:var(--k-gold)"><div class="meta"><span>עדכון שבועי · <span class="knum">09:12</span></span><span class="dot" aria-label="לא נקראה"></span></div><h3 class="ttl">זמני השבת · פרשת וירא</h3><p class="bd">הדלקת נרות 16:21, מנחה 16:30, שיעור לפני ערבית.</p></article>
+<article class="kmsg" style="--e:var(--k-pom)"><div class="meta"><span>מזל טוב · <span class="knum">08:40</span></span><span class="dot" aria-label="לא נקראה"></span></div><h3 class="ttl">מזל טוב לבר המצווה בבית בדיוני</h3><p class="bd">משפחת בדיוני מזמינה את כולם לקידוש בשבת הקרובה.</p></article>
+<p class="kday">אתמול</p>
+<article class="kmsg" style="--e:var(--k-tek)"><div class="meta"><span>אירוע · <span class="knum">20:05</span></span></div><h3 class="ttl">שיעור לנשים ביום שלישי</h3><p class="bd">עם הרבנית דמיונית, בעזרת הנשים, בשעה 20:30.</p></article>
+<article class="kmsg" style="--e:var(--k-tek)"><div class="meta"><span>הודעה · <span class="knum">12:30</span></span></div><h3 class="ttl">שינוי בשעת מנחה ביום חמישי</h3><p class="bd">בגלל עבודות בחניה, מנחה תתחיל ב־13:45.</p></article>
+</div>
+<nav class="ktabs"><a href="#"><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav>
+<a class="kfab" href="#"><svg class="i" aria-hidden="true"><use href="#plus"/></svg>הודעה חדשה</a>
+</div><div class="gest"></div></div></figure>
+
+<!-- 2. sheet open with counts -->
+<figure class="mfig"><figcaption class="cap">2 · הרשימה פתוחה, עם מספרים</figcaption>
+<div class="phone kit mf" id="sheet"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app">
+<div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span></div><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div>
+<div class="kscroll mfh" aria-hidden="true">
+<h1 class="ktitle">הודעות</h1>
+<div class="ksrch"><svg class="i s" aria-hidden="true"><use href="#search"/></svg><span class="ph">חיפוש בהודעות</span></div>
+<div class="ksel on open"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>סוג: אירוע, מזל טוב</b></span><span class="bdg">2</span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></div>
+<div class="kcount"><span>8 הודעות</span><a class="klink" href="#">ניקוי הסינון</a></div>
+<article class="kmsg" style="--e:var(--k-pom)"><div class="meta"><span>מזל טוב · <span class="knum">08:40</span></span></div><h3 class="ttl">מזל טוב לבר המצווה בבית בדיוני</h3></article>
+</div>
+<nav class="ktabs" aria-hidden="true"><a href="#"><b><svg class="i"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i"><use href="#msg"/></svg></b>הודעות</a><a href="#"><b><svg class="i"><use href="#user"/></svg></b>אני</a></nav>
+<div class="kscrim"></div>
+<section class="ksheet mfsheet" role="dialog" aria-modal="true" aria-labelledby="sh-t"><i class="grab" aria-hidden="true"></i>
+<h2 class="ktitle" id="sh-t">סוג הודעה</h2>
+<p class="kt s m">אפשר לבחור כמה סוגים. המספרים לפי החיפוש והתצוגה הנוכחיים.</p>
+<div class="kc kcrs" role="group" aria-label="סוג הודעה">
+<div class="kcr all" role="checkbox" aria-checked="false" aria-label="כל הסוגים, 23 הודעות"><i class="bx"></i><span class="g">כל הסוגים</span><span class="n">23</span></div>
+<div class="kcr" role="checkbox" aria-checked="false" aria-label="הודעה, 9 הודעות"><i class="bx"></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">הודעה</span><span class="n">9</span></div>
+<div class="kcr" role="checkbox" aria-checked="false" aria-label="עדכון שבועי, 4 הודעות"><i class="bx"></i><i class="kdot" style="--e:var(--k-gold)"></i><span class="g">עדכון שבועי</span><span class="n">4</span></div>
+<div class="kcr on" role="checkbox" aria-checked="true" aria-label="אירוע, 5 הודעות"><i class="bx"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">אירוע</span><span class="n">5</span></div>
+<div class="kcr on" role="checkbox" aria-checked="true" aria-label="מזל טוב, 3 הודעות"><i class="bx"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></i><i class="kdot" style="--e:var(--k-pom)"></i><span class="g">מזל טוב</span><span class="n">3</span></div>
+<div class="kcr" role="checkbox" aria-checked="false" aria-label="השתתפות בצער, 2 הודעות"><i class="bx"></i><i class="kdot" style="--e:var(--k-ash)"></i><span class="g">השתתפות בצער</span><span class="n">2</span></div>
+</div>
+<div class="mfmute"><div class="ktg" role="switch" aria-checked="false"><span>להציג גם הודעות מושתקות</span><i>כבוי</i></div>
+<p class="kt c m">מערוצים, סוגים וחברים שהשתקתם בהעדפות ההתראות (4 הודעות). הן אף פעם לא נספרות כלא נקראו.</p></div>
+<button class="kb s">הצגת 8 הודעות</button>
+</section>
+</div><div class="gest"></div></div></figure>
+
+<!-- 3. active filter -->
+<figure class="mfig"><figcaption class="cap">3 · סינון פעיל: אירוע, מזל טוב</figcaption>
+<div class="phone kit mf" id="active"><div class="sb"><span class="num">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app">
+<div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span></div><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div>
+<div class="kscroll fade mfh">
+<h1 class="ktitle">הודעות</h1>
+<div class="ksrch" role="search"><svg class="i s" aria-hidden="true"><use href="#search"/></svg><span class="ph">חיפוש בהודעות</span></div>
+<button class="ksel on" aria-haspopup="dialog" aria-label="סוג הודעה: אירוע, מזל טוב. 2 נבחרו. פתיחת רשימת הסוגים"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>סוג: אירוע, מזל טוב</b></span><span class="bdg" aria-hidden="true">2</span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></button>
+<div class="kcount" aria-live="polite"><span>8 הודעות</span><a class="klink" href="#">ניקוי הסינון</a></div>
+<article class="kmsg" style="--e:var(--k-pom)"><div class="meta"><span>מזל טוב · <span class="knum">08:40</span></span><span class="dot" aria-label="לא נקראה"></span></div><h3 class="ttl">מזל טוב לבר המצווה בבית בדיוני</h3><p class="bd">משפחת בדיוני מזמינה את כולם לקידוש בשבת הקרובה.</p></article>
+<article class="kmsg" style="--e:var(--k-tek)"><div class="meta"><span>אירוע · <span class="knum">אתמול</span></span></div><h3 class="ttl">שיעור לנשים ביום שלישי</h3><p class="bd">עם הרבנית דמיונית, בעזרת הנשים, בשעה 20:30.</p></article>
+<article class="kmsg" style="--e:var(--k-pom)"><div class="meta"><span>מזל טוב · <span class="knum">ט׳ בחשוון</span></span></div><h3 class="ttl">מזל טוב להולדת הנכדה</h3><p class="bd">לדנה ויוסי משלי, שתזכו לגדלה לתורה.</p></article>
+<article class="kmsg" style="--e:var(--k-tek)"><div class="meta"><span>אירוע · <span class="knum">ח׳ בחשוון</span></span></div><h3 class="ttl">ערב חנוכה למשפחות</h3></article>
+</div>
+<nav class="ktabs"><a href="#"><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav>
+<a class="kfab" href="#"><svg class="i" aria-hidden="true"><use href="#plus"/></svg>הודעה חדשה</a>
+</div><div class="gest"></div></div></figure>
+
+<div class="kstates">
+<section class="kpanel"><h3 class="plabel">אין תוצאות · יש התאמות בין המושתקות</h3><div class="kbody">
+<div class="ksel on"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>סוג: השתתפות בצער</b></span><span class="bdg">1</span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></div>
+<div class="mfempty"><p class="kt">לא נמצאו הודעות שמתאימות לסינון.</p><button class="kb s">ניקוי הסינון</button><p class="kt s m">יש 2 הודעות מתאימות בין ההודעות המושתקות. <a class="klink" href="#">הצגת המושתקות</a></p></div>
+</div></section>
+
+<section class="kpanel"><h3 class="plabel">סוף הרשימה · מושתקות מוסתרות / מוצגות</h3><div class="kbody">
+<div class="kmend"><svg class="i s" aria-hidden="true"><use href="#belloff"/></svg><span>4 הודעות מושתקות לא מוצגות</span><a class="klink" href="#">הצגה</a></div>
+<p class="kt c m">אחרי ההודעה האחרונה שנטענה. במתג דולק: ההודעות המושתקות בתוך הרשימה, בקו מנוקד ובתגית, והשורה הופכת ל"מוצגות גם הודעות מושתקות · הסתרה".</p>
+<article class="kmsg mu" style="--e:var(--k-tek)"><div class="meta"><span>הודעה · <span class="knum">11:02</span></span><span class="ktag">מושתק</span></div><h3 class="ttl">הסעה משותפת לחתונה</h3><p class="bd">מאת יואב דוגמני</p></article>
+<div class="kmend"><svg class="i s" aria-hidden="true"><use href="#bell"/></svg><span>מוצגות גם הודעות מושתקות</span><a class="klink" href="#">הסתרה</a></div>
+</div></section>
+
+<section class="kpanel"><h3 class="plabel">עם חיפוש "בדיוני" · סוג עם 0</h3><div class="kbody">
+<p class="kt s m">המספרים סופרים לפי החיפוש והמתג, לא לפי הסוגים שנבחרו, כך שכל שורה אומרת כמה יהיו אם תבחרו אותה. שורה עם 0 מושבתת (אלא אם כבר נבחרה).</p>
+<div class="kc kcrs">
+<div class="kcr all on" role="checkbox" aria-checked="true"><i class="bx"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></i><span class="g">כל הסוגים</span><span class="n">5</span></div>
+<div class="kcr" role="checkbox" aria-checked="false"><i class="bx"></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">הודעה</span><span class="n">1</span></div>
+<div class="kcr off" role="checkbox" aria-checked="false" aria-disabled="true"><i class="bx"></i><i class="kdot" style="--e:var(--k-gold)"></i><span class="g">עדכון שבועי</span><span class="n">0</span></div>
+<div class="kcr off" role="checkbox" aria-checked="false" aria-disabled="true"><i class="bx"></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">אירוע</span><span class="n">0</span></div>
+<div class="kcr" role="checkbox" aria-checked="false"><i class="bx"></i><i class="kdot" style="--e:var(--k-pom)"></i><span class="g">מזל טוב</span><span class="n">4</span></div>
+<div class="kcr off" role="checkbox" aria-checked="false" aria-disabled="true"><i class="bx"></i><i class="kdot" style="--e:var(--k-ash)"></i><span class="g">השתתפות בצער</span><span class="n">0</span></div>
+</div>
+<p class="kt c m">הארכיון עדיין נטען (312 הודעות עד כה)</p>
+</div></section>
+
+<section class="kpanel"><h3 class="plabel">מתפלל אורח · רק הסוגים שמותר לראות</h3><div class="kbody">
+<div class="kc kcrs">
+<div class="kcr all on" role="checkbox" aria-checked="true"><i class="bx"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></i><span class="g">כל הסוגים</span><span class="n">18</span></div>
+<div class="kcr" role="checkbox" aria-checked="false"><i class="bx"></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">הודעה</span><span class="n">9</span></div>
+<div class="kcr" role="checkbox" aria-checked="false"><i class="bx"></i><i class="kdot" style="--e:var(--k-gold)"></i><span class="g">עדכון שבועי</span><span class="n">4</span></div>
+<div class="kcr" role="checkbox" aria-checked="false"><i class="bx"></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">אירוע</span><span class="n">5</span></div>
+</div>
+<p class="kt c m">הגבאי לא פתח מזל טוב והשתתפות בצער לאורחים, ולכן הן לא מופיעות ולא נספרות. אין להם גם מתג מושתקות אם לא השתיקו דבר.</p>
+</div></section>
+
+<section class="kpanel"><h3 class="plabel">360 · שלושה סוגים ומעלה</h3><div class="kbody">
+<div class="ksel on"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>סוג: הודעה ועוד 2</b></span><span class="bdg">3</span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></div>
+<p class="kt c m">שני סוגים מופיעים בשמם אם הם נכנסים (עד 22 תווים), אחרת "הראשון ועוד n". המספר בעיגול אומר כמה נבחרו, כך שהמצב לא נשען על צבע.</p>
+</div></section>
+
+<section class="kpanel"><h3 class="plabel">English (mirrored)</h3><div class="kbody" dir="ltr" lang="en">
+<div class="ksel"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>Message type</b><span> · All</span></span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></div>
+<div class="ksel on"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>Type: Event, Mazal tov</b></span><span class="bdg">2</span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></div>
+<div class="kc kcrs">
+<div class="kcr all" role="checkbox" aria-checked="false"><i class="bx"></i><span class="g">All types</span><span class="n">23</span></div>
+<div class="kcr on" role="checkbox" aria-checked="true"><i class="bx"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">Event</span><span class="n">5</span></div>
+<div class="kcr" role="checkbox" aria-checked="false"><i class="bx"></i><i class="kdot" style="--e:var(--k-ash)"></i><span class="g">Condolence</span><span class="n">2</span></div>
+</div>
+<div class="ktg"><span>Also show muted messages</span><i>Off</i></div>
+<button class="kb s">Show 8 messages</button>
+</div></section>
+</div>
+
+<section class="mfwide" aria-label="מבט ב־1280">
+<p class="cap">4 · ב־1280 (דפדפן רחב): חיפוש וסוג בשורה אחת, הרשימה נפתחת כחלונית צפה מתחת לכפתור</p>
+<div class="hscroll"><div class="mfweb kit">
+<div class="ktop"><div class="kn"><span class="klogo">א</span><span>קהילת אור הדוגמה</span></div><span class="bell"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div>
+<div class="mfcol">
+<h1 class="ktitle">הודעות</h1>
+<div class="mfrow"><div class="ksrch" role="search"><svg class="i s" aria-hidden="true"><use href="#search"/></svg><span>בדיוני</span><span class="kib" aria-label="ניקוי החיפוש"><svg class="i s" aria-hidden="true"><use href="#x"/></svg></span></div>
+<div class="mfanchor"><button class="ksel on open" aria-expanded="true"><svg class="i s" aria-hidden="true"><use href="#sliders"/></svg><span class="lb"><b>סוג: מזל טוב</b></span><span class="bdg">1</span><svg class="i s cv" aria-hidden="true"><use href="#chev"/></svg></button>
+<div class="kpop" role="dialog" aria-label="סוג הודעה"><div class="kcrs">
+<div class="kcr all" role="checkbox" aria-checked="false"><i class="bx"></i><span class="g">כל הסוגים</span><span class="n">5</span></div>
+<div class="kcr" role="checkbox" aria-checked="false"><i class="bx"></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">הודעה</span><span class="n">1</span></div>
+<div class="kcr off" role="checkbox" aria-checked="false" aria-disabled="true"><i class="bx"></i><i class="kdot" style="--e:var(--k-gold)"></i><span class="g">עדכון שבועי</span><span class="n">0</span></div>
+<div class="kcr off" role="checkbox" aria-checked="false" aria-disabled="true"><i class="bx"></i><i class="kdot" style="--e:var(--k-tek)"></i><span class="g">אירוע</span><span class="n">0</span></div>
+<div class="kcr on" role="checkbox" aria-checked="true"><i class="bx"><svg class="i xs" aria-hidden="true"><use href="#check"/></svg></i><i class="kdot" style="--e:var(--k-pom)"></i><span class="g">מזל טוב</span><span class="n">4</span></div>
+<div class="kcr off" role="checkbox" aria-checked="false" aria-disabled="true"><i class="bx"></i><i class="kdot" style="--e:var(--k-ash)"></i><span class="g">השתתפות בצער</span><span class="n">0</span></div>
+</div><div class="mfmute"><div class="ktg" role="switch" aria-checked="false"><span>להציג גם הודעות מושתקות</span><i>כבוי</i></div></div></div></div></div>
+<div class="kcount"><span>4 הודעות</span><a class="klink" href="#">ניקוי הסינון</a></div>
+<article class="kmsg" style="--e:var(--k-pom)"><div class="meta"><span>מזל טוב · <span class="knum">08:40</span></span></div><h3 class="ttl">מזל טוב לבר המצווה בבית בדיוני</h3><p class="bd">משפחת בדיוני מזמינה את כולם לקידוש בשבת הקרובה.</p></article>
+<article class="kmsg" style="--e:var(--k-pom)"><div class="meta"><span>מזל טוב · <span class="knum">ז׳ בחשוון</span></span></div><h3 class="ttl">מזל טוב לאירוסי נועה בדיוני</h3></article>
+</div></div></div>
+</section>
+
+<aside class="notes"><h2>P40 · מה השתנה</h2><div>UX-DESIGN §12.8 (2026-10-28) מחליף את שורת שבבי הסוג ואת "שלי / הכול" של §12.4 ו־§6.5.</div><ul>
+<li><b>"שלי / הכול" יורד.</b> ברירת המחדל היא מה שהיה "שלי". "הכול" הוא עכשיו מתג בשם שמסביר את עצמו: "להציג גם הודעות מושתקות", בתוך רשימת הסוגים, עם המספר. נזכר במכשיר לכל קהילה, כמו קודם.</li>
+<li>כפתור אחד "סוג הודעה" ברוחב מלא (48), מתחת לחיפוש. בלי בחירה: "סוג הודעה · הכול". עם בחירה: "סוג: אירוע, מזל טוב", מסגרת בצבע הדיו ועיגול עם מספר הנבחרים.</li>
+<li>הרשימה (Sheet בטלפון, חלונית צפה מ־600 ומעלה): "כל הסוגים" ואחריה רק הסוגים שמותר לראות, בסדר §12.1, כל אחד עם מספר ההודעות. בחירה מרובה, חלה מיד; הכפתור למטה סוגר ואומר כמה יוצגו.</li>
+<li>הלוגיקה לא משתנה: ערוץ וגם טקסט וגם (סוג או סוג). "ניקוי הסינון" מנקה טקסט, סוגים וערוץ, לא את מתג המושתקות.</li>
+<li>הכותרת קצרה בכ־50 פיקסלים מבעבר (בלי ה־Segmented; שורת השבבים הופכת לכפתור אחד), ונכנסת ב־360 בלי חיתוך.</li>
+</ul></aside>
+</main>
+</body>
+</html>

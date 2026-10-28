@@ -139,6 +139,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 4. Changes save immediately with a short confirmation (no Save button).
 
 **5. The "My / Everything" filter**
+*Superseded by §12.8 (2026-10-28): no Segmented; "הכול" is the switch "להציג גם הודעות מושתקות" in the type list. The rules below still describe what the switch does.*
 1. Messages has one segmented control: "שלי" and "הכול". It is remembered on the device, per Kehila.
 2. "שלי": only channels and types I am subscribed to, from members I have not muted.
 3. "הכול": adds what I muted, with a dotted edge, lighter title and a "מושתק" tag. Same layout, so scrolling back through a week feels natural.
@@ -720,14 +721,14 @@ where MT is a multi select". This overrides the first draft's "no type filter".
 edge, as §11.2):
 
 1. Title row: "הודעות" only. **The search icon button goes.**
-2. `Segmented` שלי / הכול (unchanged).
+2. ~~`Segmented` שלי / הכול (unchanged).~~ Removed by §12.8: the switch "להציג גם הודעות מושתקות" in the type list.
 3. **Search field, always visible.** A `TextInput` in the Field style (48 high, radius 10, `k.line` border,
    `k.surface`), `Icon search` 20 `k.muted` at the start, placeholder "חיפוש בהודעות"; when not empty, a 44×44
    `Icon x` button at the end ("ניקוי החיפוש"). Filters as you type (200 ms debounce). Matches title, body and names,
    the same matcher the Search screen uses today, and once there is text it runs over the whole on-device archive
    (older messages too), with today's "הארכיון עדיין נטען ({n} הודעות עד כה)" line while it loads.
 4. Channel chips, **only when the person sees more than one channel** (`channels.length > 1`), single select, as §11.2.
-5. **Type chips, multi-select.** `Chip size="filter"` in a bleeding scroller (wraps on web ≥ 600 like the channel
+5. *Superseded by §12.8: one "סוג הודעה" control opening a list with counts.* **Type chips, multi-select.** `Chip size="filter"` in a bleeding scroller (wraps on web ≥ 600 like the channel
    row). Unselected: an 8 px dot in the type's stripe colour before the label. Selected: ink fill (as §11.2) and
    `Icon check` 16 in place of the dot, so "several can be on" is visible and status is not colour alone. No "all
    types" chip: none selected means all. The row lists only types the person can see (a listener does not get
@@ -898,6 +899,128 @@ names are user text: `Txt content` (§11.5), so an English tag in a Hebrew UI ke
 Frames written by hand, not screenshot-checked (no browser run on this machine for this change): check P17, P18 and
 GD3 at 1440 and 390 before building. Not checked: dark mode of the new frame helpers (they use only `--k-*`
 variables), English rendering beyond the English panels, real device fonts. Names in frames are invented.
+
+### 12.8 Filter redesign (owner, 2026-10-28)
+
+Frame: `design/mockups/frames/P40.html` (index section "ה"). **Supersedes** the `Segmented` שלי / הכול (§6 item 5,
+§11.2 item 1 for Messages, §12.4 item 2) and the type chip row (§12.4 item 5). Everything else in §12.4 stands:
+the always-visible search field, the channel chips when there is more than one channel, the meta line, the merge of
+the Search screen, and the filter logic.
+
+Owner feedback on the dev build (phone photo): (1) nobody understands "שלי" and "הכול"; (2) search is good, but types
+should be one control, "סוג הודעה", that opens a multi-select list and summarises the choice on itself; (3) the chip
+row does not fit a phone ("מזל טוב" clipped, "השתתפות בצער" off screen); (4) show how many messages each type has.
+
+**Decision on שלי / הכול: the Segmented goes.** The list always opens as "שלי" did (subscribed channels and types,
+members not muted). "הכול" survives as one switch with a self-explaining name, "להציג גם הודעות מושתקות", at the
+bottom of the type list, with the number of muted messages it would add. Reasons: the two words named a rule the
+person had to learn (what is mine?); the switch names the actual difference (muted things), sits next to the other
+"what do I see" choices, and costs no header row. The behaviour is unchanged: when on, muted items appear in place
+with the dotted edge, lighter title and the "מושתק" tag; the unread count and badges never include muted items.
+The switch is remembered on the device per Kehila, as the Segmented was.
+
+**Header, top to bottom** (scrolls away with the list, `gap: 12`, one 16 px start edge):
+
+1. Title "הודעות".
+2. Search field (§12.4 item 3, unchanged).
+3. Channel chips, only when the person sees more than one channel (§12.4 item 4, unchanged).
+4. **Type control** (new kit `SelectButton`, below).
+5. Count line when a filter is active (§12.4 item 6, unchanged): "{n} הודעות" and "ניקוי הסינון".
+
+About 50 px shorter than §12.4 (no Segmented; one 48 px control instead of a 36 px chip row plus its gap). Fits 360
+with no horizontal scroll.
+
+**`SelectButton`** (`src/kit/components.tsx`): `SelectButton({ icon, label, summary, count, active, open, onPress,
+accessibilityLabel })`. Full width, `minHeight: TOUCH` (48), `borderRadius: 10`, `k.surface`, `borderWidth: 1`
+`k.line`, `paddingStart: 12, paddingEnd: 8`, `gap: 8`, row: `Icon sliders` 20 `k.muted` / text `flex: 1`,
+`numberOfLines={1}` / count badge / `Icon chev` 20 `k.muted` (rotated 180° while open).
+- **Nothing selected:** `Txt bold` "סוג הודעה" + `Txt muted` " · הכול".
+- **Selected:** `Txt bold` "סוג: אירוע, מזל טוב" (names in the §12.1 order, not tap order). Border 2 px `k.ink`,
+  icon `k.ink`, and a badge with the number selected (24 high, radius 12, `k.ink` fill, `k.stone` text, caption
+  bold). State is carried by the text and the badge, not by colour.
+- **Summary rule:** up to two names joined with ", " if the joined text is at most 22 characters; otherwise
+  "{first} ועוד {n}" ("סוג: הודעה ועוד 2"). Ellipsis is only a safety net.
+- A11y: `accessibilityRole="button"`, label "סוג הודעה: {summary}. {n} הודעות", hint "פתיחת רשימת הסוגים";
+  `accessibilityState={{ expanded: open }}`; on web `aria-haspopup="dialog"`.
+
+**The type list.** Phone (width < 600): the kit `Sheet`, title "סוג הודעה". Wide (≥ 600, web): a popover anchored
+under the control, end-aligned, width 340, `k.surface`, radius 12, shadow, no title and no Close button; closes on
+outside click or Esc, focus moves to the first row on open and back to the control on close. Contents, both forms:
+
+1. Hint (`Txt small muted`, sheet only): "אפשר לבחור כמה סוגים. המספרים לפי החיפוש והתצוגה הנוכחיים."
+2. A `Card` (padding 0 16, rows divided by `k.line`) of `Check` rows, 48 high: first **"כל הסוגים"** with the total,
+   then one row per type the person may see (§12, §12.4 item 5: a listener does not get מזל טוב / השתתפות בצער
+   while the gabbai keeps them hidden), in the §12.1 order. Each type row: box / 8 px dot in the type's stripe colour /
+   label / count at the end (`Txt small bold muted`, tabular figures). Selected rows: label bold.
+   "כל הסוגים" is checked when no type is selected; tapping it clears the type selection. Selecting all types
+   one by one is the same as none (the selection collapses to "all").
+3. **Muted section:** a line, then `Toggle` "להציג גם הודעות מושתקות" and a constant `Txt caption muted` line
+   "מערוצים, סוגים וחברים שהשתקתם בהעדפות ההתראות ({n} הודעות). הן אף פעם לא נספרות כלא נקראו." Hidden entirely
+   when the person has muted nothing.
+4. Sheet only: the Close button reads "הצגת {n} הודעות" (`closeLabel`; "הצגת הודעה אחת"; "סגירה" when 0).
+
+Changes apply at once (the list behind updates live); the button only closes. No Cancel: every tap is cheap to undo.
+
+**Counts.** Faceted: each type's count is the number of messages that pass mode (muted switch) AND channel AND text,
+ignoring the type selection, so each row says what you would get by selecting it. "כל הסוגים" = sum of the rows
+(one type per message). The Close label and the count line use the full filter (types included). Counts run over
+the same set the filtered list uses: the whole on-device archive, which opening the list starts loading (as typing
+does); while it loads, the rows update and the sheet shows the existing "הארכיון עדיין נטען ({n} הודעות עד כה)"
+line under the card. A type with 0 is shown (rows do not jump), its `Check` is `disabled` (opacity .6, "0" in
+text) unless it is already selected, so a selection can always be undone. Muted messages count only while the
+switch is on.
+
+**Logic** (unchanged from §12.4 apart from the mode): (muted switch ? all : not muted) AND channel AND text AND
+(type₁ OR type₂ …). "ניקוי הסינון" clears text, types and channel, **not** the muted switch (a remembered view
+setting, like the Segmented before). Types and text live while the tab is mounted; switching Kehila clears them.
+
+**Empty result:** "לא נמצאו הודעות שמתאימות לסינון." and the secondary Button "ניקוי הסינון". If the switch is off
+and muted messages match: "יש {n} הודעות מתאימות בין ההודעות המושתקות." with the link "הצגת המושתקות" (turns the
+switch on, keeps the filters). Replaces `messages.inAll` / `messages.showAll`.
+
+**End of list:** after the last loaded message, when the switch is off and muted messages match the current filters,
+one row: `Icon belloff` + "{n} הודעות מושתקות לא מוצגות" + link "הצגה" (48 touch). When the switch is on:
+`Icon bell` + "מוצגות גם הודעות מושתקות" + link "הסתרה". This is where someone scrolling back notices that
+something is hidden, without a permanent header row.
+
+**A11y:** the list is a `group` labelled "סוג הודעה"; each row is a `checkbox` with `checked` and `disabled`, label
+"{type}, {n} הודעות" (count read with the name); the switch keeps `switch` semantics. The count line stays a polite
+live region. Status is never colour alone: checks, bold, the summary text and the badge carry it. All targets 48.
+
+**English:** mirrored; "Message type · All", "Type: Event, Mazal tov", "All types", "Also show muted messages",
+"Show 8 messages" (P40 English panel).
+
+**Copy** (`src/i18n/he.json` / `en.json`). Remove `messages.filterMine`, `messages.filterAll`, `messages.inAll`,
+`messages.showAll`, `messages.typesLabel`. Keep `messages.muted` ("מושתק") for the tag.
+
+| Key | Hebrew | English |
+|---|---|---|
+| `messages.type.control` | סוג הודעה | Message type |
+| `messages.type.all` | הכול | All |
+| `messages.type.summary` | סוג: {list} | Type: {list} |
+| `messages.type.more` | {first} ועוד {n} | {first} +{n} |
+| `messages.type.allRow` | כל הסוגים | All types |
+| `messages.type.hint` | אפשר לבחור כמה סוגים. המספרים לפי החיפוש והתצוגה הנוכחיים. | Pick one or more. Numbers follow your current search and view. |
+| `messages.type.a11y` | סוג הודעה: {summary}. {n} הודעות | Message type: {summary}. {n} messages |
+| `messages.type.a11yHint` | פתיחת רשימת הסוגים | Opens the type list |
+| `messages.type.rowA11y` | {type}, {n} הודעות | {type}, {n} messages |
+| `messages.type.show` | הצגת {n} הודעות | Show {n} messages |
+| `messages.type.showOne` | הצגת הודעה אחת | Show 1 message |
+| `messages.mutedToggle` | להציג גם הודעות מושתקות | Also show muted messages |
+| `messages.mutedNote` | מערוצים, סוגים וחברים שהשתקתם בהעדפות ההתראות ({n} הודעות). הן אף פעם לא נספרות כלא נקראו. | From channels, types and members you muted in notification settings ({n} messages). They never count as unread. |
+| `messages.mutedHidden` | {n} הודעות מושתקות לא מוצגות | {n} muted messages hidden |
+| `messages.mutedHiddenOne` | הודעה מושתקת אחת לא מוצגת | 1 muted message hidden |
+| `messages.mutedShown` | מוצגות גם הודעות מושתקות | Muted messages are shown |
+| `messages.mutedShow` | הצגה | Show |
+| `messages.mutedHide` | הסתרה | Hide |
+| `messages.inMuted` | יש {n} הודעות מתאימות בין ההודעות המושתקות. | {n} matching messages are muted. |
+| `messages.showMuted` | הצגת המושתקות | Show muted |
+
+**Verification:** P40 checked in headless Chromium (Playwright 1.47.2) at 1400 and 390, light and dark: no horizontal
+scroll at 390, no clipped summary text, check marks visible in both themes. Screens: 390×844 PNGs (closed, sheet
+with counts, active filter; light and dark). Not checked: real device fonts, RN `Modal` sheet height on small
+Android phones (the sheet with five types plus the muted section is about 600 px; it scrolls inside the kit `Sheet`
+if needed), screen-reader output. Names are invented.
 
 ## 13. Bug reports (alpha)
 
