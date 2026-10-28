@@ -1,6 +1,8 @@
 """Family tree storage (UX-DESIGN 17.5): validation, versioned writes, gabbai read, children migration."""
 from datetime import date, timedelta
 
+from unittest.mock import patch
+
 from moto import mock_aws
 
 from server.cloud import export, tree_rules
@@ -224,6 +226,7 @@ class TreeRoutesTest(test_messages.MessagesTest):
 
     def read(self, sub='member-sub'):
         status, body = self.call('GET', self.tree(), sub=sub)
+        body = {k: v for k, v in body.items() if k != 'updatedAt'}
         return status, {**body, 'people': plain(body['people'])}
 
     def test_empty_tree_then_save_and_read(self):
@@ -821,3 +824,48 @@ class PropertyTest(test_messages.unittest.TestCase):
                 kids = {p['id'] for p in merged if p['relation'] in tree_rules.CHILD_SIDE}
                 self.assertEqual({p['id'] for p in left if p['relation'] in tree_rules.CHILD_SIDE}, kids)
                 self.assertEqual({p['id'] for p in rest if p['relation'] in tree_rules.CHILD_SIDE}, kids)
+
+
+@own_tests_only
+@mock_aws
+class TreeUpdatedAtTest(TreeRoutesTest):
+    """`updatedAt` (Unix seconds) moves on every tree write and comes back from GET (the Me row's "updated d.m")."""
+    def stamp(self, sub='member-sub'):
+        return self.call('GET', self.tree(), sub=sub)[1]['updatedAt']
+
+    def at(self, seconds):
+        return patch('server.cloud.repo_families.time.time', return_value=seconds)
+
+    def test_null_until_the_first_write_then_every_write_moves_it(self):
+        self.assertIsNone(self.stamp())
+        with self.at(1000):
+            _, got = self.call('GET', self.tree(), sub='member-sub')
+            self.assertEqual(self.put(basic(), got['version'])[0], 200)
+        self.assertEqual(self.stamp(), 1000)
+        with self.at(2000):
+            self.assertEqual(self.add_child()[0], 201)
+        self.assertEqual(self.stamp(), 2000)
+        with self.at(3000):
+            self.assertEqual(self.call('DELETE', f'{self.base()}/family/children/{pid(3)}', sub='member-sub')[0], 204)
+        self.assertEqual(self.stamp(), 3000)
+
+    def test_a_failed_save_does_not_move_it(self):
+        with self.at(1000):
+            _, got = self.call('GET', self.tree(), sub='member-sub')
+            self.put(basic(), got['version'])
+        with self.at(2000):
+            self.assertEqual(self.put(basic(), got['version'])[0], 409)
+        self.assertEqual(self.stamp(), 1000)
+
+    def test_link_merge_and_unlink_move_it_and_the_gabbai_read_has_it(self):
+        self.save_tree('member-sub', self.member, basic())
+        self.save_tree('quiet-sub', self.quiet, [basic()[0]])
+        with self.at(5000):
+            self.repo.link(self.k, self.member, self.quiet)
+        self.assertEqual(self.stamp(), 5000)
+        with self.at(6000):
+            self.repo.unlink(self.k, self.quiet)
+        self.assertEqual(self.stamp('member-sub'), 6000)
+        self.assertEqual(self.stamp('quiet-sub'), 6000)
+        status, body = self.call('GET', f'{self.base()}/admin/families/{self.family_id(self.member)}/tree', sub='gabbai-sub')
+        self.assertEqual((status, body['updatedAt']), (200, 6000))

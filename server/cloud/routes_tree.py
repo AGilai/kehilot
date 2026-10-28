@@ -18,7 +18,7 @@ def get_tree(ctx, params):
     family = ctx.repo.get_family(k, family_id) if family_id else None
     if not family:
         raise ApiError(404, 'family_not_found')
-    return 200, {'people': tree_rules.people_of(family), 'version': int(family['version'])}
+    return 200, tree_rules.tree_view(family)
 
 
 def put_tree(ctx, params):
@@ -49,4 +49,4 @@ def admin_tree(ctx, params):
     family = ctx.repo.get_family(k, params['familyId'])
     if not family:
         raise ApiError(404, 'family_not_found')
-    return 200, {'people': tree_rules.people_of(family), 'version': int(family['version'])}
+    return 200, tree_rules.tree_view(family)

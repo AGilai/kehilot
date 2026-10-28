@@ -5,25 +5,25 @@ import type { FamilyView } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../../kit/components.tsx';
 import { ForwardIcon, Icon } from '../../kit/Icon.tsx';
-import { statusLine } from '../../tree/labels.ts';
+import { israelDayMonth, statusLine } from '../../tree/labels.ts';
 import { familyStatus } from '../../tree/layout.ts';
-import type { Person } from '../../tree/types.ts';
+import type { TreeDoc } from '../../client/tree.ts';
 
 /** §18.2 "המשפחה שלי": one row (72 high, tree icon) with ONE status line; opens the family tree. Members and gabbaim only. */
 export function FamilyTreeRow({ view, kehilaId, onOpen }: { view: FamilyView; kehilaId: string; onOpen: () => void }) {
   const { t } = useI18n();
   const { api } = useAuth();
   const k = useTokens();
-  const [people, setPeople] = React.useState<Person[] | null>(null);
+  const [doc, setDoc] = React.useState<TreeDoc | null>(null);
   React.useEffect(() => {
     let live = true;
-    api.familyTree(kehilaId).then(d => { if (live) setPeople(d.people); }, () => { if (live) setPeople(null); });
+    api.familyTree(kehilaId).then(d => { if (live) setDoc(d); }, () => { if (live) setDoc(null); });
     return () => { live = false; };
   }, [api, kehilaId, view]);
   const request = view.received[0];
   const sent = view.sent?.state === 'pending' ? view.sent : null;
   // No status line until the tree is here: a wrong "not filled in" would be worse than a blank.
-  const line = people ? statusLine(familyStatus({ tree: people, request: request ? { name: request.fromName } : null, sent: sent ? { name: sent.toName } : null }), t) : null;
+  const line = doc ? statusLine(familyStatus({ tree: doc.people, updated: doc.updatedAt ? israelDayMonth(doc.updatedAt) : null, request: request ? { name: request.fromName } : null, sent: sent ? { name: sent.toName } : null }), t) : null;
   const color = line?.tone === 'request' ? k.pomegranate : line?.tone === 'missing' ? k.gold : k.muted;
   return (
     <Pressable testID="me-family-row" accessibilityRole="button" accessibilityLabel={`${t('me.family.title')}${line ? `, ${line.text}` : ''}`} onPress={onOpen}

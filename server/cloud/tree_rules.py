@@ -622,3 +622,10 @@ def assign_user_ids(new, stored, caller, adults):
     for user, slot in zip(pending, slots):
         slot['userId'] = user
     return out
+
+
+def tree_view(family):
+    """The GET body: people, version and `updatedAt` (Unix seconds of the last tree write; null if none yet)."""
+    updated = family.get('updatedAt')
+    return {'people': people_of(family), 'version': int(family['version']),
+            'updatedAt': int(updated) if updated is not None else None}

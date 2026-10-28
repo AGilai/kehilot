@@ -80,3 +80,10 @@ export function statusLine(s: FamilyStatus, t: T): { text: string; tone: 'reques
     case 'complete': return { text: s.date ? t('me.family.updated', { date: s.date }) : t('me.family.complete'), tone: 'muted' };
   }
 }
+
+/** "27.10": the Israel calendar day of a Unix time in seconds (the Me row's "עודכן ב־…"). */
+export function israelDayMonth(seconds: number): string {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', day: 'numeric', month: 'numeric' }).formatToParts(new Date(seconds * 1000));
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  return `${Number(get("day"))}.${Number(get("month"))}`;
+}

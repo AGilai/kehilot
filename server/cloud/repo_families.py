@@ -151,13 +151,13 @@ class FamiliesRepo:
             if family.get('people') is not None:
                 people = tree_rules.apply_children(tree_rules.people_of(family),
                                                    change(tree_rules.children_of(family)))
-                expression, values = 'SET people = :c, version = :v1', {':c': people}
+                expression, values = 'SET people = :c, version = :v1, updatedAt = :now', {':c': people}
             else:
-                expression, values = 'SET children = :c, version = :v1', {':c': change(list(family.get('children') or []))}
+                expression, values = 'SET children = :c, version = :v1, updatedAt = :now', {':c': change(list(family.get('children') or []))}
             try:
                 return self.table.update_item(
                     Key=self._key(k, f'F#{family_id}'), UpdateExpression=expression,
-                    ConditionExpression='version = :v', ExpressionAttributeValues={**values, ':v': version, ':v1': version + 1},
+                    ConditionExpression='version = :v', ExpressionAttributeValues={**values, ':v': version, ':v1': version + 1, ':now': int(time.time())},
                     ReturnValues='ALL_NEW')['Attributes']
             except ClientError as error:
                 if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
@@ -178,9 +178,9 @@ class FamiliesRepo:
             people = change(tree_rules.people_of(family))
             try:
                 return self.table.update_item(
-                    Key=self._key(k, f'F#{family_id}'), UpdateExpression='SET people = :p, version = :v1 REMOVE children',
+                    Key=self._key(k, f'F#{family_id}'), UpdateExpression='SET people = :p, version = :v1, updatedAt = :now REMOVE children',
                     ConditionExpression='version = :v',
-                    ExpressionAttributeValues={':p': people, ':v': version, ':v1': version + 1},
+                    ExpressionAttributeValues={':p': people, ':v': version, ':v1': version + 1, ':now': int(time.time())},
                     ReturnValues='ALL_NEW')['Attributes']
             except ClientError as error:
                 if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
@@ -345,7 +345,8 @@ class FamiliesRepo:
                     expression = 'SET adults = :a, version = :v1'
                     if family.get('people') is not None:  # the remaining adult keeps their own figure and lineage
                         values[':p'] = tree_rules.split_people(tree_rules.people_of(family), user_id, others[0])[1]
-                        expression += ', people = :p'
+                        expression += ', people = :p, updatedAt = :now'
+                        values[':now'] = int(time.time())
                     self.table.update_item(Key=self._key(k, f'F#{family_id}'), UpdateExpression=expression,
                                            ConditionExpression='version = :v', ExpressionAttributeValues=values)
                     for other in others:
@@ -390,11 +391,11 @@ class FamiliesRepo:
                 merged = ('children', list(keep.get('children') or []) + list(moved.get('children') or []))
             items = [
                 {'Update': {'TableName': table, 'Key': self._key(k, f'F#{keep_id}'),
-                            'UpdateExpression': f'SET adults = :both, {merged[0]} = :merged, version = :v1'
+                            'UpdateExpression': f'SET adults = :both, {merged[0]} = :merged, version = :v1, updatedAt = :now'
                                                 + (' REMOVE children' if merged[0] == 'people' else ''),
                             'ConditionExpression': 'version = :v',
                             'ExpressionAttributeValues': {
-                                ':both': list(keep['adults']) + list(moved['adults']), ':merged': merged[1],
+                                ':both': list(keep['adults']) + list(moved['adults']), ':merged': merged[1], ':now': int(time.time()),
                                 ':v': int(keep['version']), ':v1': int(keep['version']) + 1}}},
                 {'Delete': {'TableName': table, 'Key': self._key(k, f'F#{move_id}'),
                             'ConditionExpression': 'version = :v',
@@ -454,13 +455,13 @@ class FamiliesRepo:
                     {'Put': {'TableName': table, 'ConditionExpression': 'attribute_not_exists(sk)',
                              'Item': {'pk': f'K#{k}', 'sk': f'F#{new_id_}', 'familyId': new_id_,
                                       'adults': [user_id], **copied,
-                                      'version': 1, 'createdAt': int(time.time())}}},
+                                      'version': 1, 'createdAt': int(time.time()), 'updatedAt': int(time.time())}}},
                     {'Update': {'TableName': table, 'Key': self._key(k, f'F#{old_id}'),
-                                'UpdateExpression': 'SET adults = :other, version = :v1'
+                                'UpdateExpression': 'SET adults = :other, version = :v1, updatedAt = :now'
                                                     + (', people = :p' if other_people is not None else ''),
                                 'ConditionExpression': 'version = :v',
                                 'ExpressionAttributeValues': {':other': [other], ':v': int(family['version']),
-                                                              ':v1': int(family['version']) + 1,
+                                                              ':v1': int(family['version']) + 1, ':now': int(time.time()),
                                                               **({':p': other_people} if other_people is not None else {})}}},
                     {'Update': {'TableName': table, 'Key': self._key(k, f'M#{user_id}'),
                                 'UpdateExpression': 'SET familyId = :new REMOVE familyNotice',

@@ -152,12 +152,15 @@ export type FamilyStatus =
   | { kind: 'complete'; date: string | null };
 
 /** §18.2 Me row, the first state that applies: a partner request waits · figures miss details · nothing filled but me ·
- *  my request is pending · complete (date `d.m` of the last edit, when known). */
+ *  my request is pending · complete (date `d.m` of the last tree write, when known). */
 export function familyStatus(o: { tree: Person[]; request?: { name: string } | null; sent?: { name: string } | null; updated?: string | null }): FamilyStatus {
   if (o.request) return { kind: 'request', name: o.request.name };
+  // A tree not started (no self, or only an unnamed self) is "nothing filled", not "details missing" (ruling).
+  const self = o.tree.find(p => p.relation === 'self');
+  if (!self || (o.tree.length === 1 && !filledText(self.hebrewFirst))) return { kind: 'empty' };
   const n = missingCount(o.tree);
   if (n > 0) return { kind: 'missing', n };
-  if (!o.tree.some(p => p.relation !== 'self')) return { kind: 'empty' };
+  if (o.tree.length === 1) return { kind: 'empty' };
   if (o.sent) return { kind: 'sent', name: o.sent.name };
   return { kind: 'complete', date: o.updated ?? null };
 }

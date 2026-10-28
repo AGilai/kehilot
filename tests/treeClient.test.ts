@@ -24,7 +24,8 @@ test('tree endpoints', async () => {
 
 test('saveTree: ok returns the new version; 409 reloads and says so; other errors pass through', async () => {
   const ok = await saveTree({ putFamilyTree: async () => ({ version: 5 }), familyTree: async () => { throw new Error('no reload'); } }, 'K', [me], 4);
-  assert.deepEqual(ok, { ok: true, doc: { people: [me], version: 5 } });
+  assert.equal(ok.ok, true);
+  assert.deepEqual([ok.doc.people, ok.doc.version], [[me], 5]);
   const theirs = { people: [{ ...me, hebrewFirst: 'אחר' }], version: 9 };
   const conflict = await saveTree({ putFamilyTree: async () => { throw new ApiCodeError(409, 'version_conflict'); }, familyTree: async () => theirs }, 'K', [me], 4);
   assert.deepEqual(conflict, { ok: false, conflict: true, doc: theirs });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { statusLine, coupleLabel, figureLabel, pairName, relationLabel, stateWords } from '../src/tree/labels.ts';
+import { israelDayMonth, statusLine, coupleLabel, figureLabel, pairName, relationLabel, stateWords } from '../src/tree/labels.ts';
 import type { Person } from '../src/tree/types.ts';
 
 // A tiny t: "key" or "key|a=1|b=2", so the tests do not depend on the wording.
@@ -53,4 +53,10 @@ test('statusLine: text and tone per state', () => {
   assert.deepEqual(statusLine({ kind: 'sent', name: 'יוסי' }, t), { text: 'me.family.sent|name=יוסי', tone: 'muted' });
   assert.deepEqual(statusLine({ kind: 'complete', date: '27.10' }, t), { text: 'me.family.updated|date=27.10', tone: 'muted' });
   assert.deepEqual(statusLine({ kind: 'complete', date: null }, t), { text: 'me.family.complete', tone: 'muted' });
+});
+
+test('israelDayMonth uses the Israel calendar day', () => {
+  assert.equal(israelDayMonth(Date.parse('2026-10-27T22:30:00Z') / 1000), '28.10'); // 00:30 on the 28th in Israel (UTC+2)
+  assert.equal(israelDayMonth(Date.parse('2026-10-27T12:00:00Z') / 1000), '27.10');
+  assert.equal(israelDayMonth(Date.parse('2026-03-05T10:00:00Z') / 1000), '5.3');
 });

@@ -285,7 +285,7 @@ The serverless API (API Gateway HTTP API, one Lambda, DynamoDB, Cognito). Everyt
 
 | Item | PK | SK | Attributes |
 |---|---|---|---|
-| Family | `K#<k>` | `F#<familyId>` | `familyId`, `adults` (1-2 userIds; the keeping adult first), `people` (the family tree, see Family tree below; absent until first saved: the older `children` list `{id, firstName, gender: 'm'\|'f', birthDate?}` is then used and read as `child` entries; saving `people` removes `children`), `version` (int, +1 on every write), `createdAt` |
+| Family | `K#<k>` | `F#<familyId>` | `familyId`, `adults` (1-2 userIds; the keeping adult first), `people` (the family tree, see Family tree below; absent until first saved: the older `children` list `{id, firstName, gender: 'm'\|'f', birthDate?}` is then used and read as `child` entries; saving `people` removes `children`), `version` (int, +1 on every write), `updatedAt` (Unix seconds; set by every write of the tree: tree PUT, link merge, unlink/leave split, child add/edit/delete), `createdAt` |
 | Membership (changed) | `K#<k>` | `M#<user>` | + `familyId` (members and gabbaim only; set when the person becomes one, by approval, member invite, import or `tools/kehila_admin.py backfill-families`) |
 
 ### Routes
@@ -425,9 +425,9 @@ Member or gabbai only (listener 403 `forbidden`). A family is created on first u
 | POST | `/v1/kehilot/{k}/family/children` | member, gabbai | `{firstName (1-60), gender: "m"\|"f", birthDate?: "YYYY-MM-DD"}`; absent or `""` omits the birth date, otherwise a real date from 1900-01-01 to today (Israel) | 201 child `{id, firstName, gender, birthDate?}` | 400 `invalid_first_name`, `invalid_gender`, `invalid_birth_date`; 409 `children_limit` (20), `try_again` |
 | PUT | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | same body (replaces the child) | 200 child | as above; 404 `child_not_found` |
 | DELETE | `/v1/kehilot/{k}/family/children/{childId}` | member, gabbai | - | 204 | 404 `child_not_found`; 409 `try_again` |
-| GET | `/v1/kehilot/{k}/family/tree` | member, gabbai (own family) | - | 200 `{people, version}`; a family with only the older `children` list returns them as `child` entries (same ids; `firstName` -> `hebrewFirst`, `birthDate` -> Hebrew `birth`) | 403 `forbidden`, 404 |
+| GET | `/v1/kehilot/{k}/family/tree` | member, gabbai (own family) | - | 200 `{people, version, updatedAt}` (`updatedAt`: Unix seconds of the last tree write, `null` before the first); a family with only the older `children` list returns them as `child` entries (same ids; `firstName` -> `hebrewFirst`, `birthDate` -> Hebrew `birth`) | 403 `forbidden`, 404 |
 | PUT | `/v1/kehilot/{k}/family/tree` | member, gabbai (own family) | `{people, ifVersion}` (body up to 256 KB). `people` is validated strictly (see Family tree) | 200 `{version}` (new version; `people` replaces `children`) | 400 `invalid_if_version`, `invalid_people`, `invalid_relation`, `invalid_gender`, `invalid_name`, `invalid_tribe`, `invalid_hebrew_date`, `invalid_adar`, `invalid_birth`, `invalid_death`, `invalid_bar_mitzvah`, `invalid_figure`, `children_limit`, `grandchildren_limit`, `generations_limit`; 403; 409 `version_conflict` (stale `ifVersion`: reload, nothing is written) |
-| GET | `/v1/kehilot/{k}/admin/families/{familyId}/tree` | gabbai (same Kehila) | - | 200 `{people, version}`. Read-only: other methods are 405 | 403 `forbidden`, 404 `family_not_found` / `kehila_not_found` |
+| GET | `/v1/kehilot/{k}/admin/families/{familyId}/tree` | gabbai (same Kehila) | - | 200 `{people, version, updatedAt}`. Read-only: other methods are 405 | 403 `forbidden`, 404 `family_not_found` / `kehila_not_found` |
 
 Both adults may edit the children at once: writes are version-checked and retried, and `try_again` is returned only after 3 lost races.
 

@@ -299,7 +299,8 @@ export function Main({ onOpenSwitcher, banner, pushSignal, takePush, manageSigna
       body = <TreeRoute onBack={() => setNav({ tab: 'me' })} />;
       break;
     case 'adminTree':
-      body = <TreeRoute key={nav.familyId} readOnly familyId={nav.familyId} familyName={nav.name} onBack={() => setNav({ tab: 'members' })} />;
+      // Gabbai only (the server enforces it too): anyone else gets the plain Me screen.
+      body = kehila?.role !== 'gabbai' ? <Me onToast={showToast} /> : <TreeRoute key={nav.familyId} readOnly familyId={nav.familyId} familyName={nav.name} onBack={() => setNav({ tab: 'members' })} />;
       break;
     case 'me':
       body = <Me onTree={() => setNav({ tab: 'tree' })} onGroup={g => setNav({ tab: 'group', ...g, from: 'me' })} onManage={() => { setManage(true); setNav({ tab: 'overview' }); }} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'me' }) : undefined} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;

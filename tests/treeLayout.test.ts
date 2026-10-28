@@ -126,6 +126,10 @@ test('familyStatus follows the §18 order', () => {
   assert.deepEqual(familyStatus({ tree: [{ ...me, hebrewFirst: '' }], request }), { kind: 'request', name: 'דנה' });
   assert.deepEqual(familyStatus({ tree: [...done, kid(2, { hebrewFirst: '' })], sent: { name: 'יוסי' } }), { kind: 'missing', n: 1 });
   assert.deepEqual(familyStatus({ tree: [me] }), { kind: 'empty' });
+  // not started: no self, or only an unnamed self, beats "missing" (but a waiting request still comes first)
+  assert.deepEqual(familyStatus({ tree: [{ ...me, hebrewFirst: '' }] }), { kind: 'empty' });
+  assert.deepEqual(familyStatus({ tree: [kid(1, { hebrewFirst: '' })] }), { kind: 'empty' });
+  assert.deepEqual(familyStatus({ tree: [{ ...me, hebrewFirst: '' }, wife] }), { kind: 'missing', n: 1 });
   assert.deepEqual(familyStatus({ tree: [] }), { kind: 'empty' });
   assert.deepEqual(familyStatus({ tree: done, sent: { name: 'יוסי' } }), { kind: 'sent', name: 'יוסי' });
   assert.deepEqual(familyStatus({ tree: done, updated: '27.10' }), { kind: 'complete', date: '27.10' });
