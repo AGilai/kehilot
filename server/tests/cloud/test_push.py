@@ -156,7 +156,7 @@ class PushTest(unittest.TestCase):
             self.assertEqual(self.sent[0]['to'], f'ExponentPushToken[{self.eng}]')
             self.assertEqual(self.sent[0]['body'], PUSH_TEXT[kind]['en'])
         self.assertEqual(PUSH_TEXT['family_request']['he'], 'בקשת קישור משפחה חדשה')
-        self.assertEqual(PUSH_TEXT['family_gabbai']['en'], 'The gabbai updated your family details')
+        self.assertEqual(PUSH_TEXT['family_gabbai']['en'], 'Your family details were updated by the management team')
 
     def test_family_push_only_to_member_or_gabbai_of_that_kehila(self):
         for ref in (self.lis, 'nobody'):

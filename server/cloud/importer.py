@@ -10,7 +10,7 @@ EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 MAX_EMAIL = 254
 MAX_NAME = 60
 MAX_GROUPS = 20
-ROLES = (authz.LISTENER, authz.MEMBER, authz.GABBAI)  # no tech row: tech is given only in the app
+ROLES = authz.ALL  # an import row may name any role
 CLASSIFICATIONS = ('', 'א', 'קבוע')
 
 

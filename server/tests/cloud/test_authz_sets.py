@@ -20,13 +20,12 @@ from server.tests.cloud.test_handler import Context, event
 
 CLOUD = pathlib.Path(__file__).resolve().parents[2] / 'cloud'
 K = '01JABCDEFGHJKMNPQRSTVWXYZ0'  # a well-formed Kehila ID
-ALLOWED = {'routes_seatweek.py': 1}  # the wire value 'by': 'gabbai' of a seat-week answer
+ALLOWED = {}  # no gabbai or tech literal outside authz.py
 ROLE_NAMES = ('LISTENER', 'MEMBER', 'GABBAI', 'TECH')
 # The only references to authz's role constants outside authz.py, per file: input validation, not authorization.
 ALLOWED_ROLE_NAMES = {
-    'importer.py': 3,        # ROLES = (LISTENER, MEMBER, GABBAI): what an import row may name
-    'routes_admin.py': 3,    # ROLES = (LISTENER, MEMBER, GABBAI): what a role change may name
-    'routes_invites.py': 3,  # INVITE_ROLES = (LISTENER, MEMBER) and the default role LISTENER
+    # (importer.py and routes_admin.py validate against authz.ALL: no role constant there)
+    'routes_invites.py': 4,  # INVITE_ROLES = (LISTENER, MEMBER, TECH) and the default role LISTENER
 }
 
 

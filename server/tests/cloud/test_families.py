@@ -470,10 +470,10 @@ class FamiliesTest(test_messages.MessagesTest):
         self.assertEqual(sorted(c.args for c in enqueue.call_args_list),
                          sorted([('family_gabbai', self.k, self.member), ('family_gabbai', self.k, self.quiet)]))
         self.assertEqual(self.cards('member-sub')['gabbaiLink'],
-                         {'gabbaiName': 'Gabi Gabbai', 'partnerName': 'Quinn Quiet'})
+                         {'gabbaiName': 'Gabi Gabbai', 'gabbaiRole': 'gabbai', 'partnerName': 'Quinn Quiet'})
         self.assertEqual(self.cards('quiet-sub')['gabbaiLink'],
-                         {'gabbaiName': 'Gabi Gabbai', 'partnerName': 'Mia Member'})
-        self.assertEqual(self.view('quiet-sub')['notice'], {'gabbaiName': 'Gabi Gabbai', 'partnerName': 'Mia Member'})
+                         {'gabbaiName': 'Gabi Gabbai', 'gabbaiRole': 'gabbai', 'partnerName': 'Mia Member'})
+        self.assertEqual(self.view('quiet-sub')['notice'], {'gabbaiName': 'Gabi Gabbai', 'gabbaiRole': 'gabbai', 'partnerName': 'Mia Member'})
         self.assertEqual([c['firstName'] for c in self.view('quiet-sub')['children']], ['Noa'])
         self.assertEqual(self.call('POST', f'{self.base()}/me/cards/gabbai_link/dismiss', sub='quiet-sub'),
                          (204, None))

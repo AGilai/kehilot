@@ -145,6 +145,20 @@ class ImportTest(unittest.TestCase):
         self.assertEqual((member['role'], member['classification']), ('member', 'א'))
         self.assertIsNone(self.repo.get_request(self.k, uid))
 
+    def test_import_row_with_role_tech_creates_a_tech(self):
+        status, body = self.do_import([row(role='tech')])
+        self.assertEqual((status, body['results']), (200, [{'index': 0, 'status': 'created'}]))
+        self.assertEqual(self.repo.get_membership(self.k, self.user_id_of('dana@example.test'))['role'], 'tech')
+        self.assertEqual(self.do_import([row('Eli', 'Example', 'eli@example.test', 'owner')])[1]['results'],
+                         [{'index': 0, 'status': 'invalid', 'error': 'invalid_role'}])
+
+    def test_a_tech_imports_any_role(self):
+        tech = self.signin('sub-tech', 'tech@example.test')
+        self.repo.put_membership(self.k, tech, 'tech')
+        status, body = self.do_import([row(role='gabbai'), row('Eli', 'Example', 'eli@example.test', 'tech')],
+                                      sub='sub-tech', email='tech@example.test')
+        self.assertEqual((status, [r['status'] for r in body['results']]), (200, ['created', 'created']))
+
     def test_import_does_not_downgrade_or_change_other_roles(self):
         self.do_import([row(role='gabbai'), row('Eli', 'Example', 'eli@example.test', 'member')])
         status, body = self.do_import([row(role='listener'), row('Eli', 'Example', 'eli@example.test', 'gabbai')])

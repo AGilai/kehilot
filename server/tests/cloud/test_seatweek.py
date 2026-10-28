@@ -96,7 +96,7 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual([r['label'] for r in frame['rows']], ['3', '4', '5', '6', '7'])
         self.assertEqual(frame['blockName'], 'שמאל בדיוני')
         self.assertEqual(frame['cols'], 2)
-        self.assertEqual(set(body), {'week', 'deadline', 'open', 'seats', 'answered', 'updatedByGabbai', 'updatedAt', 'frames'})
+        self.assertEqual(set(body), {'week', 'deadline', 'open', 'seats', 'answered', 'updatedByGabbai', 'updatedByRole', 'updatedAt', 'frames'})
         raw = json.dumps(body, ensure_ascii=False)
         for secret in list(self.at.values()) + [self.other, self.holder, HOLDER, 'Quinn', 'ימין בדיוני', self.fam, 'holder:', 'family:',
                                                 'assignments']:
@@ -249,6 +249,55 @@ class SeatWeekTest(test_messages.MessagesTest):
             self.assertEqual((seat['released'], seat['by']), (True, 'gabbai'))
             self.assertEqual(week['households'][f'holder:{self.holder}'], HOLDER)
             self.assertEqual(week['households'][f'family:{self.fam}'], 'Mia Member')
+
+    def tech_sub(self):
+        self.add('tech-sub', 'tech', 'Tali Tech')
+        return 'tech-sub'
+
+    def test_staff_edit_carries_the_role_of_who_made_it(self):
+        self.mine((5, 0), (5, 1))
+        tech = self.tech_sub()
+        self.assertIsNone(self.me()[1]['updatedByRole'])
+        for sub, role in (('gabbai-sub', 'gabbai'), (tech, 'tech')):
+            self.assertEqual(self.gput({self.at[(5, 0)]: True}, sub=sub)[0], 200)
+            body = self.me()[1]
+            self.assertEqual((body['updatedByGabbai'], body['updatedByRole']), (True, role))
+            self.assertEqual({v['by'] for v in self.admin_week()['prayers']['erev']['seats'].values()}, {role})
+            self.assertEqual(self.gput({self.at[(5, 0)]: False}, sub=sub)[0], 200)
+
+    def test_updated_by_role_is_the_latest_staff_edit(self):
+        self.mine((5, 0), (5, 1))
+        tech = self.tech_sub()
+        self.assertEqual(self.gput({self.at[(5, 0)]: True})[0], 200)
+        with mock.patch.object(routes_seatweek, '_ms', return_value=9 * 10 ** 12):
+            self.assertEqual(self.gput({self.at[(5, 1)]: True}, sub=tech)[0], 200)
+        self.assertEqual(self.me()[1]['updatedByRole'], 'tech')
+
+    def test_a_seat_stored_before_roles_were_recorded_reads_as_gabbai(self):
+        self.mine((5, 0))
+        self.assertEqual(self.gput({self.at[(5, 0)]: True})[0], 200)
+
+        def old_style(item):
+            fields = {k: v for k, v in item.items() if k not in ('pk', 'sk', 'updatedAt')}
+            return {**fields, 'seats': {s: {**v, 'by': 'g'} for s, v in item['seats'].items()}}
+        self.repo.change_week(self.k, WEEK, 'erev', old_style)
+        body = self.me()[1]
+        self.assertEqual((body['updatedByGabbai'], body['updatedByRole']), (True, 'gabbai'))
+        self.assertEqual({v['by'] for v in self.admin_week()['prayers']['erev']['seats'].values()}, {'gabbai'})
+
+    def test_a_tech_responses_and_undo(self):
+        self.mine((5, 0), (5, 1))
+        tech = self.tech_sub()
+        status, out = self.call('POST', f'{self.base()}/admin/seats/week/{WEEK}/responses', sub=tech,
+                                body={'event': 'erev', 'rows': [{'household': f'family:{self.fam}', 'released': 1}]})
+        self.assertEqual(status, 200, out)
+        self.assertEqual(self.me()[1]['updatedByRole'], 'tech')
+        self.assertEqual({v['by'] for v in self.admin_week()['prayers']['erev']['seats'].values()}, {'tech'})
+        status, out = self.call('POST', f'{self.base()}/admin/seats/week/{WEEK}/responses/undo', sub='gabbai-sub',
+                                body={'event': 'erev'})
+        self.assertEqual(status, 200, out)
+        self.assertEqual(out['skipped'], 0)
+        self.assertFalse(self.me()[1]['updatedByGabbai'])
 
     def test_member_change_after_gabbai_is_marked_member_again(self):
         self.mine((5, 0))

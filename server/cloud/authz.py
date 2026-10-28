@@ -18,6 +18,15 @@ MANAGEMENT = (GABBAI, TECH)            # "צוות הניהול": everything a g
 LISTENER_ONLY = (LISTENER,)
 MEMBER_ONLY = (MEMBER,)
 
+# One-letter codes for a staff role where a record is repeated per seat (the DynamoDB item limit is 400 KB).
+# 'g' is also what every staff edit stored before a tech existed.
+STAFF_CODES = {GABBAI: 'g', TECH: 't'}
+CODE_ROLES = {code: role for role, code in STAFF_CODES.items()}
+
+# Staff attributions written before the actor's role was recorded (a seat's `by: 'g'`, a sheet line without
+# `byRole`) were made by a gabbai: no tech could be assigned then.
+LEGACY_STAFF_ROLE = GABBAI
+
 ROLE_SETS = {'ALL': ALL, 'NON_LISTENERS': NON_LISTENERS, 'ADULTS': ADULTS, 'MANAGEMENT': MANAGEMENT,
              'LISTENER_ONLY': LISTENER_ONLY, 'MEMBER_ONLY': MEMBER_ONLY}
 
@@ -46,6 +55,11 @@ def in_set(role, roles):
 
 def role_in(membership, roles):
     return bool(membership) and in_set(membership.get('role'), roles)
+
+
+def management_role(membership):
+    """The membership's role when it is management (gabbai or tech), else None."""
+    return membership['role'] if role_in(membership, MANAGEMENT) else None
 
 
 def role_condition(roles, attr='#r'):

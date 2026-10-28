@@ -14,8 +14,8 @@ SENT_KEEP = 7 * 86400  # a sent marker is ignored this long after it expired
 
 
 def notice_of(repo, k, membership):
-    """{gabbaiName, partnerName} from the membership's familyNotice, names from the current memberships (a
-    departed gabbai's name is ''). None when there is no notice or the partner is no longer a member."""
+    """{gabbaiName, gabbaiRole, partnerName} from the membership's familyNotice, names from the current memberships (a
+    departed gabbai's name is '' and his role None). None when there is no notice or the partner is no longer a member."""
     notice = membership.get('familyNotice')
     if not notice:
         return None
@@ -24,7 +24,8 @@ def notice_of(repo, k, membership):
     if not authz.role_in(partner, authz.ADULTS):
         return None
     by = found.get((f'K#{k}', f'M#{notice["byUserId"]}')) or {}
-    return {'gabbaiName': by.get('displayName', ''), 'partnerName': partner.get('displayName', '')}
+    return {'gabbaiName': by.get('displayName', ''), 'gabbaiRole': authz.management_role(by),
+            'partnerName': partner.get('displayName', '')}
 
 
 def live_received(repo, k, user_id, live_count, now):

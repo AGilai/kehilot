@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 MAX_MEMBER_LISTENER_LINKS = 3
 DEFAULT_MAX_LISTENERS = 500
 
-INVITE_ROLES = (authz.LISTENER, authz.MEMBER)  # no invite ever gives gabbai or tech (§20.5)
+INVITE_ROLES = (authz.LISTENER, authz.MEMBER, authz.TECH)  # an invite gives no gabbai (only the admin CLI does)
 
 
 def _live_invite(repo, code):
@@ -29,7 +29,7 @@ def create(ctx, params):
     role = d.get('role', authz.LISTENER)
     if role not in INVITE_ROLES:
         raise ApiError(400, 'invalid_role')
-    if authz.in_set(role, authz.MEMBER_ONLY) and not authz.role_in(membership, authz.MANAGEMENT):
+    if not authz.in_set(role, authz.LISTENER_ONLY) and not authz.role_in(membership, authz.MANAGEMENT):
         raise ApiError(403, 'forbidden')
     classification = d.get('classification', '')
     if 'classification' in d and (not authz.in_set(role, authz.MEMBER_ONLY) or classification not in CLASSIFICATIONS):
@@ -64,7 +64,7 @@ def accept(ctx, params):
     if invite['inviterId'] != 'admin-cli':
         inviter = ctx.repo.get_membership(k, invite['inviterId'])
         # The inviter left or was removed, or (member invites) is no longer a gabbai: same answer as an expired link.
-        if not inviter or (authz.role_in(invite, authz.MEMBER_ONLY) and not authz.role_in(inviter, authz.MANAGEMENT)):
+        if not inviter or (not authz.role_in(invite, authz.LISTENER_ONLY) and not authz.role_in(inviter, authz.MANAGEMENT)):
             raise ApiError(410, 'invite_expired')
     settings = (ctx.repo.get_kehila(k) or {}).get('settings', {})
     if authz.role_in(invite, authz.LISTENER_ONLY) and not ctx.repo.get_membership(k, ctx.user_id):

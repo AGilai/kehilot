@@ -36,6 +36,15 @@ def _ms():
     return int(time.time() * 1000)
 
 
+# A seat's `by` is 'm' (the member) or the staff code of authz.STAFF_CODES ('g' gabbai, 't' tech).
+def _is_staff(by):
+    return by in authz.CODE_ROLES
+
+
+def _staff_role(by):
+    return authz.CODE_ROLES[by]
+
+
 def _states(ctx, k, friday):
     return {p: ctx.repo.get_week(k, friday, p) for p in wk.PRAYERS}
 
@@ -113,8 +122,11 @@ def _out_member(ctx, k, friday, family_id):
     ordered = wk.family_order(layout, mine)
     raw = _states(ctx, k, friday)
     states = {p: _effective(raw[p], held) for p in wk.PRAYERS}
-    flagged = any(((states[p]['seats']).get(s) or {}).get('by') == 'g' for p in wk.PRAYERS for s in ordered)
-    return {**base, 'seats': len(ordered), 'updatedByGabbai': flagged,
+    staff = [v for p in wk.PRAYERS for s in ordered
+             if _is_staff((v := (states[p]['seats']).get(s) or {}).get('by'))]
+    latest = max(staff, key=lambda v: v.get('at') or 0)['by'] if staff else None
+    return {**base, 'seats': len(ordered), 'updatedByGabbai': bool(staff),
+            'updatedByRole': _staff_role(latest) if staff else None,
             'updatedAt': {p: (raw[p] or {}).get('updatedAt') for p in wk.PRAYERS},
             'answered': {p: ref in ((raw[p] or {}).get('answered') or {}) for p in wk.PRAYERS},
             'frames': wk.frames(layout, ordered, states)}
@@ -185,7 +197,7 @@ def _names(ctx, k, refs):
 
 def _prayer_out(item, held):
     item = _effective(item, held)
-    return {'seats': {s: {'released': bool(v.get('r')), 'by': 'gabbai' if v.get('by') == 'g' else 'member',
+    return {'seats': {s: {'released': bool(v.get('r')), 'by': _staff_role(v['by']) if _is_staff(v.get('by')) else 'member',
                           'at': v.get('at')} for s, v in (item.get('seats') or {}).items()},
             'requests': item.get('requests') or {}, 'canUndo': bool(item.get('undo')),
             'answered': {r: at for r, at in (item.get('answered') or {}).items() if r in held.values()},
@@ -212,7 +224,7 @@ def get_week(ctx, params):
 def put_week(ctx, params):
     """On behalf: `{prayer, released: {seatId: bool}, ifUpdatedAt}`, any time, any assigned seat, marked gabbai."""
     k = params['k']
-    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
+    staff = authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)['role']
     friday = _week(params['week'], _now().date())
     d = inputs.body_object(ctx, 64 * 1024)
     if set(d) != {'prayer', 'released', 'ifUpdatedAt'}:
@@ -233,7 +245,7 @@ def put_week(ctx, params):
     now = _ms()
     for sid, want in changes.items():
         if _is_released(current, sid) != want:
-            seats[sid] = {'r': int(want), 'by': 'g', 'at': now, 'h': held[sid]}
+            seats[sid] = {'r': int(want), 'by': authz.STAFF_CODES[staff], 'at': now, 'h': held[sid]}
     answered = dict((item or {}).get('answered') or {})
     for sid in changes:
         answered[held[sid]] = now
@@ -246,7 +258,7 @@ def put_week(ctx, params):
 def apply_responses(ctx, params):
     """`{event, rows:[{household, released, requests?}]}`; later rows win. Counts above the seats clamp (warning)."""
     k = params['k']
-    authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)
+    staff = authz.require(ctx.repo, ctx.user_id, k, authz.MANAGEMENT)['role']
     friday = _week(params['week'], _now().date())
     d = inputs.body_object(ctx, BODY_MAX)
     if set(d) != {'event', 'rows'} or not isinstance(d['rows'], list) or len(d['rows']) > wk.MAX_ROWS:
@@ -323,7 +335,7 @@ def apply_responses(ctx, params):
                 want = int(sid in free)
                 if int(_is_released(eff, sid)) != want:
                     undo_seats[sid] = _undo_entry(seats.get(sid), ref)
-                    seats[sid] = {'r': want, 'by': 'g', 'at': now, 'h': ref}
+                    seats[sid] = {'r': want, 'by': authz.STAFF_CODES[staff], 'at': now, 'h': ref}
             store_requests(ref, requests)
         result.update(households=applied, released=released_n, kept=kept_n, warnings=warnings, requestTotals=totals)
         return {'seats': seats, 'requests': reqs, 'answered': item.get('answered') or {},
@@ -354,7 +366,7 @@ def undo_responses(ctx, params):
         skipped.clear()
         for sid, prev in undo['seats'].items():
             cur = seats.get(sid) or {}
-            if cur.get('by') == 'g' and cur.get('at') == undo['at']:  # still as the apply left it
+            if _is_staff(cur.get('by')) and cur.get('at') == undo['at']:  # still as the apply left it
                 if prev is None:
                     seats.pop(sid, None)
                 else:

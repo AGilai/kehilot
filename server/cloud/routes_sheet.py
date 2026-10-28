@@ -78,6 +78,8 @@ def _items_json(ctx, k, membership, friday, now):
 def _item_json(item, message, gabbai, names):
     out = {'itemId': item['itemId'], 'week': item['week'], 'group': item['group'], 'kind': item['kind'],
            'type': item['type'], 'state': item['state'], 'source': item['source'], 'postedAt': int(item['createdAt'])}
+    if item['source'] == 'byGabbai':
+        out['byRole'] = item.get('byRole') or authz.LEGACY_STAFF_ROLE
     if item['kind'] == 'free':
         out['line'] = {'text': item['text'], 'bold': item.get('bold', '')}
     elif item.get('line'):
@@ -126,7 +128,8 @@ def add_item(ctx, params):
     item = {'itemId': item_id, 'week': friday.isoformat(), 'kind': 'free', 'type': type_,
             'group': sheet_rules.GROUP_OF[type_], 'state': 'in', 'source': source, 'wasPending': False,
             'order': sheet_rules.appended_order(), 'text': text, 'authorId': ctx.user_id,
-            'createdAt': int(now.timestamp()), **({'bold': bold} if bold else {})}
+            'createdAt': int(now.timestamp()), **({'bold': bold} if bold else {}),
+            **({'byRole': membership['role']} if source == 'byGabbai' else {})}
     stored = ctx.repo.put_sheet_item(k, friday.isoformat(), item)
     names = {ctx.user_id: membership.get('displayName', '')}
     return 201, _item_json(stored, None, True, names)

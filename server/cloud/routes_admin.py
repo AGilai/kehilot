@@ -15,7 +15,7 @@ CLASSIFICATIONS = ('', 'א', 'קבוע')
 LANGS = ('he', 'en')
 # control characters (Cc, incl. tab and newlines), line/paragraph separators and bidi overrides/isolates/marks
 _UNSAFE_TEXT = re.compile('[\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]')
-ROLES = (authz.LISTENER, authz.MEMBER, authz.GABBAI)  # a role change may name these; tech is not assignable yet (§20.4)
+ROLES = authz.ALL  # a role change may name any role; a manager grants any of them (owner decision 2026-10-28)
 PRIVACY_CONTACT_MAX = 100
 IMPORT_MAX_ROWS = 10
 IMPORT_MAX_BODY = 64 * 1024

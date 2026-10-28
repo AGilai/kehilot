@@ -23,7 +23,8 @@ PUSH_TEXT = {
     'request': {'he': 'בקשת הצטרפות חדשה', 'en': 'New membership request'},
     'group_request': {'he': 'בקשת הצטרפות לקבוצה', 'en': 'New group join request'},
     'family_request': {'he': 'בקשת קישור משפחה חדשה', 'en': 'New family link request'},
-    'family_gabbai': {'he': 'הגבאי עדכן את פרטי המשפחה שלכם', 'en': 'The gabbai updated your family details'},
+    'family_gabbai': {'he': 'פרטי המשפחה שלכם עודכנו בידי צוות הניהול',
+                     'en': 'Your family details were updated by the management team'},
 }
 # Fixed texts: not offered by, or editable through, the gabbai's push-text screens. ref = the recipient's userId.
 SYSTEM_KEYS = ('family_request', 'family_gabbai')
