@@ -25,7 +25,7 @@ function Item({ icon, label, badge, selected, onPress }: { icon: IconName; label
 }
 
 /** §18.3 wide (>= 1024): the tab row becomes a 272 start-side sidebar: the four tabs, a divider, the six groups, and the exit. */
-export function AdminSidebar({ active, pending, unread, onTab, onArea, onExit }: { active: SidebarKey | null; pending: number; unread: number; onTab: (key: 'overview' | 'approvals' | 'messages' | 'members') => void; onArea: (id: AreaId) => void; onExit: () => void }) {
+export function AdminSidebar({ active, pending, unread, sheetPending, onTab, onArea, onExit }: { active: SidebarKey | null; pending: number; unread: number; /** Sheet items waiting for approval: the badge of the prayers group, whose sheet row they belong to. */ sheetPending: number; onTab: (key: 'overview' | 'approvals' | 'messages' | 'members') => void; onArea: (id: AreaId) => void; onExit: () => void }) {
   const { t } = useI18n();
   const k = useTokens();
   return (
@@ -36,7 +36,7 @@ export function AdminSidebar({ active, pending, unread, onTab, onArea, onExit }:
       <Item icon="users" label={t('admin.tabs.members')} selected={active === 'members'} onPress={() => onTab('members')} />
       <View style={{ height: 1, backgroundColor: k.line, marginVertical: 8 }} />
       <Txt size="small" bold color={k.muted} accessibilityRole="header" style={{ marginHorizontal: 12, marginBottom: 4 }}>{t('admin.area.label')}</Txt>
-      {AREA_IDS.map(id => <Item key={id} icon={AREA_ICON[id]} label={t(`admin.area.${id}`)} selected={active === id} onPress={() => onArea(id)} />)}
+      {AREA_IDS.map(id => <Item key={id} icon={AREA_ICON[id]} label={t(`admin.area.${id}`)} badge={id === 'prayers' ? sheetPending : undefined} selected={active === id} onPress={() => onArea(id)} />)}
       <View style={{ height: 1, backgroundColor: k.line, marginVertical: 8 }} />
       <Item icon="out" label={t('admin.exit')} selected={false} onPress={onExit} />
     </ScrollView>

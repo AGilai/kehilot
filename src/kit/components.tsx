@@ -293,14 +293,20 @@ export function Sheet({ visible, title, onClose, children, footer, closeLabel }:
   );
 }
 
-export function Toast({ text, visible }: { text: string; visible: boolean }) {
+/** A transient bubble. With `action` (e.g. undo) the bubble holds a 48-high text button and the container lets touches through around it. */
+export function Toast({ text, visible, action }: { text: string; visible: boolean; action?: { title: string; onPress: () => void } }) {
   const k = useTokens();
   if (!visible) return null;
   return (
-    <View pointerEvents="none" accessibilityRole="alert" accessibilityLiveRegion="polite"
+    <View pointerEvents={action ? 'box-none' : 'none'} accessibilityRole="alert" accessibilityLiveRegion="polite"
       style={[StyleSheet.absoluteFill, { justifyContent: 'flex-end', alignItems: 'center', padding: 24 }]}>
-      <View style={{ backgroundColor: k.band, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, maxWidth: 520 }}>
-        <Txt size="small" color="#FFFFFF">{text}</Txt>
+      <View style={{ backgroundColor: k.band, borderRadius: 12, paddingHorizontal: 16, paddingVertical: action ? 0 : 12, maxWidth: 520, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Txt size="small" color="#FFFFFF" style={{ flexShrink: 1, paddingVertical: action ? 12 : 0 }}>{text}</Txt>
+        {action ? (
+          <Pressable accessibilityRole="button" accessibilityLabel={action.title} onPress={action.onPress} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 }}>
+            <Txt size="small" bold color="#FFFFFF" style={{ textDecorationLine: 'underline' }}>{action.title}</Txt>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

@@ -4,6 +4,8 @@ import type { Api } from '../auth/AuthProvider.tsx';
 import { waitingAny } from '../client/adminAreas.ts';
 import { createWaitingStore } from '../client/waitingStore.ts';
 import type { WaitingCounts } from '../client/waitingStore.ts';
+import { scheduleWeekOf, addDays } from '../schedule/week.ts';
+import { israelDate } from '../dates.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { isManagement } from '../client/roles.ts';
 
@@ -15,10 +17,20 @@ export const waitingStore = createWaitingStore(async kehilaId => {
 });
 
 async function load(api: Api, kehilaId: string, seats: boolean): Promise<WaitingCounts> {
-  const [req, hints, groups, autos] = await Promise.allSettled([api.requests(kehilaId), seats ? api.seatLinkSuggestions(kehilaId) : Promise.resolve({ count: 0 }), api.groups(kehilaId), seats ? api.seatAutoLinks(kehilaId) : Promise.resolve({ count: 0 })]);
-  if (req.status === 'rejected' && hints.status === 'rejected' && groups.status === 'rejected') throw new Error('waiting');
+  const friday = scheduleWeekOf(israelDate()).friday;
+  const weeks = [friday, addDays(friday, 7)];
+  const [req, hints, groups, autos, sheet0, sheet1] = await Promise.allSettled([api.requests(kehilaId), seats ? api.seatLinkSuggestions(kehilaId) : Promise.resolve({ count: 0 }), api.groups(kehilaId), seats ? api.seatAutoLinks(kehilaId) : Promise.resolve({ count: 0 }), api.sheetItems(kehilaId, weeks[0]!), api.sheetItems(kehilaId, weeks[1]!)]);
+  if (req.status === 'rejected' && hints.status === 'rejected' && groups.status === 'rejected' && sheet0.status === 'rejected' && sheet1.status === 'rejected') throw new Error('waiting');
   const prev = waitingStore.get();
+  // A failed week keeps the previous numbers for both (a half answer would show a wrong total).
+  let sheetPending = prev.sheetPending, sheetPendingWeek = prev.sheetPendingWeek;
+  if (sheet0.status === 'fulfilled' && sheet1.status === 'fulfilled') {
+    const n = [sheet0.value, sheet1.value].map(p => p.items.filter(i => i.state === 'pending').length);
+    sheetPending = n[0]! + n[1]!;
+    sheetPendingWeek = n[0]! > 0 ? weeks[0]! : n[1]! > 0 ? weeks[1]! : null;
+  }
   return {
+    sheetPending, sheetPendingWeek,
     requests: req.status === 'fulfilled' ? req.value.length : prev.requests,
     // automatic links wait for a look (undo for 14 days) next to the suggestions
     linkHints: hints.status === 'fulfilled' ? hints.value.count + (autos.status === 'fulfilled' ? autos.value.count : 0) : prev.linkHints,
@@ -30,7 +42,7 @@ async function load(api: Api, kehilaId: string, seats: boolean): Promise<Waiting
  * What waits for a gabbai (join requests, unaccepted terms, seat link suggestions, group requests). Fetched once per
  * Kehila and again on `refresh()` (the Kehila menu opening, an approval acted on). Counts are zero for everyone else.
  */
-export function useWaiting(): { requests: number; terms: boolean; linkHints: number; groupRequests: number; any: boolean; refresh: () => void; setRequests: (n: number) => void } {
+export function useWaiting(): { requests: number; terms: boolean; linkHints: number; groupRequests: number; sheetPending: number; sheetPendingWeek: string | null; any: boolean; refresh: () => void; setRequests: (n: number) => void; setSheetPending: (n: number, week: string | null) => void } {
   const { api } = useAuth();
   const { state } = useSession();
   const kehilaId = state.kehilaId;
@@ -40,6 +52,6 @@ export function useWaiting(): { requests: number; terms: boolean; linkHints: num
   const refresh = React.useCallback(() => { if (kehilaId && gabbai) void waitingStore.refresh(kehilaId); }, [kehilaId, gabbai]);
   React.useEffect(refresh, [refresh, state.kehila?.cards.terms]);
   const mine = gabbai && snap.kehilaId === kehilaId;
-  const w = { requests: mine ? snap.requests : 0, terms: gabbai && !!state.kehila?.cards.terms, linkHints: mine ? snap.linkHints : 0, groupRequests: mine ? snap.groupRequests : 0 };
-  return { ...w, any: waitingAny(state.kehila?.role, w), refresh, setRequests: waitingStore.setRequests };
+  const w = { requests: mine ? snap.requests : 0, terms: gabbai && !!state.kehila?.cards.terms, linkHints: mine ? snap.linkHints : 0, groupRequests: mine ? snap.groupRequests : 0, sheetPending: mine ? snap.sheetPending : 0 };
+  return { ...w, sheetPendingWeek: mine ? snap.sheetPendingWeek : null, any: waitingAny(state.kehila?.role, w), refresh, setRequests: waitingStore.setRequests, setSheetPending: waitingStore.setSheetPending };
 }

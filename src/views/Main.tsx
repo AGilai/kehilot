@@ -86,6 +86,7 @@ type Nav =
   | { tab: 'seats'; week?: string }
   | { tab: 'schedule' }
   | { tab: 'scheduleEditor' }
+  | { tab: 'sheetItems'; focus?: 'pending'; week?: string }
   | { tab: 'seatPrint'; behalf?: boolean }
   | { tab: 'seatEditor' }
   | { tab: 'seatResponses' }
@@ -147,6 +148,8 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   return null;
 }
 
+type ToastAction = { title: string; onPress: () => void };
+
 /** The signed-in app for every role (listeners get the reading parts, see roleView.ts): top bar, the open screen, and the bottom tabs. */
 export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, takeMenu }: { onOpenMenu: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string; week?: string } | null; /** Changes when the Kehila menu asks for a screen (management, tree, phone list, invite). */ menuSignal?: number; /** Returns the pending request once. */ takeMenu?: () => MenuAction | null }) {
   const { t } = useI18n();
@@ -172,21 +175,22 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
   useReportScreen({ screen: nav.tab, hasTabs: true, kehilaId: state.kehilaId, kehilaName: state.kehila?.name ?? null });
   const [filter, setFilter] = React.useState<Filter | undefined>(undefined);
   const [composeInitial, setComposeInitial] = React.useState<ComposeInitial | undefined>(undefined);
-  const [toast, setToast] = React.useState<string | null>(null);
+  const [toast, setToast] = React.useState<{ text: string; action?: ToastAction } | null>(null);
   // The schedule editor reports unsaved changes; leaving its screen by a tap asks first (forced exits, like a lost role, do not).
   const editorDirty = React.useRef(false);
   const [leaveAsk, setLeaveAsk] = React.useState<(() => void) | null>(null);
   const guard = (go: () => void) => { if (editorLeaveAsk(nav.tab, editorDirty.current)) setLeaveAsk(() => go); else go(); };
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
-  const showToast = React.useCallback((text: string) => {
-    setToast(text);
+  /** With an action (undo) the toast stays 6 s so there is time to reach it. */
+  const showToast = React.useCallback((text: string, action?: ToastAction) => {
+    setToast({ text, action });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), action ? 6000 : 2500);
   }, []);
   /** A row of the overview or of a group screen opens its tool; the tool's back returns to that overview or group. */
-  function goTool(target: GoTarget) {
-    const to: Nav = target === 'seatBehalf' ? { tab: 'seatPrint', behalf: true } : target === 'membersTags' ? { tab: 'members', tags: true } : { tab: target };
+  function goTool(target: GoTarget, opts?: { focus?: 'pending'; week?: string }) {
+    const to: Nav = target === 'seatBehalf' ? { tab: 'seatPrint', behalf: true } : target === 'membersTags' ? { tab: 'members', tags: true } : target === 'sheetItems' ? { tab: 'sheetItems', ...opts } : { tab: target };
     if (nav.tab === 'overview' || nav.tab === 'area') setBackNav(nav);
     if (to.tab === 'compose') setComposeInitial(undefined);
     guard(() => setNav(to));
@@ -266,7 +270,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
   const kehila = state.kehila;
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
-  const adminTab = nav.tab === 'overview' || nav.tab === 'area' || nav.tab === 'simchas' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'seatResponses' || nav.tab === 'seatHolders' || nav.tab === 'seatTimes' || nav.tab === 'scheduleEditor' || nav.tab === 'adminTree' || (nav.tab === 'group' && nav.from === 'groups');
+  const adminTab = nav.tab === 'overview' || nav.tab === 'area' || nav.tab === 'simchas' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'seatResponses' || nav.tab === 'seatHolders' || nav.tab === 'seatTimes' || nav.tab === 'scheduleEditor' || nav.tab === 'sheetItems' || nav.tab === 'adminTree' || (nav.tab === 'group' && nav.from === 'groups');
   const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : nav.tab === 'adminTree' ? 'members' : 'overview') : nav.tab === 'me' || nav.tab === 'tree' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || nav.tab === 'myGroups' || nav.tab === 'myInvite' || (nav.tab === 'group' && nav.from === 'myGroups') ? 'me'
     : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
@@ -290,6 +294,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     case 'schedule':
       body = <Schedule onBack={() => setNav({ tab: 'home' })} onToast={showToast} />;
       break;
+    case 'sheetItems': // Task 14 replaces this with the sheet items screen; until then the schedule editor (print, PDF) is the destination.
     case 'scheduleEditor':
       body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
       break;
@@ -384,7 +389,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
 
   const sidebarActive: SidebarKey | null = nav.tab === 'area' ? nav.id : active === 'home' || active === 'me' ? null : active;
   const sidebar = manage && wide ? (
-    <AdminSidebar active={sidebarActive} pending={pending} unread={unread}
+    <AdminSidebar active={sidebarActive} pending={pending} unread={unread} sheetPending={waiting.sheetPending}
       onTab={key => guard(() => setNav({ tab: key }))} onArea={id => guard(() => { setBackNav({ tab: 'overview' }); setNav({ tab: 'area', id }); })}
       onExit={() => guard(() => { setManage(false); setNav({ tab: 'home' }); })} />
   ) : null;
@@ -436,7 +441,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
         footer={<Button kind="danger" title={t('editor.leaveDiscard')} onPress={() => { const go = leaveAsk; setLeaveAsk(null); editorDirty.current = false; go?.(); }} />}>
         <Txt>{t('editor.leaveBody')}</Txt>
       </Sheet>
-      <Toast text={toast ?? ''} visible={toast !== null} />
+      <Toast text={toast?.text ?? ''} visible={toast !== null} action={toast?.action ? { title: toast.action.title, onPress: () => { const a = toast.action!; setToast(null); a.onPress(); } } : undefined} />
     </SafeAreaView>
   );
 }

@@ -11,7 +11,7 @@ import { roleFeatures, scheduleEditorAllowed } from '../src/client/roleView.ts';
 import { mapRows, parseCsv } from '../src/import/parse.ts';
 
 // All names are invented. A tech has every right of a gabbai (owner decision 2026-10-28).
-const W = { requests: 2, terms: true, linkHints: 1, groupRequests: 0 };
+const W = { requests: 2, terms: true, linkHints: 1, groupRequests: 0, sheetPending: 0 };
 
 test('a tech gets the same management areas and to-do items as a gabbai', () => {
   assert.deepEqual(areas('tech'), areas('gabbai'));

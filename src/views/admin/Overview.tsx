@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/AuthProvider.tsx';
 import { AREA_IDS, areas, todoItems } from '../../client/adminAreas.ts';
 import type { Area, AreaId, AreaRow, AreaTarget, TodoItem } from '../../client/adminAreas.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
-import type { SimchaWeek } from '../../client/types.ts';
+import type { SheetGroup, SimchaWeek } from '../../client/types.ts';
 import { nextSimcha, simchaTitle } from '../../client/simchasView.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Card, Txt, useTokens } from '../../kit/components.tsx';
@@ -13,6 +13,8 @@ import type { IconName } from '../../kit/Icon.tsx';
 import { ListGroup, NavRow } from '../../kit/NavRows.tsx';
 import { CountBadge } from '../../kit/NavRows.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
+import { parashaOf } from '../../schedule/parasha.ts';
+import { addDays } from '../../schedule/week.ts';
 import { timesStatus } from '../../seats/times.ts';
 import type { SeatTimes } from '../../seats/times.ts';
 import { useShabbat } from '../../seats/useShabbat.ts';
@@ -82,7 +84,7 @@ function MiniRow({ title, badge, onPress }: { title: string; badge?: number; onP
  * what is waiting ("לטיפול עכשיו") and where things are (six groups). It has no edit fields; settings rows show their value
  * and open a Sheet. Below 1024 the groups are 72-high rows, from 1024 a 3-column grid of cards that list their rows.
  */
-export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId | null; onArea: (id: AreaId) => void; onGo: (target: GoTarget) => void; onBack: () => void; onToast: (text: string) => void }) {
+export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId | null; onArea: (id: AreaId) => void; onGo: (target: GoTarget, opts?: { focus?: 'pending'; week?: string }) => void; onBack: () => void; onToast: (text: string) => void }) {
   const { t, lang } = useI18n();
   const { state, refreshKehila } = useSession();
   const k = useTokens();
@@ -94,19 +96,35 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
   const { data, error, reload } = useAreaData();
   const [sheet, setSheet] = React.useState<'cap' | 'privacy' | 'terms' | null>(null);
   const { refresh } = waiting;
+  // Which kinds of items wait (the todo caption). Best effort: unknown while loading or on a failure.
+  const { api } = useAuth();
+  const [pendingGroups, setPendingGroups] = React.useState<SheetGroup[] | null>(null);
+  const { sheetPendingWeek, sheetPending } = waiting;
+  const kehilaId = state.kehilaId;
+  React.useEffect(() => {
+    setPendingGroups(null);
+    if (!kehilaId || !sheetPendingWeek || sheetPending <= 0) return;
+    let live = true;
+    api.sheetItems(kehilaId, sheetPendingWeek).then(p => { if (live) setPendingGroups((['mazal', 'condolence', 'events'] as const).filter(g => p.items.some(i => i.state === 'pending' && i.group === g))); }, () => {});
+    return () => { live = false; };
+  }, [api, kehilaId, sheetPendingWeek, sheetPending]);
   React.useEffect(() => { refresh(); }, [refresh]);
   const role = state.kehila?.role;
   const list = areas(role);
   const todo = todoItems(role, waiting);
 
+  const sheetCaption = () => {
+    const types = pendingGroups && pendingGroups.length > 0 ? pendingGroups.map(g => t(`compose.types.${g === 'mazal' ? 'celebration' : g === 'events' ? 'event' : 'condolence'}`)).join(', ') : t('compose.types.celebration');
+    return t('admin.todo.sheetCaption', { types, parasha: waiting.sheetPendingWeek ? parashaOf(addDays(waiting.sheetPendingWeek, 1), lang) ?? '' : '' });
+  };
   const todoText = (i: TodoItem) => ({
     title: i.id === 'terms' ? t('admin.todo.terms') : t(`admin.todo.${i.id}`, { n: i.count }),
-    status: i.id === 'terms' ? t('admin.todo.termsSub') : i.id === 'linkHints' ? t('admin.todo.linkHintsSub') : undefined,
+    status: i.id === 'terms' ? t('admin.todo.termsSub') : i.id === 'linkHints' ? t('admin.todo.linkHintsSub') : i.id === 'sheet' ? sheetCaption() : undefined,
     badge: i.id === 'requests' ? i.count : undefined,
   });
-  const goTodo = (i: TodoItem) => onGo(i.target === 'overview' ? 'approvals' : i.target);
+  const goTodo = (i: TodoItem) => (i.id === 'sheet' ? onGo('sheetItems', { focus: 'pending', ...(waiting.sheetPendingWeek ? { week: waiting.sheetPendingWeek } : {}) }) : onGo(i.target === 'overview' ? 'approvals' : i.target));
 
-  const badgeOf = (r: AreaRow): number | undefined => (r.badge === 'requests' ? waiting.requests : r.badge === 'linkHints' ? waiting.linkHints : r.badge === 'groupRequests' ? waiting.groupRequests : 0) || undefined;
+  const badgeOf = (r: AreaRow): number | undefined => (r.badge === 'requests' ? waiting.requests : r.badge === 'linkHints' ? waiting.linkHints : r.badge === 'groupRequests' ? waiting.groupRequests : r.badge === 'sheetPending' ? waiting.sheetPending : 0) || undefined;
   const nextS = data?.weeks ? nextSimcha(data.weeks) : null;
   const simchaText = nextS ? `${simchaTitle(nextS.item, t)}${nextS.item.surname ? `, ${t('simchas.family', { surname: nextS.item.surname })}` : ''}` : null;
   const prayersStatus = data?.schedule

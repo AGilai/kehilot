@@ -14,10 +14,10 @@ export const AREA_IDS: AreaId[] = ['prayers', 'seats', 'messages', 'simchas', 'p
 /** Where a row goes: a screen of Main, or a Sheet of the settings group. `null`: reserved, no destination yet. */
 export type AreaTarget =
   | 'scheduleEditor' | 'seatPrint' | 'seatBehalf' | 'seatResponses' | 'seatTimes' | 'seatEditor' | 'seatHolders'
-  | 'compose' | 'channels' | 'pushTexts' | 'simchas'
+  | 'compose' | 'channels' | 'pushTexts' | 'simchas' | 'sheetItems'
   | 'approvals' | 'members' | 'membersTags' | 'groups' | 'invite' | 'import'
   | 'sheet:cap' | 'sheet:privacy' | 'sheet:terms';
-export type BadgeKind = 'requests' | 'linkHints' | 'groupRequests';
+export type BadgeKind = 'requests' | 'linkHints' | 'groupRequests' | 'sheetPending';
 export type AreaRow = { id: string; target: AreaTarget | null; badge?: BadgeKind; section?: 'week' | 'every' | 'hall' };
 export type Area = { id: AreaId; rows: AreaRow[] };
 
@@ -25,7 +25,7 @@ export function areas(role: Role | string | undefined): Area[] {
   if (!isManagement(role)) return [];
   const rows = (list: Array<AreaRow & { when?: boolean }>) => list.filter(r => r.when !== false).map(({ when: _w, ...r }) => r);
   return [
-    { id: 'prayers', rows: rows([{ id: 'schedule', target: 'scheduleEditor', when: scheduleEditorAllowed(role) }, { id: 'sheet', target: 'scheduleEditor', when: scheduleEditorAllowed(role) }]) },
+    { id: 'prayers', rows: rows([{ id: 'schedule', target: 'scheduleEditor', when: scheduleEditorAllowed(role) }, { id: 'sheet', target: 'sheetItems', badge: 'sheetPending', when: scheduleEditorAllowed(role) }]) },
     { id: 'seats', rows: rows([
       { id: 'print', target: 'seatPrint', section: 'week', when: seatPrintRole(role) },
       { id: 'behalf', target: 'seatBehalf', section: 'week', when: seatPrintRole(role) },
@@ -51,15 +51,16 @@ export function allowedTargets(role: Role | string | undefined): Set<AreaTarget>
   return out;
 }
 
-export type Waiting = { requests: number; terms: boolean; linkHints: number; groupRequests: number };
-export type TodoId = 'requests' | 'terms' | 'linkHints' | 'groupRequests';
-export type TodoItem = { id: TodoId; count: number; target: 'approvals' | 'overview' | 'seatHolders' | 'groups' };
+export type Waiting = { requests: number; terms: boolean; linkHints: number; groupRequests: number; sheetPending: number };
+export type TodoId = 'requests' | 'sheet' | 'terms' | 'linkHints' | 'groupRequests';
+export type TodoItem = { id: TodoId; count: number; target: 'approvals' | 'sheetItems' | 'overview' | 'seatHolders' | 'groups' };
 
 /** "לטיפול עכשיו": one item per thing that waits, most urgent first. Empty (the card is hidden) when nothing waits, and for non-gabbaim. */
 export function todoItems(role: Role | string | undefined, w: Waiting): TodoItem[] {
   if (!isManagement(role)) return [];
   const out: TodoItem[] = [];
   if (w.requests > 0) out.push({ id: 'requests', count: w.requests, target: 'approvals' });
+  if (w.sheetPending > 0) out.push({ id: 'sheet', count: w.sheetPending, target: 'sheetItems' });
   if (w.terms) out.push({ id: 'terms', count: 0, target: 'overview' });
   if (w.linkHints > 0) out.push({ id: 'linkHints', count: w.linkHints, target: 'seatHolders' });
   if (w.groupRequests > 0) out.push({ id: 'groupRequests', count: w.groupRequests, target: 'groups' });
