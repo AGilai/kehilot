@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AREAS, deadlineHm, areaTotals, formTemplateCsv, latestPerName, parseFormCsv, parseStamp, splitCsv, weekWindow, inWeek } from '../src/seats/formCsv.ts';
+import { AREAS, deadlineHm, areaTotals, formTemplateCsv, latestPerName, parseFormCsv, parseStamp, splitCsv, weekWindow, inWeek, textTooBig } from '../src/seats/formCsv.ts';
+import { MAX_FILE_BYTES } from '../src/import/parse.ts';
 import type { FormAnswer } from '../src/seats/formCsv.ts';
 
 const HEADER = 'Timestamp,שם,ערב שבת: כמה מקומות לא אצטרך,יום שבת: כמה מקומות לא אצטרך,חג: כמה מהמקומות יתפנו,קריאת מגילה: כמה יתפנו,בקשה לשמירת מקומות נשים · בית הכנסת,בקשה לשמירת מקומות גברים · אולם,בקשה לשמירת מקומות נשים · אולם';
@@ -76,9 +77,9 @@ test('week window: previous Friday deadline to this Friday deadline (wall clock)
     mk('א', Date.UTC(2026, 9, 23, 12, 0)), mk('ב', Date.UTC(2026, 9, 23, 11, 59)), mk('ג', Date.UTC(2026, 9, 30, 12, 0)),
     mk('ד', Date.UTC(2026, 9, 24, 21, 0)), mk('ה', null), mk('ו', Date.UTC(2026, 9, 30, 11, 59)),
   ], '2026-10-30', '12:00');
-  assert.deepEqual(r.rows.map((x) => x.name), ['א', 'ד', 'ו']); // Saturday night (Oct 24) is in
-  assert.equal(r.older, 1);
-  assert.equal(r.later, 1);
+  assert.deepEqual(r.rows.map((x) => x.name), ['ג', 'ד', 'ו']); // Saturday night (Oct 24) is in; exactly the closing deadline is in, exactly the opening one is not
+  assert.equal(r.older, 2);
+  assert.equal(r.later, 0);
   assert.equal(r.undated, 1);
 });
 
@@ -110,4 +111,20 @@ test('the template has the Form columns and reads back through the parser', () =
   assert.ok(r.ok);
   assert.ok(r.answers.length >= 1);
   assert.deepEqual(Object.keys(r.columns).sort(), ['day', 'erev', 'hag', 'megila', 'name', 'req0', 'req1', 'req2', 'stamp']);
+});
+
+test('inWeek: the window is (previous Friday deadline, this Friday deadline]; an answer exactly at a deadline is the earlier week', () => {
+  const mk = (at: number | null) => ({ line: 2, at, name: 'x', counts: {}, requests: {} }) as never;
+  const { from, to } = weekWindow('2026-10-30', '12:00');
+  const r = inWeek([mk(from), mk(from + 1), mk(to), mk(to + 1), mk(null)], '2026-10-30', '12:00');
+  assert.equal(r.older, 1);
+  assert.equal(r.rows.length, 2);
+  assert.equal(r.later, 1);
+  assert.equal(r.undated, 1);
+});
+
+test('textTooBig: pasted text over MAX_FILE_BYTES is rejected like a file; Hebrew counts as bytes', () => {
+  assert.equal(textTooBig('a'.repeat(MAX_FILE_BYTES)), false);
+  assert.equal(textTooBig('a'.repeat(MAX_FILE_BYTES + 1)), true);
+  assert.equal(textTooBig('א'.repeat(MAX_FILE_BYTES / 2 + 1)), true);
 });

@@ -431,7 +431,9 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   // `?screen=seat-map`: three saved versions of an invented hall (one past, one in effect, one scheduled); `&conflict=1` makes the first layout save answer 409
   // after "another gabbai" saved (a few seats moved), so the conflict dialog can be shot.
   // Seat release (weekly): the preview flag serves the fixture hall in the server's wire shapes; without it there is no layout.
-  const seatsFx = config.seatsPreview ? createSeatsFixture(seatVariantOf(screen), card, shabbatFriday(fixtureNow() ?? new Date())) : null;
+  // `&nolayout=1` serves no layout (the print screen's empty state).
+  const noLayout = typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('nolayout') === '1';
+  const seatsFx = config.seatsPreview && !noLayout ? createSeatsFixture(seatVariantOf(screen), card, shabbatFriday(fixtureNow() ?? new Date())) : null;
   const seatsWeekFixture = (method: string, path: string, body: unknown): unknown => {
     const p = path.split('?')[0]!;
     const week = /\/seats\/week\//.test(p);

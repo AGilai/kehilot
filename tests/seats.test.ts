@@ -6,7 +6,7 @@ import { blockFrames, memberView } from '../src/seats/frame.ts';
 import type { Allocation } from '../src/seats/frame.ts';
 import { cardWindow, israelInstant, seatCardState, shabbatFriday } from '../src/seats/window.ts';
 import { printModel } from '../src/seats/printModel.ts';
-import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, parsePrintStyle, seatFill } from '../src/seats/printStyle.ts';
+import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, legendItems, parsePrintStyle, pendingNotch, seatFill } from '../src/seats/printStyle.ts';
 import he from '../src/i18n/he.json' with { type: 'json' };
 import en from '../src/i18n/en.json' with { type: 'json' };
 import { releaseCounts, toggleRelease } from '../src/seats/release.ts';
@@ -73,9 +73,26 @@ test('print styles: fills per state follow the designer table, shapes never chan
   assert.deepEqual(PRINT_STYLES, ['green', 'greenRed', 'bw']);
   assert.equal(PRINT_STYLE_DEFAULT, 'green');
   assert.equal(PRINT_STYLE_KEY, 'kehilot.seatPrintStyle');
-  assert.deepEqual(['taken', 'released', 'free'].map(s => seatFill('green', s as 'taken')), ['#EBEBEB', '#9ED8AA', '#57B46C']);
-  assert.deepEqual(['taken', 'released', 'free'].map(s => seatFill('greenRed', s as 'taken')), ['#DB5B56', '#9ED8AA', '#57B46C']);
-  assert.deepEqual(['taken', 'released', 'free'].map(s => seatFill('bw', s as 'taken')), ['#C8C8C8', '#FFFFFF', '#FFFFFF']);
+  const states = ['taken', 'pending', 'released', 'free'] as const;
+  assert.deepEqual(states.map(s => seatFill('green', s)), ['#EBEBEB', '#E9B44C', '#9ED8AA', '#57B46C']);
+  assert.deepEqual(states.map(s => seatFill('greenRed', s)), ['#DB5B56', '#E9B44C', '#9ED8AA', '#57B46C']);
+  assert.deepEqual(states.map(s => seatFill('bw', s)), ['#C8C8C8', '#FFFFFF', '#FFFFFF', '#FFFFFF']);
+});
+
+test('print legend: four items per style in order, only pending has the notch', () => {
+  for (const st of PRINT_STYLES) {
+    const items = legendItems(st);
+    assert.deepEqual(items.map(i => i.state), ['taken', 'pending', 'released', 'free']);
+    assert.deepEqual(items.map(i => i.fill), ['taken', 'pending', 'released', 'free'].map(x => seatFill(st, x as 'taken')));
+    assert.deepEqual(items.map(i => i.notch), [false, true, false, false]);
+  }
+});
+
+test('pending notch: 35% of the cell height, between 5 and 9 px', () => {
+  assert.equal(pendingNotch(24), 8);
+  assert.equal(pendingNotch(18), 6);
+  assert.equal(pendingNotch(4), 5);
+  assert.equal(pendingNotch(80), 9);
 });
 
 test('print style: a stored choice falls back to the default when missing or unknown', () => {
@@ -89,7 +106,7 @@ test('print style copy exists in both languages', () => {
     const p = d.seats.print as unknown as Record<string, string>;
     for (const key of ['style', 'styleGreen', 'styleGreenRed', 'styleBw', 'styleNote', 'noteGreen', 'noteGreenRed', 'noteBw']) assert.ok(p[key], key);
   }
-  assert.equal((he.seats.print as Record<string, string>).styleGreen, 'ירוק לפנויים');
+  assert.equal((he.seats.print as Record<string, string>).styleGreen, 'ירוק לפנוי');
 });
 
 const rowsOf = (f: { rows: { row: number }[] }) => f.rows.map(r => r.row);

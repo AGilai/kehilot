@@ -16,6 +16,7 @@ const PATHS = {
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   check: '<path d="M5 12l5 5 9-10"/>',
   grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  chair: '<path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/>',
   back: '<path d="M9 6l6 6-6 6"/>',
   fwd: '<path d="M15 6l-6 6 6 6"/>',

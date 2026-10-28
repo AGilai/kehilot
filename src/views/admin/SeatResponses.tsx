@@ -15,7 +15,7 @@ import { PadScroll } from '../../kit/PadScroll.tsx';
 import { decodeCsv, MAX_FILE_BYTES, readXlsx } from '../../import/parse.ts';
 import { exactDecisions, initialMatchState, matchReducer } from '../../seats/decisions.ts';
 import { fixtureResponsesCsv } from '../../seats/fixtureUpload.ts';
-import { deadlineHm, formTemplateCsv, inWeek, latestPerName, parseFormCsv, parseFormTable } from '../../seats/formCsv.ts';
+import { deadlineHm, formTemplateCsv, inWeek, latestPerName, parseFormCsv, parseFormTable, textTooBig } from '../../seats/formCsv.ts';
 import type { FormParse } from '../../seats/formCsv.ts';
 import { normalizeName } from '../../seats/match.ts';
 import { familiesForMatch } from '../../seats/savePlan.ts';
@@ -232,7 +232,7 @@ export function SeatResponses({ onBack, onEditor, onToast }: { onBack: () => voi
         {undoable.length ? <Banner text={t('seatUpload.earlier')} action={{ title: t('seatUpload.result.undo'), onPress: () => { void undo(); } }} /> : null}
         {applyError ? <Banner tone="error" text={applyError} /> : null}
         <UploadStep event={ui.event} onEvent={(e) => dispatchUi({ type: 'event', event: e })} parasha={parasha} problem={problem} text={text} onText={setText}
-          onRead={() => ingest(parseFormCsv(text))} onPick={pick} onTemplate={downloadTemplate} web />
+          onRead={() => { if (textTooBig(text)) { setProblem(t('seatUpload.problem.big')); return; } ingest(parseFormCsv(text)); }} onPick={pick} onTemplate={downloadTemplate} web />
       </>
     );
   } else if (ui.step === 'columns') {

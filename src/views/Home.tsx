@@ -137,7 +137,7 @@ export function Home({ onOpen, onMessages, onPhoneList, onTerms, onToast, onSeat
           }} onUpdate={onSeats} />
       ) : null}
 
-      {onToast ? <HomeCards onTerms={onTerms ?? (() => {})} onToast={onToast} /> : null}
+      {onToast ? <HomeCards onTerms={onTerms ?? (() => {})} onToast={onToast} onSeats={onSeats} /> : null}
 
       {schedule.state.status === 'loading' ? <ScheduleSkeleton /> : null}
       {schedule.state.status === 'error' ? <Card edgeColor={k.tekhelet}><Banner tone="error" text={t('schedule.error')} action={{ title: t('common.retry'), onPress: schedule.retry }} /></Card> : null}

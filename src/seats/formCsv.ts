@@ -3,6 +3,7 @@
  * reordered or renamed-a-little Form still reads. Timestamps are "M/D/YYYY H:MM:SS" (D/M when the file says so), ISO, or Google's serial
  * numbers; they carry no zone, so everything here compares "wall clock" values (milliseconds as if UTC) and never touches the time zone.
  */
+import { MAX_FILE_BYTES } from '../import/parse.ts';
 import { normalizeName } from './match.ts';
 
 export type FormEvent = 'erev' | 'day' | 'hag' | 'megila';
@@ -163,7 +164,7 @@ export function parseFormTable(table: string[][]): FormParse {
 
 /**
  * The answers of the Shabbat whose Friday is `friday`: after the previous Friday's deadline (`hm`, the Kehila's `seatDeadline`, Israel
- * wall clock) up to this Friday's deadline, so a Saturday-night answer counts for the coming Shabbat. Wall clock on both sides, so a week
+ * wall clock) up to and including this Friday's deadline (an answer exactly at a deadline belongs to the earlier week), so a Saturday-night answer counts for the coming Shabbat. Wall clock on both sides, so a week
  * that crosses a clock change needs no hour arithmetic.
  */
 export function weekWindow(friday: string, hm = '12:00'): { from: number; to: number } {
@@ -180,13 +181,16 @@ export function deadlineHm(iso: string): string {
   return `${p.find((x) => x.type === 'hour')!.value}:${p.find((x) => x.type === 'minute')!.value}`;
 }
 
+/** True when pasted text is over the file limit (UTF-8 bytes), like the file picker. */
+export const textTooBig = (text: string): boolean => new TextEncoder().encode(text).length > MAX_FILE_BYTES;
+
 export function inWeek(answers: FormAnswer[], friday: string, hm = '12:00'): { rows: FormAnswer[]; older: number; later: number; undated: number } {
   const { from, to } = weekWindow(friday, hm);
   const out = { rows: [] as FormAnswer[], older: 0, later: 0, undated: 0 };
   for (const a of answers) {
     if (a.at === null) out.undated++;
-    else if (a.at < from) out.older++;
-    else if (a.at >= to) out.later++;
+    else if (a.at <= from) out.older++;
+    else if (a.at > to) out.later++;
     else out.rows.push(a);
   }
   return out;

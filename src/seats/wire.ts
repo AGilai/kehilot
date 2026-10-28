@@ -251,6 +251,9 @@ export function releasedNow(w: WeekWire, prayer: Prayer, h: Household): Set<stri
 }
 
 export type OnBehalfBody = { prayer: WirePrayer; released: Record<string, boolean>; ifUpdatedAt: number | null };
+/** True for a family household that has not answered this prayer yet (the print draws its seats as pending). */
+export const isPending = (w: WeekWire, prayer: Prayer, h: Household): boolean => h.ref.startsWith('family:') && !w.prayers[toWire(prayer)]?.answered?.[h.ref];
+
 /** `PUT …/admin/seats/week/{week}`: only the seats whose state differs from the current one; null when nothing changed. */
 export function onBehalfBody(w: WeekWire, prayer: Prayer, h: Household, released: ReadonlySet<string>): OnBehalfBody | null {
   const now = releasedNow(w, prayer, h);

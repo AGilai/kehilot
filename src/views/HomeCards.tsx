@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking, Pressable } from 'react-native';
+import { Linking, Pressable, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { pickHomeCard } from '../client/homeCard.ts';
 import { normalizePhone } from '../client/phone.ts';
@@ -8,11 +8,12 @@ import { config } from '../config.ts';
 import { textStart } from '../i18n/direction.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Field, Txt, useTokens } from '../kit/components.tsx';
+import { Icon } from '../kit/Icon.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { useErrorText } from './auth/Frame.tsx';
 
 /** P7: the one one-time card under the greeting. After each action the Kehila is reloaded and the next card shows. */
-export function HomeCards({ onTerms, onToast }: { onTerms: () => void; onToast: (text: string) => void }) {
+export function HomeCards({ onTerms, onToast, onSeats }: { onTerms: () => void; onToast: (text: string) => void; /** Opens the seat page (P25); the "my seats" button shows only when it is given. */ onSeats?: () => void }) {
   const { t, lang } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
@@ -92,10 +93,14 @@ export function HomeCards({ onTerms, onToast }: { onTerms: () => void; onToast: 
   if (card === 'seatLink' && kehila.cards.seatLink) {
     const n = kehila.cards.seatLink.seats;
     return (
-      <Card edgeColor={k.olive}>
-        {title(t('cards.seatLink.title'))}
+      <Card edgeColor={k.tekhelet}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Icon name="chair" size={22} color={k.tekhelet} />
+          <View style={{ flex: 1 }}>{title(t('cards.seatLink.title'))}</View>
+        </View>
         <Txt>{n === 1 ? t('cards.seatLink.bodyOne') : t('cards.seatLink.bodyOther', { n })}</Txt>
-        <Button title={t('cards.seatLink.ok')} busy={busy} onPress={() => void run(() => api.dismissCard(kid, 'seat_link'))} />
+        {onSeats ? <Button title={t('cards.seatLink.open')} busy={busy} onPress={() => void run(async () => { await api.dismissCard(kid, 'seat_link'); onSeats(); })} /> : null}
+        <Button kind={onSeats ? 'secondary' : 'primary'} title={t('cards.seatLink.ok')} busy={busy} onPress={() => void run(() => api.dismissCard(kid, 'seat_link'))} />
         {errorBanner}
       </Card>
     );

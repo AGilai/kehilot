@@ -1,6 +1,6 @@
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, View, useWindowDimensions } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { useSession } from '../../client/SessionProvider.tsx';
@@ -8,14 +8,15 @@ import { config } from '../../config.ts';
 import { hebrewDate } from '../../dates.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Check, Chip, Segmented, Tag, Txt, useTokens } from '../../kit/components.tsx';
+import { Icon } from '../../kit/Icon.tsx';
 import { fonts } from '../../kit/theme.ts';
 import { PadScroll } from '../../kit/PadScroll.tsx';
-import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, parsePrintStyle, seatFill } from '../../seats/printStyle.ts';
+import { PRINT_STYLES, PRINT_STYLE_DEFAULT, PRINT_STYLE_KEY, legendItems, parsePrintStyle, pendingNotch, seatFill } from '../../seats/printStyle.ts';
 import type { PrintStyle } from '../../seats/printStyle.ts';
 import type { Prayer } from '../../seats/release.ts';
 import { useShabbat } from '../../seats/useShabbat.ts';
 import { whenParts } from '../../seats/window.ts';
-import { isNoLayout, layoutPrint, printGeometry } from '../../seats/wire.ts';
+import { householdsOf, isNoLayout, layoutPrint, printGeometry } from '../../seats/wire.ts';
 import type { LayoutPrint, LayoutPrintSeat, PrintGeometry, PrintState, Rect, WeekWire } from '../../seats/wire.ts';
 import { BackLink } from '../Me.tsx';
 import { useAdminErrText } from './shared.tsx';
@@ -33,7 +34,7 @@ type Load = { status: 'loading' } | { status: 'error'; text: string } | { status
 
 /** P26: the gabbai's hall map, to print (UX-DESIGN §15.5), on the real layout and states; plus the on-behalf edit (§16). Web prints through the browser; the phone's PDF is not built yet. */
 export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /** Opens the seating editor (the empty state points there). */ onEditor?: () => void; onToast: (text: string) => void }) {
-  const { t, lang } = useI18n();
+  const { t, lang, dir } = useI18n();
   const k = useTokens();
   const { api } = useAuth();
   const { state } = useSession();
@@ -70,9 +71,21 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
   }
   const styleName = (x: PrintStyle) => t(`seats.print.style${x === 'green' ? 'Green' : x === 'greenRed' ? 'GreenRed' : 'Bw'}`);
   const [width, setWidth] = React.useState(0);
+  const win = useWindowDimensions().width;
+  const wide = win >= 1100;
+  const phone = win < 700;
+  const panelRef = React.useRef<View>(null);
+  const pickSeat = (ref: string) => {
+    setSelected(ref);
+    if (Platform.OS === 'web') setTimeout(() => (panelRef.current as unknown as { scrollIntoView?: (o: object) => void } | null)?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }), 0);
+  };
   const prayers: Prayer[] = choice === 'both' ? ['arvit', 'shacharit'] : [choice];
   const scale = width > 0 ? Math.min(1, width / PAGE_W) : 1;
   const week = load.status === 'ready' ? load.week : null;
+  const picked = React.useMemo(() => {
+    const h = week && selected ? householdsOf(week).find(x => x.ref === selected) : null;
+    return new Set(h ? h.seats.map(x => x.id) : []);
+  }, [week, selected]);
   const closesAt = week ? new Date(week.deadline) : new Date();
   const sheet = {
     parasha: parasha ?? '',
@@ -120,9 +133,12 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
         {load.status === 'error' ? <Banner tone="error" text={`${t('seats.print.loadError')} ${load.text}`} action={{ title: t('common.retry'), onPress: () => void fetchWeek() }} /> : null}
         {load.status === 'empty' ? (
           <Card edgeColor={k.tekhelet}>
-            <Txt bold size="heading" accessibilityRole="header">{t('seats.print.emptyTitle')}</Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Icon name="grid" size={28} color={k.tekhelet} />
+              <Txt bold size="heading" accessibilityRole="header" style={{ flex: 1 }}>{t('seats.print.emptyTitle')}</Txt>
+            </View>
             <Txt color={k.muted}>{t('seats.print.emptyBody')}</Txt>
-            {onEditor ? <Button title={t('seats.print.emptyGo')} onPress={onEditor} /> : null}
+            {Platform.OS === 'web' ? (onEditor ? <Button icon="grid" title={t('seats.print.emptyGo')} onPress={onEditor} /> : null) : <Txt size="caption" color={k.muted}>{t('seatMap.phone.banner')}</Txt>}
           </Card>
         ) : null}
       </PadScroll>
@@ -130,8 +146,47 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
   }
 
   return (
-    <PadScroll contentContainerStyle={{ padding: 16, gap: 14, width: '100%', maxWidth: 1180, alignSelf: 'center' }}>
+    <PadScroll contentContainerStyle={{ padding: 16, gap: 14, width: '100%', maxWidth: 1500, alignSelf: 'center' }}>
       {head}
+      {wide ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 20 }}>
+          <View style={{ width: 400, gap: 14, ...(Platform.OS === 'web' ? ({ position: 'sticky', top: 12 } as object) : null) }}>
+      <Card style={{ gap: 10, width: '100%' }}>
+        <Txt size="small" color={k.muted}>{t('seats.print.sub', { parasha: parasha ?? '' })}</Txt>
+        <Txt bold size="small">{t('seats.print.prayer')}</Txt>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+          <Chip label={t('seats.arvitShort')} selected={choice === 'arvit'} onPress={() => setChoice('arvit')} />
+          <Chip label={t('seats.shacharitShort')} selected={choice === 'shacharit'} onPress={() => setChoice('shacharit')} />
+          <Chip label={t('seats.print.both')} selected={choice === 'both'} onPress={() => setChoice('both')} />
+        </View>
+        <Txt bold size="small">{t('seats.print.style')}</Txt>
+        <Segmented<PrintStyle> options={PRINT_STYLES.map(x => ({ key: x, label: styleName(x) }))} value={style} onChange={pickStyle} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {legendItems(style).map(i => <PaperBox key={i.state} state={i.state} style={style} w={26} h={18} />)}
+        </View>
+        <Txt size="caption" color={k.muted}>{t('seats.print.styleNote')}</Txt>
+        <Check label={t('seats.print.names')} note={t('seats.print.namesNote')} value={names} onChange={setNames} />
+        <Button icon="print" title={t('seats.print.go')} onPress={print} />
+      </Card>
+      <View ref={panelRef} style={{ width: '100%' }}><SeatBehalf week={load.week} selected={selected} onSelect={setSelected} save={saveBehalf} phone={phone} /></View>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+      <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={{ width: '100%', gap: 16 }}>
+        {prayers.map(p => {
+          const model = layoutPrint(load.week, p, { names });
+          return (
+            <View key={p} style={{ width: PAGE_W * scale, height: PAGE_H * scale, overflow: 'hidden', backgroundColor: '#e9e9e9', borderWidth: 1, borderColor: k.line }}>
+              <View style={{ width: PAGE_W, height: PAGE_H, transformOrigin: dir === 'rtl' ? 'top right' : 'top left', transform: [{ scale }] } as object}>
+                <PrintPage model={model} prayer={p} names={names} sheet={sheet} style={style} onSeat={s => { if (s.ref) pickSeat(s.ref); }} picked={picked} household={id => (load.week.households[id] ?? '')} />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+          </View>
+        </View>
+      ) : (
+        <>
       <Card style={{ gap: 10, maxWidth: 680, width: '100%' }}>
         <Txt size="small" color={k.muted}>{t('seats.print.sub', { parasha: parasha ?? '' })}</Txt>
         <Txt bold size="small">{t('seats.print.prayer')}</Txt>
@@ -147,21 +202,23 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
         </View>
         <Txt size="caption" color={k.muted}>{t('seats.print.styleNote')}</Txt>
         <Check label={t('seats.print.names')} note={t('seats.print.namesNote')} value={names} onChange={setNames} />
-        <Button icon="send" title={t('seats.print.go')} onPress={print} />
+        <Button icon="print" title={t('seats.print.go')} onPress={print} />
       </Card>
-      <SeatBehalf week={load.week} selected={selected} onSelect={setSelected} save={saveBehalf} />
+      <View ref={panelRef} style={{ width: '100%' }}><SeatBehalf week={load.week} selected={selected} onSelect={setSelected} save={saveBehalf} phone={phone} /></View>
       <View onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)} style={{ width: '100%', gap: 16 }}>
         {prayers.map(p => {
           const model = layoutPrint(load.week, p, { names });
           return (
             <View key={p} style={{ width: PAGE_W * scale, height: PAGE_H * scale, overflow: 'hidden', backgroundColor: '#e9e9e9', borderWidth: 1, borderColor: k.line }}>
               <View style={{ width: PAGE_W, height: PAGE_H, transformOrigin: 'top left', transform: [{ scale }] } as object}>
-                <PrintPage model={model} prayer={p} names={names} sheet={sheet} style={style} onSeat={s => { if (s.ref) setSelected(s.ref); }} />
+                <PrintPage model={model} prayer={p} names={names} sheet={sheet} style={style} onSeat={s => { if (s.ref) pickSeat(s.ref); }} picked={picked} household={id => (load.week.households[id] ?? '')} />
               </View>
             </View>
           );
         })}
       </View>
+        </>
+      )}
     </PadScroll>
   );
 }
@@ -169,7 +226,7 @@ export function SeatPrint({ onBack, onEditor, onToast }: { onBack: () => void; /
 type Sheet = { parasha: string; hebrew: string; kehila: string; deadline: { day: string; time: string }; now: { day: string; time: string }; open: boolean };
 
 /** One A4 landscape page: fixed paper colours (black on white), never dark mode. The hall is the server's layout: bimah and ark are its own cells. */
-function PrintPage({ model, prayer, names, sheet, style, onSeat }: { model: LayoutPrint; prayer: Prayer; names: boolean; sheet: Sheet; style: PrintStyle; onSeat: (seat: LayoutPrintSeat) => void }) {
+function PrintPage({ model, prayer, names, sheet, style, onSeat, picked, household }: { model: LayoutPrint; prayer: Prayer; names: boolean; sheet: Sheet; style: PrintStyle; onSeat: (seat: LayoutPrintSeat) => void; picked: Set<string>; household: (ref: string) => string }) {
   const { t } = useI18n();
   const T = (children: React.ReactNode, o: { size?: number; bold?: boolean; serif?: boolean; style?: object } = {}) => (
     <Txt color={INK} style={{ fontSize: o.size ?? 12.5, lineHeight: Math.round((o.size ?? 12.5) * 1.35), fontFamily: o.serif ? fonts.title : o.bold ? fonts.uiBold : fonts.ui, ...o.style }}>{children}</Txt>
@@ -212,17 +269,14 @@ function PrintPage({ model, prayer, names, sheet, style, onSeat }: { model: Layo
             {T(t('seats.bimah'), { size: 14, serif: true })}
           </View>
         ))}
-        {model.seats.map(s => <PaperSeat key={s.id} seat={s} left={left(s.col)} top={top(s.row)} g={g} names={names} style={style} onPress={s.ref ? () => onSeat(s) : undefined} />)}
+        {model.seats.map(s => <PaperSeat key={s.id} seat={s} left={left(s.col)} top={top(s.row)} g={g} names={names} style={style} outlined={picked.has(s.id)} label={s.ref ? `${household(s.ref)}, ${t(`seats.print.${s.state}`)}` : undefined} onPress={s.ref ? () => onSeat(s) : undefined} />)}
       </View>
       <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: INK }}>
         <CountCell title={t('seats.print.total')} c={model.total} first />
         {[...model.blocks].reverse().map(b => <CountCell key={b.colStart} title={b.name} c={b} />)}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22 }}>
-        <LegendItem state="taken" text={t('seats.print.legendTaken')} />
-        <LegendItem state="pending" text={t('seats.print.legendPending')} />
-        <LegendItem state="released" text={t('seats.print.legendReleased')} />
-        <LegendItem state="free" text={t('seats.print.legendFree')} />
+        {legendItems(style).map(i => <LegendItem key={i.state} state={i.state} text={t(`seats.print.legend${i.state[0]!.toUpperCase()}${i.state.slice(1)}`)} />)}
         {T(t(style === 'green' ? 'seats.print.noteGreen' : style === 'greenRed' ? 'seats.print.noteGreenRed' : 'seats.print.noteBw'), { size: 12.5, bold: true })}
         <View style={{ marginStart: 'auto' }}>{T(names ? t('seats.print.withNames') : t('seats.print.noNames'), { size: 12.5 })}</View>
       </View>
@@ -247,24 +301,27 @@ function PrintPage({ model, prayer, names, sheet, style, onSeat }: { model: Layo
   }
 }
 
-/** Shapes never change with the style: taken 1 px line, released 2 px line + diagonal, free 1.2 px dashed line. Only the fill does (§15.9). */
+/** Shapes never change with the style: taken 1 px line, pending 1 px line + black corner notch (top-left), released 2 px line + diagonal, free 1.2 px dashed line. Only the fill does (§15.9, §16.12.4). */
 function PaperBox({ state, style, w, h, label, strike }: { state: PrintState; style: PrintStyle; w: number; h: number; label?: string; strike?: boolean }) {
   const base = { width: w, height: h, borderTopLeftRadius: 5, borderTopRightRadius: 5, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: seatFill(style, state) } as const;
   const diag = Math.sqrt(w * w + h * h);
+  const L = pendingNotch(h);
   return (
-    <View style={[base, state === 'taken' ? { borderWidth: 1, borderColor: INK } : state === 'pending' ? { borderWidth: 1.5, borderStyle: 'dotted', borderColor: INK } : state === 'released' ? { borderWidth: 2, borderColor: INK } : { borderWidth: 1.2, borderStyle: 'dashed', borderColor: INK }]}>
+    <View style={[base, state === 'taken' || state === 'pending' ? { borderWidth: 1, borderColor: INK } : state === 'released' ? { borderWidth: 2, borderColor: INK } : { borderWidth: 1.2, borderStyle: 'dashed', borderColor: INK }]}>
+      {state === 'pending' ? <View style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, borderTopWidth: L, borderTopColor: INK, borderRightWidth: L, borderRightColor: 'transparent' }} /> : null}
       {state === 'released' ? <View style={{ position: 'absolute', width: diag, height: 2, backgroundColor: INK, transform: [{ rotate: `${-Math.atan2(h, w)}rad` }] }} /> : null}
       {label ? <Txt color={INK} style={{ fontSize: 10, lineHeight: 12, textDecorationLine: strike ? 'line-through' : 'none', textAlign: 'center' }} numberOfLines={1}>{label}</Txt> : null}
     </View>
   );
 }
 
-/** On screen (not on paper) an allocated seat opens "update for <household>" (§15.5). */
-function PaperSeat({ seat, left, top, g, names, style, onPress }: { seat: LayoutPrintSeat; left: number; top: number; g: PrintGeometry; names: boolean; style: PrintStyle; onPress?: () => void }) {
+/** On screen (not on paper) an allocated seat opens "update for <household>" (§15.5); the picked household's seats get a 2 px tekhelet outline (§16.12.1). */
+function PaperSeat({ seat, left, top, g, names, style, onPress, outlined, label }: { seat: LayoutPrintSeat; left: number; top: number; g: PrintGeometry; names: boolean; style: PrintStyle; onPress?: () => void; outlined?: boolean; label?: string }) {
   const box = <PaperBox state={seat.state} style={style} w={g.cellW} h={g.cellH} label={names ? seat.name : undefined} strike={seat.state === 'released'} />;
   return (
     <View style={{ position: 'absolute', left, top }}>
-      {onPress ? <Pressable accessibilityRole="button" onPress={onPress}>{box}</Pressable> : box}
+      {outlined ? <View pointerEvents="none" {...({ dataSet: { screenOnly: '1' } } as object)} style={{ position: 'absolute', left: -3, top: -3, right: -3, bottom: -3, borderWidth: 2, borderColor: '#2A3F94', borderRadius: 8 }} /> : null}
+      {onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress}>{box}</Pressable> : box}
     </View>
   );
 }
@@ -280,6 +337,7 @@ function printPages() {
   root.id = 'seat-print-root';
   pages.forEach((p, i) => {
     const copy = p.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll('[data-screen-only]').forEach(n => n.remove()); // the picked household's outline is never on paper
     copy.style.breakAfter = i < pages.length - 1 ? 'page' : 'auto';
     copy.style.setProperty('print-color-adjust', 'exact');
     copy.style.setProperty('-webkit-print-color-adjust', 'exact');

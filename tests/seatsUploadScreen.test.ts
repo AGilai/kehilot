@@ -95,3 +95,18 @@ test('the holders screen links only on the explicit confirm, with the holder upd
   assert.match(src, /ifUpdatedAt: link\.holder\.updatedAt/);
   assert.match(src, /onPress=\{\(\) => \{ void doLink\(\); \}\}/);
 });
+
+test('copy corrections (§16.12.5): he and en carry the new keys and no longer the developer strings', async () => {
+  const he = (await import('../src/i18n/he.json', { with: { type: 'json' } })).default as any;
+  const en = (await import('../src/i18n/en.json', { with: { type: 'json' } })).default as any;
+  assert.equal(he.seats.print.legendPending, 'ממתין · לא ענו, שמור להם');
+  assert.equal(en.seats.print.legendPending, 'Pending · no answer, kept for them');
+  assert.equal(en.seats.print.noteGreenRed, 'Green = free to sit · Red = taken');
+  for (const l of [he, en]) {
+    for (const key of ['noMatch', 'more', 'noAnswer', 'seatsCountOne']) assert.ok(l.seats.behalf[key], key);
+    assert.equal(l.seats.behalf.pick, undefined);
+    assert.ok(l.cards.seatLink.open);
+    assert.match(l.seats.behalf.saved, /\{name\}/);
+  }
+  assert.equal(he.cards.seatLink.title, 'המקומות שלכם בבית הכנסת');
+});
