@@ -9,7 +9,7 @@ const msg = (id: string, over: Partial<Message> = {}): Message => ({
   authorKind: 'member', joinCount: 0, ...over,
 });
 const reply = (id: string, messageId = 'M1'): Reply & { messageId: string } =>
-  ({ replyId: id, messageId, authorId: 'a', authorName: 'n', body: 'x', createdAt: 1767225600 });
+  ({ replyId: id, messageId, authorId: 'a', authorName: 'n', body: 'x', createdAt: 1767225600, to: 'author' });
 const added = (m: Message): Change => ({ kind: 'message', id: m.messageId, item: m });
 const removed = (id: string): Change => ({ kind: 'message_removed', id, item: { id } });
 const readOf = (id: string): Change => ({ kind: 'read', id, item: { messageId: id } });
@@ -282,14 +282,46 @@ test('start works destructured; pollNow success resets backoff', async () => {
   stop();
 });
 
-import { markReadLocal, mergeReplies } from '../src/client/feed.ts';
+import { markReadLocal, removeReplyLocal, setReplies, upsertReply } from '../src/client/feed.ts';
 
-test('mergeReplies dedupes by replyId and keeps order', () => {
-  const r = (id: string) => ({ replyId: id, authorId: 'u1', authorName: 'דנה בדויה', body: id, createdAt: 1793008800 });
-  const s0 = { ...feedFromMessages([]), replies: { m1: [r('r1')] } };
-  const s1 = mergeReplies(s0, 'm1', [r('r1'), r('r2')]);
-  assert.deepEqual(s1.replies.m1!.map(x => x.replyId), ['r1', 'r2']);
-  assert.deepEqual(mergeReplies(s1, 'm1', [r('r2')]).replies.m1!.map(x => x.replyId), ['r1', 'r2']);
+const rep = (id: string, body = id, over: Partial<Reply> = {}): Reply => ({ replyId: id, authorId: 'u1', authorName: 'דנה בדויה', body, createdAt: 1793008800, to: 'author', ...over });
+
+test('a reply change with a known replyId replaces it', () => {
+  const s0 = applyChanges(emptyFeed, [{ kind: 'reply', id: 'r1', item: { ...reply('r1'), body: 'לפני' } }, { kind: 'reply', id: 'r2', item: reply('r2') }]);
+  const s1 = applyChanges(s0, [{ kind: 'reply', id: 'r1', item: { ...reply('r1'), body: 'אחרי', updatedAt: 1793009000 } }]);
+  assert.deepEqual(s1.replies.M1?.map(r => r.replyId), ['r1', 'r2']);
+  assert.equal(s1.replies.M1?.[0]?.body, 'אחרי');
+  assert.equal(s1.replies.M1?.[0]?.updatedAt, 1793009000);
+  assert.equal((s1.replies.M1?.[0] as any).messageId, undefined);
+});
+
+test('reply_removed removes the reply', () => {
+  const s0 = applyChanges(emptyFeed, [{ kind: 'reply', id: 'r1', item: reply('r1') }, { kind: 'reply', id: 'r2', item: reply('r2') }]);
+  const page: Change[] = [{ kind: 'reply_removed', id: 'r1', item: { id: 'r1', messageId: 'M1' } }];
+  const s1 = applyChanges(s0, page);
+  assert.deepEqual(s1.replies.M1?.map(r => r.replyId), ['r2']);
+  assert.deepEqual(applyChanges(s1, page), s1); // idempotent
+  assert.deepEqual(applyChanges(emptyFeed, page), emptyFeed); // unknown message: nothing appears
+  assert.deepEqual(applyChanges(s1, [{ kind: 'reply_removed', id: 'zz', item: { id: 'zz', messageId: 'M1' } }]), s1);
+});
+
+test('setReplies replaces a stale list', () => {
+  const s0 = { ...feedFromMessages([]), replies: { m1: [rep('r1'), rep('r2')], m2: [rep('r9')] } };
+  const s1 = setReplies(s0, 'm1', [rep('r2', 'חדש'), rep('r3')]);
+  assert.deepEqual(s1.replies.m1!.map(x => x.replyId), ['r2', 'r3']); // r1 was deleted on the server
+  assert.equal(s1.replies.m1![0]!.body, 'חדש');
+  assert.deepEqual(s1.replies.m2!.map(x => x.replyId), ['r9']);
+  assert.deepEqual(setReplies(s1, 'm1', []).replies.m1, []);
+});
+
+test('upsertReply adds or replaces; removeReplyLocal drops', () => {
+  const s0 = upsertReply(feedFromMessages([]), 'm1', rep('r1', 'א'));
+  const s1 = upsertReply(s0, 'm1', rep('r1', 'ב'));
+  assert.deepEqual(s1.replies.m1!.map(x => x.body), ['ב']);
+  const s2 = upsertReply(s1, 'm1', rep('r2'));
+  assert.deepEqual(removeReplyLocal(s2, 'm1', 'r1').replies.m1!.map(x => x.replyId), ['r2']);
+  assert.equal(removeReplyLocal(s2, 'm1', 'nope'), s2);
+  assert.equal(removeReplyLocal(s2, 'zz', 'r1'), s2);
 });
 
 test('markReadLocal sets read once and ignores unknown messages', () => {
@@ -302,7 +334,7 @@ test('markReadLocal sets read once and ignores unknown messages', () => {
 test('pruneFeed keeps only messages (and replies) of readable channels', async () => {
   const { pruneFeed } = await import('../src/client/feed.ts');
   const m = (id: string, channelId: string) => ({ messageId: id, channelId, type: 'weekly', title: 't', body: '', authorId: 'a', authorName: 'n', authorKind: 'management', joinCount: 0 }) as any;
-  const f = { ...feedFromMessages([m('01A', 'c1'), m('01B', 'c2')]), replies: { '01A': [], '01B': [{ replyId: 'r', authorId: 'a', authorName: 'n', body: 'x', createdAt: 1 }] } };
+  const f = { ...feedFromMessages([m('01A', 'c1'), m('01B', 'c2')]), replies: { '01A': [], '01B': [{ replyId: 'r', authorId: 'a', authorName: 'n', body: 'x', createdAt: 1, to: 'author' }] } };
   const out = pruneFeed(f, ['c1']);
   assert.deepEqual(out.order, ['01A']);
   assert.deepEqual(Object.keys(out.replies), ['01A']);

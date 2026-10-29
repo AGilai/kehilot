@@ -157,6 +157,18 @@ export type Message = {
   targetFamilyId?: string;
   targetName?: string;
   replierCount?: number;
+  /** Who a private reply goes to; absent when the message takes none. Server-decided, never re-derived. */
+  replyTo?: 'author' | 'family';
+  /** The caller may reply now. */
+  canReply?: boolean;
+  /** The caller is the author (or an adult of the named family) and receives the replies. */
+  isRecipient?: boolean;
+  /** The caller already replied. */
+  replied?: boolean;
+  /** Single GET only, family route: the live adults who can receive a reply, in the family's stored order. */
+  replyAdults?: Array<{ userId: string; name: string }>;
+  /** Single GET only: the caller could reply but nobody can receive it. */
+  replyBlocked?: 'author_left' | 'target_left';
   templateId?: TemplateId;
   fields?: TemplateFields;
 };
@@ -173,12 +185,27 @@ export type PostMessageBody = {
   fields?: TemplateFields;
 };
 
-export type Reply = { replyId: string; authorId: string; authorName: string; body: string; createdAt: number };
+/** `to` is `author`, `family` or one adult's userId. */
+export type Reply = {
+  replyId: string; authorId: string; authorName: string; body: string; createdAt: number; to: string;
+  updatedAt?: number;
+  /** For the writer: the chosen adult's current name ('' when gone). */
+  toName?: string;
+  /** For a recipient: sent to the caller alone. */
+  personal?: boolean;
+  /** For a recipient: newer than the caller's read marker. */
+  unread?: boolean;
+};
+
+/** The mailbox (Me › private replies). In memory only. `replies` are the newest three, newest first. */
+export type InboxThread = { message: Message; total: number; unread: number; personal: number; replies: Reply[] };
+export type Inbox = { unread: number; threads: InboxThread[] };
 
 export type Change =
   | { kind: 'message' | 'join' | 'reply_count'; id: string; item: Message }
   | { kind: 'message_removed'; id: string; item: { id: string } }
   | { kind: 'reply'; id: string; item: Reply & { messageId: string } }
+  | { kind: 'reply_removed'; id: string; item: { id: string; messageId: string } }
   | { kind: 'read'; id: string; item: { messageId: string } };
 
 export type ChangesPage = { cursor: string; more: boolean; changes: Change[] } | { resync: true };

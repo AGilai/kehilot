@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canPublish, canReply, canSendChat, groupByDay, isMuted, needsTarget, postBody, postableChannels, joinLabel, replierChip, unreadCount, visibleList, visibleReplies } from '../src/client/messageView.ts';
+import { canPublish, canSendChat, groupByDay, isMuted, needsTarget, postBody, postableChannels, joinLabel, unreadCount, visibleList } from '../src/client/messageView.ts';
 import { feedFromMessages } from '../src/client/feed.ts';
-import type { Channel, Message, NotifyPrefs, Reply } from '../src/client/types.ts';
+import type { Channel, Message, NotifyPrefs } from '../src/client/types.ts';
 
 // All names are invented.
 const notify = (over: Partial<NotifyPrefs> = {}): NotifyPrefs =>
@@ -39,24 +39,6 @@ test('unread counts only unmuted unread', () => {
   assert.equal(unreadCount(feed, notify({ mutedChannels: ['c2'] }), channels), 2);
 });
 
-test('no reply box for listener, target, or untargeted', () => {
-  const m = msg('m1', { type: 'celebration', targetMemberId: 'u9' });
-  assert.equal(canReply(m, 'u1', 'member'), true);
-  assert.equal(canReply(m, 'u1', 'gabbai'), true);
-  assert.equal(canReply(m, 'u1', 'listener'), false);
-  assert.equal(canReply(m, 'u9', 'member'), false);
-  assert.equal(canReply(msg('m2', { type: 'celebration' }), 'u1', 'member'), false);
-  assert.equal(canReply(msg('m3', { type: 'weekly', targetMemberId: 'u9' }), 'u1', 'member'), false);
-  assert.equal(canReply(msg('m4', { type: 'condolence', targetMemberId: 'u9' }), 'u1', 'member'), true);
-});
-
-test('chip null at zero, former-member name when blank', () => {
-  assert.equal(replierChip(msg('m1', { type: 'celebration', targetName: 'משפחת בדיוני' }), t), null);
-  assert.equal(replierChip(msg('m1', { type: 'celebration', targetName: 'משפחת בדיוני', replierCount: 0 }), t), null);
-  assert.equal(replierChip(msg('m1', { type: 'celebration', targetName: 'משפחת בדיוני', replierCount: 3 }), t), 'chip.celebration|n=3,name=משפחת בדיוני');
-  assert.equal(replierChip(msg('m1', { type: 'condolence', targetName: '', replierCount: 2 }), t), 'chip.condolence|n=2,name=chip.formerMember');
-});
-
 test('condolence join label has no count', () => {
   assert.equal(joinLabel('celebration', 5, t), 'join.celebration|n=5');
   assert.equal(joinLabel('condolence', 5, t), 'join.condolence');
@@ -75,17 +57,6 @@ test('gabbai outside the group sees the channel only under all', () => {
   assert.deepEqual(visibleList(feed, { mode: 'mine', notify: notify(), channels: chs }).map(m => m.messageId), ['01B']);
   assert.deepEqual(visibleList(feed, { mode: 'all', notify: notify(), channels: chs }).map(m => m.messageId), ['01B', '01A']);
   assert.equal(unreadCount(feed, notify(), chs), 1);
-});
-
-test('replies show only to the target and to their own author', () => {
-  const m = msg('m1', { type: 'condolence', targetMemberId: 'u9' });
-  const rs: Reply[] = [
-    { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'א', createdAt: 1793008800 },
-    { replyId: 'r2', authorId: 'u2', authorName: 'רון לדוגמה', body: 'ב', createdAt: 1793012400 },
-  ];
-  assert.deepEqual(visibleReplies(m, rs, 'u9').map(r => r.replyId), ['r1', 'r2']);
-  assert.deepEqual(visibleReplies(m, rs, 'u1').map(r => r.replyId), ['r1']);
-  assert.deepEqual(visibleReplies(m, rs, 'gabbai-user'), []);
 });
 
 test('days group by Israel day', () => {

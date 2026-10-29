@@ -43,7 +43,13 @@ export function applyChanges(state: FeedState, changes: Change[]): FeedState {
       case 'reply': {
         const { messageId, ...r } = c.item;
         const list = replies[messageId] ?? [];
-        if (!list.some(x => x.replyId === r.replyId)) replies[messageId] = [...list, r];
+        // A known replyId is an edit (or a repeated page): the new copy replaces it in place.
+        replies[messageId] = list.some(x => x.replyId === r.replyId) ? list.map(x => (x.replyId === r.replyId ? r : x)) : [...list, r];
+        break;
+      }
+      case 'reply_removed': {
+        const list = replies[c.item.messageId];
+        if (list?.some(x => x.replyId === c.item.id)) replies[c.item.messageId] = list.filter(x => x.replyId !== c.item.id);
         break;
       }
       case 'read': {
@@ -68,13 +74,23 @@ export function pruneFeed(state: FeedState, readable: string[]): FeedState {
   return { messages, order, replies, loaded: state.loaded };
 }
 
-/** Adds replies fetched for one message; deduplicated by replyId, kept in the order they arrived. */
-export function mergeReplies(state: FeedState, messageId: string, list: Reply[]): FeedState {
+/** Replaces a message's replies with the server's list (it is authoritative: a reply deleted elsewhere vanishes). */
+export function setReplies(state: FeedState, messageId: string, list: Reply[]): FeedState {
+  return { ...state, replies: { ...state.replies, [messageId]: list } };
+}
+
+/** Adds a reply, or replaces the one with the same replyId. */
+export function upsertReply(state: FeedState, messageId: string, reply: Reply): FeedState {
   const have = state.replies[messageId] ?? [];
-  const seen = new Set(have.map(r => r.replyId));
-  const fresh = list.filter(r => !seen.has(r.replyId) && seen.add(r.replyId));
-  if (fresh.length === 0 && messageId in state.replies) return state;
-  return { ...state, replies: { ...state.replies, [messageId]: [...have, ...fresh] } };
+  const next = have.some(x => x.replyId === reply.replyId) ? have.map(x => (x.replyId === reply.replyId ? reply : x)) : [...have, reply];
+  return { ...state, replies: { ...state.replies, [messageId]: next } };
+}
+
+/** Drops one reply; the same object when it is not there. */
+export function removeReplyLocal(state: FeedState, messageId: string, replyId: string): FeedState {
+  const have = state.replies[messageId];
+  if (!have?.some(x => x.replyId === replyId)) return state;
+  return { ...state, replies: { ...state.replies, [messageId]: have.filter(x => x.replyId !== replyId) } };
 }
 
 export function markReadLocal(state: FeedState, messageId: string): FeedState {

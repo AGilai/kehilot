@@ -17,6 +17,7 @@ import { fixtureMap, fixtureMapFamilies, fixtureSeatFamilies } from '../seats/fi
 import { createUploadFixture, fixtureHolderFamilies, fixtureHolderLayout, fixtureHolders, fixtureLinkSuggestions } from '../seats/fixtureUpload.ts';
 import type { Channel, Child, SimchaWeek, FamilyView, Kehila, Lang, Message, MessageType, Reply, Role, RoleTag, SheetItem } from './types.ts';
 import { ROLES, isManagement } from './roles.ts';
+import { P48_SCREENS, createRepliesFixture, p48Messages, p48Who } from './fixtureReplies.ts';
 
 export type FixtureParams = { role: Role; lang: Lang | null; screen: string | null; card: string | null };
 
@@ -31,7 +32,8 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'logo', 'logo-none', 'logo-crop', 'logo-error', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'compose-tpl-event', 'compose-tpl-mazal', 'compose-tpl-condolence', 'compose-tpl-missing', 'compose-tpl-free', 'm5', 'prefs-seats', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'logo', 'logo-none', 'logo-crop', 'logo-error', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'sheet-items', 'sheet-items-many', 'sheet-items-sheet', 'sheet-items-free', 'sheet-items-rules', 'print-items', 'print-items-many', 'home-week', 'home-week-guest', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'logo', 'logo-none', 'logo-crop', 'logo-error', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'sheet-items', 'sheet-items-many', 'sheet-items-sheet', 'sheet-items-free', 'sheet-items-rules', 'print-items', 'print-items-many', 'home-week', 'home-week-guest', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty',
+  ...P48_SCREENS];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -216,11 +218,12 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     ...(isManagement(role) && fixtureHasLogo() ? { logoInfo: { name: 'משה דוגמה', at: 1_790_000_000, bytes: 38_912, side: 512 } } : {}),
     ...(isManagement(role) ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'עמית דוגמה', at: TERMS_AT } } : {}),
   };
+  const who = p48Who(screen);
   const me = {
-    userId: '01FIXTUREUSER00000000001', email: 'dana@example.invalid',
+    userId: who?.userId ?? '01FIXTUREUSER00000000001', email: 'dana@example.invalid',
     // ?screen=profile shows the profile form; ?screen=switcher gives three Kehilot and no remembered choice.
     profile: screen === 'profile' || screen === 'profile-age' ? null : {
-      firstName: lang === 'en' ? (meFirst === 'יוסי' ? 'Yossi' : 'Dana') : frame ? meFirst : 'דנה', lastName: lang === 'en' ? 'Example' : frame ? meLast : 'בדויה', lang: lang ?? ('he' as Lang),
+      firstName: lang === 'en' ? (meFirst === 'יוסי' ? 'Yossi' : 'Dana') : who ? who.firstName : frame ? meFirst : 'דנה', lastName: lang === 'en' ? 'Example' : who ? who.lastName : frame ? meLast : 'בדויה', lang: lang ?? ('he' as Lang),
       // A number is on file where the frame shows one (P4, P1, P7 phone card); the rest have none.
       phone: hasPhone ? '+972500000001' : null,
     },
@@ -263,10 +266,10 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     messageId: fixtureUlid(now - ago, n), channelId: cAnn, type: 'weekly', title: '', body: '', authorId: 'm1', authorName: 'יוסי לדוגמה',
     authorKind: 'management', joinCount: 0, ...over,
   });
-  const messages: Message[] = [
+  const messages: Message[] = screen?.startsWith('p48-') ? p48Messages({ now, channelId: cAnn, ulid: fixtureUlid }) : [
     mk(1 * H, 1, { type: 'weekly', title: 'שבת שלום מהקהילה הבדיונית', body: 'הודעת דוגמה בלבד. קבלת שבת תתקיים בשעה הרגילה.' }),
-    mk(2 * H, 2, { type: 'celebration', title: 'מזל טוב לבר המצווה בבית בדיוני', body: 'משפחת בדיוני מזמינה את כולם לשמחה בשבת הקרובה.', joinCount: 12, targetMemberId: targetId, targetName: 'בדיוני', replierCount: 3 }),
-    mk(5 * H, 3, { type: 'condolence', title: 'השתתפות בצער משפחת לדוגמה', body: 'בצער רב אנו מודיעים על פטירתו של אבי המשפחה. יהי זכרו ברוך.', targetMemberId: targetId, targetName: 'לדוגמה', replierCount: 2 }),
+    mk(2 * H, 2, { type: 'celebration', title: 'מזל טוב לבר המצווה בבית בדיוני', body: 'משפחת בדיוני מזמינה את כולם לשמחה בשבת הקרובה.', joinCount: 12, targetMemberId: targetId, targetName: 'בדיוני' }),
+    mk(5 * H, 3, { type: 'condolence', title: 'השתתפות בצער משפחת לדוגמה', body: 'בצער רב אנו מודיעים על פטירתו של אבי המשפחה. יהי זכרו ברוך.', targetMemberId: targetId, targetName: 'לדוגמה' }),
     mk(26 * H, 4, { type: 'event', title: 'שיעור ערב שבת', body: 'שיעור קצר לפני מנחה, בהשתתפות כולם.' }),
     mk(3 * H, 5, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: 'u7', authorName: 'רון לדוגמה', body: 'מי מביא כיסאות לשבת?' }),
     mk(2.5 * H, 6, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: 'u8', authorName: 'מיכל בדויה', body: 'צילמתי את הסוכה, הנה:', image: { contentType: 'image/jpeg', bytes: 40000 } }),
@@ -280,15 +283,11 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   if (screen === 'search-loading') {
     for (let i = 0; i < 42; i++) messages.push(mk((30 + i) * H, 100 + i, { title: `עדכון שבועי מספר ${i + 1}`, body: 'הודעת דוגמה בלבד, ללא תוכן אמיתי.' }));
   }
-  const celebration = messages[1]!;
-  // The server returns replies only to the target and to their own author; a gabbai gets none.
-  const someReply = (n: number, authorId: string, authorName: string, body: string): Reply =>
-    ({ replyId: fixtureUlid(now - n * H, n), authorId, authorName, body, createdAt: secs(now - n * H) });
-  const repliesFor = (m: Message): Reply[] => {
-    if (isManagement(role) && m.targetMemberId !== me.userId) return [];
-    if (m.targetMemberId === me.userId) return [someReply(1, 'u7', 'רון לדוגמה', 'מזל טוב ושמחה גדולה!'), someReply(2, 'u8', 'מיכל בדויה', 'מברכים מכל הלב, שתזכו לנחת.')];
-    return m.messageId === celebration.messageId ? [someReply(1, me.userId, 'דנה בדויה', 'מזל טוב! נשמח לחגוג איתכם.')] : [];
-  };
+  // Private replies (UX §22), kept in memory: the routes, the viewer fields on messages and the mailbox.
+  const repliesFx = createRepliesFixture({
+    kehilaId: kehila.kehilaId, meId: me.userId, meName: `${me.profile?.firstName ?? ''} ${me.profile?.lastName ?? ''}`.trim(), role, screen, now,
+    ulid: fixtureUlid, messages, visible: m => !hiddenTypes().includes(m.type),
+  });
   const routes: Record<string, unknown> = {
     'GET /v1/me': me,
     'PUT /v1/me/profile': { firstName: 'דנה', lastName: 'בדויה', lang: 'he' },
@@ -301,7 +300,6 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   for (const m of messages) {
     const base = `/v1/kehilot/${kehila.kehilaId}/messages/${m.messageId}`;
     routes[`GET ${base}`] = m;
-    routes[`GET ${base}/replies`] = repliesFor(m);
     routes[`POST ${base}/read`] = undefined;
     routes[`POST ${base}/join`] = { joinCount: m.joinCount + 1, joined: true };
     routes[`DELETE ${base}`] = undefined;
@@ -386,7 +384,6 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   routes[`GET ${A}/push-texts`] = {
     defaults: {
       celebration: { he: 'מזל טוב חדש בקהילה', en: 'New mazal tov in your community' },
-      reply: { he: 'ברכה חדשה', en: 'New blessing' },
     },
     custom: { celebration: { en: 'Mazal tov!' } },
   };
@@ -734,6 +731,8 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   };
   const http: Http = {
     async request(method, path, body) {
+      const replyHit = repliesFx.handle(method, path, body);
+      if (replyHit !== undefined) return replyHit as any;
       if (path.split('?')[0] === `${K}/schedule`) {
         if (method === 'GET') return structuredClone(scheduleDoc) as any;
       }
@@ -772,10 +771,6 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       if (method === 'POST' && key.endsWith('/messages')) {
         const b = (body ?? {}) as Partial<Message>;
         return { messageId: fixtureUlid(Date.now(), 30), channelId: b.channelId ?? cAnn, type: b.type ?? 'chat', title: b.title ?? '', body: b.body ?? '', authorId: me.userId, authorName: 'דנה בדויה', authorKind: isManagement(role) ? 'management' : 'member', joinCount: 0 } as any;
-      }
-      if (method === 'POST' && key.endsWith('/replies')) {
-        const text = String((body as { body?: unknown } | undefined)?.body ?? '');
-        return { replyId: fixtureUlid(Date.now(), 31), authorId: me.userId, authorName: 'דנה בדויה', body: text, createdAt: secs(Date.now()) } as any;
       }
       if (/\/(admin\/)?groups(\/|$)/.test(key) && method !== 'GET') return (method === 'DELETE' || method === 'PUT' && /\/admins\//.test(key) ? undefined : {}) as any;
       if (method === 'PUT' && /\/chat-settings$/.test(key)) return {} as any;

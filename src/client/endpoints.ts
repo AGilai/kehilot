@@ -5,7 +5,7 @@ import type {
   TypeRules,
   AdminFamily, SimchaWeek, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
   DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, RoleTag, TagRow, GroupMembership,
-  GroupRequestRow, ImportResult, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
+  GroupRequestRow, ImportResult, Inbox, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
   MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
   RequestRow, SheetItem, SheetPage, TargetFamily, UploadGrant,
 } from './types.ts';
@@ -99,7 +99,11 @@ export function endpoints(http: Http) {
 
     // replies
     replies: (k: string, m: string) => r<Reply[]>('GET', `${K(k)}/messages/${e(m)}/replies`),
-    postReply: (k: string, m: string, body: string) => r<Reply>('POST', `${K(k)}/messages/${e(m)}/replies`, { body }),
+    postReply: (k: string, m: string, body: string, to?: string) => r<Reply>('POST', `${K(k)}/messages/${e(m)}/replies`, to ? { body, to } : { body }),
+    putReply: (k: string, m: string, rid: string, body: string) => r<Reply>('PUT', `${K(k)}/messages/${e(m)}/replies/${e(rid)}`, { body }),
+    deleteReply: (k: string, m: string, rid: string) => r<void>('DELETE', `${K(k)}/messages/${e(m)}/replies/${e(rid)}`),
+    markRepliesRead: (k: string, m: string, upTo: string) => r<void>('POST', `${K(k)}/messages/${e(m)}/replies/read`, { upTo }),
+    inbox: (k: string) => r<Inbox>('GET', `${K(k)}/replies/inbox`),
 
     // feed, preferences, directory
     changes: (k: string, since?: string) => r<ChangesPage>('GET', `${K(k)}/changes${query([['since', since]])}`),

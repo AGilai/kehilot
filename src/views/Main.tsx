@@ -96,7 +96,7 @@ type Nav =
   | { tab: 'group'; groupId: string; name: string; from: 'groups' | 'myGroups' }
   | { tab: 'prefs'; from: 'home' | 'messages' | 'me' };
 
-/** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | chat | overview | approvals | members | invite-member | groups | channels | channel-sheet | group-admin opens that screen (the last four in management mode). */
+/** Fixture mode only: ?screen=messages | messages-all | m3 | m3b | m3target | p48-* (private replies) | chat | overview | approvals | members | invite-member | groups | channels | channel-sheet | group-admin opens that screen (the last four in management mode). */
 function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; filter?: Filter; compose?: ComposeInitial; manage?: boolean } | null {
   if (!config.fixtures) return null;
   const s = fixtureParams().screen;
@@ -106,6 +106,17 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'messages-all') return { nav: { tab: 'messages' }, filter: 'all' };
   if (s === 'm3' || s === 'm3target') { const m = byType('celebration'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
+  // P48 (private replies). The sheet, the actions and the mailbox open on the screen that hosts them (Tasks 7 to 9 wire the rest).
+  if (s === 'p48-messages' || s === 'p48-actions' || s === 'p48-sheet') return { nav: { tab: 'messages' } };
+  if (s === 'p48-inbox' || s === 'p48-inbox-a' || s === 'p48-inbox-b') return { nav: { tab: 'me' } };
+  if (s?.startsWith('p48-')) {
+    const list = state.feed.order.map(id => state.feed.messages[id]!);
+    const m = s === 'p48-m3' ? list.find(x => x.type === 'general' && x.canReply)
+      : s === 'p48-author' ? list.find(x => x.type === 'general' && x.isRecipient)
+      : s === 'p48-condolence' ? list.find(x => x.type === 'condolence')
+      : list.find(x => x.type === 'celebration'); // p48-picker
+    return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null;
+  }
   if (s === 'chat') { const c = state.channels.find(x => x.conversation); return c ? { nav: { tab: 'chat', channelId: c.channelId } } : null; }
   if (s === 'compose') return { nav: { tab: 'compose' } };
   if (s === 'me' || s === 'me-family' || s === 'me-request' || s === 'me-linked' || s === 'me-man' || s === 'partner-picker' || s === 'child-sheet' || s === 'privacy' || s === 'privacy-ready' || s === 'kehila-info' || s === 'leave-listener' || s === 'delete' || s === 'delete-ticked') return { nav: { tab: 'me' } };

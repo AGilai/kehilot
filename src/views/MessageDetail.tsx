@@ -2,7 +2,8 @@ import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View, useColorScheme } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Hit } from '../search/hit.ts';
-import { canReply, joinLabel, replierChip, timeOfDay, ulidTime, visibleReplies } from '../client/messageView.ts';
+import { joinLabel, timeOfDay, ulidTime } from '../client/messageView.ts';
+import { buttonState, countText, headingText, lockText, myReply, placeholder, receivedTitle, replyTime, sentText } from '../client/replyView.ts';
 import { dualDateAt } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
@@ -18,11 +19,11 @@ import {  } from '../client/roles.ts';
 import { isManagement } from '../client/roles.ts';
 
 /** Reply errors that end the chance to reply to this message. */
-const HIDES_BOX = ['cannot_reply_to_own', 'replies_not_allowed', 'target_left'];
+const HIDES_BOX = ['cannot_reply_to_own', 'replies_not_allowed', 'target_left', 'author_left', 'already_replied'];
 
 /**
- * M3: the full message. Private blessings show here and nowhere else, and only to the target (all of them)
- * or to their own author (their own). A gabbai who is neither sees the replier chip and no text.
+ * M3: the full message. The server returns only the replies this caller may read (the recipient's, or the
+ * caller's own); anyone else sees the count and no text. Task 8 reworks the box (picker, edit, delete, mailbox).
  */
 export function MessageDetail({ messageId, onBack }: { messageId: string; onBack: () => void }) {
   const { t, dir, lang } = useI18n();
@@ -42,7 +43,6 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const [joined, setJoined] = React.useState(false);
   const [joining, setJoining] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
-  const targeted = !!message?.targetMemberId;
   React.useEffect(() => {
     if (inFeed || !feed.loaded) return;
     let live = true;
@@ -53,9 +53,8 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   React.useEffect(() => {
     if (!message) return;
     void markRead(messageId);
-    // The server returns only the replies this caller may read (none for most gabbaim).
-    if (targeted && roleFeatures(kehila?.role).blessingReply) void loadReplies(messageId).catch(() => {});
-  }, [messageId, !!message, targeted]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (message.isRecipient || message.replied) void loadReplies(messageId).catch(() => {});
+  }, [messageId, !!message, message?.isRecipient, message?.replied]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!kehila || !me) return null;
   const back = (
@@ -86,17 +85,19 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   }
 
   const role = kehila.role;
-  const isTarget = message.targetMemberId === me.userId;
-  const replies = visibleReplies(message, feed.replies[messageId] ?? [], me.userId);
-  const chip = replierChip(message, t);
-  const showBox = roleFeatures(role).blessingReply && canReply(message, me.userId, role) && !blocked;
+  const isTarget = !!message.isRecipient;
+  const all = feed.replies[messageId] ?? [];
+  const mine = myReply(all, me.userId);
+  const received = all.filter(r => r.authorId !== me.userId);
+  const chip = countText(message, t);
+  const showBox = buttonState(message, role) === 'reply' && !blocked;
+  const toDefault = message.replyTo === 'family' ? 'family' : 'author';
   const canJoin = (message.type === 'celebration' || message.type === 'condolence') && roleFeatures(role).join && !isTarget;
   // Mute (or unmute) notifications from the member who broadcast this; it never hides the message.
   const canMute = roleFeatures(role).directory && message.authorKind === 'member' && message.type !== 'chat' && message.authorId !== me.userId;
   const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);
   const canDelete = message.authorId === me.userId || isManagement(role);
-  const familyName = message.targetName?.trim() || t('chip.formerMember');
-
+  
   async function doJoin() {
     if (joining || joined) return;
     setJoining(true); setError(null);
@@ -140,33 +141,32 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
 
       {isTarget ? (
         <View style={{ gap: 8 }}>
-          <Txt bold size="heading">{t('detail.received')}</Txt>
-          {replies.map(r => (
+          <Txt bold size="heading">{receivedTitle(message, t)}</Txt>
+          {received.map(r => (
             <Card key={r.replyId}>
-              <Txt size="small" bold content color={k.muted}>{r.authorName}</Txt>
+              <Txt size="small" bold content color={k.muted}>{r.authorName.trim() ? r.authorName : t('reply.formerMember')}{' · '}{replyTime(r.createdAt, lang, Date.now(), t)}</Txt>
               <Txt content>{r.body}</Txt>
             </Card>
           ))}
         </View>
       ) : null}
 
-      {!isTarget && replies.length > 0 ? (
+      {mine ? (
         <View style={{ gap: 8 }}>
-          {replies.map(r => (
-            <Card key={r.replyId} edgeColor={k.olive}>
-              <Txt size="caption" bold color={k.olive}>{t('detail.sent')}</Txt>
-              <Txt content>{r.body}</Txt>
-            </Card>
-          ))}
+          <Card edgeColor={k.olive}>
+            <Txt size="caption" bold color={k.olive}>{sentText(mine, message, replyTime(mine.createdAt, lang, Date.now(), t), t)}</Txt>
+            <Txt content>{mine.body}</Txt>
+          </Card>
         </View>
       ) : null}
 
-      {blocked === 'target_left' ? <Banner text={t('detail.familyGone')} /> : null}
+      {blocked === 'target_left' || message.replyBlocked === 'target_left' ? <Banner text={t('detail.familyGone')} /> : null}
+      {blocked === 'author_left' || message.replyBlocked === 'author_left' ? <Banner text={t('reply.authorGone')} /> : null}
       {showBox ? (
         <View style={{ gap: 8 }}>
-          <Txt bold size="heading">{t('detail.replyTitle')}</Txt>
-          <Composer value={draft} onChange={setDraft} maxCodePoints={1000} placeholder={t('detail.replyPlaceholder')}
-            lockLine={t('detail.lock', { name: familyName })} onSend={() => void doSend()} busy={busy} />
+          <Txt bold size="heading">{headingText(message, toDefault, t)}</Txt>
+          <Composer value={draft} onChange={setDraft} maxCodePoints={1000} placeholder={placeholder(message, t)}
+            lockLine={lockText(message, toDefault, t)} onSend={() => void doSend()} busy={busy} />
         </View>
       ) : null}
 

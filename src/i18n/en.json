@@ -51,8 +51,13 @@
     "last_gabbai": "At least one gabbai or tech must remain.",
     "role_change_not_allowed": "Roles change only between member, tech and gabbai",
     "replies_not_allowed": "Replies are not allowed on this message",
-    "cannot_reply_to_own": "You cannot send a private blessing to your own family",
+    "cannot_reply_to_own": "You can't reply to your own message or a blessing for your family",
     "target_left": "The family is no longer in the community, so a blessing cannot be sent",
+    "already_replied": "You already replied to this. You can edit your reply.",
+    "author_left": "The person who wrote this is no longer in the community, so you can't reply.",
+    "invalid_to": "That person can't receive it. Choose again.",
+    "reply_not_found": "That reply no longer exists.",
+    "invalid_up_to": "The read marker is not valid",
     "invalid_logo_format": "Please upload a PNG or JPEG.",
     "logo_not_square": "The logo must be square.",
     "logo_too_small": "The image is too small: at least 64×64 pixels after cropping.",
@@ -317,7 +322,7 @@
     "unmute": "Unmute",
     "unmuteOf": "Unmute {name}",
     "unknownMember": "A community member",
-    "locked": "Private blessings to you always reach you",
+    "locked": "Blessings and private replies to you always arrive",
     "chat": "Conversations",
     "chatOff": "You will see the messages in the app, without a notification",
     "chatNone": "No conversations are available to you.",
@@ -461,25 +466,101 @@
     "delete": "Delete",
     "deleteTitle": "Delete this message?",
     "deleteBody": "The message will be deleted for the whole community.",
+    "deleteBodyReplies": "The message will be deleted for the whole community, with the {n} private replies it received. This can't be undone.",
     "deleteYes": "Delete",
     "joined": "You joined",
     "notFound": "This message no longer exists.",
-    "received": "Blessings received",
-    "sent": "Sent to the family only",
-    "replyTitle": "A private blessing for the family",
-    "replyPlaceholder": "Write a blessing for the family",
-    "lock": "Goes to the {name} family only. Not shown to the rest of the community.",
     "send": "Send",
     "familyGone": "The family is no longer in the Kehila, so a blessing cannot be sent.",
-    "notAllowed": "A private blessing cannot be sent for this message.",
     "muteMember": "Mute notifications from this member",
     "unmuteMember": "Unmute this member",
     "offlineCopy": "Offline copy: shown from this device, without replies or actions."
   },
-  "chip": {
-    "celebration": "{n} members sent a private blessing to the {name} family",
-    "condolence": "{n} members sent a private blessing to the {name} family",
-    "formerMember": "former member"
+  "reply": {
+    "button": {
+      "general": "Private reply",
+      "celebration": "Personal blessing",
+      "condolence": "A word to the family"
+    },
+    "buttonA11y": "Private reply to {name}",
+    "done": "Replied",
+    "count": {
+      "general": "{n} private replies",
+      "celebration": "{n} personal blessings",
+      "condolence": "{n} people wrote to the family"
+    },
+    "countOne": {
+      "general": "1 private reply",
+      "celebration": "1 personal blessing",
+      "condolence": "1 person wrote to the family"
+    },
+    "new": "{n} new",
+    "title": {
+      "general": "Private reply to {name}",
+      "celebration": "Personal blessing to the {family} family",
+      "condolence": "A personal word to the {family} family",
+      "celebrationPerson": "Personal blessing to {name}",
+      "condolencePerson": "A personal word to {name}"
+    },
+    "about": "Re: {title}",
+    "placeholder": {
+      "general": "Write a reply",
+      "celebration": "Write a blessing to the family",
+      "condolence": "Write a few words to the family"
+    },
+    "lock": {
+      "general": "Only {name} will see it. Not the rest of the community, not the gabbaim.",
+      "person": "Only {name} will see it. Not their spouse, the rest of the family, the community or the gabbaim.",
+      "family": "Only the {family} family will see it. Not the rest of the community, not the gabbaim."
+    },
+    "to": "To whom",
+    "toFamily": "The whole family",
+    "personalTag": "Personal",
+    "sent": {
+      "general": "Sent to {name} only · {time}",
+      "family": "Sent to the family only · {time}"
+    },
+    "toast": "Sent",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edited": "edited",
+    "delete": "Delete",
+    "deleteTitle": "Delete your reply?",
+    "deleteBody": {
+      "general": "It will be deleted for {name} too.",
+      "family": "It will be deleted for the family too."
+    },
+    "counter": "{n}/1000",
+    "authorGone": "The person who wrote this is no longer in the community, so you can't reply.",
+    "received": {
+      "general": "Replies received",
+      "celebration": "Blessings received",
+      "condolence": "Words received"
+    },
+    "onlyYou": "Only you can see them.",
+    "formerMember": "Former member",
+    "time": {
+      "today": "Today, {time}",
+      "yesterday": "Yesterday, {time}"
+    },
+    "unreadA11y": "New"
+  },
+  "inbox": {
+    "row": "Private replies",
+    "rowNew": "{n} new",
+    "rowNone": "Nothing new",
+    "rowEmpty": "No replies yet",
+    "title": "Private replies",
+    "privacy": "Only you can see them. Not even the gabbaim.",
+    "mine": "Your message · {n} replies",
+    "family": "To your family · {n} blessings",
+    "personal": "{n} personal",
+    "more": "{n} more replies"
+  },
+  "actions": {
+    "open": "Open message",
+    "title": "Actions"
   },
   "composer": {
     "send": "Send",
@@ -921,7 +1002,6 @@
         "event": "Event",
         "chat": "Chat message",
         "message": "Other message",
-        "reply": "Blessing",
         "request": "Membership request",
         "group_request": "Group join request"
       }
@@ -2869,14 +2949,13 @@
     "none": "No bar or bat mitzvahs in the next 8 weeks.",
     "noneNote": "The list is built from the birth dates in family trees. A family without a date does not appear.",
     "quietWeeks": "No simchas: {parashot}.",
+    "toSheet": "Add to mazal tov in the weekly sheet",
+    "onSheet": "Already in the weekly sheet",
     "toSheetNote": "Mazal tov messages appear in the weekly sheet. Each simcha is sent on its own, to its own family.",
     "draftTitle": "Mazal tov",
     "privacy": "Only first name, surname and date. Gabbaim and techs only.",
     "card": {
       "this": "This Shabbat: {text}",
-    "toSheet": "Add to mazal tov in the weekly sheet",
-    "onSheet": "Already in the weekly sheet",
-    "toSheet": "Add to mazal tov in the weekly sheet",
       "later": "Next: {text}"
     },
     "mazal": "Mazal tov",
@@ -3146,11 +3225,11 @@
     "upload": "Upload a logo",
     "replace": "Replace the logo",
     "remove": "Remove the logo",
+    "removeDo": "Remove",
     "rules": "PNG or JPEG, up to 10MB. You crop it to a square here. Saved as a square PNG, 64 to 512 pixels, up to 64KB (we shrink it for you). Best: a simple mark on white or transparent, no small text.",
     "source": {
       "photos": "From photos",
       "files": "From files",
-    "removeDo": "Remove",
       "drop": "Drop a PNG or JPEG here"
     },
     "crop": {
@@ -3172,8 +3251,3 @@
     "whereTitle": "Where it appears"
   }
 }
-    "already_replied": "You have already replied to this message",
-    "author_left": "The author is no longer in the community, so a reply cannot be sent",
-    "invalid_to": "The reply cannot be sent to the chosen person",
-    "reply_not_found": "The reply was not found",
-    "invalid_up_to": "The read marker is not valid",

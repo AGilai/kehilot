@@ -1,6 +1,6 @@
 import { israelDate } from '../dates.ts';
 import type { FeedState } from './feed.ts';
-import type { Channel, Message, MessageType, NotifyPrefs, PostMessageBody, Reply, Role, TemplateFields, TemplateId } from './types.ts';
+import type { Channel, Message, MessageType, NotifyPrefs, PostMessageBody, TemplateFields, TemplateId } from './types.ts';
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
@@ -44,24 +44,6 @@ export function visibleList(feed: FeedState, o: ListOptions): Message[] {
 /** "Mine" view only; muted messages are never counted. A message without `read` counts as unread; chat messages are not tracked. */
 export function unreadCount(feed: FeedState, notify: NotifyPrefs, channels: Channel[]): number {
   return visibleList(feed, { mode: 'mine', notify, channels }).filter(m => m.type !== 'chat' && !m.read).length;
-}
-
-/** Whether the private reply box shows: targeted celebration/condolence, not a listener, not the target. */
-export function canReply(m: Message, me: string, role: Role): boolean {
-  return !!m.targetMemberId && role !== 'listener' && m.targetMemberId !== me
-    && (m.type === 'celebration' || m.type === 'condolence');
-}
-
-/** Replies the screen may show: the target sees all of them, anyone else only their own. */
-export function visibleReplies(m: Message, replies: Reply[], me: string): Reply[] {
-  if (m.targetMemberId === me) return replies;
-  return replies.filter(r => r.authorId === me);
-}
-
-export function replierChip(m: Message, t: T): string | null {
-  if (!m.replierCount) return null;
-  const name = m.targetName?.trim() ? m.targetName : t('chip.formerMember');
-  return t(m.type === 'condolence' ? 'chip.condolence' : 'chip.celebration', { n: m.replierCount, name });
 }
 
 export function joinLabel(type: MessageType, joinCount: number, t: T): string {

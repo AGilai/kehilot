@@ -169,7 +169,7 @@ test('feed.loaded stays false while the initial load fails', async () => {
 });
 
 test('reply posted is appended at once, kept in memory only, deduplicated; markRead is local first', async () => {
-  const reply = { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'מזל טוב', createdAt: 1793008800 };
+  const reply = { replyId: 'r1', authorId: 'u1', authorName: 'דנה בדויה', body: 'מזל טוב', createdAt: 1793008800, to: 'family' };
   const msg = { messageId: 'M1', channelId: 'c1', type: 'celebration', title: 't', body: 'b', authorId: 'a', authorName: 'x', authorKind: 'management', joinCount: 0, targetMemberId: 'u9' };
   const reads: string[] = [];
   const { api } = fakeApi(meOf(['k1']), {
@@ -192,6 +192,134 @@ test('reply posted is appended at once, kept in memory only, deduplicated; markR
   await store.markRead('M1');
   assert.deepEqual(reads, ['M1']);
   assert.ok(![...storage.data.values()].some(v => v.includes('מזל טוב')), 'reply text must not be stored');
+  store.reset();
+});
+
+const replyMsg = { messageId: 'M1', channelId: 'c1', type: 'celebration', title: 't', body: 'b', authorId: 'a', authorName: 'x', authorKind: 'management', joinCount: 0, targetMemberId: 'u9', replyTo: 'family', canReply: true };
+const mkReply = (id: string, body: string, over: Record<string, unknown> = {}) => ({ replyId: id, authorId: 'u1', authorName: 'דנה בדויה', body, createdAt: 1793008800, to: 'family', ...over });
+
+test('editReply and deleteReply update the feed; loadReplies replaces a stale list', async () => {
+  const calls: string[] = [];
+  const { api } = fakeApi(meOf(['k1']), {
+    changes: async () => ({ cursor: 'c', more: false, changes: [] }),
+    messages: async () => [replyMsg],
+    postReply: async (_k: string, m: string, body: string, to?: string) => { calls.push(`post:${m}:${body}:${to ?? ''}`); return mkReply('r1', body, { to: to ?? 'family' }); },
+    putReply: async (_k: string, m: string, r: string, body: string) => { calls.push(`put:${m}:${r}`); return mkReply(r, body, { updatedAt: 1793009000 }); },
+    deleteReply: async (_k: string, m: string, r: string) => { calls.push(`del:${m}:${r}`); },
+    replies: async () => [mkReply('r2', 'חדש')],
+  });
+  const store = createStore(api, memory(), { isActive: () => false });
+  await store.start();
+  await new Promise(r => setTimeout(r, 20));
+  await store.sendReply('M1', 'מזל טוב', 'u-yigal');
+  assert.deepEqual(calls, ['post:M1:מזל טוב:u-yigal']);
+  assert.equal(store.getState().feed.replies.M1![0]!.to, 'u-yigal');
+  await store.editReply('M1', 'r1', 'מזל טוב מאוד');
+  assert.deepEqual(store.getState().feed.replies.M1!.map(r => [r.replyId, r.body, r.updatedAt]), [['r1', 'מזל טוב מאוד', 1793009000]]);
+  await store.loadReplies('M1'); // the server list is authoritative
+  assert.deepEqual(store.getState().feed.replies.M1!.map(r => r.replyId), ['r2']);
+  await store.sendReply('M1', 'עוד');
+  await store.deleteReply('M1', 'r1');
+  assert.deepEqual(store.getState().feed.replies.M1!.map(r => r.replyId), ['r2']);
+  assert.ok(calls.includes('del:M1:r1'));
+  store.reset();
+});
+
+const SECRET = 'טקסט סודי של תשובה';
+const inboxOf = () => ({ unread: 1, threads: [{ message: { ...replyMsg, isRecipient: true }, total: 1, unread: 1, personal: 0, replies: [mkReply('r1', SECRET, { unread: true })] }] });
+
+test('inbox is never persisted', async () => {
+  const storage = memory();
+  const written: string[] = [];
+  const cacheData = new Map<string, string>();
+  const spy = { get: async (k: string) => cacheData.get(k) ?? null, set: async (k: string, v: string) => { written.push(`${k}=${v}`); cacheData.set(k, v); }, remove: async (k: string) => { cacheData.delete(k); } };
+  const { api } = fakeApi(meOf(['k1']), {
+    kehila: async (k: string) => ({ kehilaId: k, name: 'k', role: 'member' }),
+    changes: async () => ({ cursor: 'c', more: false, changes: [] }),
+    messages: async () => [replyMsg],
+    inbox: async () => inboxOf(),
+    replies: async () => [mkReply('r1', SECRET)],
+  });
+  const store = createStore(api, storage, { isActive: () => false, cacheStore: spy as any });
+  await store.start();
+  await new Promise(r => setTimeout(r, 20));
+  await store.loadReplies('M1');
+  await store.loadInbox();
+  assert.equal(store.getState().inbox?.threads[0]?.replies[0]?.body, SECRET);
+  await new Promise(r => setTimeout(r, 20));
+  for (const v of [...storage.data.entries(), ...written]) {
+    assert.ok(!String(v).includes(SECRET), 'reply text must not be stored');
+    assert.ok(!String(v).includes('threads'), 'the inbox must not be stored');
+  }
+  store.reset();
+  assert.equal(store.getState().inbox, null);
+});
+
+function pagedStore(role: string, over: Record<string, unknown> = {}) {
+  const calls: string[] = [];
+  const pages: Array<{ cursor: string; more: boolean; changes: unknown[] }> = [];
+  let first = true;
+  const { api } = fakeApi(meOf(['k1']), {
+    kehila: async (k: string) => ({ kehilaId: k, name: 'k', role }),
+    changes: async (_k: string, since?: string) => (first || since === undefined ? (first = false, { cursor: 'C0', more: false, changes: [] }) : (pages.shift() ?? { cursor: 'C', more: false, changes: [] })),
+    messages: async () => [replyMsg],
+    inbox: async () => { calls.push('inbox'); return inboxOf(); },
+    markRepliesRead: async (_k: string, m: string, upTo: string) => { calls.push(`seen:${m}:${upTo}`); },
+    ...over,
+  });
+  const store = createStore(api, memory(), { isActive: () => true, sleep: (_ms, signal) => new Promise<void>(res => signal.addEventListener('abort', () => res())) });
+  return { store, calls, pages };
+}
+const replyPage = (id: string) => ({ cursor: 'C', more: false, changes: [{ kind: 'reply', id, item: { ...mkReply(id, 'x'), messageId: 'M1' } }] });
+
+test('a reply change reloads the inbox once, 2 s later', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { store, calls, pages } = pagedStore('member');
+  await store.start();
+  await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+  assert.deepEqual(calls, []);
+  pages.push(replyPage('r1'), { cursor: 'C', more: false, changes: [{ kind: 'reply_removed', id: 'r1', item: { id: 'r1', messageId: 'M1' } }] });
+  await store.pollNow();
+  await store.pollNow();
+  assert.deepEqual(calls, []);
+  t.mock.timers.tick(1999);
+  assert.deepEqual(calls, []);
+  t.mock.timers.tick(1);
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(calls, ['inbox']);
+  assert.equal(store.getState().inbox?.unread, 1);
+  t.mock.timers.tick(10000);
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(calls, ['inbox']);
+  store.reset();
+});
+
+test('markRepliesSeen tells the server, then reloads the inbox', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { store, calls } = pagedStore('member');
+  await store.start();
+  await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+  await store.markRepliesSeen('M1', 'r9');
+  assert.deepEqual(calls, ['seen:M1:r9']);
+  t.mock.timers.tick(2000);
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(calls, ['seen:M1:r9', 'inbox']);
+  store.reset();
+});
+
+test('a listener never loads the inbox', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { store, calls, pages } = pagedStore('listener');
+  await store.start();
+  await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+  pages.push(replyPage('r1'));
+  await store.pollNow();
+  await store.markRepliesSeen('M1', 'r1').catch(() => {});
+  await store.loadInbox();
+  t.mock.timers.tick(5000);
+  await new Promise(r => setImmediate(r));
+  assert.ok(!calls.includes('inbox'));
+  assert.equal(store.getState().inbox, null);
   store.reset();
 });
 

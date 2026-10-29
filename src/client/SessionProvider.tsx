@@ -57,7 +57,15 @@ export type SessionApi = {
   /** Message actions in the open Kehila (see the store). */
   markRead(messageId: string): Promise<void>;
   loadReplies(messageId: string): Promise<void>;
-  sendReply(messageId: string, body: string): Promise<Reply | null>;
+  /** `to` is omitted for the route's default, `family`, or one adult's userId. */
+  sendReply(messageId: string, body: string, to?: string): Promise<Reply | null>;
+  /** The text only; the recipient is fixed once sent. */
+  editReply(messageId: string, replyId: string, body: string): Promise<Reply | null>;
+  deleteReply(messageId: string, replyId: string): Promise<void>;
+  /** Marks the replies up to `upTo` seen (recipients only) and refreshes the mailbox. */
+  markRepliesSeen(messageId: string, upTo: string): Promise<void>;
+  /** Loads the mailbox into `state.inbox` (memory only; adults only). */
+  loadInbox(): Promise<void>;
   join(messageId: string): Promise<void>;
   removeMessage(messageId: string): Promise<void>;
   /** A fresh-enough presigned URL for a message image, or null when it has none. Memory only. */
@@ -115,6 +123,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (s !== 'active') return;
       void store.refreshChannels().catch(() => {}); // a changed readable channel set wipes the search cache
       void store.pollNow(); // catch up at once; the poll is paused while the app is in the background
+      void store.loadInbox().catch(() => {}); // the Me badge
       const gen = store.getState().generation;
       try {
         if (!(await store.loadMe())) return;
@@ -164,7 +173,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     },
     markRead: m => store.markRead(m),
     loadReplies: m => store.loadReplies(m),
-    sendReply: (m, body) => store.sendReply(m, body),
+    sendReply: (m, body, to) => store.sendReply(m, body, to),
+    editReply: (m, r, body) => store.editReply(m, r, body),
+    deleteReply: (m, r) => store.deleteReply(m, r),
+    markRepliesSeen: (m, upTo) => store.markRepliesSeen(m, upTo),
+    loadInbox: () => store.loadInbox(),
     join: m => store.join(m),
     removeMessage: m => store.removeMessage(m),
     postMessage: b => store.postMessage(b),

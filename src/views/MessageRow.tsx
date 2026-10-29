@@ -4,7 +4,7 @@ import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../kit/components.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { edge } from '../kit/theme.ts';
-import { replierChip } from '../client/messageView.ts';
+import { countText } from '../client/replyView.ts';
 import type { Message } from '../client/types.ts';
 
 /** The start-edge stripe: a double line in the type colour, dotted when the message is muted. */
@@ -19,11 +19,11 @@ export function Stripe({ type, muted }: { type: Message['type']; muted?: boolean
   );
 }
 
-/** One message in a list: stripe, type, channel (with several) and time, title, two lines of body, optional image, replier chip. Never reply text. */
+/** One message in a list: stripe, type, channel (with several) and time, title, two lines of body, optional image, the private-reply count. Never reply text. */
 export function MessageRow({ message, meta, muted, onPress }: { message: Message; meta: string; muted: boolean; onPress: () => void }) {
   const { t } = useI18n();
   const k = useTokens();
-  const chip = replierChip(message, t);
+  const chip = countText(message, t);
   const unread = message.type !== 'chat' && !message.read;
   return (
     <Pressable accessibilityRole="button" onPress={onPress}

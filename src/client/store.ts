@@ -1,7 +1,7 @@
 import type { KeyValue } from '../auth/tokens.ts';
 import type { endpoints } from './endpoints.ts';
 import { ApiCodeError } from './errors.ts';
-import { applyChanges, createPoller, emptyFeed, feedFromMessages, markReadLocal, mergeReplies, pruneFeed, realSleep } from './feed.ts';
+import { applyChanges, createPoller, emptyFeed, feedFromMessages, markReadLocal, pruneFeed, realSleep, removeReplyLocal, setReplies, upsertReply } from './feed.ts';
 import type { FeedState, Sleep, Update } from './feed.ts';
 import type { PendingInvite } from './links.ts';
 import { runBackfill } from '../search/backfill.ts';
@@ -9,7 +9,8 @@ import { createMessageCache, pruneKehilot } from '../search/cache.ts';
 import { resolveHit } from '../search/hit.ts';
 import type { Hit } from '../search/hit.ts';
 import type { CacheStore, CachedMessage, MessageCache } from '../search/cache.ts';
-import type { Change, Channel, Message, Kehila, Lang, Me, NotifyPrefs, PostMessageBody, Reply, UploadGrant } from './types.ts';
+import { isAdult } from './roles.ts';
+import type { Change, Channel, Inbox, Message, Kehila, Lang, Me, NotifyPrefs, PostMessageBody, Reply, UploadGrant } from './types.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -21,6 +22,8 @@ export type StoreState = {
   kehila: Kehila | null;
   channels: Channel[];
   feed: FeedState;
+  /** The private-replies mailbox. Memory only: never written to storage or to the search cache. Null until loaded. */
+  inbox: Inbox | null;
   /** Error code of a pending invite that was dropped at start (shown once). */
   joinError: string | null;
   /** Bumped (at most once a second) when the on-device archive changed. */
@@ -32,7 +35,7 @@ export type Route = 'setup' | 'none' | 'switcher' | 'ready';
 
 export const lastKehilaKey = (userId: string) => `kehilot.lastKehila.${userId}`;
 
-const empty = (generation: number): StoreState => ({ generation, me: null, kehilaId: null, kehila: null, channels: [], feed: emptyFeed, joinError: null, archiveRev: 0 });
+const empty = (generation: number): StoreState => ({ generation, me: null, kehilaId: null, kehila: null, channels: [], feed: emptyFeed, inbox: null, joinError: null, archiveRev: 0 });
 
 export type StoreOptions = { sleep?: Sleep; isActive?: () => boolean; pending?: PendingInvite; /** Where the on-phone message cache lives; without it nothing is cached or searchable. */ cacheStore?: CacheStore };
 
@@ -110,6 +113,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   /** The one way the feed changes: the poller and the user's own posts both come through here, so the search cache follows. */
   function applyUpdate(u: Update): void {
     feedToCache(u);
+    if ('changes' in u && u.changes.some(ch => ch.kind === 'reply' || ch.kind === 'reply_removed')) scheduleInbox();
     set({ feed: 'clear' in u ? emptyFeed : 'replace' in u ? feedFromMessages(u.replace) : applyChanges(state.feed, u.changes) });
   }
 
@@ -138,7 +142,8 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     const userId = state.me?.userId;
     const [kehila, channels] = await Promise.all([api.kehila(k), api.channels(k)]);
     if (!guard(gen)) return false;
-    set({ kehilaId: k, kehila, channels, feed: emptyFeed });
+    clearInboxTimer();
+    set({ kehilaId: k, kehila, channels, feed: emptyFeed, inbox: null });
     // The cache is set up before the poller starts, so its first operation (ensureChannels) is first in line.
     backfillToken++; backfilling = false;
     cache = opts.cacheStore && userId ? createMessageCache(opts.cacheStore, userId, k, touchArchive) : null;
@@ -323,21 +328,75 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     if (still(c)) set({ feed: markReadLocal(state.feed, m) });
   }
 
-  /** Replies live in memory only (feed.replies); never written to storage. */
+  /** Replies live in memory only (feed.replies); never written to storage. The server's list is authoritative. */
   async function loadReplies(m: string): Promise<void> {
     const c = current();
     if (!c) return;
     const list = await api.replies(c.k, m);
-    if (still(c)) set({ feed: mergeReplies(state.feed, m, list) });
+    if (still(c)) set({ feed: setReplies(state.feed, m, list) });
   }
 
-  /** The posted reply is added at once from the response; the feed bringing it again is deduplicated. */
-  async function sendReply(m: string, body: string): Promise<Reply | null> {
+  /** Keeps the card's viewer fields in step with my own reply until the feed's `reply_count` brings the server's. */
+  function bumpMine(m: string, delta: 1 | -1): void {
+    const msg = state.feed.messages[m];
+    if (!msg) return;
+    const replierCount = Math.max(0, (msg.replierCount ?? 0) + delta);
+    set({ feed: { ...state.feed, messages: { ...state.feed.messages, [m]: { ...msg, replierCount, replied: delta > 0 } } } });
+  }
+
+  /** The posted reply is added at once from the response; the feed bringing it again replaces it. `to` is `family` or one adult's userId. */
+  async function sendReply(m: string, body: string, to?: string): Promise<Reply | null> {
     const c = current();
     if (!c) return null;
-    const reply = await api.postReply(c.k, m, body);
-    if (still(c)) set({ feed: mergeReplies(state.feed, m, [reply]) });
+    const reply = await api.postReply(c.k, m, body, to);
+    if (still(c)) { set({ feed: upsertReply(state.feed, m, reply) }); bumpMine(m, 1); }
     return reply;
+  }
+
+  /** Edit: the text only. The recipient is fixed once sent. */
+  async function editReply(m: string, r: string, body: string): Promise<Reply | null> {
+    const c = current();
+    if (!c) return null;
+    const reply = await api.putReply(c.k, m, r, body);
+    if (still(c)) set({ feed: upsertReply(state.feed, m, reply) });
+    return reply;
+  }
+
+  async function deleteReply(m: string, r: string): Promise<void> {
+    const c = current();
+    if (!c) return;
+    await api.deleteReply(c.k, m, r);
+    if (!still(c)) return;
+    set({ feed: removeReplyLocal(state.feed, m, r) });
+    bumpMine(m, -1);
+  }
+
+  /** The mailbox. Adults only (a listener never calls the server). Memory only. */
+  async function loadInbox(): Promise<void> {
+    const c = current();
+    if (!c || !isAdult(state.kehila?.role)) return;
+    const inbox = await api.inbox(c.k);
+    if (still(c)) set({ inbox });
+  }
+
+  let inboxTimer: ReturnType<typeof setTimeout> | null = null;
+  function clearInboxTimer(): void { if (inboxTimer) { clearTimeout(inboxTimer); inboxTimer = null; } }
+  /** Reloads the mailbox once, 2 s from now; a request inside the window joins it. Never called by listeners. */
+  function scheduleInbox(): void {
+    if (inboxTimer || !isAdult(state.kehila?.role)) return;
+    inboxTimer = setTimeout(() => { inboxTimer = null; void loadInbox().catch(() => {}); }, 2000);
+    (inboxTimer as { unref?: () => void }).unref?.();
+  }
+
+  /** Tells the server the recipient has seen the replies up to `upTo`, clears their dots on screen and refreshes the mailbox. A failure leaves them unread; the next open tries again. */
+  async function markRepliesSeen(m: string, upTo: string): Promise<void> {
+    const c = current();
+    if (!c || !isAdult(state.kehila?.role)) return;
+    try { await api.markRepliesRead(c.k, m, upTo); } catch { return; }
+    if (!still(c)) return;
+    const list = state.feed.replies[m];
+    if (list?.some(r => r.unread && r.replyId <= upTo)) set({ feed: setReplies(state.feed, m, list.map(r => (r.unread && r.replyId <= upTo ? { ...r, unread: false } : r))) });
+    scheduleInbox();
   }
 
   async function join(m: string): Promise<void> {
@@ -440,6 +499,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
 
   function reset(): void {
     poller.stop();
+    clearInboxTimer();
     stopBackfill.abort(); stopBackfill = new AbortController();
     backfillToken++; backfilling = false; cache = null;
     state = empty(state.generation + 1);
@@ -450,7 +510,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
     loadMe, selectKehila, chooseKehila, start, saveProfile, acceptAge13, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, archive, cacheStatus, cachedMessage, loadHit, reset, guard,
-    setNotify, editProfile, setPhone, setShowPhone, leaveKehila, markRead, loadReplies, sendReply, join, removeMessage, postMessage, requestUpload,
+    setNotify, editProfile, setPhone, setShowPhone, leaveKehila, markRead, loadReplies, sendReply, editReply, deleteReply, loadInbox, markRepliesSeen, join, removeMessage, postMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };
 }
