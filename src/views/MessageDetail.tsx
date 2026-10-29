@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, View, useColorScheme } from '
 import type { LayoutChangeEvent } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Hit } from '../search/hit.ts';
-import { joinLabel, timeOfDay, ulidTime } from '../client/messageView.ts';
+import { canUpdate, joinLabel, timeOfDay, ulidTime } from '../client/messageView.ts';
 import { buttonState, countText, deleteMessageBody, myReply, replyKind } from '../client/replyView.ts';
 import { dualDateAt } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
@@ -26,7 +26,7 @@ import { CancelledTag, ChangeLine, MetaText, UpdatedFooter } from './UpdatedPart
  * caller's own); anyone else sees the count and no text. Under the card: the received list (recipient), my reply with
  * edit and delete (replier) or the reply box. `focus` scrolls to the received list or to my reply.
  */
-export function MessageDetail({ messageId, onBack, focus }: { messageId: string; onBack: () => void; focus?: 'received' | 'mine' }) {
+export function MessageDetail({ messageId, onBack, focus, onUpdate }: { messageId: string; onBack: () => void; focus?: 'received' | 'mine'; /** Opens Compose in update mode (only given to screens that can). */ onUpdate?: () => void }) {
   const { t, dir, lang } = useI18n();
   const k = useTokens();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -102,6 +102,15 @@ export function MessageDetail({ messageId, onBack, focus }: { messageId: string;
   const authorMuted = kehila.notify.mutedMembers.includes(message.authorId);
   const canDelete = message.authorId === me.userId || isManagement(role);
   
+  // §19.2a: the author, management and the bereaved family's adults. The card sits under the message so the reply UI below keeps its place.
+  const updateCard = onUpdate && canUpdate(message, me.userId, kehila) ? (
+    <Card>
+      <Txt size="small" color={k.muted}>{t('msg.update.only')}</Txt>
+      <Button kind={message.type === 'condolence' && message.fields?.variant === 'full' || message.type === 'event' ? 'secondary' : 'primary'}
+        title={t(message.type === 'condolence' ? 'msg.update.shiva' : 'msg.update.event')} onPress={onUpdate} />
+    </Card>
+  ) : null;
+
   async function doJoin() {
     if (joining || joined) return;
     setJoining(true); setError(null);
@@ -130,6 +139,8 @@ export function MessageDetail({ messageId, onBack, focus }: { messageId: string;
         <Txt size="small" color={k.muted}>{t('detail.from', { name: message.authorName })}</Txt>
         <UpdatedFooter message={message} />
       </Card>
+
+      {updateCard}
 
       {chip ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

@@ -69,6 +69,7 @@ type Nav =
   | { tab: 'detail'; id: string; from: 'home' | 'messages' | 'inbox'; /** M3 scrolls to the received replies or to my reply. */ focus?: 'received' | 'mine' }
   | { tab: 'chat'; channelId: string }
   | { tab: 'compose' }
+  | { tab: 'update'; id: string }
   | { tab: 'me' }
   | { tab: 'inbox' }
   | { tab: 'tree' }
@@ -111,6 +112,10 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3-event-changed' || s === 'm3-event-cancelled') {
     const m = state.feed.order.map(id => state.feed.messages[id]!).find(x => x.type === 'event' && (s === 'm3-event-changed' ? x.changed : x.fields?.cancelled === true));
     return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null;
+  }
+  if (s === 'm3-shiva-card' || s === 'update-shiva' || s === 'update-event') {
+    const m = state.feed.order.map(id => state.feed.messages[id]!).find(x => (s === 'update-event' ? x.type === 'event' && x.templateId === 'event' && !x.updatedAt : x.type === 'condolence' && x.fields?.variant === 'later'));
+    return m ? { nav: s === 'm3-shiva-card' ? { tab: 'detail', id: m.messageId, from: 'messages' } : { tab: 'update', id: m.messageId } } : null;
   }
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   // P48 (private replies). The sheet, the actions and the mailbox open on the screen that hosts them (Tasks 7 to 9 wire the rest).
@@ -349,7 +354,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = <Messages initialFilter={filter} initialQuery={fixtureQuery} onOpen={(id, focus) => setNav({ tab: 'detail', id, from: 'messages', ...(focus ? { focus } : {}) })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
       break;
     case 'detail':
-      body = <MessageDetail key={nav.id} messageId={nav.id} focus={nav.focus} onBack={() => setNav({ tab: nav.from })} />;
+      body = <MessageDetail key={nav.id} messageId={nav.id} focus={nav.focus} onBack={() => setNav({ tab: nav.from })} onUpdate={() => setNav({ tab: 'update', id: nav.id })} />;
       break;
     case 'inbox':
       body = isAdult(kehila?.role) ? <Inbox onBack={() => setNav({ tab: 'me' })} onOpen={id => setNav({ tab: 'detail', id, from: 'inbox', focus: 'received' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'me' }) : undefined} /> : null;
@@ -411,6 +416,13 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
           showToast(t('compose.published'));
         }} />;
       break;
+    case 'update': {
+      const um = state.feed.messages[nav.id];
+      const back = () => setNav({ tab: 'detail', id: nav.id, from: 'messages' });
+      body = !um || !feats.compose ? <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />
+        : <Compose onBack={back} onPublished={() => {}} update={{ message: um, onSaved: ({ quiet }) => { back(); showToast(t(quiet ? 'msg.update.savedQuiet' : 'msg.update.saved')); } }} />;
+      break;
+    }
     case 'chat':
       body = <ChatView channelId={nav.channelId} onBack={() => setNav({ tab: 'messages' })} />;
       break;

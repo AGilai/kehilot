@@ -27,6 +27,7 @@ import { WIDE } from './admin/shared.tsx';
 import { TemplateForm, fieldLabel } from './compose/TemplateForm.tsx';
 import type { FocusRefs } from './compose/TemplateForm.tsx';
 import { TemplatePreview } from './compose/TemplatePreview.tsx';
+import { UpdateMode } from './compose/UpdateMode.tsx';
 
 export type ComposeInitial = { type?: MessageType; /** A family from the picker. */ targetFamilyId?: string; query?: string; image?: Picked; /** A draft to start from (the gabbai's mazal tov from P36). */ title?: string; body?: string; /** Shown above the form (a suggested bar mitzvah date: check it with the family). */ note?: string; /** Fixture screens only: template values to start from, and what to do once the families have loaded. */ tpl?: { fields?: TemplateFields; then?: 'publish' | 'free' } };
 
@@ -35,7 +36,12 @@ export type ComposeInitial = { type?: MessageType; /** A family from the picker.
  * celebration or condolence the family it is about. The audience line names the channel only: the API has no
  * recipient count.
  */
-export function Compose({ onBack, onPublished, initial }: { onBack: () => void; onPublished: (messageId: string) => void; initial?: ComposeInitial }) {
+export type ComposeProps = { onBack: () => void; onPublished: (messageId: string) => void; initial?: ComposeInitial; /** Update mode (§19.2a): change a posted condolence or event in place. */ update?: { message: Message; onSaved: (r: { quiet: boolean }) => void } };
+export function Compose(props: ComposeProps) {
+  return props.update ? <UpdateMode message={props.update.message} onBack={props.onBack} onSaved={props.update.onSaved} /> : <ComposeNew {...props} />;
+}
+
+function ComposeNew({ onBack, onPublished, initial }: ComposeProps) {
   const { t, dir, lang } = useI18n();
   const { width: winWidth } = useWindowDimensions();
   const wide = winWidth >= WIDE;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { copyToFree, dayOptionLabel, previewOf, sheetCaption, stripGaps } from '../src/client/composeState.ts';
+import { copyToFree, dayOptionLabel, eventWhat, initialUpdateFields, notifyDefault, previewOf, sheetCaption, stripGaps } from '../src/client/composeState.ts';
 
 const built = { title: 'T', body: 'B' };
 test('copyToFree copies into empty free fields', () => {
@@ -57,4 +57,42 @@ test('dayOptionLabel is Hebrew first with the Gregorian date in brackets', () =>
 });
 test('stripGaps empties the placeholders', () => {
   assert.equal(stripGaps('בשעה ‹שעה› · ‹מקום›.'), 'בשעה  · .');
+});
+
+// Update mode (Task 10) ---------------------------------------------------------------------------------------------
+const base = { messageId: 'M', channelId: 'C', title: 'T', body: 'B', authorId: 'a', authorName: 'n', authorKind: 'member' as const, joinCount: 0 };
+test('initialUpdateFields: a templated message keeps its fields, a condolence goes to full', () => {
+  const ev = { ...base, type: 'event' as const, templateId: 'event' as const, fields: { name: 'ערב', date: '2026-11-03', time: '20:30', place: 'א', for: 'all' } };
+  assert.deepEqual(initialUpdateFields(ev), ev.fields);
+  const co = { ...base, type: 'condolence' as const, templateId: 'condolence' as const, fields: { variant: 'later', surname: 'ניסיון', deceased: 'א', relation: 'ב' } };
+  assert.deepEqual(initialUpdateFields(co), { ...co.fields, variant: 'full' });
+});
+test('initialUpdateFields: free-text condolence and event', () => {
+  assert.deepEqual(initialUpdateFields({ ...base, type: 'condolence', targetName: 'דוגמה' }), { variant: 'full', surname: 'דוגמה' });
+  assert.deepEqual(initialUpdateFields({ ...base, type: 'condolence' }), { variant: 'full', surname: '' });
+  assert.deepEqual(initialUpdateFields({ ...base, type: 'event', title: 'שיעור' }), { name: 'שיעור' });
+});
+test('notifyDefault: condolence', () => {
+  const full = { variant: 'full', surname: 'ס', address: 'א' };
+  assert.equal(notifyDefault({ variant: 'later' }, full, 'condolence'), true);
+  assert.equal(notifyDefault({ variant: 'only' }, full, 'condolence'), true);
+  assert.equal(notifyDefault({}, full, 'condolence'), true);
+  assert.equal(notifyDefault(full, { ...full, address: 'ב' }, 'condolence'), false);
+  assert.equal(notifyDefault({ variant: 'later' }, { variant: 'later' }, 'condolence'), false);
+});
+test('notifyDefault: event', () => {
+  const e = { name: 'ערב', date: '2026-11-03', time: '20:30', place: 'א', more: 'x' };
+  assert.equal(notifyDefault(e, { ...e, time: '21:00' }, 'event'), true);
+  assert.equal(notifyDefault(e, { ...e, date: '2026-11-04' }, 'event'), true);
+  assert.equal(notifyDefault(e, { ...e, place: 'ב' }, 'event'), true);
+  assert.equal(notifyDefault(e, { ...e, more: 'y' }, 'event'), false);
+  assert.equal(notifyDefault(e, { ...e, cancelled: true }, 'event'), true);
+  assert.equal(notifyDefault({ ...e, cancelled: true }, { ...e, cancelled: true }, 'event'), false);
+  assert.equal(notifyDefault({ name: 'ערב' }, e, 'event'), true);
+});
+test('eventWhat', () => {
+  const e = { name: 'ערב', date: '2026-11-03', time: '20:30', place: 'א' };
+  assert.equal(eventWhat(e, { ...e, time: '21:00' }, 'בוטל', 'he'), 'בשעה 21:00');
+  assert.equal(eventWhat(e, { ...e, cancelled: true }, 'בוטל', 'he'), 'בוטל');
+  assert.equal(eventWhat(e, e, 'בוטל', 'he'), '');
 });

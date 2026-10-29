@@ -1,8 +1,9 @@
 // Pure helpers for Compose's template mode (UX-DESIGN §19.2 item 5, §19.3).
 import { isManagement } from './roles.ts';
 import { dualDate } from '../dates.ts';
+import { eventChangeParts } from './messageView.ts';
 import { TEMPLATES, buildMessage, dayLabel, missingFields } from './templates.ts';
-import type { Lang, MessageType, Role, TemplateFields, TemplateId } from './types.ts';
+import type { Lang, Message, MessageType, Role, TemplateFields, TemplateId } from './types.ts';
 
 type Free = { title: string; body: string };
 export type CopyState = Free & { lastCopied: Free | null };
@@ -57,3 +58,33 @@ export const dayOptionLabel = (iso: string, lang: Lang): string => `${dayLabel(i
 
 /** The preview's ‹missing› markers removed, for text that is copied into the free fields. */
 export const stripGaps = (s: string): string => s.replace(/‹[^›]*›/g, '');
+
+// Update mode (§19.2a) ---------------------------------------------------------------------------------------------
+/** The form's starting values when a posted condolence or event is updated; a condolence's variant is preset to "with shiva details". */
+export function initialUpdateFields(m: Message): TemplateFields {
+  if (m.templateId && m.fields) return m.templateId === 'condolence' ? { ...m.fields, variant: 'full' } : { ...m.fields };
+  if (m.type === 'condolence') return { variant: 'full', surname: m.targetName ?? '' };
+  return { name: m.title };
+}
+
+/**
+ * The "let members know" toggle's default (owner ruling): on when shiva details are added (the variant goes to "full"
+ * from another one), and when an event's date, time or place changes or it is cancelled; off for later corrections.
+ */
+export function notifyDefault(before: TemplateFields, after: TemplateFields, id: TemplateId): boolean {
+  if (id === 'condolence') return after.variant === 'full' && before.variant !== 'full';
+  if (id === 'event') {
+    if (after.cancelled === true && before.cancelled !== true) return true;
+    return (['date', 'time', 'place'] as const).some(key => (before[key] ?? '') !== (after[key] ?? ''));
+  }
+  return false;
+}
+
+/** What changed in an event, for the push text shape "שינוי ב{event}: {what}" ("בשעה 21:00"); `cancelled` is the word for a cancelled event. */
+export function eventWhat(before: TemplateFields, after: TemplateFields, cancelled: string, lang: Lang): string {
+  if (after.cancelled === true && before.cancelled !== true) return cancelled;
+  const changed: Record<string, string> = {};
+  for (const key of ['date', 'time', 'place'] as const) if (String(before[key] ?? '') !== String(after[key] ?? '') && before[key] !== undefined) changed[key] = String(before[key]);
+  const parts = eventChangeParts({ type: 'event', fields: after, changed }, lang);
+  return parts ? parts.filter(p => !p.struck).map(p => p.text).join('').replace(/\s+/g, ' ').trim() : '';
+}
