@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { roleFeatures } from '../../client/roleView.ts';
-import { readUpTo, threadLine } from '../../client/replyView.ts';
+import { moreText, readUpTo, threadLine } from '../../client/replyView.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
 import type { InboxThread } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
@@ -83,7 +83,7 @@ export function Inbox({ onBack, onOpen, onPhoneList }: { onBack: () => void; /**
               ))}
               {more > 0 ? (
                 <Pressable accessibilityRole="button" onPress={() => onOpen(m.messageId)} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: k.line }}>
-                  <Txt size="small" bold color={k.tekhelet}>{t('inbox.more', { n: more })}</Txt>
+                  <Txt size="small" bold color={k.tekhelet}>{moreText(more, t)}</Txt>
                 </Pressable>
               ) : null}
             </View>

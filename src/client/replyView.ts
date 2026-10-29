@@ -134,19 +134,26 @@ export function readUpTo(thread: InboxThread): string | null {
   return top;
 }
 
+/** "1 חדשה" at 1, else "{n} חדשות". */
+export const newText = (n: number, t: T): string => (n === 1 ? t('reply.newOne') : t('reply.new', { n }));
+
+/** "עוד תשובה אחת" at 1, else "עוד {n} תשובות". */
+export const moreText = (n: number, t: T): string => (n === 1 ? t('inbox.moreOne') : t('inbox.more', { n }));
+
 /** The Me row's status. */
 export function mailboxStatus(inbox: Inbox | null, t: T): string {
   if (!inbox || inbox.threads.length === 0) return t('inbox.rowEmpty');
-  return inbox.unread > 0 ? t('inbox.rowNew', { n: inbox.unread }) : t('inbox.rowNone');
+  return inbox.unread > 1 ? t('inbox.rowNew', { n: inbox.unread }) : inbox.unread === 1 ? t('inbox.rowNewOne') : t('inbox.rowNone');
 }
 
 /** "הודעה שלכם · 3 תשובות · 2 חדשות" or "ברכות למשפחה שלכם · 11 ברכות · 2 אישיות · 1 חדשות"; zero parts are left out. */
 export function threadLine(thread: InboxThread, t: T): string {
   const parts: string[] = [];
   const familyRoute = thread.message.replyTo ? thread.message.replyTo === 'family' : replyKind(thread.message.type) !== 'general';
-  parts.push(familyRoute ? t('inbox.family', { n: thread.total }) : t('inbox.mine', { n: thread.total }));
-  if (familyRoute && thread.personal > 0) parts.push(t('inbox.personal', { n: thread.personal }));
-  if (thread.unread > 0) parts.push(t('reply.new', { n: thread.unread }));
+  const one = thread.total === 1;
+  parts.push(familyRoute ? (one ? t('inbox.familyOne') : t('inbox.family', { n: thread.total })) : one ? t('inbox.mineOne') : t('inbox.mine', { n: thread.total }));
+  if (familyRoute && thread.personal > 0) parts.push(thread.personal === 1 ? t('inbox.personalOne') : t('inbox.personal', { n: thread.personal }));
+  if (thread.unread > 0) parts.push(newText(thread.unread, t));
   return parts.join(' · ');
 }
 

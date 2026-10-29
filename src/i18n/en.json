@@ -495,6 +495,7 @@
       "condolence": "1 person wrote to the family"
     },
     "new": "{n} new",
+    "newOne": "1 new",
     "title": {
       "general": "Private reply to {name}",
       "celebration": "Personal blessing to the {family} family",
@@ -549,14 +550,19 @@
   "inbox": {
     "row": "Private replies",
     "rowNew": "{n} new",
+    "rowNewOne": "1 new",
     "rowNone": "Nothing new",
     "rowEmpty": "No replies yet",
     "title": "Private replies",
     "privacy": "Only you can see them. Not even the gabbaim.",
     "mine": "Your message · {n} replies",
+    "mineOne": "Your message · 1 reply",
     "family": "To your family · {n} blessings",
+    "familyOne": "To your family · 1 blessing",
     "personal": "{n} personal",
-    "more": "{n} more replies"
+    "personalOne": "1 personal",
+    "more": "{n} more replies",
+    "moreOne": "1 more reply"
   },
   "actions": {
     "open": "Open message",

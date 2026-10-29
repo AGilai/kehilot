@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   buttonLabel, buttonState, canSendReply, countText, counterText, headingText, lockText, mailboxStatus, myReply,
-  hasReplyRow, deleteMessageBody, deleteReplyBody, receivedOrder, pillA11y, pillTone, placeholder, readUpTo, toChoices, receivedTitle, replyKind, replyTime, sentText, threadLine,
+  hasReplyRow, newText, moreText, deleteMessageBody, deleteReplyBody, receivedOrder, pillA11y, pillTone, placeholder, readUpTo, toChoices, receivedTitle, replyKind, replyTime, sentText, threadLine,
 } from '../src/client/replyView.ts';
 import type { InboxThread, Message, Reply } from '../src/client/types.ts';
 
@@ -134,7 +134,7 @@ test('mailboxStatus and threadLine', () => {
   assert.equal(mailboxStatus({ unread: 4, threads: [th({ unread: 4 })] }, t), '4 חדשות');
   assert.equal(threadLine(th({ total: 3, unread: 2 }), t), 'הודעה שלכם · 3 תשובות · 2 חדשות');
   assert.equal(threadLine(th({ total: 3 }), t), 'הודעה שלכם · 3 תשובות');
-  assert.equal(threadLine(th({ message: bless(), total: 11, personal: 2, unread: 1 }), t), 'ברכות למשפחה שלכם · 11 ברכות · 2 אישיות · 1 חדשות');
+  assert.equal(threadLine(th({ message: bless(), total: 11, personal: 2, unread: 1 }), t), 'ברכות למשפחה שלכם · 11 ברכות · 2 אישיות · 1 חדשה');
   assert.equal(threadLine(th({ message: bless(), total: 11 }), t), 'ברכות למשפחה שלכם · 11 ברכות');
 });
 
@@ -204,9 +204,29 @@ test('spouses: each mailbox counts only what that spouse may see (A: 11 with 2 p
   const a = { unread: 2, threads: [th(11, 2, 2)] };
   const b = { unread: 2, threads: [th(10, 1, 2)] };
   assert.equal(threadLine(a.threads[0]!, t), 'ברכות למשפחה שלכם · 11 ברכות · 2 אישיות · 2 חדשות');
-  assert.equal(threadLine(b.threads[0]!, t), 'ברכות למשפחה שלכם · 10 ברכות · 1 אישיות · 2 חדשות');
+  assert.equal(threadLine(b.threads[0]!, t), 'ברכות למשפחה שלכם · 10 ברכות · אישית אחת · 2 חדשות');
   assert.equal(mailboxStatus(a, t), '2 חדשות');
   assert.equal(mailboxStatus({ unread: 3, threads: a.threads }, t), '3 חדשות');
   assert.equal(mailboxStatus({ unread: 0, threads: a.threads }, t), 'אין חדשות');
   assert.equal(mailboxStatus({ unread: 0, threads: [] }, t), 'עוד לא הגיעו תשובות');
+});
+
+test('n = 1 picks the singular in Hebrew and English', () => {
+  const th = (over: Partial<InboxThread>): InboxThread => ({ message: msg(), total: 3, unread: 0, personal: 0, replies: [], ...over });
+  assert.equal(mailboxStatus({ unread: 1, threads: [th({ unread: 1 })] }, t), '1 חדשה');
+  assert.equal(newText(1, t), '1 חדשה');
+  assert.equal(newText(2, t), '2 חדשות');
+  assert.equal(threadLine(th({ total: 1 }), t), 'הודעה שלכם · תשובה אחת');
+  assert.equal(threadLine(th({ message: bless(), total: 1 }), t), 'ברכות למשפחה שלכם · ברכה אחת');
+  assert.equal(threadLine(th({ message: bless(), total: 10, personal: 1, unread: 1 }), t), 'ברכות למשפחה שלכם · 10 ברכות · אישית אחת · 1 חדשה');
+  assert.equal(moreText(1, t), 'עוד תשובה אחת');
+  assert.equal(moreText(2, t), 'עוד 2 תשובות');
+  assert.equal(countText(msg({ replierCount: 1 }), t), 'תשובה פרטית אחת');
+  assert.equal(countText(bless({ replierCount: 1 }), t), 'ברכה אישית אחת');
+  assert.equal(countText(msg({ type: 'condolence', replierCount: 1 }), t), 'חבר אחד כתב למשפחה');
+  const te = (key: string, p?: Record<string, string | number>): string => look(en, key).replace(/\{(\w+)\}/g, (_m: string, n: string) => String(p?.[n]));
+  assert.equal(threadLine(th({ message: bless(), total: 1, personal: 1, unread: 1 }), te), 'To your family · 1 blessing · 1 personal · 1 new');
+  assert.equal(mailboxStatus({ unread: 1, threads: [th({ unread: 1 })] }, te), '1 new');
+  assert.equal(moreText(1, te), '1 more reply');
+  assert.equal(threadLine(th({ total: 1 }), te), 'Your message · 1 reply');
 });

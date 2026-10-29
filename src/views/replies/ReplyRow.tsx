@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { useSession } from '../../client/SessionProvider.tsx';
-import { buttonLabel, buttonState, countText, pillA11y, pillTone, replyKind } from '../../client/replyView.ts';
+import { buttonLabel, buttonState, countText, newText, pillA11y, pillTone, replyKind } from '../../client/replyView.ts';
 import type { Message } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../../kit/components.tsx';
@@ -35,14 +35,14 @@ export function ReplyRow({ message, unreadNew = 0, onReply, onOpenReplies, previ
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
       <Txt size="small" bold color={k.muted}>{count}</Txt>
       {countIcon}
-      {unreadNew > 0 ? <Txt size="small" bold color={k.pomegranate}>{' · '}{t('reply.new', { n: unreadNew })}</Txt> : null}
+      {unreadNew > 0 ? <Txt size="small" bold color={k.pomegranate}>{' · '}{newText(unreadNew, t)}</Txt> : null}
     </View>
   ) : null;
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48, borderTopWidth: 1, borderTopColor: k.line, marginTop: 4, paddingTop: 4 }}>
       {countView && onOpenReplies && message.isRecipient ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={`${count}${unreadNew > 0 ? '. ' + t('reply.new', { n: unreadNew }) : ''}`} onPress={onOpenReplies}
+        <Pressable accessibilityRole="button" accessibilityLabel={`${count}${unreadNew > 0 ? '. ' + newText(unreadNew, t) : ''}`} onPress={onOpenReplies}
           style={{ minHeight: 48, justifyContent: 'center', flexShrink: 1 }}>{countView}</Pressable>
       ) : countView ?? <View />}
       {btn === 'reply' ? (
