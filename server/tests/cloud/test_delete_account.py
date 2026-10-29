@@ -10,7 +10,7 @@ from moto import mock_aws
 
 from server.cloud.ids import new_id
 from server.cloud import handler as handler_module
-from server.cloud import media, routes_me
+from server.cloud import media, private_replies, routes_me
 from server.cloud.repo import Repo
 from server.tests.cloud.helpers import MEDIA_BUCKET, make_bucket, make_table
 from server.tests.cloud.test_handler import Context, event
@@ -351,3 +351,115 @@ class DeletePostsTest(DeleteAccountTest):
         finally:
             del self.repo.table.query
         self.assertTrue(seen and all(kw.get('ConsistentRead') for kw in seen[1:]))
+
+
+@mock_aws
+@own_tests_only
+class DeleteRepliesTest(DeleteAccountTest):
+    """Replies addressed to the deleted person go; family replies and others' replies stay. Invented names."""
+
+    def setUp(self):
+        super().setUp()
+        self.chan = next(c['sk'][2:] for c in self.repo.list_channels(self.k1) if c['name'] != 'chat')
+        self.ron = self.uid('sub-ron')
+        self.eli = self.uid('sub-eli')
+        for u in (self.ron, self.eli):
+            self.repo.put_membership(self.k1, u, 'member')
+        self.repo.link(self.k1, self.ron, self.dana)
+
+    def thread(self, mid, route, personal=None):
+        return self.repo.table.get_item(Key={'pk': f'K#{self.k1}#RX', 'sk': f'MSG#{mid}'}).get('Item')
+
+    def sent(self, message, replier, to, name='Eli'):
+        mid = message['sk'][4:]
+        route = 'author' if to == 'author' else 'family'
+        self.repo.touch_thread(self.k1, mid, message, route, to if to not in ('author', 'family') else None)
+        return self.repo.put_reply(self.k1, mid, replier, name, 'body-' + to[:4], to)
+
+    def parts(self, mid, prefix):
+        return self.repo.table.query(KeyConditionExpression=Key('pk').eq(f'K#{self.k1}#MSG#{mid}')
+                                     & Key('sk').begins_with(prefix))['Items']
+
+    def changes(self, kind):
+        return [c for c in self.repo.table.query(KeyConditionExpression=Key('pk').eq(f'K#{self.k1}')
+                                                 & Key('sk').begins_with('CHG#'))['Items'] if c['kind'] == kind]
+
+    def general(self, author):
+        return self.repo.put_message(self.k1, self.chan, 'general', 't', 'b', author, 'Auth', 'member', None)
+
+    def blessing(self, poster, kind='member'):
+        return self.repo.put_message(self.k1, self.chan, 'celebration', 't', 'b', poster, 'Poster', kind, self.ron,
+                                     'Ron', target_family_id=self.repo.family_of(self.k1, self.ron)['familyId'])
+
+    def test_author_deletion_drops_replies_addressed_to_author(self):
+        message = self.general(self.dana)
+        mid = message['sk'][4:]
+        self.sent(message, self.eli, 'author')
+        self.sent(message, self.ron, 'author', 'Ron')
+        self.repo.table.update_item(Key={'pk': f'K#{self.k1}', 'sk': f'MSG#{mid}'}, UpdateExpression='SET replierCount = :n',
+                                    ExpressionAttributeValues={':n': 2})
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        self.assertEqual((self.parts(mid, 'R#'), self.parts(mid, 'RP#'), self.thread(mid, 'author')), ([], [], None))
+        self.assertEqual(int(self.repo.get_message(self.k1, mid)['replierCount']), 0)
+        self.assertEqual([c['refId'] for c in self.changes('reply_count')], [mid])
+
+    def test_personal_recipient_deletion_drops_personal_replies(self):
+        message = self.blessing(self.gab, 'management')
+        mid = message['sk'][4:]
+        self.sent(message, self.eli, self.dana)
+        self.sent(message, self.ron, 'family', 'Ron')
+        self.assertEqual(int(self.repo.get_message(self.k1, mid)['replierCount']), 2)
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        self.assertEqual(int(self.repo.get_message(self.k1, mid)['replierCount']), 1)
+        self.assertEqual([r['authorId'] for r in self.parts(mid, 'R#')], [self.ron])
+        url = f'/v1/kehilot/{self.k1}/messages/{mid}/replies'
+        self.assertEqual(self.call('GET', url, 'sub-eli'), (200, []))
+        self.assertNotIn(self.dana, str(self.thread(mid, 'family')))
+
+    def test_blessing_poster_deletion_keeps_family_replies(self):
+        message = self.blessing(self.dana)
+        mid = message['sk'][4:]
+        self.sent(message, self.eli, 'family')
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        self.assertEqual(len(self.parts(mid, 'R#')), 1)
+        self.assertEqual(int(self.repo.get_message(self.k1, mid)['replierCount']), 1)
+        status, got = self.call('GET', f'/v1/kehilot/{self.k1}/messages/{mid}/replies', 'sub-eli')
+        self.assertEqual(status, 200)
+
+    def test_replier_deletion_without_posts_blanks_name(self):
+        message = self.general(self.ron)
+        mid = message['sk'][4:]
+        self.sent(message, self.dana, 'author', 'Dana')
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        got = self.parts(mid, 'R#')
+        self.assertEqual([(r['authorName'], r['body']) for r in got], [('', 'body-auth')])
+
+    def test_replier_deletion_with_posts_deletes_reply_and_count(self):
+        message = self.general(self.ron)
+        mid = message['sk'][4:]
+        self.sent(message, self.dana, 'author', 'Dana')
+        self.assertEqual(self.call('DELETE', '/v1/me?deletePosts=1', 'sub-dana')[0], 204)
+        self.assertEqual((self.parts(mid, 'R#'), self.parts(mid, 'RP#')), ([], []))
+        self.assertEqual(int(self.repo.get_message(self.k1, mid)['replierCount']), 0)
+
+    def test_drop_received_is_idempotent_and_try_again_safe(self):
+        message = self.general(self.dana)
+        mid = message['sk'][4:]
+        self.sent(message, self.eli, 'author')
+        with mock.patch.object(Context, 'get_remaining_time_in_millis', create=True, return_value=1000):
+            self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana'), (503, {'error': 'try_again'}))
+        self.assertEqual(len(self.parts(mid, 'R#')), 1)
+        self.assertIsNotNone(self.repo.get_membership(self.k1, self.dana))
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        self.assertEqual((self.parts(mid, 'R#'), self.thread(mid, 'author')), ([], None))
+        self.assertEqual(private_replies.drop_received(self.repo, self.dana), (0, 0))
+
+    def test_marker_items_of_the_user_are_purged(self):
+        message = self.blessing(self.gab, 'management')
+        mid = message['sk'][4:]
+        self.sent(message, self.eli, self.dana)
+        self.repo.mark_seen(self.k1, self.dana, mid, 'R#x')
+        self.repo.claim_reply_push(self.k1, mid, self.dana, 1000)
+        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        for item in self.repo.table.scan()['Items']:
+            self.assertNotIn(self.dana, item['pk'] + item['sk'])

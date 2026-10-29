@@ -8,6 +8,7 @@ from server.cloud import private_replies, push, routes_changes
 from server.cloud.ids import new_id
 from server.tests.cloud import test_messages
 from server.tests.cloud.helpers import set_type_rules
+from server.tests.cloud.test_groups import own_tests_only
 
 WHOLE = {'name': 'announcements'}
 GROUPED = {'name': 'announcements', 'groups': {'g1'}}
@@ -609,3 +610,56 @@ class ReplyFlowTest(test_messages.MessagesTest):
 for _name in dir(test_messages.MessagesTest):
     if _name.startswith('test_') and _name not in vars(ReplyFlowTest):
         setattr(ReplyFlowTest, _name, None)
+
+
+@mock_aws
+@own_tests_only
+class LeaveTest(ReplyFlowTest):
+    """Leaving, removal and the replies that stay or go."""
+
+    def leave(self, sub):
+        return self.call('DELETE', f'{self.base()}/membership', sub=sub)
+
+    def pair(self):
+        mid = self.blessing()
+        personal = self.sent('member-sub', mid, 'סוד', to=self.shul)
+        family = self.sent('rotem-sub', mid, 'מזל טוב')
+        return mid, personal, family
+
+    def left(self, mid):
+        return [r['sk'] for r in self.partition(f'K#{self.k}#MSG#{mid}', 'R#')]
+
+    def test_leave_drops_personal_replies_to_leaver(self):
+        mid, personal, family = self.pair()
+        self.assertEqual(self.leave('shul-sub')[0], 204)
+        self.assertEqual(self.left(mid), [f"R#{family['replyId']}"])
+        self.assertEqual(self.partition(f'K#{self.k}#MSG#{mid}', 'RP#' + self.member), [])
+        self.assertEqual(self.card('gabbai-sub', mid)['replierCount'], 1)
+        self.assertEqual(self.replies('member-sub', mid), [])
+        self.assertEqual(self.repo.list_threads(self.k)[0].get('personalTo'), None)
+        # rejoin: the chosen adult reads nothing personal again
+        self.repo.put_membership(self.k, self.shul, 'member')
+        self.assertNotIn('סוד', [r['body'] for r in self.replies('shul-sub', mid)])
+        self.assertEqual([t['personal'] for t in self.inbox('shul-sub')['threads']], [])
+
+    def test_removed_member_loses_personal_replies(self):
+        mid, personal, family = self.pair()
+        status, body = self.call('DELETE', f'{self.base()}/admin/members/{self.shul}', sub='gabbai-sub')
+        self.assertEqual(status, 204, body)
+        self.assertEqual(self.left(mid), [f"R#{family['replyId']}"])
+        self.repo.put_membership(self.k, self.shul, 'member')
+        self.assertEqual(self.replies('shul-sub', mid)[0]['body'], 'מזל טוב')
+        self.assertEqual(len(self.replies('shul-sub', mid)), 1)
+
+    def test_author_leave_keeps_replies_until_rejoin(self):
+        mid = self.general()
+        self.sent('rotem-sub', mid, 'שלום')
+        self.assertEqual(self.leave('member-sub')[0], 204)
+        self.assertEqual(len(self.left(mid)), 1)
+        self.repo.put_membership(self.k, self.member, 'member')
+        self.assertEqual([r['body'] for r in self.replies('member-sub', mid)], ['שלום'])
+
+    def test_family_replies_survive_one_adult_leaving(self):
+        mid, personal, family = self.pair()
+        self.assertEqual(self.leave('yigal-sub')[0], 204)
+        self.assertEqual([r['body'] for r in self.replies('shul-sub', mid)], ['סוד', 'מזל טוב'])

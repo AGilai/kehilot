@@ -4,7 +4,7 @@ import os
 import re
 from urllib.parse import unquote
 
-from . import authz, inputs, media, posts
+from . import authz, inputs, media, posts, private_replies
 from .errors import ApiError
 
 log = logging.getLogger(__name__)
@@ -67,6 +67,8 @@ def delete_account(ctx, params):
     if ctx.query.get('deletePosts') == '1':  # first: a 503 try_again leaves membership intact, the retry continues
         n_messages, n_replies = posts.delete_posts(
             ctx.repo, ctx.user_id, getattr(ctx.context, 'get_remaining_time_in_millis', None))
+    remaining = getattr(ctx.context, 'get_remaining_time_in_millis', None)
+    n_received = private_replies.drop_received(ctx.repo, ctx.user_id, remaining)[1]  # 503 try_again like the posts step
     for m in memberships:  # before the purge, so the scan never meets the person in a family
         if authz.role_in(m, authz.ADULTS):
             ctx.repo.drop_adult(m['kehilaId'], ctx.user_id)
@@ -80,5 +82,5 @@ def delete_account(ctx, params):
     deleted, blanked = ctx.repo.purge_user(ctx.user_id, ctx.caller.sub)
     _delete_cognito_user(ctx.caller.sub)
     log.info('account deleted user=%s items=%d blanked=%d posts=%d replies=%d', ctx.user_id, deleted, blanked,
-             n_messages, n_replies)
+             n_messages, n_replies, n_received)
     return 204, None

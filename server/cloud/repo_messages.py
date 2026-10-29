@@ -484,3 +484,36 @@ class MessagesRepo:
                 self.put_change(k, 'reply_count', message_id, message['channelId'])
             return True
         raise ApiError(409, 'try_again')
+
+    def received_reply_items(self, user_id):
+        """What account deletion must drop: replies addressed to the user (`to` is their id) and the thread-index
+        items of messages they wrote that take author replies. One consistent paginated Scan with a filter;
+        O(table size), like authored_items."""
+        condition = Attr('to').eq(user_id) | (Attr('msgAuthorId').eq(user_id) & Attr('replyTo').eq('author'))
+        items, kwargs = [], {'FilterExpression': condition, 'ConsistentRead': True}
+        while True:
+            page = self.table.scan(**kwargs)
+            items += page['Items']
+            if 'LastEvaluatedKey' not in page:
+                return items
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
+
+    def reset_replier_count(self, k, message_id):
+        """replierCount = 0 once every reply of the message is gone. A message that is gone needs nothing."""
+        try:
+            self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
+                                   UpdateExpression='SET replierCount = :zero',
+                                   ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':zero': 0})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+
+    def drop_personal_to(self, k, message_id, user_id):
+        """Take the user out of the thread index's personalTo set (the set item goes with its last member)."""
+        try:
+            self.table.update_item(Key={'pk': f'K#{k}#RX', 'sk': f'{MSG_PREFIX}{message_id}'},
+                                   UpdateExpression='DELETE personalTo :u', ConditionExpression='attribute_exists(sk)',
+                                   ExpressionAttributeValues={':u': {user_id}})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise

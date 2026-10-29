@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 from datetime import datetime, timezone
 
-from . import authz, media, schedule_rules, tags, tree_rules
+from . import authz, media, private_replies, schedule_rules, tags, tree_rules
 from .posts import _split
 
 log = logging.getLogger(__name__)
@@ -50,6 +50,40 @@ def _kehilot(repo, user_id):
     return out
 
 
+def _replies_written(repo, user_id, items):
+    """The person's own replies with the message's current title and where each went ('author', 'family', the
+    chosen adult's current name, '' when gone). Only the caller's own choices are looked up."""
+    out = []
+    for k in sorted({k for _, k, _ in items}):
+        mine = [(i, m) for i, kk, m in items if kk == k]
+        titles = repo.batch_get([(f'K#{k}', f'MSG#{m}') for m in dict.fromkeys(m for _, m in mine)])
+        names = private_replies.to_names(repo, k, user_id, [i for i, _ in mine])
+        for item, message_id in mine:
+            to = item.get('to') or 'family'
+            chosen = private_replies.personal_to(item)
+            message = titles.get((f'K#{k}', f'MSG#{message_id}')) or {}
+            out.append((item['sk'], {'kehilaId': k, 'messageId': message_id, 'replyId': item['sk'][len('R#'):],
+                                     'title': message.get('title', ''), 'to': names.get(chosen, '') if chosen else to,
+                                     'body': item.get('body', ''), 'createdAt': int(item.get('createdAt', 0))}))
+    return out
+
+
+def _replies_received(repo, user_id):
+    """Every reply the person may read in their own mailbox, from the same rule as the mailbox itself."""
+    out = []
+    for m in sorted(repo.list_memberships(user_id), key=lambda m: m['kehilaId']):
+        k = m['kehilaId']
+        for thread in private_replies.inbox_threads(repo, k, user_id, {**m, 'userId': user_id}, limit=None):
+            for r in thread['replies']:
+                entry = {'kehilaId': k, 'messageId': thread['message']['messageId'],
+                         'title': thread['message']['title'], 'authorName': r['authorName'], 'body': r['body'],
+                         'createdAt': r['createdAt'], 'personal': bool(r.get('personal'))}
+                if r.get('updatedAt') is not None:
+                    entry['updatedAt'] = r['updatedAt']
+                out.append(entry)
+    return out
+
+
 def _add_photo(client, bucket, archive, k, message_id, content_type):
     """Stream one image into the ZIP. Returns its name, or None when the object is gone."""
     from botocore.exceptions import ClientError
@@ -73,12 +107,11 @@ def build(repo, user_id, email, remaining_ms=None):
     client, bucket = media.s3_client(), media.bucket()
     fd, path = tempfile.mkstemp(prefix='kehilot-export-', suffix='.zip', dir='/tmp')
     try:
-        messages, replies, photos, omitted = [], [], 0, 0
+        messages, written, photos, omitted = [], [], 0, 0
         with os.fdopen(fd, 'wb') as raw, zipfile.ZipFile(raw, 'w', zipfile.ZIP_DEFLATED) as archive:
             for item, (what, k, message_id) in items:
                 if what == 'reply':
-                    replies.append({'kehilaId': k, 'messageId': message_id, 'replyId': item['sk'][len('R#'):],
-                                    'body': item.get('body', ''), 'createdAt': int(item.get('createdAt', 0))})
+                    written.append((item, k, message_id))
                     continue
                 photo = None
                 if item.get('image') and not item.get('removed'):
@@ -108,7 +141,10 @@ def build(repo, user_id, email, remaining_ms=None):
                                  'context': r.get('context') or {}, 'status': r.get('status', 'new'),
                                  'createdAt': int(r.get('createdAt', 0))}
                                 for r in sorted(repo.list_user_reports(user_id), key=lambda r: r['sk'])],
-                    'messages': messages, 'replies': replies, 'photosOmitted': omitted}
+                    'messages': messages,
+                    'replies': [entry for _, entry in sorted(_replies_written(repo, user_id, written),
+                                                             key=lambda p: (p[1]['kehilaId'], p[1]['messageId'], p[0]))],
+                    'repliesReceived': _replies_received(repo, user_id), 'photosOmitted': omitted}
             archive.writestr('data.json', json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
         log.info('export built user=%s messages=%d photos=%d omitted=%d bytes=%d', user_id, len(messages), photos,
                  omitted, os.path.getsize(path))

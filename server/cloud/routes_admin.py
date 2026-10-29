@@ -6,7 +6,7 @@ import time
 from collections import Counter
 
 from . import seating_week, accounts, consents, importer, inputs, push, routes_me, routes_seatlink, schedule_rules, seat_times, sheet_rules, tags, type_rules
-from . import authz
+from . import authz, private_replies
 from .errors import ApiError
 from .ids import ID_RE
 from .routes_groups import group_ids
@@ -123,6 +123,7 @@ def remove_member(ctx, params):
     target = _target(ctx, params, 'member_not_found')
     ctx.repo.remove_member(params['k'], params['userId'], target['role'])
     _drop_from_family(ctx, params['k'], params['userId'], target['role'])
+    _drop_personal_replies(ctx, params['k'], params['userId'])
     ctx.repo.revoke_member_invites(params['k'], params['userId'])
     _delete_if_never_signed_in(ctx, params['k'], params['userId'])
     return 204, None
@@ -147,6 +148,14 @@ def _delete_if_never_signed_in(ctx, k, user_id):
     log.info('removed never-signed-in user=%s', user_id)
 
 
+def _drop_personal_replies(ctx, k, user_id):
+    """Replies sent to the person alone go with the membership (§22.4a). Best effort, like the family clean-up."""
+    try:
+        private_replies.drop_personal(ctx.repo, k, user_id)
+    except Exception as error:
+        log.warning('drop_personal failed kehila=%s error=%s', k, type(error).__name__)
+
+
 def _drop_from_family(ctx, k, user_id, role):
     """Family clean-up after the membership is gone. Best effort: reads prune a departed adult anyway."""
     if not authz.in_set(role, authz.ADULTS):
@@ -161,6 +170,7 @@ def leave(ctx, params):
     membership = authz.require(ctx.repo, ctx.user_id, params['k'], authz.ALL)
     ctx.repo.remove_member(params['k'], ctx.user_id, membership['role'])
     _drop_from_family(ctx, params['k'], ctx.user_id, membership['role'])
+    _drop_personal_replies(ctx, params['k'], ctx.user_id)
     ctx.repo.revoke_member_invites(params['k'], ctx.user_id)
     return 204, None
 

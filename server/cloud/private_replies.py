@@ -2,7 +2,13 @@
 
 `reply_route` is the one rule. `viewer_fields` rides on every message JSON; `detail_fields` (single GET only)
 adds the reads that need reachability checks. Names and reply text never go to logs."""
+import logging
+
 from . import authz, families, visibility
+from .errors import ApiError
+
+log = logging.getLogger(__name__)
+MIN_REMAINING_MS = 3000
 
 AUTHOR_TYPES = ('general', 'event')
 FAMILY_TYPES = ('celebration', 'condolence')
@@ -143,3 +149,46 @@ def inbox_threads(repo, k, user_id, membership, limit=3):
             'replies': replies}))
     rows.sort(key=lambda row: row[0], reverse=True)
     return [row[1] for row in rows]
+
+
+def drop_personal(repo, k, user_id):
+    """The user leaves (or is removed): delete the personal replies addressed to them, so a rejoin reads nothing
+    of them. delete_reply keeps the counts, the markers and the change feed right. Returns the replies deleted.
+    Family replies and replies to an author who left are kept."""
+    count = 0
+    for thread in repo.list_threads(k):
+        if user_id not in (thread.get('personalTo') or ()):
+            continue
+        message_id = thread['sk'][len('MSG#'):]
+        for reply in repo.list_replies(k, message_id, consistent=True):
+            if reply.get('to') == user_id:
+                count += bool(repo.delete_reply(k, message_id, reply['sk'], reply['authorId']))
+        repo.drop_personal_to(k, message_id, user_id)
+    log.info('personal replies dropped kehila=%s user=%s replies=%d', k, user_id, count)
+    return count
+
+
+def drop_received(repo, user_id, remaining_ms=None):
+    """Account deletion: delete every reply addressed to the user and every author-routed thread of their own
+    messages. Returns (threads, replies). Idempotent; raises 503 try_again before the next item when less than
+    MIN_REMAINING_MS is left, and the retry continues. Family replies are untouched (§22.6)."""
+    items = repo.received_reply_items(user_id)
+    threads = replies = 0
+    for item in sorted(items, key=lambda i: i['sk'].startswith('MSG#')):  # replies first, then whole threads
+        if remaining_ms and remaining_ms() < MIN_REMAINING_MS:
+            raise ApiError(503, 'try_again')
+        if item['sk'].startswith('R#'):
+            k, message_id = item['pk'].split('#')[1], item['pk'].split('#')[3]
+            replies += bool(repo.delete_reply(k, message_id, item['sk'], item['authorId']))
+            repo.drop_personal_to(k, message_id, user_id)
+            continue
+        k, message_id = item['pk'].split('#')[1], item['sk'][len('MSG#'):]
+        replies += len(repo.list_replies(k, message_id, consistent=True))
+        repo.delete_replies(k, message_id)
+        repo.reset_replier_count(k, message_id)
+        message = repo.get_message(k, message_id)
+        if message:
+            repo.put_change(k, 'reply_count', message_id, message['channelId'])
+        threads += 1
+    log.info('received replies dropped user=%s threads=%d replies=%d', user_id, threads, replies)
+    return threads, replies

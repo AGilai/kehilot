@@ -11,7 +11,7 @@ from moto import mock_aws
 
 from server.cloud import export, media
 from server.cloud.repo_messages import local_date
-from server.tests.cloud import test_conversation
+from server.tests.cloud import test_conversation, test_private_replies
 from server.tests.cloud.helpers import MEDIA_BUCKET
 from server.tests.cloud.test_groups import own_tests_only
 from server.tests.cloud.test_media import JPEG, start_media
@@ -220,3 +220,72 @@ class ExportTest(test_conversation.ConversationTest):
                 self.assertIsNone(next(m for m in data['messages'] if m['messageId'] == photo['messageId'])['photo'])
         finally:
                 os.remove(path)
+
+
+@own_tests_only
+@mock_aws
+class ExportRepliesTest(test_private_replies.ReplyFlowTest):
+    """The export of private replies: what the person wrote, and what reached them. Invented names."""
+
+    def setUp(self):
+        super().setUp()
+        self.s3 = start_media(self)
+
+    def export(self, sub):
+        status, out = self.call('POST', '/v1/me/export', sub=sub)
+        self.assertEqual(status, 200, out)
+        key = media.export_key(self.ids[sub], local_date())
+        body = self.s3.get_object(Bucket=MEDIA_BUCKET, Key=key)['Body'].read()
+        archive = zipfile.ZipFile(io.BytesIO(body))
+        return json.loads(archive.read('data.json').decode('utf-8')), archive.read('data.json').decode('utf-8')
+
+    def test_export_own_replies_have_title_and_to(self):
+        general, family, personal = self.general(), self.blessing(), self.blessing()
+        self.sent('rotem-sub', general, 'אחד')
+        self.sent('rotem-sub', family, 'שניים')
+        self.sent('rotem-sub', personal, 'שלושה', to=self.shul)
+        data, _ = self.export('rotem-sub')
+        title = self.card('rotem-sub', general)['title']
+        got = {r['messageId']: r for r in data['replies']}
+        self.assertEqual({m: (r['to'], r['title']) for m, r in got.items()},
+                         {general: ('author', title), family: ('family', self.card('rotem-sub', family)['title']),
+                          personal: ('שולמית ברקן', self.card('rotem-sub', personal)['title'])})
+        self.assertNotIn(self.shul, json.dumps(data, ensure_ascii=False))
+
+    def test_export_reply_to_gone_adult_has_empty_to_and_gone_message_empty_title(self):
+        mid = self.blessing()
+        self.sent('rotem-sub', mid, 'סוד', to=self.shul)
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.shul}'})
+        self.repo.table.delete_item(Key={'pk': f'K#{self.k}', 'sk': f'MSG#{mid}'})
+        data, _ = self.export('rotem-sub')
+        self.assertEqual([(r['to'], r['title']) for r in data['replies']], [('', '')])
+
+    def test_export_replies_received_for_both_adults(self):
+        mid = self.blessing()
+        self.sent('rotem-sub', mid, 'מזל טוב')
+        for sub in ('shul-sub', 'yigal-sub'):
+            data, _ = self.export(sub)
+            (got,) = data['repliesReceived']
+            self.assertEqual((got['kehilaId'], got['messageId'], got['authorName'], got['body'], got['personal']),
+                             (self.k, mid, 'רותם אלמוג', 'מזל טוב', False), sub)
+            self.assertEqual(got['title'], self.card(sub, mid)['title'])
+            self.assertIn('createdAt', got)
+        self.assertEqual(self.export('rotem-sub')[0]['repliesReceived'], [])
+
+    def test_export_personal_reply_only_in_chosen_adults_export(self):
+        mid = self.blessing()
+        self.sent('rotem-sub', mid, 'סוד-גדול', to=self.shul)
+        data, _ = self.export('shul-sub')
+        self.assertEqual([(r['body'], r['personal']) for r in data['repliesReceived']], [('סוד-גדול', True)])
+        for sub in ('yigal-sub', 'gabbai-sub', 'tech-sub', 'ron-sub'):
+            data, text = self.export(sub)
+            self.assertEqual(data['repliesReceived'], [], sub)
+            self.assertNotIn('סוד-גדול', text, sub)
+
+    def test_export_received_author_replies(self):
+        mid = self.general()
+        self.sent('rotem-sub', mid, 'שלום לך')
+        data, _ = self.export('member-sub')
+        self.assertEqual([(r['body'], r['authorName'], r['personal']) for r in data['repliesReceived']],
+                         [('שלום לך', 'רותם אלמוג', False)])
+        self.assertEqual(self.export('gabbai-sub')[0]['repliesReceived'], [])
