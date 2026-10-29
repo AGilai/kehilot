@@ -1816,16 +1816,19 @@ Still open:
 **Owner, 2026-10-29:** after "שליחה" succeeds the seat screen closes by itself and returns to Home, with the Toast
 "נשמר" (the Home card/row then shows the new state). A failed send keeps the screen open with the error.
 
-**Free order, owner 2026-10-29 (supersedes "free from the far side of the aisle" everywhere in §15).** The head of the
-family keeps the best seat; seats are freed from the worst. Compare two of the family's seats in this order, the
-first difference decides:
-1. the row nearer the Aron (ארון הקודש) is better;
-2. in the same row, a seat next to an aisle is better;
-3. the seat nearer the bimah is better;
-4. the seat with fewer seats between it and an aisle is better;
-5. last tie: the seat on the right, facing the Aron.
-Example (owner): a family filling a whole row touches both aisles; the aisle seat nearer the bimah is the head's, the
-middle seats go first, then the other aisle seat. The gabbai's count upload frees in the same order.
+**Free order, owner 2026-10-29 (supersedes "free from the far side of the aisle" everywhere in §15).** The family
+stays together, and the head of the family keeps the best seat.
+- **Seat rank** (compare two seats; the first difference decides): (1) the row nearer the Aron (ארון הקודש) is better;
+  (2) in the same row, a seat next to an aisle is better; (3) the seat nearer the bimah is better; (4) fewer seats
+  between it and an aisle is better; (5) last tie: the seat on the right, facing the Aron.
+- **The head's seat** is the family's best seat by that rank.
+- **The chain (keep order):** start from the head's seat; each next seat is, among the family's seats not yet in the
+  chain that touch the chain (the next seat in the same row, else the seat in the row in front of or behind it), the
+  best by rank; if none touches, the best remaining by rank.
+- **Free order** is the chain backwards: the end of the chain is freed first, then back towards the head, like a
+  snake. Freed seats are always at the far end, so the kept seats stay one group around the head.
+Example (owner): a family filling a whole row keeps the aisle seat nearer the bimah as the head's; freeing starts at
+the other end of the row and moves towards the head. The gabbai's count upload frees in the same order.
 
 #### 15.10.13 One tap "לא מגיעים השבת" from Home and the push (P24, redrawn)
 
