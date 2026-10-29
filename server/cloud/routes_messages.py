@@ -138,7 +138,7 @@ def post_message(ctx, params):
                                 target_membership.get('displayName', '') if target else '',
                                 message_id=message_id, image=image, target_family_id=target_family_id,
                                 template_id=template_id, fields=fields)
-    sheet_items.on_post(ctx.repo, k, membership, settings, item, sheet_items._now())
+    sheet_items.on_post(ctx.repo, k, membership, settings, item, sheet_items._now(), channel)
     mid = item['sk'][len('MSG#'):]
     viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, [item], {channel_id: channel},
                                            families.TargetMemo(ctx.repo, k))[mid]
@@ -232,10 +232,15 @@ def list_messages(ctx, params):
     if before is not None and not ID_RE.fullmatch(before):
         raise ApiError(400, 'invalid_before')
     rules = kehila_rules(ctx, k)
-    channels, page, now = {}, [], _now()
-    for item in ctx.repo.iter_messages(k, before):
-        if before is not None and _bump_live(item, now):
-            continue  # page 1 already shows it at the top: later pages never repeat a moved message
+    channels = {}
+    live = _live_bumps(ctx, k)
+    cursor = before
+    if before is not None:  # the cursor is the sort key of the page's last message: its bumpId while that is live
+        last = ctx.repo.get_message(k, before)
+        if last and last.get('bumpId') and live.get(before) == last['bumpId']:
+            cursor = last['bumpId']
+    page = []
+    for item in _sorted_messages(ctx, k, cursor, live):
         cid = item['channelId']
         if cid not in channels:
             channels[cid] = ctx.repo.get_channel(k, cid)
@@ -243,8 +248,6 @@ def list_messages(ctx, params):
             page.append(item)
             if len(page) == limit:
                 break
-    if before is None:
-        page = _merge_bumps(ctx, k, membership, rules, channels, page, limit)
     ids = [i['sk'][len('MSG#'):] for i in page]
     times = ctx.repo.read_times(k, ctx.user_id, ids)
     viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, page, channels,
@@ -252,38 +255,39 @@ def list_messages(ctx, params):
     return 200, [_message_json(i, _is_read(times.get(m), i), viewer[m]) for i, m in zip(page, ids)]
 
 
-def _bump_live(item, now) -> bool:
-    """The message has a bump pointer that the first page still merges (pointers last BUMP_TTL)."""
-    return bool(item.get('bumpId')) and int(item.get('bumpedAt', 0)) + BUMP_TTL > now
-
-
 def _is_read(read_at, item) -> bool:
     """Read since the last notified update: a bump makes earlier reads stale."""
     return read_at is not None and read_at >= int(item.get('bumpedAt', 0))
 
 
-def _merge_bumps(ctx, k, membership, rules, channels, page, limit):
-    """The first page plus the visible, live messages whose bump is newer than the page's oldest message, sorted
-    by `bumpId or messageId`, newest first. The page may exceed `limit` by the merged ones."""
-    on_page = {i['sk'][len('MSG#'):] for i in page}
-    oldest = page[-1]['sk'][len('MSG#'):] if len(page) >= limit else None  # a short page holds every message
-    merged = []
+def _live_bumps(ctx, k):
+    """{messageId: bumpId} of the live bump pointers (TTL deletion lags: expiry is checked here)."""
     now = _now()
-    for bump in ctx.repo.list_bumps_after(k, oldest):
-        mid = bump['messageId']
-        if mid in on_page or int(bump.get('expiresAt', 0)) <= now:  # TTL deletion lags: expiry is checked here
+    live = {}
+    for b in ctx.repo.list_bumps_after(k):  # newest first: the first pointer of a message is its current one
+        if int(b.get('expiresAt', 0)) > now:
+            live.setdefault(b['messageId'], b['sk'][len('BUMP#'):])
+    return live
+
+
+def _sorted_messages(ctx, k, cursor, live):
+    """Every message once, newest first by `bumpId or messageId`, strictly older than `cursor` (a sort key). A message
+    with a live bump sits at its bump position only; any other sits at its own id. Lazy."""
+    bumps = sorted(((bump, mid) for mid, bump in live.items() if cursor is None or bump < cursor), reverse=True)
+    natural = (i for i in ctx.repo.iter_messages(k, cursor)
+               if not i.get('bumpId') or live.get(i['sk'][len('MSG#'):]) != i['bumpId'])
+    head = next(natural, None)
+    pos = 0
+    while head is not None or pos < len(bumps):
+        if head is not None and (pos >= len(bumps) or head['sk'][len('MSG#'):] > bumps[pos][0]):
+            yield head
+            head = next(natural, None)
             continue
+        bump_id, mid = bumps[pos]
+        pos += 1
         item = ctx.repo.get_message(k, mid)
-        if not item or item.get('removed') or item.get('bumpId') != bump['sk'][len('BUMP#'):]:
-            continue  # gone, or a pointer that is not the message's current bump (a lost race)
-        on_page.add(mid)
-        if item['channelId'] not in channels:
-            channels[item['channelId']] = ctx.repo.get_channel(k, item['channelId'])
-        if visibility.message_visible(membership, channels[item['channelId']], item, rules):
-            merged.append(item)
-    if not merged and not any(i.get('bumpId') for i in page):
-        return page
-    return sorted(page + merged, key=lambda i: i.get('bumpId') or i['sk'][len('MSG#'):], reverse=True)
+        if item and not item.get('removed') and item.get('bumpId') == bump_id:  # else a lost race: not current
+            yield item
 
 
 def get_message(ctx, params):

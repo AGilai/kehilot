@@ -308,7 +308,7 @@ class NotifyTest(test_messages.MessagesTest):
         self.assertFalse(self.get(old, 'member-sub')['read'])
         self.assertTrue(self.get(old, 'gabbai-sub')['read'])
         first = self.call('GET', f'{self.base()}/messages', sub='member-sub', query={'limit': '1'})[1]
-        self.assertEqual(len(first), 2)               # the page plus the merged bump
+        self.assertEqual(len(first), 1)               # the bump takes the page's one place
         self.assertEqual(first[0]['messageId'], old)
         self.assertEqual(first[0]['bumpId'], out['bumpId'])
         self.assertEqual(self.get(old, 'member-sub')['bumpId'], out['bumpId'])
@@ -382,6 +382,26 @@ class NotifyTest(test_messages.MessagesTest):
         self.assertEqual(len(seen), len(set(seen)))
         self.assertEqual(set(seen), set(ids))
 
+    def test_bumped_message_not_lost_when_newer_pages_follow(self):    # final review I-1
+        ids = []
+        for _ in range(3):
+            ids.append(self.event())
+            self.t += 5
+        self.put(ids[0], time='21:00')                                # bumped, then more than a page of newer ones
+        for _ in range(4):
+            ids.append(self.post('announcements', type='general')[1]['messageId'])
+            self.t += 5
+        seen, query = [], {'limit': '3'}
+        while True:
+            page = self.call('GET', f'{self.base()}/messages', query=query)[1]
+            if not page:
+                break
+            self.assertLessEqual(len(page), 3)
+            seen += [m['messageId'] for m in page]
+            query = {'limit': '3', 'before': page[-1]['messageId']}
+        self.assertEqual(sorted(seen), sorted(ids))                   # each exactly once
+        self.assertEqual(seen[4], ids[0])                             # at its bump position, after the 4 newer ones
+
     def test_expired_bump_stops_moving_the_message(self):
         old = self.event()
         self.t += 5
@@ -416,8 +436,8 @@ class NotifyTest(test_messages.MessagesTest):
         self.put(a, time='21:00')
         listing = self.call('GET', f'{self.base()}/messages', query={'limit': '3'})[1]
         self.assertEqual(listing[0]['messageId'], a)
-        self.assertEqual(len(listing), 4)
-        self.assertEqual(len({m['messageId'] for m in listing}), 4)
+        self.assertEqual(len(listing), 3)             # a page never exceeds `limit`
+        self.assertEqual(len({m['messageId'] for m in listing}), 3)
         self.t += 5
         self.put(b, time='21:00')
         self.call('DELETE', f'{self.base()}/messages/{b}')
