@@ -14,7 +14,7 @@ import time
 from datetime import datetime
 
 from . import authz, expo, families, seat_reminders, seat_times, seating_week, type_rules, visibility
-from .push import MESSAGE_TYPES, PUSH_TEXT, SYSTEM_KEYS, resolve_text
+from .push import MESSAGE_TYPES, PUSH_TEXT, REPLY_KEYS, SYSTEM_KEYS, reply_text_key, resolve_text
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 log = logging.getLogger(__name__)
@@ -39,6 +39,41 @@ def _now():
     return datetime.now(seating_week.TZ)
 
 
+def _split_reply_ref(ref):
+    """(messageId, replyId) of a reply job's ref '<m>/<r>', else None."""
+    message_id, _, reply_id = ref.partition('/')
+    return (message_id, reply_id) if message_id and reply_id and '/' not in reply_id else None
+
+
+def _reply_context(repo, kehila, ref):
+    """(message, reply) of a reply job, or None when the ref is bad, or the message or reply is gone or removed."""
+    parts = _split_reply_ref(ref)
+    message = repo.get_message(kehila, parts[0]) if parts else None
+    reply = repo.get_reply(kehila, *parts) if message and not message.get('removed') else None
+    return (message, reply) if reply else None
+
+
+def _reply_recipients(repo, kehila, ref):
+    """Who a reply is for (never the writer, mutes do not apply), then only those not pushed for this message in
+    the last REPLY_PUSH_WINDOW: each is claimed with a conditional put. Personal replies reach the chosen adult only."""
+    context = _reply_context(repo, kehila, ref)
+    if not context:
+        return []
+    message, reply = context
+    channel = repo.get_channel(kehila, message['channelId'])
+    to = reply.get('to') or 'family'
+    if to == 'author':
+        found = [repo.get_membership(kehila, message['authorId'])]
+    elif to == 'family':
+        found = families.ordered_reachable_adults(repo, kehila, message, channel)
+    else:
+        found = [repo.get_membership(kehila, to)]
+    uids = [m['userId'] for m in found if visibility.reply_target_ok(m, channel) and m['userId'] != reply['authorId']]
+    now = int(time.time())
+    message_id = _split_reply_ref(ref)[0]
+    return [uid for uid in dict.fromkeys(uids) if repo.claim_reply_push(kehila, message_id, uid, now)]
+
+
 def recipients(repo, kind, kehila, ref):
     """User IDs to push for this job."""
     if kind == seat_reminders.KIND:
@@ -50,21 +85,14 @@ def recipients(repo, kind, kehila, ref):
         members = repo.list_members(kehila)
         admins = [m['userId'] for m in members if visibility.is_group_admin(m, ref) and authz.role_in(m, authz.MEMBER_ONLY)]
         return admins or [m['userId'] for m in members if visibility.is_management(m)]
+    if kind == 'reply':  # ref = '<messageId>/<replyId>'
+        return _reply_recipients(repo, kehila, ref)
     if kind in SYSTEM_KEYS:  # ref = the recipient, who must still be a member or gabbai here
         membership = repo.get_membership(kehila, ref)
         return [ref] if authz.role_in(membership, authz.ADULTS) else []
     message = repo.get_message(kehila, ref)
     if not message or message.get('removed'):
         return []
-    if kind == 'reply':
-        target = message.get('targetMemberId')
-        if not target:
-            return []
-        channel = repo.get_channel(kehila, message['channelId'])
-        # every adult of the target family who can read the channel (the author is never one of them: post_reply
-        # refuses authors in the family)
-        adults = families.target_adults(repo, kehila, message)
-        return [m['userId'] for m in families.reachable_adults(repo, kehila, adults, channel)]
     if kind != 'message':
         return []
     channel = repo.get_channel(kehila, message['channelId'])
@@ -96,6 +124,8 @@ def _data(kind, kehila, ref):
         return {'kehila': kehila, 'screen': 'group_requests'}  # the group ID stays out of the payload
     if kind in SYSTEM_KEYS:
         return {'kehila': kehila, 'screen': 'family'}
+    if kind == 'reply':
+        return {'kehila': kehila, 'messageId': ref.partition('/')[0]}
     return {'kehila': kehila, 'messageId': ref}
 
 
@@ -143,6 +173,11 @@ def _build(repo, kind, kehila, ref):
     if kind == 'message':
         message_type = (repo.get_message(kehila, ref) or {}).get('type')
         text_key = message_type if message_type in MESSAGE_TYPES else 'message'
+    if kind == 'reply':
+        context = _reply_context(repo, kehila, ref)
+        if not context:
+            return [], {}
+        text_key = reply_text_key(context[0].get('type'), context[1].get('to') or 'family')
     default = settings.get('defaultLang', 'he')
     default = default if default in ('he', 'en') else 'he'
     data = _data(kind, kehila, ref)
@@ -176,7 +211,7 @@ def _process(repo, job, token):
         if reason:
             log.info('push kind=seat_reminder kehila=%s ref=%s skipped=%s', kehila, ref, reason)
             return
-    elif kind not in PUSH_TEXT:
+    elif kind != 'reply' and (kind not in PUSH_TEXT or kind in REPLY_KEYS):
         log.warning('unknown push kind %s', kind)
         return
     messages, owners = _build(repo, kind, kehila, ref)

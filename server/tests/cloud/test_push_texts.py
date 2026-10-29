@@ -68,7 +68,7 @@ class PushTextsTest(unittest.TestCase):
         status, body = self.call('GET', self.url())
         self.assertEqual((status, body['custom'], body['defaults']),
                          (200, {'celebration': {'en': 'Mazal tov!'}},
-                          {key: v for key, v in PUSH_TEXT.items() if key not in push.SYSTEM_KEYS}))
+                          {key: v for key, v in PUSH_TEXT.items() if key not in push.FIXED_TEXT_KEYS}))
         self.assertEqual(self.repo.get_kehila(self.k)['name'], 'Beit Test')  # other META fields are kept
         self.assertIn('settings', self.repo.get_kehila(self.k))
 
@@ -83,6 +83,14 @@ class PushTextsTest(unittest.TestCase):
         self.assertEqual(self.put('celebration', 'en', '')[0], 200)  # removing an absent entry is fine
         self.put('celebration', 'he', '')
         self.assertEqual(self.call('GET', self.url())[1]['custom'], {})
+
+    def test_reply_key_not_editable(self):
+        defaults = self.call('GET', self.url())[1]['defaults']
+        for key in ('reply', *push.REPLY_KEYS):
+            self.assertNotIn(key, defaults)
+            self.assertEqual(self.put(key, 'en', 'x'), (400, {'error': 'invalid_key'}), key)
+        self.assertEqual(push.resolve_text({'pushTexts': {'private_reply': {'en': 'x'}}}, 'private_reply', 'en'),
+                         'New private reply')
 
     def test_member_cannot_edit_push_texts(self):
         self.assertEqual(self.put('celebration', 'en', 'x', sub='eng')[0], 403)
@@ -131,7 +139,7 @@ class PushTextsTest(unittest.TestCase):
         self.assertEqual(self.call('GET', self.url())[1]['custom'], {})
 
     def test_set_after_last_language_removed_reuses_empty_key_map(self):
-        self.put('reply', 'en', 'a')
-        self.put('reply', 'en', '')
-        self.assertEqual(self.put('reply', 'he', 'ב')[0], 200)
-        self.assertEqual(self.call('GET', self.url())[1]['custom'], {'reply': {'he': 'ב'}})
+        self.put('event', 'en', 'a')
+        self.put('event', 'en', '')
+        self.assertEqual(self.put('event', 'he', 'ב')[0], 200)
+        self.assertEqual(self.call('GET', self.url())[1]['custom'], {'event': {'he': 'ב'}})

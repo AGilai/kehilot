@@ -171,11 +171,12 @@ class RepliesTest(test_messages.MessagesTest):
 
     def test_partner_who_cannot_read_channel_sees_nothing(self):
         self.link(self.quiet, self.other)
-        self.assertEqual(self.reply('member-sub', 'hi')[0], 201)
+        status, sent = self.reply('member-sub', 'hi')
+        self.assertEqual(status, 201)
         self.set_group('simchas', [self.member, self.quiet])
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{self.mid}', sub='other-sub')[0], 404)
         self.assertEqual(self.call('GET', f'{self.base()}/messages/{self.mid}/replies', sub='other-sub')[0], 404)
-        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid), [self.quiet])
+        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, f"{self.mid}/{sent['replyId']}"), [self.quiet])
 
     def test_ex_partner_loses_replies_after_unlink(self):
         self.link(self.quiet, self.other)
@@ -211,7 +212,7 @@ class RepliesTest(test_messages.MessagesTest):
             status, sent = self.reply('member-sub', mid=mid)
         self.assertEqual(status, 201)
         enqueue.assert_called_once_with('reply', self.k, f"{mid}/{sent['replyId']}")
-        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, mid), [self.other])
+        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, f"{mid}/{sent['replyId']}"), [self.other])
         self.assertEqual(self.replies('other-sub', mid=mid), ['Mazal tov'])
         self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='other-sub')[0], 204)
         self.assertEqual(self.reply('member-sub', mid=mid), (409, {'error': 'target_left'}))
@@ -234,14 +235,14 @@ class RepliesTest(test_messages.MessagesTest):
     def test_stale_adult_with_other_family_loses_access(self):
         fid = self.link(self.quiet, self.other)
         mid = self.post('simchas', type='celebration', targetMemberId=self.quiet, targetFamilyId=fid)[1]['messageId']
-        self.reply('member-sub', 'hi', mid=mid)
+        sent = self.reply('member-sub', 'hi', mid=mid)[1]
         # Omri left and rejoined with a new family, but the clean-up of F never ran: F.adults still lists him
         new_fid = self.repo.ensure_family(self.k, self.member)
         self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{self.other}'},
                                     UpdateExpression='SET familyId = :f', ExpressionAttributeValues={':f': new_fid})
         self.assertIn(self.other, self.repo.get_family(self.k, fid)['adults'])
         self.assertEqual(self.replies('other-sub', mid=mid), [])
-        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, mid), [self.quiet])
+        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, f"{mid}/{sent['replyId']}"), [self.quiet])
         self.assertEqual(self.post('simchas', type='celebration', targetMemberId=self.other,
                                    targetFamilyId=fid), (400, {'error': 'invalid_target_family_id'}))
         rows = self.families()[1]

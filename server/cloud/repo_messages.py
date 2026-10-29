@@ -11,6 +11,7 @@ from .ids import new_id
 CHANGE_TTL = 30 * 86400
 COUNTER_TTL = 2 * 86400
 CHAT_COUNTER_TTL = 2 * 3600
+REPLY_PUSH_WINDOW = 15 * 60  # seconds between pushes for one message to one person
 MSG_PREFIX = 'MSG#'
 
 try:
@@ -335,6 +336,22 @@ class MessagesRepo:
             values[':personal'] = {personal_to}
         self.table.update_item(Key={'pk': f'K#{k}#RX', 'sk': f'{MSG_PREFIX}{message_id}'}, UpdateExpression=expression,
                                ExpressionAttributeValues=values)
+
+    def claim_reply_push(self, k, message_id, user_id, now):
+        """True when this user may be pushed for a reply on the message now: at most one push per message per user
+        in REPLY_PUSH_WINDOW. A conditional put, so concurrent workers cannot both claim."""
+        now = int(now)
+        try:
+            self.table.put_item(
+                Item={'pk': f'K#{k}#U#{user_id}', 'sk': f'RXPUSH#{message_id}', 'at': now, 'expiresAt': now + 3600},
+                ConditionExpression='attribute_not_exists(sk) OR #at <= :cut',
+                ExpressionAttributeNames={'#at': 'at'},
+                ExpressionAttributeValues={':cut': now - REPLY_PUSH_WINDOW})
+            return True
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+            return False
 
     def get_reply(self, k, message_id, reply_id):
         return self._get(f'K#{k}#MSG#{message_id}', f'R#{reply_id}')

@@ -138,20 +138,6 @@ class PushTest(unittest.TestCase):
         item = self.message('chat-room', author='fam', kind='member', type_='chat')
         self.assertEqual(push_worker.recipients(self.repo, 'message', self.k, self.mid(item)), ['eng'])
 
-    def test_reply_push_goes_to_target_only(self):
-        m = self.message(author='gab', target='fam')
-        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid(m)), ['fam'])
-        push_worker.handler({'Records': [record('reply', self.k, self.mid(m))]}, None)
-        self.assertEqual([s['to'] for s in self.sent], ['ExponentPushToken[fam]'])
-        self.assertEqual(self.sent[0]['data'], {'kehila': self.k, 'messageId': self.mid(m)})
-
-    def test_reply_push_goes_to_every_adult_not_author(self):
-        self.repo.link(self.k, 'fam', 'eng')
-        m = self.message(author='gab', target='fam')
-        self.assertCountEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid(m)), ['fam', 'eng'])
-        self.repo.put_membership(self.k, 'eng', 'listener')  # a departed/listener adult gets nothing
-        self.assertEqual(push_worker.recipients(self.repo, 'reply', self.k, self.mid(m)), ['fam'])
-
     def test_family_request_push_payload(self):
         for kind, ref in (('family_request', self.eng), ('family_gabbai', self.eng)):
             self.sent.clear()
@@ -221,7 +207,7 @@ class PushTest(unittest.TestCase):
         self.run_message(m)
         self.assertTrue(self.sent)
         texts = {t for langs in PUSH_TEXT.values() for t in langs.values()}
-        self.assertEqual(len(PUSH_TEXT), 11)
+        self.assertEqual(len(PUSH_TEXT), 15)
         for s in self.sent:
             self.assertLessEqual(set(s['data']), {'kehila', 'messageId', 'screen'})
             self.assertIn(s['body'], texts)

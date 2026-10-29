@@ -290,7 +290,7 @@ def accept_terms(ctx, params):
 
 
 def _editable(key):
-    return key in push.PUSH_TEXT and key not in push.SYSTEM_KEYS
+    return key in push.PUSH_TEXT and key not in push.FIXED_TEXT_KEYS
 
 
 def get_push_texts(ctx, params):
