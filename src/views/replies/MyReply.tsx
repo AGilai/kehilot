@@ -65,10 +65,9 @@ export function MyReply({ message, reply, onLayout }: { message: Message; reply:
           </>
         )}
       </Card>
-      <Sheet visible={confirm} title={t('reply.deleteTitle')} onClose={() => setConfirm(false)}>
+      <Sheet visible={confirm} title={t('reply.deleteTitle')} onClose={() => setConfirm(false)} closeLabel={t('reply.cancel')}>
         <Txt>{deleteReplyBody(reply, message, t)}</Txt>
         <Button kind="danger" title={t('reply.delete')} onPress={() => void remove()} />
-        <Button kind="secondary" title={t('reply.cancel')} onPress={() => setConfirm(false)} />
       </Sheet>
     </View>
   );

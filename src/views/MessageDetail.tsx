@@ -4,7 +4,7 @@ import type { LayoutChangeEvent } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Hit } from '../search/hit.ts';
 import { joinLabel, timeOfDay, ulidTime } from '../client/messageView.ts';
-import { buttonState, countText, deleteMessageBody, myReply } from '../client/replyView.ts';
+import { buttonState, countText, deleteMessageBody, myReply, replyKind } from '../client/replyView.ts';
 import { dualDateAt } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
@@ -16,7 +16,7 @@ import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { TOUCH, edge } from '../kit/theme.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
-import { BackIcon } from '../kit/Icon.tsx';
+import { BackIcon, Icon } from '../kit/Icon.tsx';
 import { messageMeta } from '../client/typesView.ts';
 import { isAdult, isManagement } from '../client/roles.ts';
 
@@ -39,11 +39,10 @@ export function MessageDetail({ messageId, onBack, focus }: { messageId: string;
   const [error, setError] = React.useState<string | null>(null);
   const scroll = React.useRef<ScrollView>(null);
   const ys = React.useRef<{ received?: number; mine?: number }>({});
-  const scrolled = React.useRef(false);
-  const place = (key: 'received' | 'mine') => (e: LayoutChangeEvent) => {
-    ys.current[key] = e.nativeEvent.layout.y;
-    if (focus === key && !scrolled.current) { scrolled.current = true; setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 8), animated: false }), 0); }
-  };
+  const touched = React.useRef(false);
+  // y of the section relative to the scroll content (both sections are direct children of it). Re-run when the content grows, until the user scrolls.
+  const go = () => { const y = focus ? ys.current[focus] : undefined; if (y !== undefined && !touched.current) scroll.current?.scrollTo({ y: Math.max(0, y - 8), animated: false }); };
+  const place = (key: 'received' | 'mine') => (e: LayoutChangeEvent) => { ys.current[key] = e.nativeEvent.layout.y; if (focus === key) setTimeout(go, 0); };
   const [joined, setJoined] = React.useState(false);
   const [joining, setJoining] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
@@ -71,7 +70,7 @@ export function MessageDetail({ messageId, onBack, focus }: { messageId: string;
     const date = Number.isFinite(ulidTime(messageId))
       ? dualDateAt(ulidTime(messageId), lang, { year: true }) : '';
     return (
-      <PadScroll ref={scroll} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <PadScroll ref={scroll} onScrollBeginDrag={() => { touched.current = true; }} onContentSizeChange={go} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {back}
         <Banner text={t('detail.offlineCopy')} />
         <Card edgeColor={edge(copy.type, scheme)}>
@@ -128,18 +127,23 @@ export function MessageDetail({ messageId, onBack, focus }: { messageId: string;
         <Txt size="small" color={k.muted}>{t('detail.from', { name: message.authorName })}</Txt>
       </Card>
 
-      {chip ? <Txt size="small" bold color={k.muted}>{chip}</Txt> : null}
+      {chip ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Icon name={replyKind(message.type) === 'general' ? 'lock' : 'heart'} size={16} color={k.muted} />
+          <Txt size="small" bold color={k.muted}>{chip}</Txt>
+        </View>
+      ) : null}
       {canJoin ? <Button kind={joined ? 'secondary' : 'primary'} title={joined ? t('detail.joined') : joinLabel(message.type, message.joinCount, t)} onPress={() => void doJoin()} busy={joining} disabled={joined} /> : null}
       {error ? <Banner tone="error" text={error} /> : null}
 
       {isReceiver ? <ReceivedList message={message} replies={all} onLayout={place('received')} /> : null}
 
       {mine ? (
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: 8 }} onLayout={place('mine')}>
           {older.map(r => (
             <Card key={r.replyId} edgeColor={k.olive}><Txt content color={k.muted}>{r.body}</Txt></Card>
           ))}
-          <MyReply key={mine.replyId} message={message} reply={mine} onLayout={place('mine')} />
+          <MyReply key={mine.replyId} message={message} reply={mine} />
         </View>
       ) : null}
 
