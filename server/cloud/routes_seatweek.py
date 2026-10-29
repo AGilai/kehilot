@@ -111,9 +111,13 @@ def _out_member(ctx, k, friday, family_id):
     states = {p: _effective(raw[p], held) for p in wk.PRAYERS}
     staff = [v for p in wk.PRAYERS for s in ordered
              if _is_staff((v := (states[p]['seats']).get(s) or {}).get('by'))]
-    latest = max(staff, key=lambda v: v.get('at') or 0)['by'] if staff else None
+    newest = max(staff, key=lambda v: v.get('at') or 0) if staff else None
+    latest = newest['by'] if newest else None
     return {**base, 'seats': len(ordered), 'updatedByGabbai': bool(staff),
             'updatedByRole': _staff_role(latest) if staff else None,
+            'updatedByAt': (newest.get('at') or None) if newest else None,
+            'freeOrder': [ordered.index(sid) + 1 for sid in wk.free_order(layout, ordered)],
+            'answeredAt': {p: ((raw[p] or {}).get('answered') or {}).get(ref) for p in wk.PRAYERS},
             'updatedAt': {p: (raw[p] or {}).get('updatedAt') for p in wk.PRAYERS},
             'answered': {p: ref in ((raw[p] or {}).get('answered') or {}) for p in wk.PRAYERS},
             'frames': wk.frames(layout, ordered, states)}
@@ -349,7 +353,7 @@ def apply_responses(ctx, params):
                 continue
             if count > len(ordered):
                 warnings.append({'household': ref, 'code': 'above_seats'})
-            free = wk.to_release(ordered, count)
+            free = wk.to_release(wk.free_order(layout, ordered), count)
             applied += 1
             released_n += len(free)
             kept_n += len(ordered) - len(free)

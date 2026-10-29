@@ -44,10 +44,56 @@ def family_order(layout, seat_ids):
     return [s['id'] for s in mine]
 
 
-def to_release(ordered, count):
-    """A released count frees seats from the highest order down."""
-    count = max(0, min(count, len(ordered)))
-    return set(ordered[len(ordered) - count:]) if count else set()
+def lanes(layout, block):
+    """The sides of a block that are a lane: the column just outside is inside the hall and in no block.
+    Subset of ['left', 'right'], in that order. The hall's outer edges are walls."""
+    out = []
+    for side, col in (('left', block['colStart'] - 1), ('right', block['colEnd'] + 1)):
+        if 0 <= col < len(layout['cells'][0]) and block_index(layout, col) == -1:
+            out.append(side)
+    return out
+
+
+def head_side(layout, block):
+    """The side that counts as "the aisle": the only lane, or the lane nearer the bimah's centre column (the mean
+    column of all bimah cells). A tie, or no bimah, goes to the right lane. None when the block has no lane."""
+    ls = lanes(layout, block)
+    if len(ls) < 2:
+        return ls[0] if ls else None
+    cols = [c for row in layout['cells'] for c, k in enumerate(row) if k == 'bimah']
+    if not cols:
+        return 'right'
+    centre = sum(cols) / len(cols)
+    left, right = abs(block['colStart'] - 1 - centre), abs(block['colEnd'] + 1 - centre)
+    return 'left' if left < right else 'right'
+
+
+def _aisle_distance(layout, block, seat):
+    """Seats (anyone's) between this seat and the aisle edge of its block, in its row."""
+    side = head_side(layout, block)
+    if side is None:
+        return 0
+    row, col = layout['cells'][seat['row']], seat['col']
+    span = range(col + 1, block['colEnd'] + 1) if side == 'right' else range(block['colStart'], col)
+    return sum(1 for c in span if row[c] == 'seat')
+
+
+def free_order(layout, ordered):
+    """Seat ids, first to free first: rear row first, then the largest aisle distance, then the higher family order."""
+    pos = {s['id']: s for s in layout['seats']}
+    keyed = []
+    for i, sid in enumerate(ordered):
+        seat = pos[sid]
+        bi = block_index(layout, seat['col'])
+        dist = _aisle_distance(layout, layout['blocks'][bi], seat) if bi >= 0 else 0
+        keyed.append(((-seat['row'], -dist, -i), sid))
+    return [sid for _, sid in sorted(keyed)]
+
+
+def to_release(free_ordered, count):
+    """A released count frees the first `count` seats of the free order."""
+    count = max(0, min(count, len(free_ordered)))
+    return set(free_ordered[:count]) if count else set()
 
 
 def is_released(item, seat_id):
@@ -72,6 +118,7 @@ def frames(layout, ordered, states):
             continue
         used = [r for r, row in enumerate(layout['cells'])
                 if any(k in ('seat', 'bimah') for k in row[block['colStart']:block['colEnd'] + 1])]
+        hall_first = min(r for r, row in enumerate(layout['cells']) if any(k in ('seat', 'bimah') for k in row))
         lo_all, hi_all = min(used), max(used)
         groups = []
         for s in seats:
@@ -101,7 +148,8 @@ def frames(layout, ordered, states):
                 rows.append({'label': _label(layout, r), 'mine': any(c['kind'] == 'mine' for c in cells),
                              'bimah': any(c['kind'] == 'bimah' for c in cells), 'cells': cells})
             out.append({'blockName': block['name'], 'cols': block['colEnd'] - block['colStart'] + 1,
-                        'rowFrom': _label(layout, lo), 'rowTo': _label(layout, hi), 'rows': rows})
+                        'rowFrom': _label(layout, lo), 'rowTo': _label(layout, hi), 'rows': rows,
+                        'lanes': lanes(layout, block), 'gapAbove': lo > hall_first})
     return out
 
 

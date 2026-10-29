@@ -96,7 +96,10 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual([r['label'] for r in frame['rows']], ['3', '4', '5', '6', '7'])
         self.assertEqual(frame['blockName'], 'שמאל בדיוני')
         self.assertEqual(frame['cols'], 2)
-        self.assertEqual(set(body), {'week', 'deadline', 'open', 'remindable', 'seats', 'answered', 'updatedByGabbai', 'updatedByRole', 'updatedAt', 'frames'})
+        self.assertEqual(set(body), {'week', 'deadline', 'open', 'remindable', 'seats', 'answered', 'updatedByGabbai', 'updatedByRole', 'updatedAt', 'frames',
+                                    'freeOrder', 'answeredAt', 'updatedByAt'})
+        self.assertEqual(set(frame), {'blockName', 'cols', 'rowFrom', 'rowTo', 'rows', 'lanes', 'gapAbove'})
+        self.assertEqual(sorted(body['freeOrder']), [1, 2])
         raw = json.dumps(body, ensure_ascii=False)
         for secret in list(self.at.values()) + [self.other, self.holder, HOLDER, 'Quinn', 'ימין בדיוני', self.fam, 'holder:', 'family:',
                                                 'assignments']:
@@ -354,6 +357,62 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual(self.respond([{'household': f'family:{self.fam}', 'released': 0}])[0], 200)
         self.assertEqual(self.released(), set())
         self.assertEqual(self.released('day'), set())
+
+    def test_free_order_from_the_far_side_of_the_aisle(self):
+        self.mine((5, 3), (5, 4), (5, 5))
+        body = self.me()[1]
+        self.assertEqual((body['freeOrder'], body['frames'][0]['lanes']), ([1, 2, 3], ['left']))
+        self.mine((5, 0), (5, 1))
+        body = self.me()[1]
+        self.assertEqual((body['freeOrder'], body['frames'][0]['lanes']), ([2, 1], ['right']))
+
+    def test_big_family_rear_row_first(self):
+        self.mine((3, 3), (3, 4), (3, 5), (3, 6), (4, 5), (4, 6))
+        body = self.me()[1]
+        self.assertEqual(body['freeOrder'], [5, 6, 1, 2, 3, 4])
+        self.assertEqual(len(body['frames']), 1)
+        rows = {r['label']: r for r in body['frames'][0]['rows']}
+        self.assertTrue(rows['3']['mine'] and rows['4']['mine'])
+
+    def test_free_order_ignores_who_holds_the_other_seats(self):
+        self.mine((5, 4), (5, 5))
+
+        def shape():
+            body = self.me()[1]
+            return body['freeOrder'], [f['lanes'] for f in body['frames']], [f['gapAbove'] for f in body['frames']]
+        before = shape()
+        self.give(f'family:{self.other}', (5, 3), (5, 6))
+        self.assertEqual(shape(), before)
+
+    def test_gap_above(self):
+        self.mine((5, 0))
+        self.assertIs(self.me()[1]['frames'][0]['gapAbove'], True)
+        self.mine((1, 0))
+        self.assertIs(self.me()[1]['frames'][0]['gapAbove'], False)
+
+    def test_answered_at_is_his_own(self):
+        self.mine((5, 0))
+        self.give(f'family:{self.other}', (5, 3))
+        self.assertEqual(self.me()[1]['answeredAt'], {'erev': None, 'day': None})
+        self.assertEqual(self.put_me([])[0], 200)
+        mine = self.me()[1]['answeredAt']
+        self.assertIsInstance(mine['erev'], int)
+        self.assertIsNone(mine['day'])
+        self.assertEqual(self.put_me([], sub='quiet-sub')[0], 200)
+        self.assertEqual(self.me()[1]['answeredAt'], mine)
+
+    def test_updated_by_at(self):
+        self.mine((5, 0))
+        self.assertIsNone(self.me()[1]['updatedByAt'])
+        self.assertEqual(self.gput({self.at[(5, 0)]: True})[0], 200)
+        self.assertIsInstance(self.me()[1]['updatedByAt'], int)
+
+    def test_apply_frees_far_from_the_aisle_first(self):
+        self.mine((5, 3), (5, 4), (5, 5))
+        self.assertEqual(self.respond([{'household': f'family:{self.fam}', 'released': 1}])[0], 200)
+        self.assertEqual(self.released(), {self.at[(5, 5)]})
+        self.assertEqual(self.respond([{'household': f'family:{self.fam}', 'released': 2}])[0], 200)
+        self.assertEqual(self.released(), {self.at[(5, 5)], self.at[(5, 4)]})
 
     def test_apply_holders_and_marks_gabbai(self):
         self.give(f'holder:{self.holder}', (8, 0), (8, 1))
