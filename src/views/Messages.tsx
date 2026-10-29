@@ -31,7 +31,7 @@ export type Filter = 'mine' | 'all';
  * one "סוג הודעה" control (several types can be on, with counts), the muted switch inside it, messages grouped by
  * Israel day. Filters and counts run over the whole on-device archive.
  */
-export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = '' }: { onOpen: (id: string) => void; onChat: (channelId: string) => void; onNew?: () => void; initialFilter?: Filter; initialQuery?: string }) {
+export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = '' }: { onOpen: (id: string, focus?: 'received' | 'mine') => void; onChat: (channelId: string) => void; onNew?: () => void; initialFilter?: Filter; initialQuery?: string }) {
   const { t, lang, dir } = useI18n();
   const { width } = useWindowDimensions();
   const k = useTokens();
@@ -234,7 +234,7 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
         renderSectionHeader={({ section }) => <Txt size="small" bold color={k.muted} style={{ paddingTop: 8 }}>{dayLabel(section.day)}</Txt>}
         renderItem={({ item }) => (
           <MessageRow message={item} meta={messageMeta(item, channels, timeOfDay(item.messageId), t)} muted={isMuted(item, notify, channels)} onPress={() => onOpen(item.messageId)}
-            reply={{ unreadNew: unreadById[item.messageId] ?? 0, onReply: () => openSheet(item.messageId, 'reply'), onOpenReplies: () => onOpen(item.messageId), onActions: () => openSheet(item.messageId, 'actions') }} />
+            reply={{ unreadNew: unreadById[item.messageId] ?? 0, onReply: () => (item.replied ? onOpen(item.messageId, 'mine') : openSheet(item.messageId, 'reply')), onOpenReplies: () => onOpen(item.messageId, 'received'), onActions: () => openSheet(item.messageId, 'actions') }} />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 0 }} />}
         ListEmptyComponent={empty}

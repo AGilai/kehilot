@@ -211,13 +211,14 @@ export function Banner({ text, tone = 'info', action }: { text: string; tone?: '
 }
 
 /** Small read-only label. `preview`: dashed ink outline, transparent (UX §15.4: never reads as a real status). `plain`/`strong`: access role and class. `role`: a Kehila-defined role tag, a name (surface fill, ink text), not a permission. */
-export function Tag({ label, tone = 'plain', content }: { label: string; tone?: 'plain' | 'strong' | 'role' | 'preview'; /** User text: keeps its own direction. */ content?: boolean }) {
+export function Tag({ label, tone = 'plain', content, icon }: { label: string; tone?: 'plain' | 'strong' | 'role' | 'preview' | 'pomegranate'; icon?: IconName; /** User text: keeps its own direction. */ content?: boolean }) {
   const k = useTokens();
-  const bg = tone === 'preview' ? 'transparent' : tone === 'role' ? k.surface : k.stone;
-  const border = tone === 'strong' ? k.tekhelet : tone === 'preview' ? k.ink : k.line;
-  const fg = tone === 'strong' ? k.tekhelet : tone === 'role' || tone === 'preview' ? k.ink : k.muted;
+  const bg = tone === 'preview' ? 'transparent' : tone === 'role' || tone === 'pomegranate' ? k.surface : k.stone;
+  const border = tone === 'pomegranate' ? k.pomegranate : tone === 'strong' ? k.tekhelet : tone === 'preview' ? k.ink : k.line;
+  const fg = tone === 'pomegranate' ? k.pomegranate : tone === 'strong' ? k.tekhelet : tone === 'role' || tone === 'preview' ? k.ink : k.muted;
   return (
-    <View style={{ paddingHorizontal: 10, minHeight: 24, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderStyle: tone === 'preview' ? 'dashed' : 'solid', borderColor: border, backgroundColor: bg }}>
+    <View style={{ paddingHorizontal: 10, minHeight: 24, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderStyle: tone === 'preview' ? 'dashed' : 'solid', borderColor: border, backgroundColor: bg, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      {icon ? <Icon name={icon} size={12} color={fg} /> : null}
       <Txt size="caption" bold color={fg} content={content}>{label}</Txt>
     </View>
   );

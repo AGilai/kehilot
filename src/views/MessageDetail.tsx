@@ -1,45 +1,49 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View, useColorScheme } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Hit } from '../search/hit.ts';
 import { joinLabel, timeOfDay, ulidTime } from '../client/messageView.ts';
-import { buttonState, countText, headingText, lockText, myReply, placeholder, receivedTitle, replyTime, sentText } from '../client/replyView.ts';
+import { buttonState, countText, deleteMessageBody, myReply } from '../client/replyView.ts';
 import { dualDateAt } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
+import { ReplyBox } from './replies/ReplyBox.tsx';
+import { ReceivedList } from './replies/ReceivedList.tsx';
+import { MyReply } from './replies/MyReply.tsx';
 import { PadScroll } from '../kit/PadScroll.tsx';
-import { Composer } from '../kit/Composer.tsx';
 import { ImageThumb } from '../kit/ImageThumb.tsx';
 import { TOUCH, edge } from '../kit/theme.ts';
 import { roleFeatures } from '../client/roleView.ts';
 import { useErrorText } from './auth/Frame.tsx';
 import { BackIcon } from '../kit/Icon.tsx';
 import { messageMeta } from '../client/typesView.ts';
-import {  } from '../client/roles.ts';
-import { isManagement } from '../client/roles.ts';
-
-/** Reply errors that end the chance to reply to this message. */
-const HIDES_BOX = ['cannot_reply_to_own', 'replies_not_allowed', 'target_left', 'author_left', 'already_replied'];
+import { isAdult, isManagement } from '../client/roles.ts';
 
 /**
  * M3: the full message. The server returns only the replies this caller may read (the recipient's, or the
- * caller's own); anyone else sees the count and no text. Task 8 reworks the box (picker, edit, delete, mailbox).
+ * caller's own); anyone else sees the count and no text. Under the card: the received list (recipient), my reply with
+ * edit and delete (replier) or the reply box. `focus` scrolls to the received list or to my reply.
  */
-export function MessageDetail({ messageId, onBack }: { messageId: string; onBack: () => void }) {
+export function MessageDetail({ messageId, onBack, focus }: { messageId: string; onBack: () => void; focus?: 'received' | 'mine' }) {
   const { t, dir, lang } = useI18n();
   const k = useTokens();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const errText = useErrorText();
-  const { state, markRead, loadReplies, sendReply, join, removeMessage, loadHit, setNotify } = useSession();
+  const { state, markRead, loadReplies, join, removeMessage, loadHit, setNotify } = useSession();
   const { feed, kehila, me, channels } = state;
   // An older message (a search hit) is not in the feed: it is fetched and held here, never added to the list.
   const [hit, setHit] = React.useState<Hit | undefined>(undefined);
   const inFeed = feed.messages[messageId];
   const message = inFeed ?? (hit?.kind === 'full' ? hit.message : undefined);
-  const [draft, setDraft] = React.useState('');
-  const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [blocked, setBlocked] = React.useState<string | null>(null);
+  const scroll = React.useRef<ScrollView>(null);
+  const ys = React.useRef<{ received?: number; mine?: number }>({});
+  const scrolled = React.useRef(false);
+  const place = (key: 'received' | 'mine') => (e: LayoutChangeEvent) => {
+    ys.current[key] = e.nativeEvent.layout.y;
+    if (focus === key && !scrolled.current) { scrolled.current = true; setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 8), animated: false }), 0); }
+  };
   const [joined, setJoined] = React.useState(false);
   const [joining, setJoining] = React.useState(false);
   const [confirm, setConfirm] = React.useState(false);
@@ -53,8 +57,8 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   React.useEffect(() => {
     if (!message) return;
     void markRead(messageId);
-    if (message.isRecipient || message.replied) void loadReplies(messageId).catch(() => {});
-  }, [messageId, !!message, message?.isRecipient, message?.replied]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isAdult(kehila?.role) && (message.replyTo || message.targetMemberId)) void loadReplies(messageId).catch(() => {});
+  }, [messageId, !!message, message?.replyTo, message?.targetMemberId, kehila?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!kehila || !me) return null;
   const back = (
@@ -67,7 +71,7 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
     const date = Number.isFinite(ulidTime(messageId))
       ? dualDateAt(ulidTime(messageId), lang, { year: true }) : '';
     return (
-      <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <PadScroll ref={scroll} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {back}
         <Banner text={t('detail.offlineCopy')} />
         <Card edgeColor={edge(copy.type, scheme)}>
@@ -88,10 +92,10 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
   const isTarget = !!message.isRecipient;
   const all = feed.replies[messageId] ?? [];
   const mine = myReply(all, me.userId);
-  const received = all.filter(r => r.authorId !== me.userId);
+  const older = all.filter(r => r.authorId === me.userId && r !== mine).sort((a, b) => (a.replyId < b.replyId ? 1 : -1));
+  const isReceiver = isTarget || all.some(r => r.personal);
   const chip = countText(message, t);
-  const showBox = buttonState(message, role) === 'reply' && !blocked;
-  const toDefault = message.replyTo === 'family' ? 'family' : 'author';
+  const showBox = !mine && buttonState(message, role) === 'reply';
   const canJoin = (message.type === 'celebration' || message.type === 'condolence') && roleFeatures(role).join && !isTarget;
   // Mute (or unmute) notifications from the member who broadcast this; it never hides the message.
   const canMute = roleFeatures(role).directory && message.authorKind === 'member' && message.type !== 'chat' && message.authorId !== me.userId;
@@ -102,17 +106,6 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
     if (joining || joined) return;
     setJoining(true); setError(null);
     try { await join(messageId); setJoined(true); } catch (e) { setError(errText(e)); } finally { setJoining(false); }
-  }
-  async function doSend() {
-    const body = draft.trim();
-    if (!body || busy) return;
-    setBusy(true); setError(null);
-    try { await sendReply(messageId, body); setDraft(''); }
-    catch (e) {
-      const code = (e as { code?: string } | null)?.code ?? '';
-      if (HIDES_BOX.includes(code)) setBlocked(code);
-      else setError(errText(e));
-    } finally { setBusy(false); }
   }
   async function doMute() {
     setError(null);
@@ -139,41 +132,25 @@ export function MessageDetail({ messageId, onBack }: { messageId: string; onBack
       {canJoin ? <Button kind={joined ? 'secondary' : 'primary'} title={joined ? t('detail.joined') : joinLabel(message.type, message.joinCount, t)} onPress={() => void doJoin()} busy={joining} disabled={joined} /> : null}
       {error ? <Banner tone="error" text={error} /> : null}
 
-      {isTarget ? (
-        <View style={{ gap: 8 }}>
-          <Txt bold size="heading">{receivedTitle(message, t)}</Txt>
-          {received.map(r => (
-            <Card key={r.replyId}>
-              <Txt size="small" bold content color={k.muted}>{r.authorName.trim() ? r.authorName : t('reply.formerMember')}{' · '}{replyTime(r.createdAt, lang, Date.now(), t)}</Txt>
-              <Txt content>{r.body}</Txt>
-            </Card>
-          ))}
-        </View>
-      ) : null}
+      {isReceiver ? <ReceivedList message={message} replies={all} onLayout={place('received')} /> : null}
 
       {mine ? (
         <View style={{ gap: 8 }}>
-          <Card edgeColor={k.olive}>
-            <Txt size="caption" bold color={k.olive}>{sentText(mine, message, replyTime(mine.createdAt, lang, Date.now(), t), t)}</Txt>
-            <Txt content>{mine.body}</Txt>
-          </Card>
+          {older.map(r => (
+            <Card key={r.replyId} edgeColor={k.olive}><Txt content color={k.muted}>{r.body}</Txt></Card>
+          ))}
+          <MyReply key={mine.replyId} message={message} reply={mine} onLayout={place('mine')} />
         </View>
       ) : null}
 
-      {blocked === 'target_left' || message.replyBlocked === 'target_left' ? <Banner text={t('detail.familyGone')} /> : null}
-      {blocked === 'author_left' || message.replyBlocked === 'author_left' ? <Banner text={t('reply.authorGone')} /> : null}
-      {showBox ? (
-        <View style={{ gap: 8 }}>
-          <Txt bold size="heading">{headingText(message, toDefault, t)}</Txt>
-          <Composer value={draft} onChange={setDraft} maxCodePoints={1000} placeholder={placeholder(message, t)}
-            lockLine={lockText(message, toDefault, t)} onSend={() => void doSend()} busy={busy} />
-        </View>
-      ) : null}
+      {showBox ? <ReplyBox message={message} onSent={() => {}} />
+        : !mine && message.replyBlocked === 'target_left' ? <Banner text={t('detail.familyGone')} />
+        : !mine && message.replyBlocked === 'author_left' ? <Banner text={t('reply.authorGone')} /> : null}
 
       {canMute ? <Button kind="secondary" title={authorMuted ? t('detail.unmuteMember') : t('detail.muteMember')} onPress={() => void doMute()} /> : null}
       {canDelete ? <Button kind="danger" title={t('detail.delete')} onPress={() => setConfirm(true)} /> : null}
       <Sheet visible={confirm} title={t('detail.deleteTitle')} onClose={() => setConfirm(false)}>
-        <Txt>{t('detail.deleteBody')}</Txt>
+        <Txt>{deleteMessageBody(message.replierCount, t)}</Txt>
         <Button kind="danger" title={t('detail.deleteYes')} onPress={() => void doDelete()} />
       </Sheet>
     </PadScroll>

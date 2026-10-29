@@ -149,3 +149,19 @@ export function threadLine(thread: InboxThread, t: T): string {
   if (thread.unread > 0) parts.push(t('reply.new', { n: thread.unread }));
   return parts.join(' · ');
 }
+
+/** The message delete confirm: names the private replies that go with it. */
+export const deleteMessageBody = (replies: number | undefined, t: T): string =>
+  replies && replies > 0 ? t('detail.deleteBodyReplies', { n: replies }) : t('detail.deleteBody');
+
+/** The reply delete confirm: "היא תימחק גם אצל {name}." for an author or one adult, "…אצל המשפחה." for the family. */
+export function deleteReplyBody(reply: Reply, m: Message, t: T): string {
+  if (reply.to === 'family') return t('reply.deleteBody.family');
+  const name = reply.to === 'author' ? m.authorName : reply.toName || adultName(m, reply.to);
+  return t('reply.deleteBody.general', { name });
+}
+
+/** The recipient's list: other people's replies, newest first (ids are ULIDs), each with whether it carries the personal tag. */
+export function receivedOrder(replies: Reply[], me: string): Array<{ reply: Reply; personal: boolean }> {
+  return replies.filter(r => r.authorId !== me).sort((a, b) => (a.replyId < b.replyId ? 1 : a.replyId > b.replyId ? -1 : 0)).map(reply => ({ reply, personal: !!reply.personal }));
+}

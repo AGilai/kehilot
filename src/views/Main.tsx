@@ -65,7 +65,7 @@ import { isManagement, isAdult } from '../client/roles.ts';
 type Nav =
   | { tab: 'home' }
   | { tab: 'messages' }
-  | { tab: 'detail'; id: string; from: 'home' | 'messages' }
+  | { tab: 'detail'; id: string; from: 'home' | 'messages'; /** M3 scrolls to the received replies or to my reply. */ focus?: 'received' | 'mine' }
   | { tab: 'chat'; channelId: string }
   | { tab: 'compose' }
   | { tab: 'me' }
@@ -236,7 +236,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
         if (isManagement(state.kehila?.role)) { setManage(true); setNav({ tab: 'groups' }); }
         else openGroupRequests();
       }
-      else setNav(dest === 'message' && target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages' } : { tab: 'home' });
+      else setNav(dest === 'message' && target.messageId ? { tab: 'detail', id: target.messageId, from: 'messages', focus: 'received' } : { tab: 'home' });
     });
   }, [pushSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   // Android's back button leaves the schedule editor through the same unsaved-changes question.
@@ -336,10 +336,10 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = feats.phoneList ? <PhoneList onBack={returnFrom({ tab: nav.from })} onMine={() => { ret.current = null; setNav({ tab: 'tree' }); }} /> : null;
       break;
     case 'messages':
-      body = <Messages initialFilter={filter} initialQuery={fixtureQuery} onOpen={id => setNav({ tab: 'detail', id, from: 'messages' })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
+      body = <Messages initialFilter={filter} initialQuery={fixtureQuery} onOpen={(id, focus) => setNav({ tab: 'detail', id, from: 'messages', ...(focus ? { focus } : {}) })} onChat={channelId => setNav({ tab: 'chat', channelId })} onNew={feats.compose ? () => { setComposeInitial(undefined); setNav({ tab: 'compose' }); } : undefined} />;
       break;
     case 'detail':
-      body = <MessageDetail key={nav.id} messageId={nav.id} onBack={() => setNav({ tab: nav.from })} />;
+      body = <MessageDetail key={nav.id} messageId={nav.id} focus={nav.focus} onBack={() => setNav({ tab: nav.from })} />;
       break;
     case 'prefs':
       body = <NotifyPrefs onBack={returnFrom({ tab: nav.from })} onToast={showToast} />;

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   buttonLabel, buttonState, canSendReply, countText, counterText, headingText, lockText, mailboxStatus, myReply,
-  hasReplyRow, pillA11y, pillTone, placeholder, readUpTo, toChoices, receivedTitle, replyKind, replyTime, sentText, threadLine,
+  hasReplyRow, deleteMessageBody, deleteReplyBody, receivedOrder, pillA11y, pillTone, placeholder, readUpTo, toChoices, receivedTitle, replyKind, replyTime, sentText, threadLine,
 } from '../src/client/replyView.ts';
 import type { InboxThread, Message, Reply } from '../src/client/types.ts';
 
@@ -170,4 +170,31 @@ test('hasReplyRow: nothing to show means no row', () => {
   assert.equal(hasReplyRow(msg({ replierCount: 0 }), 'member'), false);
   assert.equal(hasReplyRow(msg({ replierCount: 2 }), 'listener'), true);
   assert.equal(hasReplyRow(msg({ replyTo: 'author', canReply: true }), 'member'), true);
+});
+
+test('deleteMessageBody: plain at 0 replies, the count when there are some', () => {
+  assert.equal(deleteMessageBody(0, t), 'ההודעה תימחק לכל הקהילה.');
+  assert.equal(deleteMessageBody(undefined, t), 'ההודעה תימחק לכל הקהילה.');
+  assert.equal(deleteMessageBody(3, t), 'ההודעה תימחק לכל הקהילה, ואיתה 3 התשובות הפרטיות שהגיעו עליה. אי אפשר לשחזר.');
+});
+
+test('deleteReplyBody: the person for author/adult, the family for family', () => {
+  const r = (to: string, toName?: string): Reply => ({ replyId: 'R1', authorId: 'me', authorName: 'x', body: 'b', createdAt: 1, to, toName });
+  assert.equal(deleteReplyBody(r('author'), msg(), t), 'היא תימחק גם אצל רותם אלמוג.');
+  assert.equal(deleteReplyBody(r('family'), bless(), t), 'היא תימחק גם אצל המשפחה.');
+  assert.equal(deleteReplyBody(r('u-shulamit', 'שולמית ברקן'), bless(), t), 'היא תימחק גם אצל שולמית ברקן.');
+});
+
+test('receivedOrder: newest first, mine left out, personal flag from the reply', () => {
+  const r = (id: string, over: Partial<Reply> = {}): Reply => ({ replyId: id, authorId: 'u-' + id, authorName: 'n' + id, body: 'b', createdAt: 1, to: 'family', ...over });
+  const list = [r('A'), r('C', { personal: true, unread: true }), r('B'), r('Z', { authorId: 'me' })];
+  const out = receivedOrder(list, 'me');
+  assert.deepEqual(out.map(x => x.reply.replyId), ['C', 'B', 'A']);
+  assert.deepEqual(out.map(x => x.personal), [true, false, false]);
+  assert.deepEqual(list.map(x => x.replyId), ['A', 'C', 'B', 'Z'], 'input is not mutated');
+});
+
+test('sentText to a named adult, with toName', () => {
+  const rep: Reply = { replyId: 'R1', authorId: 'me', authorName: 'x', body: 'b', createdAt: 1, to: 'u-shulamit', toName: 'שולמית ברקן' };
+  assert.equal(sentText(rep, bless(), 'היום, 09:58', t), 'נשלחה אל שולמית ברקן בלבד · היום, 09:58');
 });
