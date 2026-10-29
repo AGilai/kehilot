@@ -169,7 +169,7 @@ export function SheetItems({ week: startWeek, focus, onBack, onToast, onOpenMess
     if (busy) return;
     setBusy(true); setSheetError(null);
     try {
-      await api.addSheetItem(kehilaId!, friday, { ...b, source: 'byGabbai' });
+      await api.addSheetItem(kehilaId!, friday, { ...b, source: 'free' });
       await sheetState.reload();
       setFreeOpen(false);
       onToast(t('sheetItems.added'));

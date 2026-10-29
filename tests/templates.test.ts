@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
-  TEMPLATES, buildMessage, buildSheetLine, dayLabel, defaultBlessing, fill, missingFields, shortDate, templateOf, withMemorial,
+  TEMPLATES, buildMessage, buildSheetLine, dayLabel, defaultBlessing, fill, missingFields, templateOf, withMemorial,
 } from '../src/client/templates.ts';
 import type { TemplateFields } from '../src/client/types.ts';
 
@@ -153,7 +153,6 @@ test('templateOf, day labels, short date, default blessing', () => {
   assert.equal(dayLabel('2026-11-03', 'he', 'short'), 'ג׳');
   assert.equal(dayLabel('2026-11-03', 'en', 'long'), 'Tuesday');
   assert.equal(dayLabel('2026-11-03', 'en', 'short'), 'Tue');
-  assert.equal(shortDate('2026-11-03'), '3.11');
   assert.equal(defaultBlessing('other', 'he'), '');
   assert.equal(defaultBlessing('wedding', 'he'), defaultBlessing('engagement', 'he'));
   assert.equal(defaultBlessing('barMitzvah', 'he'), 'שיזכה לגדול בתורה ובמצוות');

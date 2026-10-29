@@ -1,8 +1,7 @@
 import he from '../i18n/he.json' with { type: 'json' };
 import { translate } from '../i18n/translate.ts';
 import { addDays } from '../schedule/week.ts';
-import { fromGregorian } from '../tree/dates.ts';
-import { gregText, hebrewText } from '../tree/format.ts';
+import { dualDate } from '../dates.ts';
 import type { SimchaItem, SimchaWeek } from './types.ts';
 
 export type SimchaFilter = 'all' | 'bar' | 'bat';
@@ -29,17 +28,9 @@ export function quietNames(weeks: SimchaWeek[], filter: SimchaFilter): string {
 
 const dayLetters = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 const dayOf = (iso: string) => new Date(`${iso}T12:00:00`).getDay();
-/** "ל׳ בחשוון" (no year). */
-export function hebrewDay(iso: string): string {
-  const h = fromGregorian(iso);
-  return hebrewText({ day: h.day, month: h.month });
-}
-/** "9.11" */
-export const dayMonth = (iso: string): string => gregText(iso).split('.').slice(0, 2).join('.');
-
-/** The week header: the Shabbat's label and Hebrew date, and its Gregorian day on the other side. */
-export function weekHeader(w: SimchaWeek): { title: string; greg: string } {
-  return { title: `${w.label} · ${hebrewDay(w.shabbat)}`, greg: dayMonth(w.shabbat) };
+/** The week header: the Shabbat's label and its date, Hebrew first with the Gregorian in brackets. */
+export function weekHeader(w: SimchaWeek): { title: string } {
+  return { title: `${w.label} · ${dualDate(w.shabbat, 'he')}` };
 }
 
 export const simchaTitle = (i: SimchaItem, t: T): string => t(i.kind === 'bar' ? 'simchas.bar' : 'simchas.bat', { name: i.firstName });
@@ -47,7 +38,7 @@ export const simchaTitle = (i: SimchaItem, t: T): string => t(i.kind === 'bar' ?
 /** The second line: the family, and "בשבת" for a bar mitzvah or the weekday and date for a bat mitzvah. */
 export function simchaSub(i: SimchaItem, t: T): string {
   const family = i.surname ? t('simchas.family', { surname: i.surname }) : '';
-  const when = i.kind === 'bar' ? t('simchas.onShabbat') : t('simchas.onDay', { day: dayLetters[dayOf(i.date)]!, hebrew: hebrewDay(i.date), date: dayMonth(i.date) });
+  const when = i.kind === 'bar' ? t('simchas.onShabbat') : t('simchas.onDay', { day: dayLetters[dayOf(i.date)]!, hebrew: dualDate(i.date, 'he') });
   return family ? `${family} · ${when}` : when;
 }
 

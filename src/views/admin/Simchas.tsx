@@ -97,7 +97,6 @@ export function Simchas({ onBack, onMazalTov, onToast }: { onBack: () => void; o
           <View key={w.week} style={{ gap: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, paddingTop: 8 }}>
               <Txt bold accessibilityRole="header" style={{ flexShrink: 1 }}>{head.title}</Txt>
-              <Txt size="small" color={k.muted}>{head.greg}</Txt>
             </View>
             {w.items.map((item, i) => <Row key={`${item.kind}-${item.firstName}-${item.date}-${i}`} item={item} id={`${w.week}-${i}`} onMazalTov={onMazalTov} />)}
             <Button kind="secondary" title={done.has(w.week) ? t('simchas.onSheet') : t('simchas.toSheet')} busy={sending === w.week} disabled={!!sending || done.has(w.week)} onPress={() => { void toSheet(w); }} />

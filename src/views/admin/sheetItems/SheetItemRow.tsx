@@ -80,7 +80,7 @@ export function PendingRow({ item, onAdd, onSkip, last, disabled }: { item: Shee
   const { t, lang } = useI18n();
   const k = useTokens();
   const plain = lineOf(item).main.map(p => p.text).join('');
-  const when = relativeWhen(item.postedAt, Date.now(), lang);
+  const when = relativeWhen(item.postedAt, Date.now(), lang, t);
   return (
     <View style={{ gap: 10, paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: last ? 0 : 1, borderBottomColor: k.line }}>
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>

@@ -6,7 +6,7 @@ import type { SimchaWeek } from '../src/client/types.ts';
 // All names are invented.
 const dict: Record<string, string> = {
   'simchas.bar': 'בר מצווה · {name}', 'simchas.bat': 'בת מצווה · {name}', 'simchas.family': 'משפחת {surname}', 'simchas.onShabbat': 'בשבת',
-  'simchas.onDay': 'יום {day} {hebrew}, {date}', 'simchas.manual': 'נקבע ידנית', 'simchas.suggested': 'הצעה', 'simchas.draftTitle': 'מזל טוב',
+  'simchas.onDay': 'יום {day} {hebrew}', 'simchas.manual': 'נקבע ידנית', 'simchas.suggested': 'הצעה', 'simchas.draftTitle': 'מזל טוב',
 };
 const t = (key: string, params: Record<string, string | number> = {}) => (dict[key] ?? key).replace(/\{(\w+)\}/g, (_, n) => String(params[n]));
 const week = (n: number, shabbat: string, parasha: string, items: SimchaWeek['items'] = [], label = `שבת פרשת ${parasha}`): SimchaWeek => ({ week: `w${n}`, shabbat, parasha, label, items });
@@ -30,14 +30,14 @@ test('counts and the quiet line follow the filter', () => {
 test('rows: titles, sub lines, tags', () => {
   assert.equal(simchaTitle(hillel, t), 'בר מצווה · הלל');
   assert.equal(simchaSub(hillel, t), 'משפחת דוגמה · בשבת');
-  assert.equal(simchaSub(noga, t), 'משפחת ניסיון · יום ב׳ כ״ט בחשון, 9.11');
+  assert.equal(simchaSub(noga, t), 'משפחת ניסיון · יום ב׳ כ״ט בחשוון (9.11)');
   assert.deepEqual(simchaTag(hillel, t), { text: 'הצעה', manual: false });
   assert.deepEqual(simchaTag({ ...hillel, manual: true }, t), { text: 'נקבע ידנית', manual: true });
   assert.equal(simchaTag(noga, t), undefined);
 });
 
 test('week header shows the label, Hebrew date and the Gregorian day', () => {
-  assert.deepEqual(weekHeader(weeks[0]!), { title: 'שבת פרשת וירא · כ׳ בחשון', greg: '31.10' });
+  assert.deepEqual(weekHeader(weeks[0]!), { title: 'שבת פרשת וירא · כ׳ בחשוון (31.10)' });
 });
 
 test('overview summary: nearest simcha, the rest, this week or later', () => {

@@ -223,3 +223,13 @@ test('parasha names use hebcal Hebrew without niqqud, maqaf as a space', () => {
   assert.equal(parashaOf('2026-10-24', 'he'), 'לך לך');
   assert.ok(!/[\u0591-\u05C7]/.test(parashaOf('2027-07-24', 'he')!));
 });
+
+test('comingShabbatWeek: Sunday to Friday give the coming Friday, Saturday its own Shabbat', async () => {
+  const { comingShabbatWeek } = await import('../src/schedule/memberView.ts');
+  // 2026-11-01 is a Sunday; the coming Shabbat is 7.11 (Friday 6.11).
+  for (const d of ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06']) {
+    assert.equal(comingShabbatWeek(d).friday, '2026-11-06', d);
+    assert.equal(comingShabbatWeek(d).shabbat, '2026-11-07', d);
+  }
+  assert.equal(comingShabbatWeek('2026-11-07').friday, '2026-11-06');
+});

@@ -4,7 +4,7 @@ import type { LayoutChangeEvent } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Hit } from '../search/hit.ts';
 import { canUpdate, joinLabel, timeOfDay, ulidTime } from '../client/messageView.ts';
-import { buttonState, countText, deleteMessageBody, myReply, replyKind } from '../client/replyView.ts';
+import { buttonState, countText, deleteMessageBody, myReply, needsReplyFields, replyKind, withReplyFields } from '../client/replyView.ts';
 import { dualDateAt } from '../dates.ts';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Banner, Button, Card, Sheet, Txt, useTokens } from '../kit/components.tsx';
@@ -36,7 +36,9 @@ export function MessageDetail({ messageId, onBack, focus, onUpdate }: { messageI
   // An older message (a search hit) is not in the feed: it is fetched and held here, never added to the list.
   const [hit, setHit] = React.useState<Hit | undefined>(undefined);
   const inFeed = feed.messages[messageId];
-  const message = inFeed ?? (hit?.kind === 'full' ? hit.message : undefined);
+  const fetched = hit?.kind === 'full' ? hit.message : undefined;
+  // The feed list never carries `replyAdults` / `replyBlocked` (the "אל מי" picker and the pre-send banners): they come from the single GET.
+  const message = inFeed ? withReplyFields(inFeed, fetched) : fetched;
   const [error, setError] = React.useState<string | null>(null);
   const scroll = React.useRef<ScrollView>(null);
   const ys = React.useRef<{ received?: number; mine?: number }>({});
@@ -53,6 +55,14 @@ export function MessageDetail({ messageId, onBack, focus, onUpdate }: { messageI
     loadHit(messageId).then(h => { if (live) setHit(h); }, () => { if (live) setHit({ kind: 'notFound' }); });
     return () => { live = false; };
   }, [messageId, !!inFeed, feed.loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const wantsFields = !!inFeed && needsReplyFields(inFeed) && !hit;
+  React.useEffect(() => {
+    if (!wantsFields) return;
+    let live = true;
+    loadHit(messageId).then(h => { if (live) setHit(h); }, () => {});
+    return () => { live = false; };
+  }, [messageId, wantsFields]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     if (!message) return;
@@ -71,7 +81,7 @@ export function MessageDetail({ messageId, onBack, focus, onUpdate }: { messageI
     const date = Number.isFinite(ulidTime(messageId))
       ? dualDateAt(ulidTime(messageId), lang, { year: true }) : '';
     return (
-      <PadScroll ref={scroll} onScrollBeginDrag={() => { touched.current = true; }} onContentSizeChange={go} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
+      <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}>
         {back}
         <Banner text={t('detail.offlineCopy')} />
         <Card edgeColor={edge(copy.type, scheme)}>
@@ -127,7 +137,7 @@ export function MessageDetail({ messageId, onBack, focus, onUpdate }: { messageI
   }
 
   return (
-    <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
+    <PadScroll ref={scroll} onScrollBeginDrag={() => { touched.current = true; }} onContentSizeChange={go} contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
       {back}
       <Card edgeColor={edge(message.type, scheme)}>
         <MetaText message={message} meta={messageMeta(message, channels, timeOfDay(messageId), t)} />

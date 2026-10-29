@@ -125,9 +125,11 @@ test('editLine keeps the bold token separate, and drops it when the text no long
 test('relativeWhen: today and yesterday in words with the Israel clock, older as a short date', async () => {
   const { relativeWhen } = await import('../src/client/sheetItems.ts');
   const now = Date.parse('2026-10-29T10:00:00+02:00');
-  assert.equal(relativeWhen(Date.parse('2026-10-28T21:10:00+02:00') / 1000, now, 'he'), 'אתמול 21:10');
-  assert.equal(relativeWhen(Date.parse('2026-10-29T08:40:00+02:00') / 1000, now, 'he'), 'היום 08:40');
-  assert.equal(relativeWhen(Date.parse('2026-10-20T08:40:00+03:00') / 1000, now, 'he'), 'ט׳ בחשוון (20.10) 08:40');
+  const dict: Record<string, string> = { 'sheetItems.when.today': 'היום {time}', 'sheetItems.when.yesterday': 'אתמול {time}' };
+  const t = (k: string, p: Record<string, string | number> = {}) => (dict[k] ?? k).replace(/\{(\w+)\}/g, (_, n) => String(p[n]));
+  assert.equal(relativeWhen(Date.parse('2026-10-28T21:10:00+02:00') / 1000, now, 'he', t), 'אתמול 21:10');
+  assert.equal(relativeWhen(Date.parse('2026-10-29T08:40:00+02:00') / 1000, now, 'he', t), 'היום 08:40');
+  assert.equal(relativeWhen(Date.parse('2026-10-20T08:40:00+03:00') / 1000, now, 'he', t), 'ט׳ בחשוון (20.10) 08:40');
 });
 
 test('sourceTag: a line added by tech says tech, by a gabbai says gabbai', () => {

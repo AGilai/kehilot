@@ -104,11 +104,6 @@ const SHORT_DAYS: Record<Lang, string[]> = {
 export function dayLabel(iso: string, lang: Lang, form: 'long' | 'short'): string {
   return (form === 'long' ? LONG_DAYS : SHORT_DAYS)[lang][dayOfWeek(iso)]!;
 }
-/** "3.11". The Gregorian date is only ever shown next to the Hebrew one (`dualDate`). */
-export function shortDate(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return `${d}.${m}`;
-}
 
 const MEMORIAL_END = /(ז״ל|ז"ל|ע״ה|ע"ה)$/;
 /** Hebrew: appends " ז״ל" unless the name already ends in ז״ל or ע״ה (either quote style). English: unchanged. */

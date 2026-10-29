@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   buttonLabel, buttonState, canSendReply, countText, counterText, headingText, lockText, mailboxStatus, myReply,
-  hasReplyRow, newText, moreText, deleteMessageBody, deleteReplyBody, receivedOrder, pillA11y, pillTone, placeholder, readUpTo, toChoices, receivedTitle, replyKind, replyTime, sentText, threadLine,
+  hasReplyRow, newText, moreText, deleteMessageBody, deleteReplyBody, receivedOrder, pillA11y, pillTone, placeholder, readUpTo, toChoices, withReplyFields, needsReplyFields, receivedTitle, replyKind, replyTime, sentText, threadLine,
 } from '../src/client/replyView.ts';
 import type { InboxThread, Message, Reply } from '../src/client/types.ts';
 
@@ -19,9 +19,9 @@ const t = (key: string, p?: Record<string, string | number>): string => {
 };
 
 const msg = (over: Partial<Message> = {}): Message =>
-  ({ messageId: 'M1', channelId: 'c1', type: 'general', title: 'שיעור חדש', body: 'b', authorId: 'u-rotem', authorName: 'רותם אלמוג', authorKind: 'member', joinCount: 0, ...over });
+  ({ messageId: 'M1', channelId: 'c1', type: 'general', title: 'שיעור חדש', body: 'b', authorId: 'u-rotem', authorName: 'רותם בדיוני', authorKind: 'member', joinCount: 0, ...over });
 const bless = (over: Partial<Message> = {}): Message =>
-  msg({ type: 'celebration', targetName: 'ברקן', targetMemberId: 'u-shulamit', replyTo: 'family', replyAdults: [{ userId: 'u-shulamit', name: 'שולמית ברקן' }, { userId: 'u-yigal', name: 'יגאל ברקן' }], ...over });
+  msg({ type: 'celebration', targetName: 'פלוני', targetMemberId: 'u-shulamit', replyTo: 'family', replyAdults: [{ userId: 'u-shulamit', name: 'שולמית פלוני' }, { userId: 'u-yigal', name: 'יגאל פלוני' }], ...over });
 
 test('replyKind maps the type to a register', () => {
   assert.equal(replyKind('general'), 'general');
@@ -63,26 +63,26 @@ test('button labels, placeholders and received titles follow the type', () => {
 });
 
 test('headingText', () => {
-  assert.equal(headingText(msg(), 'author', t), 'תשובה פרטית לרותם אלמוג');
-  assert.equal(headingText(bless(), 'family', t), 'ברכה אישית למשפחת ברקן');
-  assert.equal(headingText(bless(), 'u-shulamit', t), 'ברכה אישית לשולמית ברקן');
-  const c = bless({ type: 'condolence', targetName: 'שדמי', replyAdults: [{ userId: 'u-alon', name: 'אלון שדמי' }] });
-  assert.equal(headingText(c, 'family', t), 'מילה אישית למשפחת שדמי');
-  assert.equal(headingText(c, 'u-alon', t), 'מילה אישית לאלון שדמי');
+  assert.equal(headingText(msg(), 'author', t), 'תשובה פרטית לרותם בדיוני');
+  assert.equal(headingText(bless(), 'family', t), 'ברכה אישית למשפחת פלוני');
+  assert.equal(headingText(bless(), 'u-shulamit', t), 'ברכה אישית לשולמית פלוני');
+  const c = bless({ type: 'condolence', targetName: 'ניסיון', replyAdults: [{ userId: 'u-alon', name: 'אלון ניסיון' }] });
+  assert.equal(headingText(c, 'family', t), 'מילה אישית למשפחת ניסיון');
+  assert.equal(headingText(c, 'u-alon', t), 'מילה אישית לאלון ניסיון');
 });
 
 test('lockText for the author, the family and one adult', () => {
-  assert.equal(lockText(msg(), 'author', t), 'תגיע רק אל רותם אלמוג. לא תוצג לשאר הקהילה, גם לא לגבאים.');
-  assert.equal(lockText(bless(), 'family', t), 'יגיע למשפחת ברקן בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.');
-  assert.equal(lockText(bless(), 'u-yigal', t), 'תגיע רק אל יגאל ברקן. לא לבן או לבת הזוג, לא לשאר המשפחה, לא לשאר הקהילה ולא לגבאים.');
+  assert.equal(lockText(msg(), 'author', t), 'תגיע רק אל רותם בדיוני. לא תוצג לשאר הקהילה, גם לא לגבאים.');
+  assert.equal(lockText(bless(), 'family', t), 'יגיע למשפחת פלוני בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.');
+  assert.equal(lockText(bless(), 'u-yigal', t), 'תגיע רק אל יגאל פלוני. לא לבן או לבת הזוג, לא לשאר המשפחה, לא לשאר הקהילה ולא לגבאים.');
 });
 
 test('sentText says who got it', () => {
   const r = (to: string, extra: Partial<Reply> = {}): Reply => ({ replyId: 'r1', authorId: 'me', authorName: 'דנה בדויה', body: 'x', createdAt: 1, to, ...extra });
-  assert.equal(sentText(r('author'), msg(), '09:58', t), 'נשלחה אל רותם אלמוג בלבד · 09:58');
+  assert.equal(sentText(r('author'), msg(), '09:58', t), 'נשלחה אל רותם בדיוני בלבד · 09:58');
   assert.equal(sentText(r('family'), bless(), '09:58', t), 'נשלחה למשפחה בלבד · 09:58');
-  assert.equal(sentText(r('u-yigal', { toName: 'יגאל ברקן' }), bless(), '09:58', t), 'נשלחה אל יגאל ברקן בלבד · 09:58');
-  assert.equal(sentText(r('u-yigal'), bless(), '09:58', t), 'נשלחה אל יגאל ברקן בלבד · 09:58');
+  assert.equal(sentText(r('u-yigal', { toName: 'יגאל פלוני' }), bless(), '09:58', t), 'נשלחה אל יגאל פלוני בלבד · 09:58');
+  assert.equal(sentText(r('u-yigal'), bless(), '09:58', t), 'נשלחה אל יגאל פלוני בלבד · 09:58');
 });
 
 test('counterText shows from 900, canSendReply counts code points', () => {
@@ -153,17 +153,17 @@ test('pill colour per kind', () => {
 test('toChoices: no picker under two adults, otherwise the family first then the adults in order', () => {
   assert.deepEqual(toChoices(bless({ replyAdults: [] }), t), []);
   assert.deepEqual(toChoices(bless({ replyAdults: undefined }), t), []);
-  assert.deepEqual(toChoices(bless({ replyAdults: [{ userId: 'u-a', name: 'שולמית ברקן' }] }), t), []);
+  assert.deepEqual(toChoices(bless({ replyAdults: [{ userId: 'u-a', name: 'שולמית פלוני' }] }), t), []);
   assert.deepEqual(toChoices(bless(), t), [
     { key: 'family', label: 'כל המשפחה' },
-    { key: 'u-shulamit', label: 'שולמית ברקן' },
-    { key: 'u-yigal', label: 'יגאל ברקן' },
+    { key: 'u-shulamit', label: 'שולמית פלוני' },
+    { key: 'u-yigal', label: 'יגאל פלוני' },
   ]);
 });
 
 test('the pill has its own name', () => {
-  assert.equal(pillA11y(msg(), t), 'תשובה פרטית לרותם אלמוג');
-  assert.equal(pillA11y(bless(), t), 'ברכה אישית למשפחת ברקן');
+  assert.equal(pillA11y(msg(), t), 'תשובה פרטית לרותם בדיוני');
+  assert.equal(pillA11y(bless(), t), 'ברכה אישית למשפחת פלוני');
 });
 
 test('hasReplyRow: nothing to show means no row', () => {
@@ -180,9 +180,9 @@ test('deleteMessageBody: plain at 0 replies, the count when there are some', () 
 
 test('deleteReplyBody: the person for author/adult, the family for family', () => {
   const r = (to: string, toName?: string): Reply => ({ replyId: 'R1', authorId: 'me', authorName: 'x', body: 'b', createdAt: 1, to, toName });
-  assert.equal(deleteReplyBody(r('author'), msg(), t), 'היא תימחק גם אצל רותם אלמוג.');
+  assert.equal(deleteReplyBody(r('author'), msg(), t), 'היא תימחק גם אצל רותם בדיוני.');
   assert.equal(deleteReplyBody(r('family'), bless(), t), 'היא תימחק גם אצל המשפחה.');
-  assert.equal(deleteReplyBody(r('u-shulamit', 'שולמית ברקן'), bless(), t), 'היא תימחק גם אצל שולמית ברקן.');
+  assert.equal(deleteReplyBody(r('u-shulamit', 'שולמית פלוני'), bless(), t), 'היא תימחק גם אצל שולמית פלוני.');
 });
 
 test('receivedOrder: newest first, mine left out, personal flag from the reply', () => {
@@ -195,8 +195,8 @@ test('receivedOrder: newest first, mine left out, personal flag from the reply',
 });
 
 test('sentText to a named adult, with toName', () => {
-  const rep: Reply = { replyId: 'R1', authorId: 'me', authorName: 'x', body: 'b', createdAt: 1, to: 'u-shulamit', toName: 'שולמית ברקן' };
-  assert.equal(sentText(rep, bless(), 'היום, 09:58', t), 'נשלחה אל שולמית ברקן בלבד · היום, 09:58');
+  const rep: Reply = { replyId: 'R1', authorId: 'me', authorName: 'x', body: 'b', createdAt: 1, to: 'u-shulamit', toName: 'שולמית פלוני' };
+  assert.equal(sentText(rep, bless(), 'היום, 09:58', t), 'נשלחה אל שולמית פלוני בלבד · היום, 09:58');
 });
 
 test('spouses: each mailbox counts only what that spouse may see (A: 11 with 2 personal, B: 10 with 1)', () => {
@@ -229,4 +229,18 @@ test('n = 1 picks the singular in Hebrew and English', () => {
   assert.equal(mailboxStatus({ unread: 1, threads: [th({ unread: 1 })] }, te), '1 new');
   assert.equal(moreText(1, te), '1 more reply');
   assert.equal(threadLine(th({ total: 1 }), te), 'Your message · 1 reply');
+});
+
+test('withReplyFields merges the single GET fields into the feed copy; needsReplyFields asks for them once', () => {
+  const feedCopy = bless({ replyAdults: undefined, canReply: true, replierCount: 3 });
+  const full = bless({ canReply: true, replierCount: 1, replyBlocked: 'author_left' });
+  assert.equal(needsReplyFields(feedCopy), true);
+  const merged = withReplyFields(feedCopy, full);
+  assert.equal(merged.replierCount, 3);
+  assert.equal(merged.replyAdults?.length, 2);
+  assert.equal(merged.replyBlocked, 'author_left');
+  assert.equal(needsReplyFields(merged), false);
+  assert.equal(needsReplyFields({ ...feedCopy, canReply: false }), false);
+  assert.equal(withReplyFields(feedCopy, undefined), feedCopy);
+  assert.equal(toChoices(merged, t).length, 3);
 });

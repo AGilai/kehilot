@@ -44,9 +44,21 @@ export function pillTone(type: MessageType): 'tekhelet' | 'pomegranate' | 'ash' 
 /** Whether the card shows the reply row at all: a count or a button. */
 export const hasReplyRow = (m: Message, role: Role): boolean => !!m.replierCount || buttonState(m, role) !== 'none';
 
-/** The pill is its own button: "תשובה פרטית לרותם אלמוג". */
+/** The pill is its own button: "תשובה פרטית לרותם בדיוני". */
 export const pillA11y = (m: Message, t: T): string =>
   replyKind(m.type) === 'general' ? t('reply.buttonA11y', { name: m.authorName }) : headingText(m, 'family', t);
+
+/** The feed's copy plus `replyAdults` / `replyBlocked` from a single GET (the feed list never carries them). */
+export function withReplyFields(m: Message, full: Message | undefined): Message {
+  if (!full) return m;
+  const out: Message = { ...m };
+  if (m.replyAdults === undefined && full.replyAdults !== undefined) out.replyAdults = full.replyAdults;
+  if (m.replyBlocked === undefined && full.replyBlocked !== undefined) out.replyBlocked = full.replyBlocked;
+  return out;
+}
+
+/** Whether M3 must fetch the single GET for a message already in the feed: a viewer who can reply and lacks both fields. */
+export const needsReplyFields = (m: Message): boolean => !!m.canReply && m.replyAdults === undefined && m.replyBlocked === undefined;
 
 /** The "אל מי" picker: nothing under two adults, else the whole family first and then each adult in the stored order. */
 export function toChoices(m: Message, t: T): Array<{ key: ReplyTo; label: string }> {

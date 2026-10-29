@@ -36,6 +36,11 @@ export function upcomingShabbatWeek(now: Now, mode: CardMode): ScheduleWeek {
   return scheduleWeekOf(dayOfWeek(now.date) === SATURDAY && mode === 'shabbat' ? addDays(now.date, -1) : upcomingFriday(now.date));
 }
 
+/** The week Home shows without a schedule: the coming Shabbat's (on Saturday, today's), like `upcomingShabbatWeek` and the seat window. */
+export function comingShabbatWeek(date: string): ScheduleWeek {
+  return scheduleWeekOf(dayOfWeek(date) === SATURDAY ? addDays(date, -1) : upcomingFriday(date));
+}
+
 export type Countdown = { h: number; m: number };
 /** Minutes until a row, only for a row today and only within 6 hours; null otherwise. */
 export function countdown(dayOffset: number, rowMinutes: number, nowMinutes: number): Countdown | null {

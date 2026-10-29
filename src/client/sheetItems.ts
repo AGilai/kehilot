@@ -82,13 +82,13 @@ export function editLine(item: SheetItem, text: string): { text: string; bold: s
 }
 
 /** "אתמול 21:10" / "היום 08:40"; further back the short date. Israel time. */
-export function relativeWhen(seconds: number, nowMs: number, lang: 'he' | 'en'): string {
+export function relativeWhen(seconds: number, nowMs: number, lang: 'he' | 'en', t: (key: string, params?: Record<string, string | number>) => string): string {
   const tz = 'Asia/Jerusalem';
   const loc = lang === 'en' ? 'en-GB' : 'he-IL';
   const day = (ms: number) => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(ms));
   const clock = new Intl.DateTimeFormat(loc, { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(seconds * 1000));
   const diff = Math.round((Date.parse(day(nowMs)) - Date.parse(day(seconds * 1000))) / 86_400_000);
-  if (diff >= 0 && diff <= 1) return `${new Intl.RelativeTimeFormat(loc, { numeric: 'auto' }).format(-diff, 'day')} ${clock}`;
+  if (diff >= 0 && diff <= 1) return t(diff === 0 ? 'sheetItems.when.today' : 'sheetItems.when.yesterday', { time: clock });
   return `${dualDate(day(seconds * 1000), lang)} ${clock}`;
 }
 
