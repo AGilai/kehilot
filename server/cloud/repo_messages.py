@@ -517,3 +517,21 @@ class MessagesRepo:
         except ClientError as error:
             if not _failed(error, 'ConditionalCheckFailedException'):
                 raise
+
+    def purge_reply_markers(self, k, user_id):
+        """Delete the user's read watermarks and push-throttle items in the Kehila (leave and removal). Returns the count."""
+        count = 0
+        for prefix in ('RXSEEN#', 'RXPUSH#'):
+            page = {}
+            while True:
+                page = self.table.query(KeyConditionExpression=Key('pk').eq(f'K#{k}#U#{user_id}')
+                                        & Key('sk').begins_with(prefix), ProjectionExpression='pk, sk',
+                                        ConsistentRead=True, **({'ExclusiveStartKey': page['LastEvaluatedKey']}
+                                                                if 'LastEvaluatedKey' in page else {}))
+                with self.table.batch_writer() as batch:
+                    for item in page['Items']:
+                        batch.delete_item(Key={'pk': item['pk'], 'sk': item['sk']})
+                        count += 1
+                if 'LastEvaluatedKey' not in page:
+                    break
+        return count

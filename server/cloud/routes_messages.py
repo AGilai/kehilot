@@ -148,8 +148,9 @@ def _template(d, type_):
 def _target_family_id(ctx, k, d, target):
     """The optional targetFamilyId: a ULID of a family of which `target` is a live adult."""
     value = d.get('targetFamilyId')
-    if value is None:
-        return None
+    if value is None:  # default to the target's family now, so the family replies outlive the target adult
+        family = ctx.repo.family_of(k, target) if target else None
+        return family['familyId'] if family else None
     if not target or not isinstance(value, str) or not ID_RE.fullmatch(value):
         raise ApiError(400, 'invalid_target_family_id')
     family = ctx.repo.get_family(k, value)

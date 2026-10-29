@@ -648,8 +648,8 @@ class LeaveTest(ReplyFlowTest):
         self.assertEqual(status, 204, body)
         self.assertEqual(self.left(mid), [f"R#{family['replyId']}"])
         self.repo.put_membership(self.k, self.shul, 'member')
-        self.assertEqual(self.replies('shul-sub', mid)[0]['body'], 'מזל טוב')
-        self.assertEqual(len(self.replies('shul-sub', mid)), 1)
+        self.assertEqual(self.replies('shul-sub', mid), [])  # not back in the family, so no family replies either
+        self.assertEqual([r['body'] for r in self.replies('yigal-sub', mid)], ['מזל טוב'])
 
     def test_author_leave_keeps_replies_until_rejoin(self):
         mid = self.general()
@@ -663,3 +663,20 @@ class LeaveTest(ReplyFlowTest):
         mid, personal, family = self.pair()
         self.assertEqual(self.leave('yigal-sub')[0], 204)
         self.assertEqual([r['body'] for r in self.replies('shul-sub', mid)], ['סוד', 'מזל טוב'])
+
+    def test_blessing_without_family_id_gets_the_targets_family_at_post_time(self):
+        mid = self.blessing()
+        self.assertEqual(self.repo.get_message(self.k, mid)['targetFamilyId'], self.repo.family_of(self.k, self.shul)['familyId'])
+
+    def test_target_leaving_keeps_family_replies_for_the_spouse(self):
+        mid, personal, family = self.pair()
+        self.assertEqual(self.leave('shul-sub')[0], 204)
+        self.assertEqual([r['body'] for r in self.replies('yigal-sub', mid)], ['מזל טוב'])
+        self.assertEqual([t['total'] for t in self.inbox('yigal-sub')['threads']], [1])
+
+    def test_leave_purges_the_leavers_read_markers(self):
+        mid, personal, family = self.pair()
+        self.read('shul-sub', mid, family['replyId'])
+        self.assertEqual(self.repo.seen_marks(self.k, self.shul, [mid]), {mid: family['replyId']})
+        self.assertEqual(self.leave('shul-sub')[0], 204)
+        self.assertEqual(self.repo.seen_marks(self.k, self.shul, [mid]), {})

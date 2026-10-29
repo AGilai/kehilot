@@ -398,7 +398,12 @@ class DeleteRepliesTest(DeleteAccountTest):
         self.sent(message, self.ron, 'author', 'Ron')
         self.repo.table.update_item(Key={'pk': f'K#{self.k1}', 'sk': f'MSG#{mid}'}, UpdateExpression='SET replierCount = :n',
                                     ExpressionAttributeValues={':n': 2})
-        self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        with self.assertLogs('server.cloud.routes_me', 'INFO') as logs:
+            self.assertEqual(self.call('DELETE', '/v1/me', 'sub-dana')[0], 204)
+        line = next(m for m in logs.output if 'account deleted' in m)
+        self.assertIn('received=2', line)
+        self.assertNotIn('body-auth', line)
+        self.assertNotIn('Eli', line)
         self.assertEqual((self.parts(mid, 'R#'), self.parts(mid, 'RP#'), self.thread(mid, 'author')), ([], [], None))
         self.assertEqual(int(self.repo.get_message(self.k1, mid)['replierCount']), 0)
         self.assertEqual([c['refId'] for c in self.changes('reply_count')], [mid])

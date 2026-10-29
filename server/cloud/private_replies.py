@@ -164,7 +164,8 @@ def drop_personal(repo, k, user_id):
             if reply.get('to') == user_id:
                 count += bool(repo.delete_reply(k, message_id, reply['sk'], reply['authorId']))
         repo.drop_personal_to(k, message_id, user_id)
-    log.info('personal replies dropped kehila=%s user=%s replies=%d', k, user_id, count)
+    markers = repo.purge_reply_markers(k, user_id)
+    log.info('personal replies dropped kehila=%s user=%s replies=%d markers=%d', k, user_id, count, markers)
     return count
 
 

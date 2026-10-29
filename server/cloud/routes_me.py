@@ -81,6 +81,6 @@ def delete_account(ctx, params):
     ctx.repo.delete_user_reports(reports)
     deleted, blanked = ctx.repo.purge_user(ctx.user_id, ctx.caller.sub)
     _delete_cognito_user(ctx.caller.sub)
-    log.info('account deleted user=%s items=%d blanked=%d posts=%d replies=%d', ctx.user_id, deleted, blanked,
+    log.info('account deleted user=%s items=%d blanked=%d posts=%d replies=%d received=%d', ctx.user_id, deleted, blanked,
              n_messages, n_replies, n_received)
     return 204, None
