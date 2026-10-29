@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P48 תשובות פרטיות</title>
+<style>
+/* Kehilot mockups · P46 (UX-DESIGN §20). Self-contained: page tokens and the kit (--k-*, mirrors src/kit/theme.ts). */
+:root{
+  --board:#E4E7E0; --ink:#151A33; --ink2:#4B516E; --line2:#C5C9BC;
+  --tek:#2A3F94; --tek-bg:#E2E8F8; --deep:#161C44; --on-deep:#E9ECFA;
+  --f-serif:"Noto Serif Hebrew","David Libre","Times New Roman",serif;
+  --f-ui:"Heebo","Assistant","Segoe UI",Roboto,Arial,sans-serif;
+  --k-stone:#F6F7F2;--k-ink:#151A33;--k-tek:#2A3F94;--k-pom:#A32A47;--k-ash:#555B75;--k-gold:#8F6512;--k-olive:#44652A;--k-band:#161C44;--k-surface:#FFFFFF;--k-line:#DDE0D4;--k-muted:#555B75;--k-on:#FFFFFF;--k-danger:#A32A47;--k-tint:#DCE3F7;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --board:#090B16; --ink:#E9ECF8; --ink2:#A6ACC9; --line2:#3C4268; --tek:#93A8F2; --tek-bg:#1F2756; --deep:#0A0D24; color-scheme:dark;
+  --k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A;--k-tint:#2A3466}}
+:root[data-theme="dark"]{
+  --board:#090B16; --ink:#E9ECF8; --ink2:#A6ACC9; --line2:#3C4268; --tek:#93A8F2; --tek-bg:#1F2756; --deep:#0A0D24; color-scheme:dark;
+  --k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A;--k-tint:#2A3466}
+/* the two rows of phones are pinned to one theme each, whatever the device theme */
+.lt{--k-stone:#F6F7F2;--k-ink:#151A33;--k-tek:#2A3F94;--k-pom:#A32A47;--k-ash:#555B75;--k-gold:#8F6512;--k-olive:#44652A;--k-band:#161C44;--k-surface:#FFFFFF;--k-line:#DDE0D4;--k-muted:#555B75;--k-on:#FFFFFF;--k-danger:#A32A47;--k-tint:#DCE3F7}
+.dk{--k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A;--k-tint:#2A3466}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--board);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.45}
+a{color:inherit}
+button{font:inherit}
+svg.i{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+svg.i.s{width:20px;height:20px}
+svg.i.xs{width:16px;height:16px}
+
+/* page chrome */
+.bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--deep);color:var(--on-deep)}
+.bar a{text-decoration:none;font-size:14px;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.28);white-space:nowrap}
+.bar .ttl{flex:1;min-width:0;display:grid}
+.bar .ttl b{font-family:var(--f-serif);font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .ttl span{font-size:12.5px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .pn{display:flex;gap:8px}
+.rowh{margin:24px 16px 0;font:700 18px/1.3 var(--f-serif);color:var(--ink)}
+.stage{padding:16px 16px 32px;display:flex;gap:28px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.stage.dk{background:#05060E;border-radius:0}
+.stage.dk .cap{color:#A6ACC9}
+.notes{max-width:760px;display:grid;gap:10px;font-size:14.5px;color:var(--ink2)}
+.notes h2{margin:0;font-family:var(--f-serif);font-size:18px;color:var(--ink)}
+.notes ul{margin:0;padding-inline-start:18px;display:grid;gap:8px}
+.notes b{color:var(--ink)}
+.xfig{margin:0;display:flex;flex-direction:column;gap:8px;align-items:center}
+.cap{font-size:13.5px;font-weight:700;color:var(--ink2);text-align:center;max-width:390px}
+
+/* phone */
+.phone{width:390px;height:844px;flex:none;border-radius:26px;outline:8px solid #14172b;position:relative;overflow:hidden;display:flex;flex-direction:column;margin:8px}
+.phone.kit{background:var(--k-stone);color:var(--k-ink)}
+.sb{height:24px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font-size:12px;font-weight:600;color:var(--k-ink)}
+.sb .ic{display:flex;gap:5px;align-items:center}
+.sb .ic i{display:block;width:12px;height:8px;border-radius:2px;background:currentColor;opacity:.85}
+.sb .ic i:last-child{width:18px;border-radius:3px}
+.gest{height:24px;flex:none;display:grid;place-items:center;background:var(--k-surface)}
+.gest::after{content:"";width:108px;height:4px;border-radius:2px;background:var(--k-ink);opacity:.55}
+.app{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+
+/* kit: top bar, band, scroll, tabs */
+.ktop{min-height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px}
+.ktop .kn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-weight:700;text-decoration:none;color:inherit;min-height:48px;position:relative}
+.ktop .kn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xcv{color:var(--k-muted);flex:none}
+.xhd{position:absolute;top:8px;inset-inline-start:24px;width:10px;height:10px;border-radius:50%;background:var(--k-pom);border:2px solid var(--k-stone)}
+.klogo{width:32px;height:32px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--k-tek);color:var(--k-on);font-weight:700}
+.ktop .bell{width:48px;height:48px;display:grid;place-items:center;color:var(--k-ink)}
+.kband{flex:none;min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--k-band);color:#fff;font-weight:700}
+.kband small{font-size:14px}
+.kscroll{flex:1;min-height:0;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.kscroll>*{flex:none}
+.kscroll.fade::after{content:"";position:absolute;inset-inline:0;bottom:0;height:36px;background:linear-gradient(to bottom,transparent,var(--k-stone));pointer-events:none}
+.ktabs{flex:none;display:flex;justify-content:center;border-top:1px solid var(--k-line);background:var(--k-surface)}
+.ktabs a{flex:1;max-width:227px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--k-muted);font-weight:700;font-size:12.5px;text-decoration:none;position:relative}
+.ktabs a b{display:grid;place-items:center;font-weight:400}
+.ktabs a.on{color:var(--k-tek)}
+.ktabs a.on::before{content:"";position:absolute;top:0;width:36px;height:3px;border-radius:0 0 3px 3px;background:var(--k-tek)}
+.ktabs .kbd{position:absolute;top:6px;inset-inline-start:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--k-pom);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
+
+/* kit: text, card, button, tag, banner, sheet */
+.kt{margin:0;font-size:16px;line-height:1.5}
+.kt.s{font-size:14px}.kt.c{font-size:12.5px}.kt.m{color:var(--k-muted)}
+.ktitle{margin:0;font:700 21px/1.5 var(--f-serif)}
+.knum{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.kback{min-height:48px;display:flex;align-items:center;align-self:flex-start;color:var(--k-tek);font-weight:700;margin-bottom:-12px}
+.kc{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.kb{min-height:48px;padding:0 20px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;background:var(--k-tek);color:var(--k-on);font:700 16px/1.5 var(--f-ui)}
+.ktag{display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:12px;border:1px solid var(--k-ash);background:var(--k-stone);color:var(--k-ash);font-size:12.5px;font-weight:700;white-space:nowrap}
+.ktag.st{border-color:var(--k-tek);color:var(--k-tek)}
+.kbn{border:1px solid var(--k-tek);border-inline-start-width:6px;border-radius:10px;background:var(--k-surface);padding:12px;display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.5}
+.kbn .i{color:var(--k-tek);margin-top:1px}
+.kscrim{position:absolute;inset:0;background:rgba(21,26,51,.5);z-index:5}
+.ksheet{position:absolute;inset-inline:0;bottom:0;z-index:6;max-height:85%;background:var(--k-stone);border-radius:20px 20px 0 0;padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--k-line);margin:0 auto}
+
+/* ListGroup + NavRow (§18.5) */
+.xgh{margin:6px 4px -4px;font-size:14px;font-weight:700;color:var(--k-muted)}
+.xl{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.xl.e{border-inline-start:6px solid var(--e,var(--k-pom))}
+.xl>.hd{margin:0;padding:12px 16px 4px;font:700 17px/1.4 var(--f-serif)}
+.xr{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 16px 8px 10px;padding-inline:16px 10px;border-top:1px solid var(--k-line);color:var(--k-ink);text-decoration:none}
+.xr:first-child,.xl>.hd+.xr{border-top:0}
+.xr>.i{color:var(--k-tek)}
+.xr .g{flex:1;min-width:0;display:flex;flex-direction:column}
+.xr .t{font-weight:700;font-size:16px;line-height:1.4}
+.xr .s{font-size:14px;line-height:1.4;color:var(--k-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xr .cv{color:var(--k-muted);width:20px;height:20px}
+.xr .v{font-size:14px;color:var(--k-muted);font-weight:700;white-space:nowrap}
+.xr.big{min-height:72px}
+.xr.xlocked>.i{color:var(--k-muted)}
+.bdg{flex:none;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--k-pom);color:#fff;font-size:12.5px;font-weight:700;display:grid;place-items:center}
+.xp{display:flex;gap:14px;align-items:center}
+.xav{width:56px;height:56px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--k-tek);color:var(--k-on);font:700 21px/1 var(--f-serif)}
+.xp .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.xp .n{margin:0;font:700 21px/1.35 var(--f-serif)}
+.xtags{display:flex;gap:6px;flex-wrap:wrap}
+.xlk{margin:0;display:flex;gap:6px;align-items:center;font-size:14px;color:var(--k-muted)}
+
+/* NEW: role Choice rows (radio) in the picker Sheet */
+.xps{gap:10px}
+.xchs{display:flex;flex-direction:column;gap:8px}
+.xch{min-height:64px;display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;border:1px solid var(--k-line);background:var(--k-surface)}
+.xch>i{flex:none;width:22px;height:22px;margin-top:2px;border-radius:50%;border:2px solid var(--k-muted);display:grid;place-items:center}
+.xch.on{border:2px solid var(--k-tek);padding:11px 13px}
+.xch.on>i{border-color:var(--k-tek)}
+.xch.on>i::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--k-tek)}
+.xch .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.xch b{font-size:16px}
+.xch .g span{font-size:14px;line-height:1.45;color:var(--k-muted)}
+
+/* hall without names */
+.xtt{display:flex;align-items:center;gap:10px}
+.xhall{gap:8px;padding:14px 12px}
+.hark{align-self:center;padding:2px 18px;border-radius:6px;border:1.5px solid var(--k-gold);color:var(--k-gold);font:700 13px/1.6 var(--f-serif)}
+.hgrid,.hbn{display:grid;grid-template-columns:14px repeat(6,1fr) 8px repeat(8,1fr) 8px repeat(6,1fr) 14px;gap:3px 2px;direction:ltr}
+.hbn{gap:0 2px;font-size:11.5px;font-weight:700;color:var(--k-muted);text-align:center}
+.hbn span:nth-child(2),.hbn span:nth-child(6){grid-column:span 6}
+.hbn span:nth-child(4){grid-column:span 8}
+.hl{font-size:10px;color:var(--k-muted);text-align:center;line-height:14px}
+.hs{display:block;height:14px;border-radius:3px}
+.hs.t{background:var(--k-tint);border:1px solid var(--k-tek)}
+.hs.f{border:1.5px dashed var(--k-muted)}
+.he,.ha{display:block}
+.hb{grid-column:span 4;grid-row:span 3;border-radius:6px;border:1.5px solid var(--k-ash);background:repeating-linear-gradient(135deg,transparent 0 4px,var(--k-line) 4px 5px);display:grid;place-items:center;font:700 12.5px var(--f-serif);color:var(--k-ash)}
+.hleg{display:flex;gap:14px;justify-content:center;font-size:12.5px;color:var(--k-muted)}
+.hleg span{display:inline-flex;align-items:center;gap:5px}
+.hleg i{display:inline-block;width:14px;height:12px}
+.hleg .hbx{border-radius:3px;border:1.5px solid var(--k-ash);background:repeating-linear-gradient(135deg,transparent 0 3px,var(--k-line) 3px 4px)}
+.xdl{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;font-size:14px}
+.xdl dt{color:var(--k-muted)}.xdl dd{margin:0;font-weight:700}
+.xtot{grid-template-columns:repeat(5,1fr);text-align:center;gap:0 4px}
+.xtot dt{grid-row:1}.xtot dd{grid-row:2;font-size:18px}
+
+@media (max-width:440px){
+  .stage.xst{padding:0 0 32px;gap:24px}
+  .stage.xst>.xfig{width:100%}
+  .stage.xst .phone{width:100%;margin:0;outline:0;border-radius:0}
+  .stage.xst>.notes{margin:0 16px}
+}
+
+
+/* P48 additions (frame-only helpers) */
+.mr{background:var(--k-surface);border:1px solid var(--k-line);border-inline-start:6px double var(--e,var(--k-tek));border-radius:12px;padding:12px 14px 4px;display:flex;flex-direction:column;gap:4px}
+.mr.nf{padding-bottom:12px}
+.mr .mt{margin:0;font-size:12.5px;color:var(--k-muted);display:flex;gap:6px;align-items:center}
+.mr .mt .ud{width:8px;height:8px;border-radius:50%;background:var(--k-tek)}
+.mr h3{margin:0;font:700 17px/1.4 var(--f-serif)}
+.mr p.b{margin:0;font-size:14.5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mf{display:flex;align-items:center;gap:8px;min-height:48px;border-top:1px solid var(--k-line);margin-top:6px}
+.cnt{flex:1;min-width:0;display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;color:var(--k-muted)}
+.cnt .i{width:16px;height:16px}
+.cnt .nw{color:var(--k-pom)}
+.rb{flex:none;min-height:40px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:20px;border:1.5px solid var(--k-tek);color:var(--k-tek);font-weight:700;font-size:14.5px;background:var(--k-surface);text-decoration:none;white-space:nowrap}
+.rb .i{width:18px;height:18px}
+.rb.done{border-color:var(--k-line);color:var(--k-olive)}
+.rb.ash{border-color:var(--k-ash);color:var(--k-ash)}
+.rb.pom{border-color:var(--k-pom);color:var(--k-pom)}
+.xh{margin:0;font:700 28px/1.3 var(--f-serif)}
+.xsrch{min-height:44px;border:1px solid var(--k-line);border-radius:10px;background:var(--k-surface);display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--k-muted);font-size:15px}
+.xflt{display:flex;gap:8px}
+.xflt span{min-height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:18px;border:1px solid var(--k-line);background:var(--k-surface);font-size:14px;font-weight:700}
+.xday{margin:4px 4px -4px;font-size:13px;font-weight:700;color:var(--k-muted)}
+.fab{position:absolute;bottom:80px;inset-inline-end:16px;min-height:52px;padding:0 18px;border-radius:26px;background:var(--k-tek);color:var(--k-on);display:flex;align-items:center;gap:8px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.25);z-index:3;text-decoration:none}
+/* M3 */
+.mv{border-inline-start:6px double var(--e,var(--k-tek))}
+.mv h2{margin:0;font:700 21px/1.45 var(--f-serif)}
+.box{display:flex;flex-direction:column;gap:8px}
+.box h3{margin:0;font-size:19px;font-weight:700}
+.cmp{background:var(--k-surface);border:2px solid var(--k-tek);border-radius:12px;padding:10px 12px;min-height:96px;font-size:16px;line-height:1.5;position:relative}
+.cmp .cur{display:inline-block;width:2px;height:18px;background:var(--k-tek);vertical-align:-3px}
+.cmp .ph{color:var(--k-muted)}
+.cmp.idle{border:1px solid var(--k-line)}
+.lk{margin:0;display:flex;gap:6px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--k-muted)}
+.lk .i{width:16px;height:16px;margin-top:2px}
+.sendrow{display:flex;align-items:center;gap:10px}
+.sendrow .cc{flex:1;font-size:12.5px;color:var(--k-muted)}
+.sendrow .kb{width:auto}
+.sent{border-inline-start:6px solid var(--k-olive)}
+.sent .h{margin:0;display:flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;color:var(--k-olive)}
+.sent .h .i{width:16px;height:16px}
+.acts2{display:flex;gap:4px;margin-top:-4px}
+.acts2 a{min-height:44px;display:inline-flex;align-items:center;gap:6px;padding:0 8px;color:var(--k-tek);font-weight:700;font-size:14.5px;text-decoration:none}
+.acts2 a.dn{color:var(--k-danger)}
+.acts2 .i{width:18px;height:18px}
+/* mailbox */
+.mg{background:var(--k-surface);border:1px solid var(--k-line);border-inline-start:6px double var(--e,var(--k-tek));border-radius:12px;overflow:hidden}
+.mg .hd{display:flex;gap:8px;align-items:center;padding:12px 14px 8px;text-decoration:none;color:inherit}
+.mg .hd .g{flex:1;min-width:0;display:flex;flex-direction:column}
+.mg .hd b{font:700 16px/1.4 var(--f-serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mg .hd span{font-size:12.5px;color:var(--k-muted)}
+.mg .hd .cv{color:var(--k-muted);width:20px;height:20px}
+.rp{display:flex;gap:10px;padding:10px 14px;border-top:1px solid var(--k-line)}
+.rp .dt{flex:none;width:8px;height:8px;border-radius:50%;margin-top:8px;background:transparent}
+.rp.new .dt{background:var(--k-pom)}
+.rp .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.rp .n{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.rp .n b{font-weight:700}
+.rp .n span{color:var(--k-muted);font-size:12.5px;white-space:nowrap}
+.rp p{margin:0;font-size:15px;line-height:1.45}
+.rp.new p{font-weight:500}
+.more{min-height:44px;display:flex;align-items:center;justify-content:center;border-top:1px solid var(--k-line);color:var(--k-tek);font-weight:700;font-size:14px;text-decoration:none}
+.xpriv{margin:0;display:flex;gap:6px;align-items:center;font-size:13.5px;color:var(--k-muted)}
+.xpriv .i{width:16px;height:16px}
+.stbl{width:390px;max-width:100%;display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--k-stone);color:var(--k-ink);border-radius:16px}
+.stbl h3{margin:0;font-size:13px;color:var(--k-muted)}
+.as{display:flex;flex-direction:column}
+.as a{min-height:52px;display:flex;align-items:center;gap:12px;padding:0 4px;border-top:1px solid var(--k-line);color:var(--k-ink);text-decoration:none;font-weight:700}
+.as a:first-child{border-top:0}
+.as a .i{color:var(--k-tek)}
+.as a.first{color:var(--k-tek)}
+.sm{font-size:12.5px;color:var(--k-muted);margin:0}
+.nt{border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;background:rgba(255,255,255,.78);color:#111;text-align:start}
+.dk .nt{background:rgba(40,42,60,.9);color:#f2f2f6}
+.nt .h{display:flex;align-items:center;gap:8px;font-size:12.5px;opacity:.75}
+.nt .h .ap{width:20px;height:20px;border-radius:5px;background:#2A3F94;color:#fff;display:grid;place-items:center;font:700 12px var(--f-serif)}
+.nt .h .tm{margin-inline-start:auto}
+.nt .tt{font-weight:700;font-size:15px}
+.nt .bd{font-size:15px}
+.lockbg{border-radius:16px;padding:14px 10px;background:linear-gradient(170deg,#7d8fc9 0%,#b9a7c9 55%,#e8c9a8 100%);display:flex;flex-direction:column;gap:8px}
+.pkl{margin:0;font-size:14px;font-weight:700;color:var(--k-muted)}
+.pk{display:flex;flex-wrap:wrap;gap:8px}
+.pk span{min-height:40px;display:inline-flex;align-items:center;gap:6px;padding:0 14px;border-radius:20px;border:1px solid var(--k-line);background:var(--k-surface);font-size:14.5px;font-weight:700}
+.pk span.on{background:var(--k-ink);color:var(--k-stone);border-color:var(--k-ink)}
+.pk span .i{width:16px;height:16px}
+.ptag{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:0 8px;border-radius:11px;border:1px solid var(--k-pom);color:var(--k-pom);font-size:12px;font-weight:700;margin-inline-start:6px}
+.ptag .i{width:12px;height:12px}
+.dk .lockbg{background:linear-gradient(170deg,#0b0f2a 0%,#1e2350 55%,#3a2f45 100%)}
+</style>
+</head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="belloff" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M3 12L21 4l-6 16-3-7z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="chair" viewBox="0 0 24 24"><path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/></symbol>
+<symbol id="mega" viewBox="0 0 24 24"><path d="M3 10v4h4l8 4V6L7 10zM18 9a4 4 0 0 1 0 6"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+<symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="scroll" viewBox="0 0 24 24"><path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V6a2 2 0 0 0-2-2zM9 20H6"/><path d="M11 9h4M11 13h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+<symbol id="tree" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="3" y="16" width="6" height="5" rx="1.5"/><rect x="15" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M6 16v-4h12v4"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol>
+<symbol id="out" viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l-4 4 4 4M10 12h10"/></symbol>
+<symbol id="door" viewBox="0 0 24 24"><path d="M6 20V4h9v16M15 20h3M11 12h.01"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 8V4h10v4M6 17H4v-7h16v7h-2M7 14h10v6H7z"/></symbol>
+<symbol id="upload" viewBox="0 0 24 24"><path d="M12 16V5M7 9l5-5 5 5M5 20h14"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5l-5.3 2.9 1.2-6-4.5-4.1 6-.7z"/></symbol>
+<symbol id="tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></symbol>
+<symbol id="lang" viewBox="0 0 24 24"><path d="M4 6h9M8.5 4v2M11 6c-1 4-3.5 7-7 8.5M6 9c1.3 2.4 3.4 4.3 6 5.2M13 20l4-9 4 9M14.5 17h5"/></symbol>
+<symbol id="hand" viewBox="0 0 24 24"><path d="M5 12h3l3 3h3a2 2 0 0 1 0 4H9M5 9h4l3-3h3a2 2 0 0 1 0 4"/></symbol>
+<symbol id="alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+<symbol id="cog" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol><symbol id="reply" viewBox="0 0 24 24"><path d="M14 7l5 5-5 5M19 12h-9a5 5 0 0 0-5 5v1"/></symbol>
+<symbol id="inbox" viewBox="0 0 24 24"><path d="M4 13l2.5-8h11L20 13v6H4zM4 13h5l1 2h4l1-2h5"/></symbol></defs></svg>
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P48 · תשובה פרטית להודעות</b><span>UX-DESIGN §22. בהיר למעלה, כהה למטה.</span></div><nav class="pn"><a href="seat-reminders.html">הקודם</a></nav></header>
+<main><h2 class="rowh">בהיר</h2><div class="stage xst lt"><figure class="xfig"><figcaption class="cap">1 · הודעות: המספר והכפתור על הכרטיס</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:10px">
+<h1 class="xh">הודעות</h1>
+<div class="xsrch"><svg class="i s" aria-hidden="true"><use href="#search"/></svg>חיפוש בהודעות</div>
+<div class="xflt"><span><svg class="i xs" aria-hidden="true"><use href="#filter"/></svg>סוג הודעה</span></div>
+<p class="xday">היום</p>
+<article class="mr" style="--e:var(--k-tek)"><p class="mt"><span class="ud" aria-label="לא נקראה"></span><span>הודעה · 10:12</span></p><h3>מישהו יכול להשאיל עגלת תאומים לשבת?</h3><p class="b">הנכדים מגיעים לשבת ואין לנו עגלה כפולה. נשמח לשאול מיום ו׳ בבוקר עד מוצאי שבת. רותם אלמוג</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>3 תשובות פרטיות</span></span><a class="rb " href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית</a></div></article>
+<article class="mr" style="--e:var(--k-pom)"><p class="mt"><span>מזל טוב · 08:40</span></p><h3>מזל טוב למשפחת ברקן</h3><p class="b">להולדת הבת, נכדה לשולמית ויגאל ברקן. שיזכו לגדלה לתורה, לחופה ולמעשים טובים.</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>12 ברכות אישיות</span></span><a class="rb pom" href="#"><svg class="i" aria-hidden="true"><use href="#heart"/></svg>ברכה אישית</a></div></article>
+<p class="xday">אתמול</p>
+<article class="mr" style="--e:var(--k-tek)"><p class="mt"><span>הודעה · 21:40</span></p><h3>נפתחה רשימה לתורנות קידוש</h3><p class="b">אני מרכז את התורנות לחורף. מי שרוצה שבת מסוימת, כתבו לי.</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>5 תשובות פרטיות</span><span aria-hidden="true">·</span><span class="nw">2 חדשות</span></span></div></article>
+<article class="mr nf" style="--e:var(--k-tek)"><p class="mt"><span>אירוע · 12:00</span></p><h3>שיעור הלכה במוצאי שבת</h3><p class="b">בבית הכנסת אחרי ערבית. מאת אהרן גלעדי, גבאי.</p></article>
+</div><a class="fab" href="#"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg>הודעה חדשה</a><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">תחתית הכרטיס, כל המצבים</figcaption><div class="stbl"><h3>תחתית הכרטיס בכל מצב</h3><h3>אין עדיין תשובות: רק הכפתור</h3><div class="mf" style="border:0"><span class="cnt"></span><a class="rb " href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית</a></div><h3>עניתי (תשובה אחת לאדם, אפשר לערוך)</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>4 תשובות פרטיות</span></span><a class="rb done" href="#"><svg class="i" aria-hidden="true"><use href="#check"/></svg>עניתם</a></div><h3>הודעה שלי: בלי כפתור, עם החדשות</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>5 תשובות פרטיות</span><span aria-hidden="true">·</span><span class="nw">2 חדשות</span></span></div><h3>השתתפות בצער, לכל הקהילה</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>9 חברים כתבו למשפחה</span></span><a class="rb ash" href="#"><svg class="i" aria-hidden="true"><use href="#heart"/></svg>מילה למשפחה</a></div><h3>המשפחה שההודעה עליה (לא עונים לעצמם)</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>12 ברכות אישיות</span><span aria-hidden="true">·</span><span class="nw">3 חדשות</span></span></div><h3>הודעה או אירוע של ההנהלה (גבאי או טכני), או עדכון שבועי: אין שורה בכלל</h3><p class="sm">בלי כפתור ובלי מספר.</p><h3>מזל טוב או השתתפות בצער שגבאי פרסם: השורה נשארת, הברכות הולכות למשפחה (פסיקת ה־CTO, לאישור הבעלים)</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>7 ברכות אישיות</span></span><a class="rb pom" href="#"><svg class="i" aria-hidden="true"><use href="#heart"/></svg>ברכה אישית</a></div><h3>מתפלל אורח: רואה את המספר, בלי כפתור</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>3 תשובות פרטיות</span></span></div></div></figure><figure class="xfig"><figcaption class="cap">1א · לחיצה ארוכה על הכרטיס</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:25</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll" style="gap:10px"><h1 class="xh">הודעות</h1><p class="xday">היום</p>
+<article class="mr" style="--e:var(--k-tek)"><p class="mt"><span>הודעה · 10:12</span></p><h3>מישהו יכול להשאיל עגלת תאומים לשבת?</h3><p class="b">הנכדים מגיעים לשבת ואין לנו עגלה כפולה.</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>3 תשובות פרטיות</span></span><a class="rb " href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית</a></div></article></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav><div class="kscrim"></div>
+<section class="ksheet" role="dialog" aria-modal="true" aria-label="פעולות על ההודעה"><i class="grab" aria-hidden="true"></i>
+<p class="sm">מישהו יכול להשאיל עגלת תאומים לשבת?</p>
+<div class="as"><a class="first" href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית לרותם אלמוג</a><a href="#"><svg class="i" aria-hidden="true"><use href="#eye"/></svg>פתיחת ההודעה</a><a href="#"><svg class="i" aria-hidden="true"><use href="#belloff"/></svg>השתקת התראות מהחבר הזה</a></div></section></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">1ב · "תשובה פרטית" מהכרטיס: גיליון</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:26</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll" style="gap:10px"><h1 class="xh">הודעות</h1></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav><div class="kscrim"></div>
+<section class="ksheet" role="dialog" aria-modal="true" aria-label="תשובה פרטית" style="max-height:70%"><i class="grab" aria-hidden="true"></i>
+<h2 class="ktitle" style="font-size:19px">תשובה פרטית לרותם אלמוג</h2><p class="sm">על: מישהו יכול להשאיל עגלת תאומים לשבת?</p>
+<div class="cmp">יש לנו עגלה כפולה במחסן. אפשר לבוא לקחת ביום ו׳ אחרי 9<span class="cur"></span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>תגיע רק אל רותם אלמוג. לא תוצג לשאר הקהילה, גם לא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></section></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">2 · הודעה (M3) עם תיבת התשובה</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:30</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-tek)"><p class="kt c m">הודעה · 10:12</p><h2>מישהו יכול להשאיל עגלת תאומים לשבת?</h2>
+<p class="kt">הנכדים מגיעים לשבת ואין לנו עגלה כפולה. נשמח לשאול מיום ו׳ בבוקר עד מוצאי שבת, ונחזיר נקייה.</p><p class="kt s m">מאת רותם אלמוג</p></section>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><b>3 תשובות פרטיות</b></p>
+<div class="box"><h3>תשובה פרטית לרותם אלמוג</h3>
+<div class="cmp idle"><span class="ph">כתבו תשובה</span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>תגיע רק אל רותם אלמוג. לא תוצג לשאר הקהילה, גם לא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button" style="opacity:.45"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></div>
+<a class="kb" href="#" style="background:var(--k-surface);color:var(--k-tek);border:1.5px solid var(--k-tek);text-decoration:none">השתקת התראות מהחבר הזה</a>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">מצבי התשובה שלי</figcaption><div class="stbl"><h3>אחרי השליחה: התשובה שלי במקום התיבה</h3>
+<section class="kc sent"><p class="h"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>נשלחה אל רותם אלמוג בלבד · היום, 10:31</p><p class="kt">יש לנו עגלה כפולה במחסן. אפשר לבוא לקחת ביום ו׳ אחרי 9.</p>
+<div class="acts2"><a href="#"><svg class="i" aria-hidden="true"><use href="#edit"/></svg>עריכה</a><a class="dn" href="#"><svg class="i" aria-hidden="true"><use href="#trash"/></svg>מחיקה</a></div></section>
+<h3>עריכה: אותה תיבה, ממולאת</h3>
+<div class="cmp">יש לנו עגלה כפולה במחסן. אפשר לבוא לקחת ביום ו׳ אחרי 9, או במוצ״ש<span class="cur"></span></div>
+<div class="sendrow"><a class="acts2" href="#" style="flex:1;color:var(--k-tek);font-weight:700;text-decoration:none">ביטול</a><button class="kb" type="button">שמירה</button></div>
+<h3>אי אפשר לענות</h3>
+<div class="kbn"><svg class="i s" aria-hidden="true"><use href="#lock"/></svg><span>מי שכתב את ההודעה כבר לא בקהילה, ולכן אי אפשר לענות.</span></div>
+<h3>מתקרבים לגבול (מוצג מ־900)</h3><div class="sendrow"><span class="cc knum">948/1000</span></div></div></figure><figure class="xfig"><figcaption class="cap">2א · השתתפות בצער שגבאי פרסם: מילה אישית למשפחה</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:40</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-ash)"><p class="kt c m">השתתפות בצער · אתמול, 19:05</p><h2>משפחת שדמי</h2>
+<p class="kt">אנו משתתפים בצערו של אלון שדמי במות אביו, יצחק שדמי ז״ל. השבעה ברחוב הדקל 4, עד יום ג׳, כ״ג בחשוון (3.11). ניחום אבלים בשעות 10:00–13:00, 17:00–22:00. המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים.</p><p class="kt s m">מאת אהרן גלעדי · גבאי</p></section>
+<button class="kb" type="button" style="background:var(--k-surface);color:var(--k-ash);border:1.5px solid var(--k-ash)">משתתף בצער</button>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><b>9 חברים כתבו למשפחה</b></p>
+<div class="box"><h3>מילה אישית למשפחת שדמי</h3>
+<div class="cmp idle"><span class="ph">כתבו למשפחה כמה מילים</span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>יגיע למשפחת שדמי בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button" style="opacity:.45"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></div>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">2ב · מזל טוב: בחירת הנמען (כאן: שולמית)</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:35</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-pom)"><p class="kt c m">מזל טוב · 08:40</p><h2>מזל טוב למשפחת ברקן</h2>
+<p class="kt">להולדת הבת, נכדה לשולמית ויגאל ברקן. שיזכו לגדלה לתורה, לחופה ולמעשים טובים.</p><p class="kt s m">מאת רותם אלמוג</p></section>
+<button class="kb" type="button" style="background:var(--k-surface);color:var(--k-pom);border:1.5px solid var(--k-pom)">מצטרף לברכות</button>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><b>12 ברכות אישיות</b></p>
+<div class="box"><h3>ברכה אישית לשולמית ברקן</h3><p class="pkl" id="pkl">אל מי</p><div class="pk" role="radiogroup" aria-labelledby="pkl"><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#users"/></svg>כל המשפחה</span><span class="on" role="radio" aria-checked="true"><svg class="i" aria-hidden="true"><use href="#check"/></svg>שולמית ברקן</span><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#user"/></svg>יגאל ברקן</span></div>
+<div class="cmp">שולמית יקרה, מזל טוב על הנכדה! מחכה לראות אותה בקידוש<span class="cur"></span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>תגיע רק אל שולמית ברקן. לא לבן או לבת הזוג, לא לשאר המשפחה, לא לשאר הקהילה ולא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></div>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">מצבי הבחירה</figcaption><div class="stbl"><h3>ברירת המחדל: כל המשפחה</h3>
+<div class="box"><h3 style="font-size:17px">ברכה אישית למשפחת ברקן</h3><p class="pkl" id="pkl">אל מי</p><div class="pk" role="radiogroup" aria-labelledby="pkl"><span class="on" role="radio" aria-checked="true"><svg class="i" aria-hidden="true"><use href="#check"/></svg>כל המשפחה</span><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#user"/></svg>שולמית ברקן</span><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#user"/></svg>יגאל ברקן</span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>יגיע למשפחת ברקן בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.</span></p></div>
+<h3>נשלחה לאחד מבני הזוג</h3>
+<section class="kc sent"><p class="h"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>נשלחה אל שולמית ברקן בלבד · היום, 10:36</p><p class="kt">שולמית יקרה, מזל טוב על הנכדה! מחכה לראות אותה בקידוש.</p>
+<div class="acts2"><a href="#"><svg class="i" aria-hidden="true"><use href="#edit"/></svg>עריכה</a><a class="dn" href="#"><svg class="i" aria-hidden="true"><use href="#trash"/></svg>מחיקה</a></div></section>
+<p class="sm">הנמען נקבע בשליחה. עריכה משנה רק את הטקסט; כדי לשלוח למישהו אחר מוחקים ושולחים מחדש.</p>
+<h3>משפחה עם מבוגר אחד: אין בחירה</h3>
+<div class="box"><h3 style="font-size:17px">ברכה אישית למשפחת אופיר</h3>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>יגיע למשפחת אופיר בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.</span></p></div></div></figure><figure class="xfig"><figcaption class="cap">3 · תיבת התשובות (אני › תשובות פרטיות)</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:05</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:12px"><div class="kback">› אני</div>
+<h1 class="ktitle">תשובות פרטיות</h1>
+<p class="xpriv" style="margin-top:-6px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>רק אתם רואים אותן. גם הגבאים לא.</p>
+<section class="mg" style="--e:var(--k-tek)"><a class="hd" href="#"><span class="g"><b>נפתחה רשימה לתורנות קידוש</b><span>הודעה שלכם · 5 תשובות · 2 חדשות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:58</span></div><p>נשמח לקחת את שבת חיי שרה. אנחנו ארבע משפחות מהבניין.</p></div></div>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>שמעון לביא</b><span>היום, 07:15</span></div><p>אני יכול לעזור בהקמה בכל שבת שחסר מישהו.</p></div></div>
+<div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>אביטל רז</b><span>אתמול, 22:03</span></div><p>שבת חנוכה אצלנו, כמו בשנה שעברה. תודה שאתה מרכז!</p></div></div>
+<a class="more" href="#">עוד 2 תשובות</a></section>
+<section class="mg" style="--e:var(--k-pom)"><a class="hd" href="#"><span class="g"><b>מזל טוב למשפחת יערי</b><span>ברכות למשפחה שלכם · 14 ברכות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>נתנאל פז</b><span>יום ב׳, ט״ו בחשוון (26.10)</span></div><p>מזל טוב! שתזכו לרוב נחת מהנכד.</p></div></div>
+<a class="more" href="#">עוד 13 ברכות</a></section>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">הכניסה וההתראה</figcaption><div class="stbl"><h3>הכניסה: אני › שלי בקהילה (ובלשונית "אני" מספר החדשות)</h3>
+<p class="xgh">שלי בקהילה</p><div class="xl"><a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#inbox"/></svg><span class="g"><span class="t">תשובות פרטיות</span><span class="s">2 חדשות</span></span><span class="bdg">2</span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">הקבוצות שלי</span><span class="s">חבר ב־3 קבוצות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<h3>בלי חדשות / אף פעם לא קיבלו</h3>
+<div class="xl"><a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#inbox"/></svg><span class="g"><span class="t">תשובות פרטיות</span><span class="s">אין חדשות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<div class="xl"><a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#inbox"/></svg><span class="g"><span class="t">תשובות פרטיות</span><span class="s">עוד לא הגיעו תשובות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<h3>ההתראה: בלי שם ובלי תוכן</h3>
+<div class="lockbg"><div class="nt"><div class="h"><span class="ap">ק</span><span>קהילות</span><span class="tm">עכשיו</span></div><span class="tt">קהילת אור הדוגמה</span><span class="bd">תשובה פרטית חדשה</span></div>
+<div class="nt"><div class="h"><span class="ap">ק</span><span>קהילות</span><span class="tm">אתמול</span></div><span class="tt">קהילת אור הדוגמה</span><span class="bd">ברכה אישית חדשה למשפחה</span></div></div></div></figure><figure class="xfig"><figcaption class="cap">3א · התיבה של שולמית ברקן</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:40</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:12px"><div class="kback">› אני</div>
+<h1 class="ktitle">תשובות פרטיות</h1>
+<p class="xpriv" style="margin-top:-6px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>רק אתם רואים אותן. גם הגבאים לא.</p>
+<section class="mg" style="--e:var(--k-pom)"><a class="hd" href="#"><span class="g"><b>מזל טוב למשפחת ברקן</b><span>ברכות למשפחה שלכם · 11 ברכות · 2 אישיות · 2 חדשות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>רותם אלמוג<span class="ptag"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>אישית</span></b><span>היום, 10:36</span></div><p>שולמית יקרה, מזל טוב על הנכדה! מחכה לראות אותה בקידוש.</p></div></div><div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:10</span></div><p>מזל טוב לכל המשפחה! שתזכו לרוב נחת.</p></div></div><div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>אביטל רז<span class="ptag"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>אישית</span></b><span>היום, 08:55</span></div><p>מזל טוב, סבתא! איזו שמחה.</p></div></div><a class="more" href="#">עוד 8 ברכות</a></section>
+<p class="sm">על הכרטיס, לכל הקהילה: 12 ברכות אישיות (כל הברכות, גם האישיות).</p></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני<span class="kbd">2</span></a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">3ב · התיבה של יגאל ברקן</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:41</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:12px"><div class="kback">› אני</div>
+<h1 class="ktitle">תשובות פרטיות</h1>
+<p class="xpriv" style="margin-top:-6px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>רק אתם רואים אותן. גם הגבאים לא.</p>
+<section class="mg" style="--e:var(--k-pom)"><a class="hd" href="#"><span class="g"><b>מזל טוב למשפחת ברקן</b><span>ברכות למשפחה שלכם · 10 ברכות · 1 אישית · 1 חדשה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:10</span></div><p>מזל טוב לכל המשפחה! שתזכו לרוב נחת.</p></div></div><div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>שמעון לביא<span class="ptag"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>אישית</span></b><span>היום, 08:50</span></div><p>יגאל, מזל טוב! נרים כוסית בקידוש.</p></div></div><div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>נתנאל פז</b><span>היום, 08:47</span></div><p>מזל טוב! שתזכו לגדלה לתורה, לחופה ולמעשים טובים.</p></div></div><a class="more" href="#">עוד 7 ברכות</a></section>
+<p class="sm">על הכרטיס, לכל הקהילה: 12 ברכות אישיות (כל הברכות, גם האישיות).</p></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני<span class="kbd">1</span></a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">4 · הכותב פותח את ההודעה שלו</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:06</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-tek)"><p class="kt c m">הודעה · אתמול, 21:40</p><h2>נפתחה רשימה לתורנות קידוש</h2>
+<p class="kt">אני מרכז את התורנות לחורף. מי שרוצה שבת מסוימת, כתבו לי.</p><p class="kt s m">מאת יואב נחמיאס</p></section>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><b>5 תשובות פרטיות</b> · כולם רואים את המספר בלבד</p>
+<div class="box"><h3>תשובות שהגיעו</h3><p class="lk" style="margin-top:-4px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>רק אתם רואים אותן.</span></p>
+<section class="mg" style="--e:var(--k-tek);border-inline-start-width:1px">
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:58</span></div><p>נשמח לקחת את שבת חיי שרה. אנחנו ארבע משפחות מהבניין.</p></div></div>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>שמעון לביא</b><span>היום, 07:15</span></div><p>אני יכול לעזור בהקמה בכל שבת שחסר מישהו.</p></div></div>
+<div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>אביטל רז</b><span>אתמול, 22:03 · נערכה</span></div><p>שבת חנוכה אצלנו, כמו בשנה שעברה. תודה שאתה מרכז!</p></div></div>
+</section></div>
+<button class="kb" type="button" style="background:var(--k-surface);color:var(--k-danger);border:1.5px solid var(--k-danger)">מחק</button>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">אישורי מחיקה</figcaption><div class="stbl"><h3>מחיקת הודעה שיש לה תשובות (כותב או גבאי)</h3>
+<section class="kc" style="gap:12px"><h2 class="ktitle" style="font-size:19px">למחוק את ההודעה?</h2>
+<p class="kt">ההודעה תימחק לכל הקהילה, ואיתה 5 התשובות הפרטיות שהגיעו עליה. אי אפשר לשחזר.</p>
+<button class="kb" type="button" style="background:var(--k-danger)">מחיקה</button></section>
+<h3>מחיקת התשובה שלי</h3>
+<section class="kc" style="gap:12px"><h2 class="ktitle" style="font-size:19px">למחוק את התשובה?</h2>
+<p class="kt">היא תימחק גם אצל רותם אלמוג.</p><button class="kb" type="button" style="background:var(--k-danger)">מחיקה</button></section></div></figure></div><h2 class="rowh">כהה</h2><div class="stage xst dk"><figure class="xfig"><figcaption class="cap">1 · הודעות: המספר והכפתור על הכרטיס</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:24</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:10px">
+<h1 class="xh">הודעות</h1>
+<div class="xsrch"><svg class="i s" aria-hidden="true"><use href="#search"/></svg>חיפוש בהודעות</div>
+<div class="xflt"><span><svg class="i xs" aria-hidden="true"><use href="#filter"/></svg>סוג הודעה</span></div>
+<p class="xday">היום</p>
+<article class="mr" style="--e:var(--k-tek)"><p class="mt"><span class="ud" aria-label="לא נקראה"></span><span>הודעה · 10:12</span></p><h3>מישהו יכול להשאיל עגלת תאומים לשבת?</h3><p class="b">הנכדים מגיעים לשבת ואין לנו עגלה כפולה. נשמח לשאול מיום ו׳ בבוקר עד מוצאי שבת. רותם אלמוג</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>3 תשובות פרטיות</span></span><a class="rb " href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית</a></div></article>
+<article class="mr" style="--e:var(--k-pom)"><p class="mt"><span>מזל טוב · 08:40</span></p><h3>מזל טוב למשפחת ברקן</h3><p class="b">להולדת הבת, נכדה לשולמית ויגאל ברקן. שיזכו לגדלה לתורה, לחופה ולמעשים טובים.</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>12 ברכות אישיות</span></span><a class="rb pom" href="#"><svg class="i" aria-hidden="true"><use href="#heart"/></svg>ברכה אישית</a></div></article>
+<p class="xday">אתמול</p>
+<article class="mr" style="--e:var(--k-tek)"><p class="mt"><span>הודעה · 21:40</span></p><h3>נפתחה רשימה לתורנות קידוש</h3><p class="b">אני מרכז את התורנות לחורף. מי שרוצה שבת מסוימת, כתבו לי.</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>5 תשובות פרטיות</span><span aria-hidden="true">·</span><span class="nw">2 חדשות</span></span></div></article>
+<article class="mr nf" style="--e:var(--k-tek)"><p class="mt"><span>אירוע · 12:00</span></p><h3>שיעור הלכה במוצאי שבת</h3><p class="b">בבית הכנסת אחרי ערבית. מאת אהרן גלעדי, גבאי.</p></article>
+</div><a class="fab" href="#"><svg class="i s" aria-hidden="true"><use href="#plus"/></svg>הודעה חדשה</a><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">תחתית הכרטיס, כל המצבים</figcaption><div class="stbl"><h3>תחתית הכרטיס בכל מצב</h3><h3>אין עדיין תשובות: רק הכפתור</h3><div class="mf" style="border:0"><span class="cnt"></span><a class="rb " href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית</a></div><h3>עניתי (תשובה אחת לאדם, אפשר לערוך)</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>4 תשובות פרטיות</span></span><a class="rb done" href="#"><svg class="i" aria-hidden="true"><use href="#check"/></svg>עניתם</a></div><h3>הודעה שלי: בלי כפתור, עם החדשות</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>5 תשובות פרטיות</span><span aria-hidden="true">·</span><span class="nw">2 חדשות</span></span></div><h3>השתתפות בצער, לכל הקהילה</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>9 חברים כתבו למשפחה</span></span><a class="rb ash" href="#"><svg class="i" aria-hidden="true"><use href="#heart"/></svg>מילה למשפחה</a></div><h3>המשפחה שההודעה עליה (לא עונים לעצמם)</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>12 ברכות אישיות</span><span aria-hidden="true">·</span><span class="nw">3 חדשות</span></span></div><h3>הודעה או אירוע של ההנהלה (גבאי או טכני), או עדכון שבועי: אין שורה בכלל</h3><p class="sm">בלי כפתור ובלי מספר.</p><h3>מזל טוב או השתתפות בצער שגבאי פרסם: השורה נשארת, הברכות הולכות למשפחה (פסיקת ה־CTO, לאישור הבעלים)</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><span>7 ברכות אישיות</span></span><a class="rb pom" href="#"><svg class="i" aria-hidden="true"><use href="#heart"/></svg>ברכה אישית</a></div><h3>מתפלל אורח: רואה את המספר, בלי כפתור</h3><div class="mf" style="border:0"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>3 תשובות פרטיות</span></span></div></div></figure><figure class="xfig"><figcaption class="cap">1א · לחיצה ארוכה על הכרטיס</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:25</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll" style="gap:10px"><h1 class="xh">הודעות</h1><p class="xday">היום</p>
+<article class="mr" style="--e:var(--k-tek)"><p class="mt"><span>הודעה · 10:12</span></p><h3>מישהו יכול להשאיל עגלת תאומים לשבת?</h3><p class="b">הנכדים מגיעים לשבת ואין לנו עגלה כפולה.</p><div class="mf"><span class="cnt"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>3 תשובות פרטיות</span></span><a class="rb " href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית</a></div></article></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav><div class="kscrim"></div>
+<section class="ksheet" role="dialog" aria-modal="true" aria-label="פעולות על ההודעה"><i class="grab" aria-hidden="true"></i>
+<p class="sm">מישהו יכול להשאיל עגלת תאומים לשבת?</p>
+<div class="as"><a class="first" href="#"><svg class="i" aria-hidden="true"><use href="#reply"/></svg>תשובה פרטית לרותם אלמוג</a><a href="#"><svg class="i" aria-hidden="true"><use href="#eye"/></svg>פתיחת ההודעה</a><a href="#"><svg class="i" aria-hidden="true"><use href="#belloff"/></svg>השתקת התראות מהחבר הזה</a></div></section></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">1ב · "תשובה פרטית" מהכרטיס: גיליון</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:26</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll" style="gap:10px"><h1 class="xh">הודעות</h1></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav><div class="kscrim"></div>
+<section class="ksheet" role="dialog" aria-modal="true" aria-label="תשובה פרטית" style="max-height:70%"><i class="grab" aria-hidden="true"></i>
+<h2 class="ktitle" style="font-size:19px">תשובה פרטית לרותם אלמוג</h2><p class="sm">על: מישהו יכול להשאיל עגלת תאומים לשבת?</p>
+<div class="cmp">יש לנו עגלה כפולה במחסן. אפשר לבוא לקחת ביום ו׳ אחרי 9<span class="cur"></span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>תגיע רק אל רותם אלמוג. לא תוצג לשאר הקהילה, גם לא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></section></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">2 · הודעה (M3) עם תיבת התשובה</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:30</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-tek)"><p class="kt c m">הודעה · 10:12</p><h2>מישהו יכול להשאיל עגלת תאומים לשבת?</h2>
+<p class="kt">הנכדים מגיעים לשבת ואין לנו עגלה כפולה. נשמח לשאול מיום ו׳ בבוקר עד מוצאי שבת, ונחזיר נקייה.</p><p class="kt s m">מאת רותם אלמוג</p></section>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><b>3 תשובות פרטיות</b></p>
+<div class="box"><h3>תשובה פרטית לרותם אלמוג</h3>
+<div class="cmp idle"><span class="ph">כתבו תשובה</span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>תגיע רק אל רותם אלמוג. לא תוצג לשאר הקהילה, גם לא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button" style="opacity:.45"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></div>
+<a class="kb" href="#" style="background:var(--k-surface);color:var(--k-tek);border:1.5px solid var(--k-tek);text-decoration:none">השתקת התראות מהחבר הזה</a>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">מצבי התשובה שלי</figcaption><div class="stbl"><h3>אחרי השליחה: התשובה שלי במקום התיבה</h3>
+<section class="kc sent"><p class="h"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>נשלחה אל רותם אלמוג בלבד · היום, 10:31</p><p class="kt">יש לנו עגלה כפולה במחסן. אפשר לבוא לקחת ביום ו׳ אחרי 9.</p>
+<div class="acts2"><a href="#"><svg class="i" aria-hidden="true"><use href="#edit"/></svg>עריכה</a><a class="dn" href="#"><svg class="i" aria-hidden="true"><use href="#trash"/></svg>מחיקה</a></div></section>
+<h3>עריכה: אותה תיבה, ממולאת</h3>
+<div class="cmp">יש לנו עגלה כפולה במחסן. אפשר לבוא לקחת ביום ו׳ אחרי 9, או במוצ״ש<span class="cur"></span></div>
+<div class="sendrow"><a class="acts2" href="#" style="flex:1;color:var(--k-tek);font-weight:700;text-decoration:none">ביטול</a><button class="kb" type="button">שמירה</button></div>
+<h3>אי אפשר לענות</h3>
+<div class="kbn"><svg class="i s" aria-hidden="true"><use href="#lock"/></svg><span>מי שכתב את ההודעה כבר לא בקהילה, ולכן אי אפשר לענות.</span></div>
+<h3>מתקרבים לגבול (מוצג מ־900)</h3><div class="sendrow"><span class="cc knum">948/1000</span></div></div></figure><figure class="xfig"><figcaption class="cap">2א · השתתפות בצער שגבאי פרסם: מילה אישית למשפחה</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:40</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-ash)"><p class="kt c m">השתתפות בצער · אתמול, 19:05</p><h2>משפחת שדמי</h2>
+<p class="kt">אנו משתתפים בצערו של אלון שדמי במות אביו, יצחק שדמי ז״ל. השבעה ברחוב הדקל 4, עד יום ג׳, כ״ג בחשוון (3.11). ניחום אבלים בשעות 10:00–13:00, 17:00–22:00. המקום ינחם אתכם בתוך שאר אבלי ציון וירושלים.</p><p class="kt s m">מאת אהרן גלעדי · גבאי</p></section>
+<button class="kb" type="button" style="background:var(--k-surface);color:var(--k-ash);border:1.5px solid var(--k-ash)">משתתף בצער</button>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><b>9 חברים כתבו למשפחה</b></p>
+<div class="box"><h3>מילה אישית למשפחת שדמי</h3>
+<div class="cmp idle"><span class="ph">כתבו למשפחה כמה מילים</span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>יגיע למשפחת שדמי בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button" style="opacity:.45"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></div>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">2ב · מזל טוב: בחירת הנמען (כאן: שולמית)</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:35</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-pom)"><p class="kt c m">מזל טוב · 08:40</p><h2>מזל טוב למשפחת ברקן</h2>
+<p class="kt">להולדת הבת, נכדה לשולמית ויגאל ברקן. שיזכו לגדלה לתורה, לחופה ולמעשים טובים.</p><p class="kt s m">מאת רותם אלמוג</p></section>
+<button class="kb" type="button" style="background:var(--k-surface);color:var(--k-pom);border:1.5px solid var(--k-pom)">מצטרף לברכות</button>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#heart"/></svg><b>12 ברכות אישיות</b></p>
+<div class="box"><h3>ברכה אישית לשולמית ברקן</h3><p class="pkl" id="pkl">אל מי</p><div class="pk" role="radiogroup" aria-labelledby="pkl"><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#users"/></svg>כל המשפחה</span><span class="on" role="radio" aria-checked="true"><svg class="i" aria-hidden="true"><use href="#check"/></svg>שולמית ברקן</span><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#user"/></svg>יגאל ברקן</span></div>
+<div class="cmp">שולמית יקרה, מזל טוב על הנכדה! מחכה לראות אותה בקידוש<span class="cur"></span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>תגיע רק אל שולמית ברקן. לא לבן או לבת הזוג, לא לשאר המשפחה, לא לשאר הקהילה ולא לגבאים.</span></p>
+<div class="sendrow"><span class="cc"></span><button class="kb" type="button"><svg class="i s" aria-hidden="true"><use href="#send"/></svg>שליחה</button></div></div>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">מצבי הבחירה</figcaption><div class="stbl"><h3>ברירת המחדל: כל המשפחה</h3>
+<div class="box"><h3 style="font-size:17px">ברכה אישית למשפחת ברקן</h3><p class="pkl" id="pkl">אל מי</p><div class="pk" role="radiogroup" aria-labelledby="pkl"><span class="on" role="radio" aria-checked="true"><svg class="i" aria-hidden="true"><use href="#check"/></svg>כל המשפחה</span><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#user"/></svg>שולמית ברקן</span><span class="" role="radio" aria-checked="false"><svg class="i" aria-hidden="true"><use href="#user"/></svg>יגאל ברקן</span></div>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>יגיע למשפחת ברקן בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.</span></p></div>
+<h3>נשלחה לאחד מבני הזוג</h3>
+<section class="kc sent"><p class="h"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>נשלחה אל שולמית ברקן בלבד · היום, 10:36</p><p class="kt">שולמית יקרה, מזל טוב על הנכדה! מחכה לראות אותה בקידוש.</p>
+<div class="acts2"><a href="#"><svg class="i" aria-hidden="true"><use href="#edit"/></svg>עריכה</a><a class="dn" href="#"><svg class="i" aria-hidden="true"><use href="#trash"/></svg>מחיקה</a></div></section>
+<p class="sm">הנמען נקבע בשליחה. עריכה משנה רק את הטקסט; כדי לשלוח למישהו אחר מוחקים ושולחים מחדש.</p>
+<h3>משפחה עם מבוגר אחד: אין בחירה</h3>
+<div class="box"><h3 style="font-size:17px">ברכה אישית למשפחת אופיר</h3>
+<p class="lk"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>יגיע למשפחת אופיר בלבד. לא יוצג לשאר הקהילה, גם לא לגבאים.</span></p></div></div></figure><figure class="xfig"><figcaption class="cap">3 · תיבת התשובות (אני › תשובות פרטיות)</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:05</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:12px"><div class="kback">› אני</div>
+<h1 class="ktitle">תשובות פרטיות</h1>
+<p class="xpriv" style="margin-top:-6px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>רק אתם רואים אותן. גם הגבאים לא.</p>
+<section class="mg" style="--e:var(--k-tek)"><a class="hd" href="#"><span class="g"><b>נפתחה רשימה לתורנות קידוש</b><span>הודעה שלכם · 5 תשובות · 2 חדשות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:58</span></div><p>נשמח לקחת את שבת חיי שרה. אנחנו ארבע משפחות מהבניין.</p></div></div>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>שמעון לביא</b><span>היום, 07:15</span></div><p>אני יכול לעזור בהקמה בכל שבת שחסר מישהו.</p></div></div>
+<div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>אביטל רז</b><span>אתמול, 22:03</span></div><p>שבת חנוכה אצלנו, כמו בשנה שעברה. תודה שאתה מרכז!</p></div></div>
+<a class="more" href="#">עוד 2 תשובות</a></section>
+<section class="mg" style="--e:var(--k-pom)"><a class="hd" href="#"><span class="g"><b>מזל טוב למשפחת יערי</b><span>ברכות למשפחה שלכם · 14 ברכות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>נתנאל פז</b><span>יום ב׳, ט״ו בחשוון (26.10)</span></div><p>מזל טוב! שתזכו לרוב נחת מהנכד.</p></div></div>
+<a class="more" href="#">עוד 13 ברכות</a></section>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">הכניסה וההתראה</figcaption><div class="stbl"><h3>הכניסה: אני › שלי בקהילה (ובלשונית "אני" מספר החדשות)</h3>
+<p class="xgh">שלי בקהילה</p><div class="xl"><a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#inbox"/></svg><span class="g"><span class="t">תשובות פרטיות</span><span class="s">2 חדשות</span></span><span class="bdg">2</span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#users"/></svg><span class="g"><span class="t">הקבוצות שלי</span><span class="s">חבר ב־3 קבוצות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<h3>בלי חדשות / אף פעם לא קיבלו</h3>
+<div class="xl"><a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#inbox"/></svg><span class="g"><span class="t">תשובות פרטיות</span><span class="s">אין חדשות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<div class="xl"><a class="xr" href="#"><svg class="i" aria-hidden="true"><use href="#inbox"/></svg><span class="g"><span class="t">תשובות פרטיות</span><span class="s">עוד לא הגיעו תשובות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a></div>
+<h3>ההתראה: בלי שם ובלי תוכן</h3>
+<div class="lockbg"><div class="nt"><div class="h"><span class="ap">ק</span><span>קהילות</span><span class="tm">עכשיו</span></div><span class="tt">קהילת אור הדוגמה</span><span class="bd">תשובה פרטית חדשה</span></div>
+<div class="nt"><div class="h"><span class="ap">ק</span><span>קהילות</span><span class="tm">אתמול</span></div><span class="tt">קהילת אור הדוגמה</span><span class="bd">ברכה אישית חדשה למשפחה</span></div></div></div></figure><figure class="xfig"><figcaption class="cap">3א · התיבה של שולמית ברקן</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:40</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:12px"><div class="kback">› אני</div>
+<h1 class="ktitle">תשובות פרטיות</h1>
+<p class="xpriv" style="margin-top:-6px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>רק אתם רואים אותן. גם הגבאים לא.</p>
+<section class="mg" style="--e:var(--k-pom)"><a class="hd" href="#"><span class="g"><b>מזל טוב למשפחת ברקן</b><span>ברכות למשפחה שלכם · 11 ברכות · 2 אישיות · 2 חדשות</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>רותם אלמוג<span class="ptag"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>אישית</span></b><span>היום, 10:36</span></div><p>שולמית יקרה, מזל טוב על הנכדה! מחכה לראות אותה בקידוש.</p></div></div><div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:10</span></div><p>מזל טוב לכל המשפחה! שתזכו לרוב נחת.</p></div></div><div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>אביטל רז<span class="ptag"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>אישית</span></b><span>היום, 08:55</span></div><p>מזל טוב, סבתא! איזו שמחה.</p></div></div><a class="more" href="#">עוד 8 ברכות</a></section>
+<p class="sm">על הכרטיס, לכל הקהילה: 12 ברכות אישיות (כל הברכות, גם האישיות).</p></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני<span class="kbd">2</span></a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">3ב · התיבה של יגאל ברקן</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:41</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:12px"><div class="kback">› אני</div>
+<h1 class="ktitle">תשובות פרטיות</h1>
+<p class="xpriv" style="margin-top:-6px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>רק אתם רואים אותן. גם הגבאים לא.</p>
+<section class="mg" style="--e:var(--k-pom)"><a class="hd" href="#"><span class="g"><b>מזל טוב למשפחת ברקן</b><span>ברכות למשפחה שלכם · 10 ברכות · 1 אישית · 1 חדשה</span></span><svg class="i cv" aria-hidden="true"><use href="#fwd"/></svg></a>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:10</span></div><p>מזל טוב לכל המשפחה! שתזכו לרוב נחת.</p></div></div><div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>שמעון לביא<span class="ptag"><svg class="i" aria-hidden="true"><use href="#lock"/></svg>אישית</span></b><span>היום, 08:50</span></div><p>יגאל, מזל טוב! נרים כוסית בקידוש.</p></div></div><div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>נתנאל פז</b><span>היום, 08:47</span></div><p>מזל טוב! שתזכו לגדלה לתורה, לחופה ולמעשים טובים.</p></div></div><a class="more" href="#">עוד 7 ברכות</a></section>
+<p class="sm">על הכרטיס, לכל הקהילה: 12 ברכות אישיות (כל הברכות, גם האישיות).</p></div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני<span class="kbd">1</span></a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">4 · הכותב פותח את ההודעה שלו</figcaption><div class="phone kit"><div class="sb"><span class="knum">10:06</span><span class="ic"><i></i><i></i></span></div><div class="app"><div class="ktop"><a class="kn" href="#" aria-label="קהילת אור הדוגמה. תפריט הקהילה"><span class="klogo">א</span><span>קהילת אור הדוגמה</span><svg class="i s xcv" aria-hidden="true"><use href="#chev"/></svg></a><span class="bell" aria-label="התראות"><svg class="i" aria-hidden="true"><use href="#bell"/></svg></span></div><div class="kscroll fade" style="gap:14px"><div class="kback">› הודעות</div>
+<section class="kc mv" style="--e:var(--k-tek)"><p class="kt c m">הודעה · אתמול, 21:40</p><h2>נפתחה רשימה לתורנות קידוש</h2>
+<p class="kt">אני מרכז את התורנות לחורף. מי שרוצה שבת מסוימת, כתבו לי.</p><p class="kt s m">מאת יואב נחמיאס</p></section>
+<p class="xpriv"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><b>5 תשובות פרטיות</b> · כולם רואים את המספר בלבד</p>
+<div class="box"><h3>תשובות שהגיעו</h3><p class="lk" style="margin-top:-4px"><svg class="i" aria-hidden="true"><use href="#lock"/></svg><span>רק אתם רואים אותן.</span></p>
+<section class="mg" style="--e:var(--k-tek);border-inline-start-width:1px">
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>דנה קורן</b><span>היום, 09:58</span></div><p>נשמח לקחת את שבת חיי שרה. אנחנו ארבע משפחות מהבניין.</p></div></div>
+<div class="rp new"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>שמעון לביא</b><span>היום, 07:15</span></div><p>אני יכול לעזור בהקמה בכל שבת שחסר מישהו.</p></div></div>
+<div class="rp"><span class="dt" aria-hidden="true"></span><div class="g"><div class="n"><b>אביטל רז</b><span>אתמול, 22:03 · נערכה</span></div><p>שבת חנוכה אצלנו, כמו בשנה שעברה. תודה שאתה מרכז!</p></div></div>
+</section></div>
+<button class="kb" type="button" style="background:var(--k-surface);color:var(--k-danger);border:1.5px solid var(--k-danger)">מחק</button>
+</div><nav class="ktabs"><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#home"/></svg></b>בית</a><a href="#" class="on"><b><svg class="i" aria-hidden="true"><use href="#msg"/></svg></b>הודעות</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#flame"/></svg></b>מי שברך</a><a href="#" class=""><b><svg class="i" aria-hidden="true"><use href="#user"/></svg></b>אני</a></nav></div><div class="gest"></div></div></figure><figure class="xfig"><figcaption class="cap">אישורי מחיקה</figcaption><div class="stbl"><h3>מחיקת הודעה שיש לה תשובות (כותב או גבאי)</h3>
+<section class="kc" style="gap:12px"><h2 class="ktitle" style="font-size:19px">למחוק את ההודעה?</h2>
+<p class="kt">ההודעה תימחק לכל הקהילה, ואיתה 5 התשובות הפרטיות שהגיעו עליה. אי אפשר לשחזר.</p>
+<button class="kb" type="button" style="background:var(--k-danger)">מחיקה</button></section>
+<h3>מחיקת התשובה שלי</h3>
+<section class="kc" style="gap:12px"><h2 class="ktitle" style="font-size:19px">למחוק את התשובה?</h2>
+<p class="kt">היא תימחק גם אצל רותם אלמוג.</p><button class="kb" type="button" style="background:var(--k-danger)">מחיקה</button></section></div></figure></div><div class="stage xst"><aside class="notes"><h2>P48 · תשובה פרטית לכל הודעה לקהילה (UX-DESIGN §22)</h2><ul>
+<li><b>בלי מתג:</b> כל הודעה לכל הקהילה שחבר כתב מקבלת כפתור "תשובה פרטית" על הכרטיס, בהודעה עצמה ובלחיצה ארוכה. <b>הודעה ואירוע של ההנהלה (גבאי או טכני) לא</b> (בעלים). מזל טוב והשתתפות בצער שההנהלה פרסמה כן, כי הברכות הולכות למשפחה (פסיקת ה־CTO, לאישור הבעלים). גם לא: עדכון שבועי, הודעות מערכת, ערוצי קבוצות ושיחות.</li>
+<li><b>מזל טוב והשתתפות בצער:</b> העונה בוחר למי: כל המשפחה (ברירת מחדל) או אחד המבוגרים בשמו. ברכה לאדם אחד רואה רק הוא. המספר על הכרטיס סופר את כולן.</li>
+<li><b>לאן:</b> הודעה רגילה ואירוע · אל הכותב בלבד. מזל טוב והשתתפות בצער · אל המשפחה שההודעה עליה, כמו היום. אותו מנגנון, אותו אחסון.</li>
+<li><b>המספר:</b> לכל הקהילה, בלי שמות ובלי תוכן, לא מוצג כשהוא 0. "{n} תשובות פרטיות"; במזל טוב "{n} ברכות אישיות"; בהשתתפות בצער "{n} חברים כתבו למשפחה".</li>
+<li><b>תשובה אחת לאדם</b> בכל הודעה, ואפשר לערוך ולמחוק. הגבאים לא רואים את התוכן.</li>
+<li>כל השמות בדויים.</li></ul></aside></div></main>
+</body>
+</html>
