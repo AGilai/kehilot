@@ -1,6 +1,8 @@
-import { israelDate } from '../dates.ts';
+import { dualDate, israelDate } from '../dates.ts';
+import { sortId } from './feed.ts';
 import type { FeedState } from './feed.ts';
-import type { Channel, Message, MessageType, NotifyPrefs, PostMessageBody, TemplateFields, TemplateId } from './types.ts';
+import { isAdult, isManagement } from './roles.ts';
+import type { Channel, Kehila, Lang, Message, MessageType, NotifyPrefs, PostMessageBody, TemplateFields, TemplateId } from './types.ts';
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
@@ -62,16 +64,18 @@ export function ulidTime(id: string): number {
   return id.length >= 10 ? n : NaN;
 }
 
+export { sortId };
+
 export const messageDay = (id: string): string => {
   const ms = ulidTime(id);
   return Number.isFinite(ms) ? israelDate(new Date(ms)) : '';
 };
 
-/** Groups a newest-first list by Israel day (day keys `YYYY-MM-DD`). */
+/** Groups a newest-first list by Israel day (day keys `YYYY-MM-DD`) of `sortId`: a bumped message sits under the bump's day. */
 export function groupByDay(list: Message[]): { day: string; items: Message[] }[] {
   const out: { day: string; items: Message[] }[] = [];
   for (const m of list) {
-    const day = messageDay(m.messageId);
+    const day = messageDay(sortId(m));
     const last = out[out.length - 1];
     if (last && last.day === day) last.items.push(m); else out.push({ day, items: [m] });
   }
@@ -83,6 +87,66 @@ export const timeOfDay = (id: string): string => {
   if (!Number.isFinite(ms)) return '';
   return new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
 };
+
+const UPDATABLE: readonly MessageType[] = ['event', 'condolence'];
+
+/**
+ * Who sees the update action: the author, management, and for a condolence an adult of the family it names
+ * (`k.familyId === m.targetFamilyId`). Events and condolences only. The server decides; this only hides the button.
+ */
+export function canUpdate(m: Message, me: string, k: Pick<Kehila, 'role'> & { familyId?: string | null }): boolean {
+  if (!UPDATABLE.includes(m.type) || !isAdult(k.role)) return false;
+  if (isManagement(k.role) || m.authorId === me) return true;
+  return m.type === 'condolence' && !!m.targetFamilyId && k.familyId === m.targetFamilyId;
+}
+
+/** HH:MM when `ms` is today (Israel), else `d.m`. */
+function stampText(ms: number, now: number): string {
+  const day = israelDate(new Date(ms));
+  if (day === israelDate(new Date(now))) return new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
+  const [, mo, d] = day.split('-').map(Number);
+  return `${d}.${mo}`;
+}
+
+/** "עודכן {time}" (condolence) or "שונה {time}" (event) for the meta line; null when never updated. */
+export function updatedMeta(m: Message, t: T, now: number = Date.now()): string | null {
+  if (m.updatedAt === undefined) return null;
+  const time = stampText(m.updatedAt * 1000, now);
+  if (m.type === 'condolence') return t('msg.updated', { time });
+  if (m.type === 'event') return t('msg.changed', { time });
+  return null;
+}
+
+/** The card's closing line, only for a condolence updated to "with shiva details". */
+export function updatedLine(m: Message, t: T, now: number = Date.now()): string | null {
+  if (m.type !== 'condolence' || m.fields?.variant !== 'full' || m.updatedAt === undefined) return null;
+  return t('msg.updatedLine', { time: stampText(m.updatedAt * 1000, now), first: stampText(ulidTime(m.messageId), now) });
+}
+
+export const isCancelled = (m: Pick<Message, 'type' | 'fields'>): boolean => m.type === 'event' && m.fields?.cancelled === true;
+
+const WORDS: Record<Lang, { time: string; date: string; place: string }> = {
+  he: { time: 'בשעה', date: 'ביום', place: 'במקום' },
+  en: { time: 'at', date: 'on', place: 'place:' },
+};
+
+/** The changed values of an event, the first-posted one struck: "בשעה ~~20:30~~ 21:00". Null when nothing changed. */
+export function eventChangeParts(m: Pick<Message, 'type' | 'fields' | 'changed'>, lang: Lang = 'he'): Array<{ text: string; struck: boolean }> | null {
+  if (m.type !== 'event' || !m.changed) return null;
+  const w = WORDS[lang];
+  const out: Array<{ text: string; struck: boolean }> = [];
+  for (const key of ['time', 'date', 'place'] as const) {
+    const old = m.changed[key];
+    if (old === undefined) continue;
+    const now = String(m.fields?.[key] ?? '');
+    const show = (v: string) => (key === 'date' ? dualDate(v, lang) : v);
+    out.push({ text: `${out.length ? ' · ' : ''}${w[key]} `, struck: false }, { text: show(old), struck: true }, { text: ` ${show(now)}`, struck: false });
+  }
+  return out.length ? out : null;
+}
+
+/** The screen-reader text of `eventChangeParts` (a strike is not read): "בשעה 20:30 ← 21:00". */
+export const eventChangeLabel = (parts: Array<{ text: string; struck: boolean }>): string => parts.map(p => (p.struck ? `${p.text} ←` : p.text)).join('');
 
 export const TITLE_MAX = 120;
 export const BODY_MAX = 4000;

@@ -31,7 +31,7 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
  *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
 export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'logo', 'logo-none', 'logo-crop', 'logo-error', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
-export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'compose-tpl-event', 'compose-tpl-mazal', 'compose-tpl-condolence', 'compose-tpl-missing', 'compose-tpl-free', 'm5', 'prefs-seats', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
+export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'm3-shiva-updated', 'm3-event-changed', 'm3-event-cancelled', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'compose-tpl-event', 'compose-tpl-mazal', 'compose-tpl-condolence', 'compose-tpl-missing', 'compose-tpl-free', 'm5', 'prefs-seats', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
   'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'logo', 'logo-none', 'logo-crop', 'logo-error', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'sheet-items', 'sheet-items-many', 'sheet-items-sheet', 'sheet-items-free', 'sheet-items-rules', 'print-items', 'print-items-many', 'home-week', 'home-week-guest', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty',
   ...P48_SCREENS];
 
@@ -269,7 +269,10 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const messages: Message[] = screen?.startsWith('p48-') ? p48Messages({ now, channelId: cAnn, ulid: fixtureUlid }) : [
     mk(1 * H, 1, { type: 'weekly', title: 'שבת שלום מהקהילה הבדיונית', body: 'הודעת דוגמה בלבד. קבלת שבת תתקיים בשעה הרגילה.' }),
     mk(2 * H, 2, { type: 'celebration', title: 'מזל טוב לבר המצווה בבית בדיוני', body: 'משפחת בדיוני מזמינה את כולם לשמחה בשבת הקרובה.', joinCount: 12, targetMemberId: targetId, targetName: 'בדיוני' }),
-    mk(5 * H, 3, { type: 'condolence', title: 'השתתפות בצער משפחת לדוגמה', body: 'בצער רב אנו מודיעים על פטירתו של אבי המשפחה. יהי זכרו ברוך.', targetMemberId: targetId, targetName: 'לדוגמה' }),
+    mk(5 * H, 3, { type: 'condolence', title: 'השתתפות בצער משפחת לדוגמה', body: 'בצער רב אנו מודיעים על פטירתו של אבי המשפחה. יהי זכרו ברוך.', targetMemberId: targetId, targetName: 'לדוגמה' , templateId: 'condolence', fields: { variant: 'full', surname: 'לדוגמה', deceased: 'אברהם', relation: 'אבי המשפחה', address: 'רח׳ הניסיון 12', hours: '10:00–20:00', until: '2026-11-09', prayers: 'שחרית 7:00, מנחה 17:45' }, targetFamilyId: '01FIXTUREFAMILY0000000002', updatedAt: secs(now - 0.5 * H), bumpId: fixtureUlid(now - 0.5 * H, 12) }),
+    // Updated and cancelled events (Task 9): the old time struck beside the new, and a cancelled one.
+    mk(8 * H, 13, { type: 'event', title: 'ערב לימוד לנשים', body: 'יום שלישי, 3.11, בשעה 21:00 · בית הכנסת, עזרת הנשים.', templateId: 'event', fields: { name: 'ערב לימוד לנשים', date: '2026-11-03', time: '21:00', place: 'בית הכנסת, עזרת הנשים', for: 'women' }, updatedAt: secs(now - 3 * H), changed: { time: '20:30' } }),
+    mk(9 * H, 14, { type: 'event', title: 'טיול קהילתי', body: 'יום חמישי, 5.11, בשעה 10:00 · הפארק.', templateId: 'event', fields: { name: 'טיול קהילתי', date: '2026-11-05', time: '10:00', place: 'הפארק', for: 'all', cancelled: true }, updatedAt: secs(now - 4 * H) }),
     mk(26 * H, 4, { type: 'event', title: 'שיעור ערב שבת', body: 'שיעור קצר לפני מנחה, בהשתתפות כולם.' }),
     mk(3 * H, 5, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: 'u7', authorName: 'רון לדוגמה', body: 'מי מביא כיסאות לשבת?' }),
     mk(2.5 * H, 6, { channelId: cChat, type: 'chat', authorKind: 'member', authorId: 'u8', authorName: 'מיכל בדויה', body: 'צילמתי את הסוכה, הנה:', image: { contentType: 'image/jpeg', bytes: 40000 } }),
@@ -807,6 +810,12 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       if (method === 'PUT' && /\/admin\/members\/[^/]+$/.test(key)) return {} as any;
       if (method === 'DELETE' && /\/admin\/members\/[^/]+$/.test(key)) return undefined as any;
       if (method === 'DELETE' && /\/invites\/[^/]+$/.test(key)) return undefined as any;
+      if (method === 'PUT' && /\/messages\/[^/]+$/.test(key)) {
+        const found = messages.find(x => key.endsWith(`/messages/${x.messageId}`));
+        if (!found) throw new ApiCodeError(404, 'message_not_found');
+        const b = body as { title: string; body?: string; fields: Record<string, string | boolean> };
+        return { ...found, title: b.title, body: b.body ?? '', fields: b.fields, updatedAt: Math.floor(Date.now() / 1000), notified: true } as any;
+      }
       if (key in routes && routes[key] === undefined) return undefined as any;
       const hit = routes[key];
       if (hit === undefined) throw new ApiCodeError(404, 'not_found');

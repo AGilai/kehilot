@@ -15,6 +15,8 @@
     "version_conflict": "Someone else updated the tree. Reloading.",
     "tree_too_large": "The tree is too large",
     "invalid_body": "The request is not valid",
+    "invalid_notify": "The choice to notify about the update is not valid",
+    "not_updatable": "Only an event or a condolence can be updated",
     "invalid_json": "The request is not valid",
     "invalid_first_name": "Enter a first name (up to 60 characters)",
     "invalid_last_name": "The last name is too long (up to 60 characters)",

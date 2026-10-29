@@ -2,7 +2,7 @@ import type { Change, ChangesPage, Message, Reply } from './types.ts';
 
 export type FeedState = {
   messages: Record<string, Message>;
-  /** Message IDs, newest first (ULIDs sort by time). */
+  /** Message IDs, newest first by `sortId` (a notified update moves a message to the top). */
   order: string[];
   replies: Record<string, Reply[]>;
   /** False until the initial (or resync) load succeeds, so the UI can tell loading from empty. */
@@ -11,12 +11,20 @@ export type FeedState = {
 
 export const emptyFeed: FeedState = { messages: {}, order: [], replies: {}, loaded: false };
 
-const byNewest = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
+/** What the feed sorts (and groups by day) on: the bump id of a notified update, else the message id. */
+export const sortId = (m: Pick<Message, 'messageId' | 'bumpId'>): string => m.bumpId ?? m.messageId;
+
+const newestFirst = (messages: Record<string, Message>) => (a: string, b: string) => {
+  const x = messages[a] ? sortId(messages[a]!) : a;
+  const y = messages[b] ? sortId(messages[b]!) : b;
+  return x < y ? 1 : x > y ? -1 : 0;
+};
 
 export function feedFromMessages(list: Message[]): FeedState {
   const messages: Record<string, Message> = {};
-  for (const m of list) messages[m.messageId] = m;
-  return { messages, order: Object.keys(messages).sort(byNewest), replies: {}, loaded: true };
+  // A bumped message can come on page 1 and again on a later page: one entry, the copy that sorts highest (the bumped one).
+  for (const m of list) { const have = messages[m.messageId]; if (!have || sortId(m) >= sortId(have)) messages[m.messageId] = m; }
+  return { messages, order: Object.keys(messages).sort(newestFirst(messages)), replies: {}, loaded: true };
 }
 
 /** Applies a page in order. Pure and idempotent: a repeated page gives the same state. */
@@ -36,8 +44,11 @@ export function applyChanges(state: FeedState, changes: Change[]): FeedState {
         if (c.item.replyAdults === undefined && prev?.replyAdults !== undefined) carry.replyAdults = prev.replyAdults;
         if (c.item.replyBlocked === undefined && prev?.replyBlocked !== undefined) carry.replyBlocked = prev.replyBlocked;
         const next = { ...c.item, ...carry };
-        messages[c.item.messageId] = read === undefined ? next : { ...next, read };
-        if (!prev) order = [...order, c.item.messageId].sort(byNewest);
+        // A bump this client has not seen: the message is unread again (unless the answer says otherwise) and moves up.
+        const bumped = !!prev && !!c.item.bumpId && c.item.bumpId !== prev.bumpId;
+        const nowRead = bumped && c.item.read === undefined ? false : read;
+        messages[c.item.messageId] = nowRead === undefined ? next : { ...next, read: nowRead };
+        if (!prev || bumped) order = [...(prev ? order.filter(id => id !== c.item.messageId) : order), c.item.messageId].sort(newestFirst(messages));
         break;
       }
       case 'message_removed':

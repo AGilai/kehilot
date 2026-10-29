@@ -107,6 +107,11 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'search-loading') return { nav: { tab: 'messages' } };
   if (s === 'messages-all') return { nav: { tab: 'messages' }, filter: 'all' };
   if (s === 'm3' || s === 'm3target') { const m = byType('celebration'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
+  if (s === 'm3-shiva-updated') { const m = state.feed.order.map(id => state.feed.messages[id]!).find(x => x.type === 'condolence' && x.updatedAt); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
+  if (s === 'm3-event-changed' || s === 'm3-event-cancelled') {
+    const m = state.feed.order.map(id => state.feed.messages[id]!).find(x => x.type === 'event' && (s === 'm3-event-changed' ? x.changed : x.fields?.cancelled === true));
+    return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null;
+  }
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   // P48 (private replies). The sheet, the actions and the mailbox open on the screen that hosts them (Tasks 7 to 9 wire the rest).
   if (s === 'p48-messages' || s === 'p48-actions' || s === 'p48-sheet' || s === 'p48-sheet-picker') return { nav: { tab: 'messages' } };

@@ -6,7 +6,7 @@ import type {
   AdminFamily, SimchaWeek, Candidate, Channel, ChannelCreated, ChannelFields, ChangesPage, Child, ChildFields, Classification,
   DirectoryEntry, DismissCard, ExportLink, FamilyView, Group, GroupMemberRow, RoleTag, TagRow, GroupMembership,
   GroupRequestRow, ImportResult, Inbox, ImportRow, InviteOptions, InvitePreview, InviteRow, Kehila, Lang, Logo, Me,
-  MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, Profile, Reply,
+  MemberFields, MemberRow, PhoneListFamily, PushTexts, Role, Message, NotifyPrefs, PostMessageBody, UpdateMessageBody, Profile, Reply,
   RequestRow, SheetItem, SheetPage, TargetFamily, UploadGrant,
 } from './types.ts';
 import type { TreeDoc } from './tree.ts';
@@ -87,6 +87,7 @@ export function endpoints(http: Http) {
       r<Message[]>('GET', `${K(k)}/messages${query([['limit', o.limit], ['before', o.before]])}`),
     message: (k: string, m: string) => r<Message>('GET', `${K(k)}/messages/${e(m)}`),
     postMessage: (k: string, body: PostMessageBody) => r<Message>('POST', `${K(k)}/messages`, body),
+    updateMessage: (k: string, m: string, body: UpdateMessageBody) => r<Message & { notified: boolean }>('PUT', `${K(k)}/messages/${e(m)}`, body),
     removeMessage: (k: string, m: string) => r<void>('DELETE', `${K(k)}/messages/${e(m)}`),
     join: (k: string, m: string) => r<{ joinCount: number; joined: true }>('POST', `${K(k)}/messages/${e(m)}/join`),
     markRead: (k: string, m: string) => r<void>('POST', `${K(k)}/messages/${e(m)}/read`),

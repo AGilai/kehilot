@@ -54,7 +54,7 @@ test('registerPush stores the token and registers the device; denied stores noth
   assert.equal(await registerPush(api, { ...base, notifications: notifs(true) }), 'registered');
   assert.equal(mem.get(PUSH_TOKEN_KEY), 'ExponentPushToken[x]');
   assert.equal(PUSH_TOKEN_KEY, 'kehilot.pushToken');
-  assert.ok(calls.includes('channel:community') && calls.includes('device:android'));
+  assert.ok(calls.includes('channel:community') && calls.includes('channel:quiet') && calls.includes('device:android'));
 });
 
 test('chat toggles default off and list only audience conversation channels', () => {

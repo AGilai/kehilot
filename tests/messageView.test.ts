@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canPublish, canSendChat, groupByDay, isMuted, needsTarget, postBody, postableChannels, joinLabel, unreadCount, visibleList } from '../src/client/messageView.ts';
+import { canPublish, canUpdate, eventChangeParts, sortId, updatedLine, updatedMeta, canSendChat, groupByDay, isMuted, needsTarget, postBody, postableChannels, joinLabel, unreadCount, visibleList } from '../src/client/messageView.ts';
 import { feedFromMessages } from '../src/client/feed.ts';
 import type { Channel, Message, NotifyPrefs } from '../src/client/types.ts';
 
@@ -149,4 +149,72 @@ test('postBody adds templateId and fields only when a template is given', () => 
   const without = postBody(d, undefined);
   assert.ok(!('templateId' in without));
   assert.ok(!('fields' in without));
+});
+
+const CROCK = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+/** A ULID-shaped id for a time in ms. */
+const ulidAt = (ms: number, tail = 'AAAAAAAAAAAAAAAA'): string => {
+  let n = ms; let out = '';
+  for (let i = 0; i < 10; i++) { out = CROCK[n % 32] + out; n = Math.floor(n / 32); }
+  return out + tail;
+};
+
+test('canUpdate: author, management, bereaved family adult; nobody else', () => {
+  const cond = msg('m1', { type: 'condolence', authorId: 'u1', authorKind: 'member', targetFamilyId: 'f9' });
+  const ev = msg('m2', { type: 'event', authorId: 'u1', authorKind: 'member', targetFamilyId: 'f9' });
+  assert.equal(canUpdate(cond, 'u1', { role: 'member', familyId: 'f1' }), true);
+  assert.equal(canUpdate(cond, 'u2', { role: 'gabbai', familyId: 'f1' }), true);
+  assert.equal(canUpdate(cond, 'u2', { role: 'tech', familyId: null }), true);
+  assert.equal(canUpdate(cond, 'u3', { role: 'member', familyId: 'f9' }), true);
+  assert.equal(canUpdate(cond, 'u3', { role: 'member', familyId: 'f1' }), false);
+  assert.equal(canUpdate(cond, 'u3', { role: 'member' }), false);
+  assert.equal(canUpdate(ev, 'u3', { role: 'member', familyId: 'f9' }), false);
+  assert.equal(canUpdate(cond, 'u3', { role: 'listener', familyId: 'f9' }), false);
+  assert.equal(canUpdate(msg('m3', { type: 'general', authorId: 'u1' }), 'u1', { role: 'member' }), false);
+  assert.equal(canUpdate(msg('m4', { type: 'event', authorId: 'u1' }), 'u1', { role: 'listener' }), false);
+});
+
+test('sortId is the bump id or the message id', () => {
+  assert.equal(sortId(msg('m1')), 'm1');
+  assert.equal(sortId(msg('m1', { bumpId: 'm9' })), 'm9');
+});
+
+test('eventChangeParts: time and place, old struck', () => {
+  const m = msg('m1', { type: 'event', fields: { date: '2026-11-03', time: '21:00', place: 'בית הכנסת' }, changed: { time: '20:30', place: 'הספרייה' } });
+  assert.deepEqual(eventChangeParts(m), [
+    { text: 'בשעה ', struck: false }, { text: '20:30', struck: true }, { text: ' 21:00', struck: false },
+    { text: ' · במקום ', struck: false }, { text: 'הספרייה', struck: true }, { text: ' בית הכנסת', struck: false },
+  ]);
+  assert.equal(eventChangeParts(msg('m1', { type: 'event', fields: { time: '21:00' } })), null);
+  assert.equal(eventChangeParts(msg('m1', { type: 'condolence', changed: { time: '20:30' } })), null);
+});
+
+test('updatedLine only for a full condolence that was updated', () => {
+  const at = Date.UTC(2026, 9, 28, 12, 30) / 1000;
+  const id = ulidAt(Date.UTC(2026, 9, 28, 7, 12));
+  const full = msg(id, { type: 'condolence', updatedAt: at, fields: { variant: 'full' } });
+  assert.match(updatedLine(full, t, Date.UTC(2026, 9, 28, 14, 30))!, /^msg\.updatedLine\|time=\d\d:\d\d,first=09:12$/);
+  assert.equal(updatedLine(msg(id, { type: 'condolence', updatedAt: at, fields: { variant: 'later' } }), t), null);
+  assert.equal(updatedLine(msg(id, { type: 'condolence', fields: { variant: 'full' } }), t), null);
+  assert.equal(updatedLine(msg(id, { type: 'event', updatedAt: at, fields: { variant: 'full' } }), t), null);
+});
+
+test('updatedMeta: updated for a condolence, changed for an event, time today else d.m', () => {
+  const now = Date.UTC(2026, 9, 28, 14, 30);
+  const today = Math.floor(Date.UTC(2026, 9, 28, 11, 30) / 1000); // 13:30 Israel (UTC+2 in late Oct 2026? DST ends 25 Oct)
+  const old = Math.floor(Date.UTC(2026, 9, 20, 11, 30) / 1000);
+  assert.equal(updatedMeta(msg('m1', { type: 'condolence', updatedAt: today }), t, now), 'msg.updated|time=13:30');
+  assert.equal(updatedMeta(msg('m1', { type: 'event', updatedAt: today }), t, now), 'msg.changed|time=13:30');
+  assert.equal(updatedMeta(msg('m1', { type: 'condolence', updatedAt: old }), t, now), 'msg.updated|time=20.10');
+  assert.equal(updatedMeta(msg('m1', { type: 'condolence' }), t, now), null);
+  assert.equal(updatedMeta(msg('m1', { type: 'weekly', updatedAt: today }), t, now), null);
+});
+
+test('groupByDay puts a bumped message under the bump day', () => {
+  const old = ulidAt(Date.UTC(2026, 9, 20, 9, 0));
+  const mid = ulidAt(Date.UTC(2026, 9, 25, 9, 0));
+  const bump = ulidAt(Date.UTC(2026, 9, 28, 9, 0));
+  const g = groupByDay([msg(old, { bumpId: bump }), msg(mid)]);
+  assert.deepEqual(g.map(x => x.day), ['2026-10-28', '2026-10-25']);
+  assert.equal(g[0]!.items[0]!.messageId, old);
 });

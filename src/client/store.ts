@@ -10,7 +10,7 @@ import { resolveHit } from '../search/hit.ts';
 import type { Hit } from '../search/hit.ts';
 import type { CacheStore, CachedMessage, MessageCache } from '../search/cache.ts';
 import { isAdult } from './roles.ts';
-import type { Change, Channel, Inbox, Message, Kehila, Lang, Me, NotifyPrefs, PostMessageBody, Reply, UploadGrant } from './types.ts';
+import type { Change, Channel, Inbox, Message, Kehila, Lang, Me, NotifyPrefs, PostMessageBody, UpdateMessageBody, Reply, UploadGrant } from './types.ts';
 
 type Api = ReturnType<typeof endpoints>;
 
@@ -434,6 +434,16 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     return m;
   }
 
+  /** Updates an event or condolence in place; the answer is applied as a `message` change (a bump moves it up, unread). */
+  async function updateMessage(messageId: string, body: UpdateMessageBody): Promise<{ message: Message; notified: boolean }> {
+    const c = current();
+    if (!c) throw new ApiCodeError(0, 'try_again');
+    const { notified, ...message } = await api.updateMessage(c.k, messageId, body);
+    // The updater has read their own update: the bump must not mark it unread for them.
+    if (still(c)) applyUpdate({ changes: [{ kind: 'message', id: message.messageId, item: message }, { kind: 'read', id: message.messageId, item: { messageId: message.messageId } }] });
+    return { message, notified };
+  }
+
   /** An upload grant for the open Kehila (presigned; the caller must not log or store it). */
   async function requestUpload(o: { channelId: string; contentType: 'image/jpeg' | 'image/png'; bytes: number }): Promise<UploadGrant> {
     const c = current();
@@ -520,7 +530,7 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     getState: () => state,
     subscribe(l: () => void) { listeners.add(l); return () => { listeners.delete(l); }; },
     loadMe, selectKehila, chooseKehila, start, saveProfile, acceptAge13, acceptInvite, requestMembership, syncRole, clearJoinError, dropMissingSelection, refreshChannels, refreshKehila, search, archive, cacheStatus, cachedMessage, loadHit, reset, guard,
-    setNotify, editProfile, setPhone, setShowPhone, leaveKehila, markRead, loadReplies, sendReply, editReply, deleteReply, loadInbox, markRepliesSeen, join, removeMessage, postMessage, requestUpload,
+    setNotify, editProfile, setPhone, setShowPhone, leaveKehila, markRead, loadReplies, sendReply, editReply, deleteReply, loadInbox, markRepliesSeen, join, removeMessage, postMessage, updateMessage, requestUpload,
     pollNow: () => poller.pollNow(),
   };
 }

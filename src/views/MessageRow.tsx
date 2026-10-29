@@ -10,6 +10,7 @@ import { ReplyRow, previewHasRow } from './replies/ReplyRow.tsx';
 import { buttonLabel, buttonState } from '../client/replyView.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Message } from '../client/types.ts';
+import { CancelledTag, ChangeLine, MetaText, UpdatedFooter } from './UpdatedParts.tsx';
 
 /** The start-edge stripe: a double line in the type colour, dotted when the message is muted. */
 export function Stripe({ type, muted }: { type: Message['type']; muted?: boolean }) {
@@ -48,7 +49,7 @@ export function MessageRow({ message, meta, muted, onPress, reply, previewReply 
       <Stripe type={message.type} muted={muted} />
       <View style={{ flex: 1, padding: 14, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Txt size="caption" color={k.muted} numberOfLines={1} style={{ flexShrink: 1 }}>{meta}</Txt>
+          <MetaText message={message} meta={meta} />
           {muted ? <Txt size="caption" bold color={k.muted}>{t('messages.muted')}</Txt> : null}
           <View style={{ flex: 1 }} />
           {reply && Platform.OS === 'web' ? (
@@ -60,8 +61,11 @@ export function MessageRow({ message, meta, muted, onPress, reply, previewReply 
           {unread ? <View accessibilityLabel={t('messages.unread')} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: k.tekhelet }} /> : null}
         </View>
         {message.title ? <Txt content serif size="heading" numberOfLines={2}>{message.title}</Txt> : null}
+        <CancelledTag message={message} />
+        <ChangeLine message={message} lines={2} />
         {message.body ? <Txt content size="small" color={k.muted} numberOfLines={2}>{message.body}</Txt> : null}
         {message.image ? <ImageThumb messageId={message.messageId} contentType={message.image.contentType} /> : null}
+        <UpdatedFooter message={message} />
         {reply ? <ReplyRow message={message} unreadNew={reply.unreadNew} onReply={reply.onReply} onOpenReplies={reply.onOpenReplies} />
           : previewReply && previewHasRow(message) ? <ReplyRow message={message} preview /> : null}
       </View>

@@ -11,6 +11,9 @@ type Api = ReturnType<typeof endpoints>;
 /** Secure-store key of the Expo push token. Sign-out reads it (to delete the device) and removes it. */
 export const PUSH_TOKEN_KEY = 'kehilot.pushToken';
 export const ANDROID_CHANNEL = 'community';
+/** Updated messages: low importance, no sound, no vibration (UX §19.2a). The server asks for it by this id. */
+export const QUIET_CHANNEL = 'quiet';
+export const QUIET_CHANNEL_NAME = 'עדכונים שקטים';
 
 export type PushStatus = 'registered' | 'denied' | 'unsupported';
 export type PushRoute = { kehila: string; messageId?: string; screen?: string; /** The Friday of the Shabbat a seats push is about. */ week?: string };
@@ -109,7 +112,11 @@ export type PushDeps = {
 async function defaultPort(): Promise<NotificationsPort> {
   const N = await import('expo-notifications');
   return {
-    setAndroidChannel: async id => { await N.setNotificationChannelAsync(id, { name: 'הודעות הקהילה', importance: N.AndroidImportance.DEFAULT }); },
+    setAndroidChannel: async id => {
+      await N.setNotificationChannelAsync(id, id === QUIET_CHANNEL
+        ? { name: QUIET_CHANNEL_NAME, importance: N.AndroidImportance.LOW, sound: null, enableVibrate: false, vibrationPattern: null }
+        : { name: 'הודעות הקהילה', importance: N.AndroidImportance.DEFAULT });
+    },
     permission: async () => {
       let p = await N.getPermissionsAsync();
       if (!p.granted && p.canAskAgain) p = await N.requestPermissionsAsync();
@@ -134,7 +141,7 @@ export async function registerPush(api: Api, o: PushDeps = {}): Promise<PushStat
   const projectId = 'projectId' in o ? o.projectId : (C?.expoConfig?.extra?.eas?.projectId as string | undefined);
   if (!projectId) return 'unsupported';
   const port = o.notifications ?? await defaultPort();
-  if (platform === 'android') await port.setAndroidChannel(ANDROID_CHANNEL);
+  if (platform === 'android') { await port.setAndroidChannel(ANDROID_CHANNEL); await port.setAndroidChannel(QUIET_CHANNEL); }
   if (!(await port.permission())) return 'denied';
   const token = await port.token(projectId);
   const storage = o.storage ?? await secureStorage();

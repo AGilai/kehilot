@@ -35,6 +35,8 @@ export type Kehila = {
   role: Role;
   classification: Classification;
   logoVersion: string | null;
+  /** The caller's own family in this Kehila; null for a guest or before a family is set. */
+  familyId?: string | null;
   /** Management only: who set the logo, when (Unix seconds), PNG bytes and side; null when there is none. */
   logoInfo?: { name: string; at: number; bytes: number; side: number } | null;
   /** Members only: whether their mazal tov, condolence and event lines go on the sheet at once or wait for approval. */
@@ -171,7 +173,17 @@ export type Message = {
   replyBlocked?: 'author_left' | 'target_left';
   templateId?: TemplateId;
   fields?: TemplateFields;
+  /** Unix seconds; set once the message was updated in place. */
+  updatedAt?: number;
+  /** Set by a notified update: the feed sorts (and groups by day) by this instead of `messageId`. */
+  bumpId?: string;
+  /** Events only: the value as first posted, for each of date, time and place that now differs. */
+  changed?: Partial<Record<'date' | 'time' | 'place', string>>;
+  /** Single GET, management only: the versions before each update, oldest first. */
+  history?: Array<{ title: string; body: string; at: number }>;
 };
+
+export type UpdateMessageBody = { title: string; body?: string; fields: TemplateFields; notify: boolean };
 
 export type PostMessageBody = {
   channelId: string;

@@ -351,3 +351,43 @@ test('a reply_count change keeps replyAdults and replyBlocked it does not carry'
   const s2 = applyChanges(s1, [{ kind: 'message', id: 'M1', item: msg('M1', { replyAdults: [] }) }]);
   assert.deepEqual(s2.messages.M1?.replyAdults, []); // a carried value wins
 });
+
+test('bump moves an old message to the top and marks it unread', () => {
+  const start = applyChanges(emptyFeed, [added(msg('M3')), added(msg('M2')), added(msg('M1', { read: true }))]);
+  assert.deepEqual(start.order, ['M3', 'M2', 'M1']);
+  const bumped = added(msg('M1', { bumpId: 'M9', updatedAt: 1767225600 }));
+  const once = applyChanges(start, [bumped]);
+  assert.deepEqual(once.order, ['M1', 'M3', 'M2']);
+  assert.equal(once.messages.M1?.read, false);
+  const twice = applyChanges(once, [bumped]);
+  assert.deepEqual(twice, once);
+  // the user opens it, then the same page arrives again: it stays read
+  const read = applyChanges(once, [readOf('M1')]);
+  assert.equal(applyChanges(read, [bumped]).messages.M1?.read, true);
+});
+
+test('a non-bump update keeps order and read', () => {
+  const start = applyChanges(emptyFeed, [added(msg('M3')), added(msg('M2')), added(msg('M1', { read: true }))]);
+  const next = applyChanges(start, [added(msg('M1', { updatedAt: 1767225600, title: 'new' }))]);
+  assert.deepEqual(next.order, ['M3', 'M2', 'M1']);
+  assert.equal(next.messages.M1?.read, true);
+  assert.equal(next.messages.M1?.title, 'new');
+});
+
+test('feedFromMessages sorts by the bump id', () => {
+  const s = feedFromMessages([msg('M1', { bumpId: 'M9' }), msg('M3'), msg('M2')]);
+  assert.deepEqual(s.order, ['M1', 'M3', 'M2']);
+});
+
+test('a bumped message that arrives on two pages is one entry at its bumped position', () => {
+  const bumped = msg('M1', { bumpId: 'M9' });
+  const page1 = [bumped, msg('M3'), msg('M2')];
+  const page2 = [msg('M2'), msg('M1', { bumpId: 'M9' }), msg('M0')];
+  const s = feedFromMessages([...page1, ...page2]);
+  assert.deepEqual(s.order, ['M1', 'M3', 'M2', 'M0']);
+  // a stale copy without the bump, arriving later, does not undo it
+  assert.deepEqual(feedFromMessages([bumped, msg('M3'), msg('M1')]).order, ['M1', 'M3']);
+  // the change feed repeating the bumped message does not duplicate it either
+  const again = applyChanges(s, [added(bumped), added(msg('M0'))]);
+  assert.deepEqual(again.order, ['M1', 'M3', 'M2', 'M0']);
+});

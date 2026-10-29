@@ -13,7 +13,7 @@ import { cacheStore } from '../search/platform.ts';
 import type { CachedMessage } from '../search/cache.ts';
 import type { Hit } from '../search/hit.ts';
 import type { Route, StoreState } from './store.ts';
-import type { DirectoryEntry, Lang, Message, NotifyPrefs, PostMessageBody, Reply, TargetFamily, UploadGrant } from './types.ts';
+import type { DirectoryEntry, Lang, Message, NotifyPrefs, PostMessageBody, UpdateMessageBody, Reply, TargetFamily, UploadGrant } from './types.ts';
 
 const storage: KeyValue = {
   get: (k) => AsyncStorage.getItem(k),
@@ -72,6 +72,8 @@ export type SessionApi = {
   imageUrl(messageId: string, fresh?: boolean): Promise<string | null>;
   /** Publishes or chats; the returned message is already in the feed (and the search cache). */
   postMessage(body: PostMessageBody): Promise<Message>;
+  /** Update an event or condolence in place (author, management, bereaved family adult). `notified` is false when saved quietly. */
+  updateMessage(messageId: string, body: UpdateMessageBody): Promise<{ message: Message; notified: boolean }>;
   /** An S3 upload grant for the open Kehila. Never log or store it. */
   requestUpload(o: { channelId: string; contentType: 'image/jpeg' | 'image/png'; bytes: number }): Promise<UploadGrant>;
   /** The families (members) a message to this channel may be about. */
@@ -181,6 +183,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     join: m => store.join(m),
     removeMessage: m => store.removeMessage(m),
     postMessage: b => store.postMessage(b),
+    updateMessage: (m, b) => store.updateMessage(m, b),
     requestUpload: o => store.requestUpload(o),
     targetFamilies: async c => { const k = store.getState().kehilaId; return k ? api.targetFamilies(k, c) : []; },
     directory: async c => { const k = store.getState().kehilaId; return k ? api.directory(k, c) : []; },

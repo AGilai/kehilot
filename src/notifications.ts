@@ -11,7 +11,11 @@ export async function enablePush(token: string): Promise<void> {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   if (!projectId) throw new Error('טרם הוגדר פרויקט Expo לקבלת התראות. ההודעות זמינות בלוח הקהילה.');
   const Notifications = await import('expo-notifications');
-  if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('community', { name: 'הודעות הקהילה', importance: Notifications.AndroidImportance.DEFAULT });
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('community', { name: 'הודעות הקהילה', importance: Notifications.AndroidImportance.DEFAULT });
+    // Updated messages: the server asks for this channel by id. Low importance, no sound, no vibration.
+    await Notifications.setNotificationChannelAsync('quiet', { name: 'עדכונים שקטים', importance: Notifications.AndroidImportance.LOW, sound: null, enableVibrate: false, vibrationPattern: null });
+  }
   let permission = await Notifications.getPermissionsAsync();
   if (!permission.granted) permission = await Notifications.requestPermissionsAsync();
   if (!permission.granted) throw new Error('לא ניתנה הרשאה להתראות. ניתן לאפשר אותן בהגדרות המכשיר.');

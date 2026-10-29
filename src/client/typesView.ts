@@ -1,5 +1,6 @@
 import { matchesWords, queryWords, searchNorm } from '../search/normalize.ts';
 import type { CachedMessage } from '../search/cache.ts';
+import { sortId } from './feed.ts';
 import { channelLabel } from './channelsView.ts';
 import type { Channel, Message, MessageType, Role, TypeRule, TypeRules } from './types.ts';
 
@@ -59,7 +60,7 @@ export function fromCached(c: CachedMessage): Message {
 export function mergeArchive(feed: Message[], archive: CachedMessage[]): Message[] {
   const have = new Set(feed.map(m => m.messageId));
   const extra = archive.filter(c => !have.has(c.messageId)).map(fromCached);
-  return [...feed, ...extra].sort((a, b) => (a.messageId < b.messageId ? 1 : a.messageId > b.messageId ? -1 : 0));
+  return [...feed, ...extra].sort((a, b) => (sortId(a) < sortId(b) ? 1 : sortId(a) > sortId(b) ? -1 : 0));
 }
 
 export const DEFAULT_RULE: TypeRule = { post: 'broadcasters', listeners: false };

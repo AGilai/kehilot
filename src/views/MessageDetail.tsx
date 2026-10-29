@@ -19,6 +19,7 @@ import { useErrorText } from './auth/Frame.tsx';
 import { BackIcon, Icon } from '../kit/Icon.tsx';
 import { messageMeta } from '../client/typesView.ts';
 import { isAdult, isManagement } from '../client/roles.ts';
+import { CancelledTag, ChangeLine, MetaText, UpdatedFooter } from './UpdatedParts.tsx';
 
 /**
  * M3: the full message. The server returns only the replies this caller may read (the recipient's, or the
@@ -120,11 +121,14 @@ export function MessageDetail({ messageId, onBack, focus }: { messageId: string;
     <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
       {back}
       <Card edgeColor={edge(message.type, scheme)}>
-        <Txt size="caption" color={k.muted}>{messageMeta(message, channels, timeOfDay(messageId), t)}</Txt>
+        <MetaText message={message} meta={messageMeta(message, channels, timeOfDay(messageId), t)} />
         {message.title ? <Txt content serif size="title" accessibilityRole="header">{message.title}</Txt> : null}
+        <CancelledTag message={message} />
+        <ChangeLine message={message} />
         {message.body ? <Txt content>{message.body}</Txt> : null}
         {message.image ? <ImageThumb messageId={messageId} contentType={message.image.contentType} /> : null}
         <Txt size="small" color={k.muted}>{t('detail.from', { name: message.authorName })}</Txt>
+        <UpdatedFooter message={message} />
       </Card>
 
       {chip ? (
