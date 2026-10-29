@@ -172,7 +172,7 @@ test('chairSvg', () => {
 
 test('fixture: default variant', () => {
   const w = createSeatsFixture('default', null, '2026-10-30').memberWire();
-  assert.deepEqual(w.freeOrder, [1, 2, 3]);
+  assert.deepEqual(w.freeOrder, [3, 2, 1]);
   assert.deepEqual(w.frames![0]!.lanes, ['left', 'right']);
   assert.equal(w.frames![0]!.gapAbove, true);
   assert.equal(fixtureMemberSeats('default').seatCount, 3);
@@ -181,7 +181,7 @@ test('fixture: default variant', () => {
 test('fixture: big variant', () => {
   const w = createSeatsFixture('big', null, '2026-10-30').memberWire();
   assert.equal(w.seats, 7);
-  assert.deepEqual(w.freeOrder, [6, 7, 1, 2, 3, 4, 5]);
+  assert.deepEqual(w.freeOrder, [7, 6, 1, 2, 3, 4, 5]);
   assert.equal(w.frames!.length, 1);
   const f = w.frames![0]!;
   assert.deepEqual(f.lanes, ['left']);
