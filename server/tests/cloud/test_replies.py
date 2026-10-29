@@ -235,8 +235,8 @@ class RepliesTest(test_messages.MessagesTest):
                              (400, {'error': 'invalid_target_family_id'}), extra)
         status, body = self.post('simchas', type='celebration', targetMemberId=self.other, targetFamilyId=fid)
         self.assertEqual((status, body['targetFamilyId']), (201, fid))
-        self.assertNotIn('targetFamilyId', self.post('simchas', type='celebration',
-                                                     targetMemberId=self.other)[1])
+        # omitted: the target's family at post time, so the family replies outlive the target adult
+        self.assertEqual(self.post('simchas', type='celebration', targetMemberId=self.other)[1]['targetFamilyId'], fid)
 
     def test_stale_adult_with_other_family_loses_access(self):
         self.devices(self.quiet, self.other)
