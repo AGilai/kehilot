@@ -52,3 +52,17 @@ export function fitFontSize(text: string, width: number, max = 12, min = 9): num
   if (n === 0 || width <= 0) return max;
   return Math.max(min, Math.min(max, Math.floor((width / (n * 0.58)) * 2) / 2));
 }
+
+/**
+ * What a seat cell draws (pure): the whole label at the fitted size (down to `min` px); when even that overflows, the first 2-3 letters of the
+ * surname (the family prefix and the trailing initial dropped) at `min`. The full name stays in the cell's accessibility label and tooltip.
+ * Nothing (empty text) when not even two letters fit.
+ */
+export function seatCellLabel(label: string, width: number, max = 12, min = 9): { text: string; fontSize: number; shortened: boolean } {
+  const n = [...label].length;
+  if (n === 0 || width <= 0) return { text: '', fontSize: max, shortened: false };
+  if (n * 0.58 * min <= width) return { text: label, fontSize: fitFontSize(label, width, max, min), shortened: false };
+  const letters = [...clean(label).replace(PREFIX, '').replace(/\s+[א-ת]\.?$/, '')].filter((ch) => ch !== ' ');
+  const k = Math.min(3, Math.floor(width / (0.58 * min)), letters.length);
+  return k < 2 ? { text: '', fontSize: min, shortened: true } : { text: letters.slice(0, k).join(''), fontSize: min, shortened: true };
+}

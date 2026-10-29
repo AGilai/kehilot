@@ -49,3 +49,30 @@ test('fitFontSize: full size when it fits, shrinks to the minimum, never below',
   assert.equal(fitFontSize('משפחת אבולעפיה הגדולה י.', 60), 9);
   assert.equal(fitFontSize('', 60), 12);
 });
+
+import { seatCellLabel } from '../src/seats/ownerLabel.ts';
+test('seatCellLabel: a wide cell shows the full label at the fitted size', () => {
+  const r = seatCellLabel('דוגמה', 52);
+  assert.deepEqual(r, { text: 'דוגמה', fontSize: 12, shortened: false });
+});
+test('seatCellLabel: a narrower cell shrinks the font down to 9 but keeps the whole name', () => {
+  const r = seatCellLabel('פיקטיבי', 40);
+  assert.equal(r.text, 'פיקטיבי');
+  assert.equal(r.shortened, false);
+  assert.ok(r.fontSize >= 9 && r.fontSize < 12);
+});
+test('seatCellLabel: below the readable minimum the surname is cut to 2-3 letters at 9 px', () => {
+  const r = seatCellLabel('אבולעפיה', 28);
+  assert.equal(r.shortened, true);
+  assert.equal(r.fontSize, 9);
+  assert.equal(r.text, 'אבו');
+  assert.equal(seatCellLabel('אבולעפיה', 14).text, 'אב');
+});
+test('seatCellLabel: the initial and the family prefix are dropped when cutting', () => {
+  assert.equal(seatCellLabel('כהן י.', 14).text, 'כה');
+  assert.equal(seatCellLabel('משפחת מדומה', 28).text, 'מדו');
+});
+test('seatCellLabel: empty or no room gives nothing to draw', () => {
+  assert.equal(seatCellLabel('', 40).text, '');
+  assert.equal(seatCellLabel('דוגמה', 0).text, '');
+});

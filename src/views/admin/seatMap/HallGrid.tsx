@@ -1,6 +1,6 @@
 // The hall as a grid (UX-DESIGN §16.4, §16.8 HallGrid): drawn left to right as the room, in every language (never mirrored), ark and bimah as
 // merged areas, block names over the blocks, row labels on both sides. One tab stop (role=grid, aria-activedescendant) and the keys are handled
-// by the parent. Sizes are the former ones x1.1 (owner request). Pointer: a press selects, dragging draws a rectangle (hit test = the pure cellAt). Names only at 100% and above; at "fit" shapes.
+// by the parent. Sizes are the former ones x1.1 (owner request). Pointer: a press selects, dragging draws a rectangle (hit test = the pure cellAt). Names at every zoom (owner rule): fitted down to 9 px, then cut to 2-3 letters (seatCellLabel); the full name is in the aria-label and the tooltip.
 import React from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import { useI18n } from '../../../i18n/I18nProvider.tsx';
@@ -8,7 +8,7 @@ import { Txt, useTokens } from '../../../kit/components.tsx';
 import { kindAt } from '../../../seats/editModel.ts';
 import type { Draft, Kind } from '../../../seats/editModel.ts';
 import { cellAt, parsePos, posKey } from '../../../seats/grid.ts';
-import { fitFontSize } from '../../../seats/ownerLabel.ts';
+import { seatCellLabel } from '../../../seats/ownerLabel.ts';
 import type { Pos } from '../../../seats/grid.ts';
 import { keyOf } from '../scheduleEditor/controls.tsx';
 import type { Key } from '../scheduleEditor/controls.tsx';
@@ -29,7 +29,7 @@ export function HallGrid({ draft, mode, zoom, sel, focus, changed, selectedRef, 
   const k = useTokens();
   const L = draft.layout;
   const { w: cw, h: ch } = ZOOMS[zoom];
-  const names = zoom !== 'fit';
+  const names = zoom !== 'fit'; // ark and bimah captions only; seat names show at every zoom
   const selSet = React.useMemo(() => new Set(sel), [sel]);
   const bodyRef = React.useRef<View>(null);
   const live = React.useRef({ onDown, onDrag, onUp, cw, ch, rows: L.rows, cols: L.cols, mode });
@@ -101,18 +101,20 @@ export function HallGrid({ draft, mode, zoom, sel, focus, changed, selectedRef, 
     else if (kind === 'empty' && mode === 'layout') { bc = k.line; }
     if (isStruck) { bs = 'dashed'; bc = k.tekhelet; bg = 'transparent'; fg = k.muted; }
     const pad = merged ? 0 : 2;
+    const seatLabel = kind === 'seat' && ref ? seatCellLabel(short(ref), cw - 2 * pad - 4) : null;
+    const seatText = seatLabel ? (mine && !seatLabel.shortened ? `✓ ${seatLabel.text}` : seatLabel.text) : '';
     let runW = 1, runH = 1;
     if (showLabel) { while (same(r, c + runW, kind)) runW++; while (same(r + runH, c, kind)) runH++; }
     return (
-      <View key={c} {...({ role: 'gridcell', id: `hg-${r}-${c}`, 'aria-label': cellName(r, c, kind), 'aria-selected': isSel } as object)} style={{ width: cw, height: ch, padding: pad, zIndex: showLabel ? 5 : 0 }}>
+      <View key={c} {...({ role: 'gridcell', id: `hg-${r}-${c}`, 'aria-label': cellName(r, c, kind), 'aria-selected': isSel, ...(Platform.OS === 'web' && kind === 'seat' && ref ? { title: full(ref) } : {}) } as object)} style={{ width: cw, height: ch, padding: pad, zIndex: showLabel ? 5 : 0 }}>
         <View style={{
           flex: 1, alignItems: 'center', justifyContent: 'center', overflow: showLabel ? 'visible' : 'hidden', backgroundColor: bg, borderStyle: bs, borderColor: bc, borderRadius: merged ? 0 : cw > 40 ? 7 : 4,
           borderTopWidth: edge(r - 1, c) ? 0 : bw, borderBottomWidth: edge(r + 1, c) ? 0 : bw, borderStartWidth: edge(r, c - 1) ? 0 : bw, borderEndWidth: edge(r, c + 1) ? 0 : bw,
           ...(kind === 'aisle' && mode === 'layout' ? ({ backgroundImage: `repeating-linear-gradient(90deg, ${k.line} 0 1px, transparent 1px 6px)` } as object) : {}),
           ...(kind === 'bimah' ? ({ backgroundImage: `repeating-linear-gradient(135deg, ${k.line} 0 2px, ${k.stone} 2px 7px)` } as object) : {}),
         }}>
-          {kind === 'seat' && names && cw >= 60 ? <Txt size="caption" bold={mine} color={fg} numberOfLines={1} content style={{ textDecorationLine: isStruck ? 'line-through' : 'none', paddingHorizontal: 2, textAlign: 'center', fontSize: fitFontSize(text, cw - 2 * pad - 8), lineHeight: 16 }}>{text}</Txt> : null}
-          {kind === 'seat' && (!names || cw < 60) && mine ? <Txt size="caption" bold color={fg}>{'✓'}</Txt> : null}
+          {kind === 'seat' && ref && seatLabel && seatText ? <Txt size="caption" bold={mine} color={fg} numberOfLines={1} content style={{ textDecorationLine: isStruck ? 'line-through' : 'none', paddingHorizontal: 1, textAlign: 'center', fontSize: seatLabel.fontSize, lineHeight: 16 }}>{seatText}</Txt> : null}
+          {kind === 'seat' && !ref && mode !== 'layout' && names && cw >= 60 ? <Txt size="caption" color={fg} numberOfLines={1} content style={{ paddingHorizontal: 2, textAlign: 'center', lineHeight: 16 }}>{text}</Txt> : null}
           {showLabel && (names || runW * cw >= 70) ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, width: runW * cw, height: runH * ch, alignItems: 'center', justifyContent: 'center' }}><Txt serif size="small" color={kind === 'ark' ? k.tekhelet : k.ink}>{text}</Txt></View> : null}
           {isSel ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2, borderStyle: 'dashed', borderColor: k.tekhelet, borderRadius: merged ? 0 : 6, backgroundColor: 'rgba(42,63,148,0.12)' }} /> : null}
           {changed.has(p) ? <View pointerEvents="none" style={{ position: 'absolute', top: 1, left: 1, width: 7, height: 7, borderRadius: 4, backgroundColor: k.gold }} /> : null}
