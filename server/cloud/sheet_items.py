@@ -8,11 +8,12 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-def on_post(repo, k, membership, settings, message, now):
+def on_post(repo, k, membership, settings, message, now, channel=None):
     """Create the sheet item of a celebration, condolence or event just posted (itemId = messageId) and mark the
-    message with its sheetWeek. Other types make no item."""
+    message with its sheetWeek. Other types, and posts in a group channel or a chat, make no item."""
     type_ = message['type']
-    if type_ not in sheet_rules.SHEET_TYPES:
+    if type_ not in sheet_rules.SHEET_TYPES or (channel or {}).get('groups') or (channel or {}).get('conversation'):
+        return None  # the printed sheet is whole-Kehila: no group channel, no chat
         return None
     message_id = message['sk'][len('MSG#'):]
     fields = message.get('fields') if message.get('templateId') else None

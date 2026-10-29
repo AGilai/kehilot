@@ -1,5 +1,6 @@
 import json
 import sys
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -268,6 +269,18 @@ class InviteLimitsTest(unittest.TestCase):
                 kehila_admin.open_repo('dev')
         tf.assert_any_call('dev', 'region')
         self.assertEqual(resource.call_args.kwargs['region_name'], 'il-central-1')
+
+    def test_tech_invite_is_clamped(self):             # final review I-2: single use, at most 7 days
+        for body in ({'role': 'tech'}, {'role': 'tech', 'uses': 50, 'days': 30}):
+            code = self.invite(sub='gab-sub', **body)
+            invite = self.repo.get_invite(code)
+            self.assertEqual(int(invite['usesLeft']), 1)
+            self.assertLessEqual(int(invite['expiresAt']), time.time() + 7 * 86400 + 5)
+
+    def test_other_roles_keep_their_limits(self):
+        invite = self.repo.get_invite(self.invite(sub='gab-sub', role='member', uses=20, days=30))
+        self.assertEqual(int(invite['usesLeft']), 20)
+        self.assertGreater(int(invite['expiresAt']), time.time() + 8 * 86400)
 
 
 if __name__ == '__main__':

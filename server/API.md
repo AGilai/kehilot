@@ -290,7 +290,8 @@ tech is shown as "טכני", never as "גבאי". A manager (gabbai or tech) may
 grant any role:
 - `PUT admin/members/{userId}` `{role}` takes `member`, `gabbai` or `tech` (never to or from `listener`); `listener`,
   `member` and `tech` are accepted by an import row too, and `gabbai` as before.
-- An invite may name `tech` (a manager creates it; it dies when its inviter stops being management). An invite never
+- An invite may name `tech` (a manager creates it; it dies when its inviter stops being management). A `tech` invite is clamped, not rejected: `uses` becomes 1 and
+  `days` at most 7, whatever the body says (a tech has every gabbai right). An invite never
   names `gabbai` (400 `invalid_role`); only the admin CLI mints a gabbai code.
 - `tools/kehila_admin.py set-role --env dev --kehila <id> --user <userId|email> --role member|gabbai|tech [--apply]`:
   a dry run unless `--apply`; it refuses to leave the Kehila without a gabbai or tech, and never prints an email.
@@ -460,7 +461,7 @@ Message object: `{messageId, channelId, type, title, body, authorId, authorName,
 
 #### Weekly sheet items
 
-Every celebration, condolence and event message gets one sheet item when it is posted (item id = message id; see the `SHI#` row under Items). A week is Friday to Thursday, named by its Friday; `week` in a path must be a Friday (`YYYY-MM-DD`), else 400 `invalid_week_start`.
+Every celebration, condolence and event message posted in a whole-Kehila channel (no `groups`, not a chat) gets one sheet item (a post in a group channel makes none; a gabbai adds a free line by hand) when it is posted (item id = message id; see the `SHI#` row under Items). A week is Friday to Thursday, named by its Friday; `week` in a path must be a Friday (`YYYY-MM-DD`), else 400 `invalid_week_start`.
 
 - **Week.** Sunday to Friday 11:59 Israel time: that coming Friday. Friday from 12:00 and Saturday: the next Friday. A templated event: the week its `fields.date` falls in.
 - **Initial state.** A gabbai's post, or a member's post when the Kehila setting `sheetMembers` is `auto`: `in` (`source: auto`). Otherwise `pending` (`source: member`, `wasPending: true`).

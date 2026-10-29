@@ -112,6 +112,15 @@ class SheetItemsTest(test_messages.MessagesTest):
         self.assertEqual(self.repo.table.scan()['Items'] and
                          [i for i in self.repo.table.scan()['Items'] if 'SHI#' in i['sk']], [])
 
+    def test_group_channel_post_makes_no_item(self):        # final review M-2: the printed sheet is whole-Kehila
+        self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f"C#{self.channels['simchas']}"},
+                                    UpdateExpression='SET #g = :g', ExpressionAttributeNames={'#g': 'groups'},
+                                    ExpressionAttributeValues={':g': ['grp-women']})
+        self.assertEqual(self.post('simchas', type='celebration', templateId='mazal', fields=MAZAL)[0], 201)
+        self.assertEqual(self.items(), [])
+        self.assertEqual(self.post('announcements', type='condolence')[0], 201)   # a whole-Kehila channel still does
+        self.assertEqual(len(self.items()), 1)
+
     def test_removed_message_removes_item(self):
         message = self.mazal()
         self.assertEqual(self.call('DELETE', f"{self.base()}/messages/{message['messageId']}")[0], 204)

@@ -12,6 +12,7 @@ from .repo_members import normalize_code
 log = logging.getLogger(__name__)
 MAX_MEMBER_LISTENER_LINKS = 3
 DEFAULT_MAX_LISTENERS = 500
+TECH_INVITE_MAX_DAYS = 7
 
 INVITE_ROLES = (authz.LISTENER, authz.MEMBER, authz.TECH)  # an invite gives no gabbai (only the admin CLI does)
 
@@ -39,6 +40,9 @@ def create(ctx, params):
         raise ApiError(409, 'too_many_invites')  # soft: parallel creates may overshoot by a few
     uses = inputs.integer(d, 'uses', 1, 50) if 'uses' in d else 10
     days = inputs.integer(d, 'days', 1, 30) if 'days' in d else 7
+    if authz.in_set(role, authz.MANAGEMENT):  # only a tech gets here (no gabbai invite): every gabbai right, so one
+        # person for one week (clamped, not rejected)
+        uses, days = 1, min(days, TECH_INVITE_MAX_DAYS)
     code = ctx.repo.create_invite(params['k'], ctx.user_id, role, uses, days, classification)
     return 201, {'code': code, 'expiresAt': int(ctx.repo.get_invite(code)['expiresAt'])}
 
