@@ -100,27 +100,26 @@ export function canUpdate(m: Message, me: string, k: Pick<Kehila, 'role'> & { fa
   return m.type === 'condolence' && !!m.targetFamilyId && k.familyId === m.targetFamilyId;
 }
 
-/** HH:MM when `ms` is today (Israel), else `d.m`. */
-function stampText(ms: number, now: number): string {
+/** HH:MM when `ms` is today (Israel), else the Hebrew date with the Gregorian in brackets. */
+function stampText(ms: number, now: number, lang: Lang): string {
   const day = israelDate(new Date(ms));
   if (day === israelDate(new Date(now))) return new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
-  const [, mo, d] = day.split('-').map(Number);
-  return `${d}.${mo}`;
+  return dualDate(day, lang);
 }
 
 /** "עודכן {time}" (condolence) or "שונה {time}" (event) for the meta line; null when never updated. */
-export function updatedMeta(m: Message, t: T, now: number = Date.now()): string | null {
+export function updatedMeta(m: Message, t: T, now: number = Date.now(), lang: Lang = 'he'): string | null {
   if (m.updatedAt === undefined) return null;
-  const time = stampText(m.updatedAt * 1000, now);
+  const time = stampText(m.updatedAt * 1000, now, lang);
   if (m.type === 'condolence') return t('msg.updated', { time });
   if (m.type === 'event') return t('msg.changed', { time });
   return null;
 }
 
 /** The card's closing line, only for a condolence updated to "with shiva details". */
-export function updatedLine(m: Message, t: T, now: number = Date.now()): string | null {
+export function updatedLine(m: Message, t: T, now: number = Date.now(), lang: Lang = 'he'): string | null {
   if (m.type !== 'condolence' || m.fields?.variant !== 'full' || m.updatedAt === undefined) return null;
-  return t('msg.updatedLine', { time: stampText(m.updatedAt * 1000, now), first: stampText(ulidTime(m.messageId), now) });
+  return t('msg.updatedLine', { time: stampText(m.updatedAt * 1000, now, lang), first: stampText(ulidTime(m.messageId), now, lang) });
 }
 
 export const isCancelled = (m: Pick<Message, 'type' | 'fields'>): boolean => m.type === 'event' && m.fields?.cancelled === true;
@@ -131,7 +130,7 @@ const WORDS: Record<Lang, { time: string; date: string; place: string }> = {
 };
 
 /** The changed values of an event, the first-posted one struck: "בשעה ~~20:30~~ 21:00". Null when nothing changed. */
-export function eventChangeParts(m: Pick<Message, 'type' | 'fields' | 'changed'>, lang: Lang = 'he'): Array<{ text: string; struck: boolean }> | null {
+export function eventChangeParts(m: Pick<Message, 'type' | 'fields' | 'changed'>, lang: Lang = 'he', t?: T): Array<{ text: string; struck: boolean }> | null {
   if (m.type !== 'event' || !m.changed) return null;
   const w = WORDS[lang];
   const out: Array<{ text: string; struck: boolean }> = [];
@@ -140,7 +139,7 @@ export function eventChangeParts(m: Pick<Message, 'type' | 'fields' | 'changed'>
     if (old === undefined) continue;
     const now = String(m.fields?.[key] ?? '');
     const show = (v: string) => (key === 'date' ? dualDate(v, lang) : v);
-    out.push({ text: `${out.length ? ' · ' : ''}${w[key]} `, struck: false }, { text: show(old), struck: true }, { text: ` ${show(now)}`, struck: false });
+    out.push({ text: `${out.length ? ' · ' : ''}${t ? t(`msg.changeWhat.${key}`) : w[key]} `, struck: false }, { text: show(old), struck: true }, { text: ` ${show(now)}`, struck: false });
   }
   return out.length ? out : null;
 }

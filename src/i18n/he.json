@@ -3141,6 +3141,11 @@
     "updated": "עודכן {time}",
     "changed": "שונה {time}",
     "updatedLine": "עודכן ב־{time}: נוספו פרטי השבעה · פורסם לראשונה ב־{first}",
+    "changeWhat": {
+      "time": "בשעה",
+      "date": "ביום",
+      "place": "במקום"
+    },
     "cancelled": "בוטל"
   },
   "sheetItems": {

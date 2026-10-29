@@ -3141,6 +3141,11 @@
     "updated": "Updated {time}",
     "changed": "Changed {time}",
     "updatedLine": "Updated {time}: shiva details added · first posted {first}",
+    "changeWhat": {
+      "time": "at",
+      "date": "on",
+      "place": "place:"
+    },
     "cancelled": "Cancelled"
   },
   "sheetItems": {

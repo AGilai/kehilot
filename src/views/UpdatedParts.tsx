@@ -7,9 +7,9 @@ import type { Message } from '../client/types.ts';
 
 /** The meta line: "{type} · {time}" plus " · עודכן 14:30" / " · שונה 11:05" with the first word bold. */
 export function MetaText({ message, meta }: { message: Message; meta: string }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
-  const upd = updatedMeta(message, t);
+  const upd = updatedMeta(message, t, Date.now(), lang);
   const space = upd ? upd.indexOf(' ') : -1;
   return (
     <Txt size="caption" color={k.muted} style={{ flexShrink: 1 }}>
@@ -21,9 +21,9 @@ export function MetaText({ message, meta }: { message: Message; meta: string }) 
 
 /** An event whose time, date or place changed: "בשעה ~~20:30~~ 21:00". Struck runs are not read, so the label says "old ← new". */
 export function ChangeLine({ message, lines }: { message: Message; lines?: number }) {
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
-  const parts = eventChangeParts(message, lang);
+  const parts = eventChangeParts(message, lang, t);
   if (!parts) return null;
   return (
     <View accessible accessibilityLabel={eventChangeLabel(parts)}>
@@ -45,9 +45,9 @@ export function CancelledTag({ message }: { message: Message }) {
 
 /** The card's closing caption above a hairline (updated condolence with shiva details). */
 export function UpdatedFooter({ message }: { message: Message }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const k = useTokens();
-  const line = updatedLine(message, t);
+  const line = updatedLine(message, t, Date.now(), lang);
   if (!line) return null;
   return (
     <View style={{ borderTopWidth: 1, borderTopColor: k.line, paddingTop: 6 }}>

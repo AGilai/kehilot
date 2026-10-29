@@ -60,6 +60,7 @@ import { MessageDetail } from './MessageDetail.tsx';
 import { Inbox } from './me/Inbox.tsx';
 import { Messages } from './Messages.tsx';
 import type { Filter } from './Messages.tsx';
+import { UpdateLoader } from './compose/UpdateLoader.tsx';
 import { TopBar } from './TopBar.tsx';
 import { isManagement, isAdult } from '../client/roles.ts';
 
@@ -113,6 +114,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
     const m = state.feed.order.map(id => state.feed.messages[id]!).find(x => x.type === 'event' && (s === 'm3-event-changed' ? x.changed : x.fields?.cancelled === true));
     return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null;
   }
+  if (s === 'm3-shiva-family') { const m = state.feed.order.map(id => state.feed.messages[id]!).find(x => x.targetFamilyId === '01FIXTUREFAMILY0000000001'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'm3-shiva-card' || s === 'update-shiva' || s === 'update-event') {
     const m = state.feed.order.map(id => state.feed.messages[id]!).find(x => (s === 'update-event' ? x.type === 'event' && x.templateId === 'event' && !x.updatedAt : x.type === 'condolence' && x.fields?.variant === 'later'));
     return m ? { nav: s === 'm3-shiva-card' ? { tab: 'detail', id: m.messageId, from: 'messages' } : { tab: 'update', id: m.messageId } } : null;
@@ -417,10 +419,9 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
         }} />;
       break;
     case 'update': {
-      const um = state.feed.messages[nav.id];
       const back = () => setNav({ tab: 'detail', id: nav.id, from: 'messages' });
-      body = !um || !feats.compose ? <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />
-        : <Compose onBack={back} onPublished={() => {}} update={{ message: um, onSaved: ({ quiet }) => { back(); showToast(t(quiet ? 'msg.update.savedQuiet' : 'msg.update.saved')); } }} />;
+      body = !feats.compose ? <Home onOpen={id => setNav({ tab: 'detail', id, from: 'home' })} onMessages={() => setNav({ tab: 'messages' })} />
+        : <UpdateLoader key={nav.id} messageId={nav.id} onBack={back} onSaved={({ quiet }) => { back(); showToast(t(quiet ? 'msg.update.savedQuiet' : 'msg.update.saved')); }} />;
       break;
     }
     case 'chat':
@@ -458,7 +459,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
         {sidebar}
         <AdminContext.Provider value={{ onForbidden: leaveManage }}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, minWidth: 0 }}>{body}</KeyboardAvoidingView></AdminContext.Provider>
       </View>
-      {sidebar ? null : <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
+      {sidebar || nav.tab === 'compose' || nav.tab === 'update' ? null : <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
         <View style={{ flexDirection: 'row', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
           {tabs.map(tab => {
             const on = active === tab.key;

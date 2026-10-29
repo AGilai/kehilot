@@ -199,13 +199,14 @@ test('updatedLine only for a full condolence that was updated', () => {
   assert.equal(updatedLine(msg(id, { type: 'event', updatedAt: at, fields: { variant: 'full' } }), t), null);
 });
 
-test('updatedMeta: updated for a condolence, changed for an event, time today else d.m', () => {
+test('updatedMeta: updated for a condolence, changed for an event, time today else Hebrew date with the Gregorian in brackets', () => {
   const now = Date.UTC(2026, 9, 28, 14, 30);
   const today = Math.floor(Date.UTC(2026, 9, 28, 11, 30) / 1000); // 13:30 Israel (UTC+2 in late Oct 2026? DST ends 25 Oct)
   const old = Math.floor(Date.UTC(2026, 9, 20, 11, 30) / 1000);
   assert.equal(updatedMeta(msg('m1', { type: 'condolence', updatedAt: today }), t, now), 'msg.updated|time=13:30');
   assert.equal(updatedMeta(msg('m1', { type: 'event', updatedAt: today }), t, now), 'msg.changed|time=13:30');
-  assert.equal(updatedMeta(msg('m1', { type: 'condolence', updatedAt: old }), t, now), 'msg.updated|time=20.10');
+  assert.equal(updatedMeta(msg('m1', { type: 'condolence', updatedAt: old }), t, now), 'msg.updated|time=ט׳ בחשוון (20.10)');
+  assert.match(updatedMeta(msg('m1', { type: 'condolence', updatedAt: old }), t, now, 'en')!, /^msg\.updated\|time=.* \(20\.10\)$/);
   assert.equal(updatedMeta(msg('m1', { type: 'condolence' }), t, now), null);
   assert.equal(updatedMeta(msg('m1', { type: 'weekly', updatedAt: today }), t, now), null);
 });
@@ -217,4 +218,10 @@ test('groupByDay puts a bumped message under the bump day', () => {
   const g = groupByDay([msg(old, { bumpId: bump }), msg(mid)]);
   assert.deepEqual(g.map(x => x.day), ['2026-10-28', '2026-10-25']);
   assert.equal(g[0]!.items[0]!.messageId, old);
+});
+
+test('eventChangeParts takes the words from t', () => {
+  const m = msg('m1', { type: 'event', fields: { time: '21:00' }, changed: { time: '20:30' } });
+  const tt = (k: string) => `<${k}>`;
+  assert.equal(eventChangeParts(m, 'he', tt)![0]!.text, '<msg.changeWhat.time> ');
 });
