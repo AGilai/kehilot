@@ -9,10 +9,11 @@ Dry run unless --apply. Per Kehila (all, or just --kehila), for every message th
   4. removes a custom pushTexts.reply from the Kehila.
 The order makes a crashed run resumable (replies are tagged last). Replies that already have `to` are never
 marked seen, so a re-run cannot hide a new reply. Re-running changes nothing. Prints counts and ids only.
-Also pins targetFamilyId on every mazal tov / condolence that has a target adult but no family id (the adult's
+Replies under messages already removed (before removal deleted them) are deleted with their markers and thread
+item, never given a thread item. Also pins targetFamilyId on every mazal tov / condolence that has a target adult but no family id (the adult's
 current family; none: skipped and counted).
-Returns {kehilot, threads, repliesTagged, seenMarks, pushTextsRemoved, familyIdSet, familyIdSkipped}; on a re-run all
-but threads and familyIdSkipped are 0 (they count work done).
+Returns {kehilot, threads, repliesTagged, seenMarks, pushTextsRemoved, familyIdSet, familyIdSkipped, repliesDeleted}; on a
+re-run all but threads and familyIdSkipped are 0 (they count work done).
 """
 import argparse
 import sys
@@ -49,7 +50,7 @@ def _pin_family(repo, k, message, counts, apply):
 
 def migrate(repo, k=None, apply=False):
     counts = {'kehilot': 0, 'threads': 0, 'repliesTagged': 0, 'seenMarks': 0, 'pushTextsRemoved': 0,
-              'familyIdSet': 0, 'familyIdSkipped': 0}
+              'familyIdSet': 0, 'familyIdSkipped': 0, 'repliesDeleted': 0}
     for kehila in ([k] if k else repo.list_kehila_ids()):
         meta = repo.get_kehila(kehila)
         if not meta:
@@ -57,6 +58,13 @@ def migrate(repo, k=None, apply=False):
         counts['kehilot'] += 1
         channels = {c['sk'][2:]: c for c in repo.list_channels(kehila)}
         for message in repo.iter_messages(kehila):
+            if message.get('removed'):  # removed before replies went with the message: nobody can read them
+                gone = message['sk'][len('MSG#'):]
+                found = len(repo.list_replies(kehila, gone, consistent=True))
+                counts['repliesDeleted'] += found
+                if found and apply:
+                    repo.delete_replies(kehila, gone)  # replies, distinct-replier markers and the thread item
+                continue
             _pin_family(repo, kehila, message, counts, apply)
             mid = message['sk'][len('MSG#'):]
             replies = repo.list_replies(kehila, mid, consistent=True)
@@ -94,7 +102,7 @@ def migrate(repo, k=None, apply=False):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    parser.add_argument('--env', required=True)
+    parser.add_argument('--env', required=True, choices=['dev'])
     parser.add_argument('--kehila')
     parser.add_argument('--apply', action='store_true')
     args = parser.parse_args(argv)

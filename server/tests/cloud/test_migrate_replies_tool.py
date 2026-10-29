@@ -4,7 +4,7 @@ import io
 import sys
 import time
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -64,7 +64,7 @@ class MigrateRepliesTest(unittest.TestCase):
         before = self.repo.table.scan()['Items']
         counts, out = self.run_tool()
         self.assertEqual(counts, {'kehilot': 1, 'threads': 1, 'repliesTagged': 3, 'seenMarks': 2, 'pushTextsRemoved': 1,
-                                  'familyIdSet': 1, 'familyIdSkipped': 0})
+                                  'familyIdSet': 1, 'familyIdSkipped': 0, 'repliesDeleted': 0})
         self.assertIn('dry run', out)
         self.assertEqual(self.repo.table.scan()['Items'], before)
 
@@ -111,6 +111,30 @@ class MigrateRepliesTest(unittest.TestCase):
         self.assertEqual((again['familyIdSet'], again['familyIdSkipped']), (0, 1))
         self.assertEqual(self.repo.table.get_item(Key={'pk': f'K#{self.k}#RX', 'sk': f'MSG#{self.message}'})
                          ['Item']['targetFamilyId'], family)
+
+    def test_only_env_dev_is_accepted(self):                 # final review M-7
+        with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
+            migrate_private_replies.main(['--env', 'prod'])
+
+    def test_replies_under_removed_messages_are_deleted(self):   # final review M-6
+        gone = self.repo.put_message(self.k, self.channel, 'celebration', 'מזל טוב', 'ברכות', 'u-gabbai', 'גבאי לדוגמה',
+                                     'management', 'u-shulamit', 'שולמית ברקן')['sk'][4:]
+        self.repo.put_reply(self.k, gone, 'u-rotem', 'רותם אלמוג', 'מזל טוב', to='family')
+        self.repo.put_reply(self.k, gone, 'u-dana', 'דנה בדיוני', 'ברכה', to='family')
+        self.repo.touch_thread(self.k, gone, self.repo.get_message(self.k, gone), 'family', now=1000)
+        self.repo.remove_message(self.k, gone)                       # as before the deploy: replies stay
+        counts, out = self.run_tool()
+        self.assertEqual(counts['repliesDeleted'], 2)
+        self.assertEqual(len(self.repo.list_replies(self.k, gone)), 2)           # dry run writes nothing
+        counts, out = self.run_tool('--apply')
+        self.assertEqual((counts['repliesDeleted'], counts['threads']), (2, 1))   # the live message keeps its thread
+        self.assertEqual(self.repo.list_replies(self.k, gone), [])
+        self.assertEqual([i for i in self.repo.table.scan()['Items'] if i['pk'] == f'K#{self.k}#MSG#{gone}'], [])
+        self.assertNotIn('Item', self.repo.table.get_item(Key={'pk': f'K#{self.k}#RX', 'sk': f'MSG#{gone}'}))
+        self.assertEqual(len(self.repo.list_replies(self.k, self.message)), 3)
+        self.assertEqual(self.run_tool('--apply')[0]['repliesDeleted'], 0)
+        for text in ('מזל טוב', 'אלמוג', 'בדיוני', gone):
+            self.assertNotIn(text, out)
 
     def test_removes_custom_reply_push_text(self):
         self.run_tool('--apply')
