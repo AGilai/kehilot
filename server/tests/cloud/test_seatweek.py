@@ -204,7 +204,7 @@ class SeatWeekTest(test_messages.MessagesTest):
             day = self.admin_week()['prayers']['day']['answered']
             self.assertIn(f'holder:{self.holder}', day)
             self.assertNotIn(ref, day)
-            self.assertEqual(self.me()[1]['answered'], {'erev': True, 'day': False})
+            self.assertEqual(self.me()[1]['answered'], {'erev': True, 'day': True})  # the upload's staff edit stands
 
     def test_member_cannot_release_what_is_not_his(self):
         self.mine((5, 0))
@@ -447,6 +447,32 @@ class SeatWeekTest(test_messages.MessagesTest):
         status, out = self.respond([{'household': ref, 'released': 2, 'override': True}])
         self.assertEqual((status, out['warnings']), (200, []))
         self.assertEqual(self.released(), {self.at[(5, 5)], self.at[(5, 4)]})
+
+    def test_upload_marks_the_family_answered_by_staff_and_undo_restores(self):
+        self.three()
+        ref = f'family:{self.fam}'
+        self.assertEqual(self.me()[1]['answered'], {'erev': False, 'day': False})
+        self.assertEqual(self.respond([{'household': ref, 'released': 1}])[0], 200)
+        body = self.me()[1]
+        self.assertEqual(body['answered'], {'erev': True, 'day': False})
+        self.assertIsInstance(body['answeredAt']['erev'], int)
+        self.assertTrue(body['updatedByGabbai'])
+        self.assertEqual(body['updatedByRole'], 'gabbai')
+        self.assertEqual(self.undo()[0], 200)
+        body = self.me()[1]
+        self.assertEqual((body['answered'], body['answeredAt']), ({'erev': False, 'day': False}, {'erev': None, 'day': None}))
+
+    def test_upload_keeps_an_earlier_answer_time_on_undo_and_skips_member_answers(self):
+        self.three()
+        ref = f'family:{self.fam}'
+        with self.now(at(9)):
+            self.assertEqual(self.put_me([1])[0], 200)
+        stamp = self.me()[1]['answeredAt']['erev']
+        self.assertEqual(self.respond([{'household': ref, 'released': 3}])[0], 200)  # skipped: app_answer_kept
+        self.assertEqual(self.me()[1]['answeredAt']['erev'], stamp)
+        self.assertEqual(self.respond([{'household': ref, 'released': 3, 'override': True}])[0], 200)
+        self.assertEqual(self.undo()[0], 200)
+        self.assertEqual(self.me()[1]['answeredAt']['erev'], stamp)
 
     def test_apply_holders_and_marks_gabbai(self):
         self.give(f'holder:{self.holder}', (8, 0), (8, 1))

@@ -1,5 +1,6 @@
 """Seating, weekly state: the deadline, a family's order, the member's cut (his block, his rows +-2, nothing else)
 and the released-count rule. Mirrors src/seats/frame.ts; the server is the authority."""
+import heapq
 import re
 from datetime import date, datetime, time as dtime
 from zoneinfo import ZoneInfo
@@ -86,23 +87,23 @@ def _aisle_gap(layout, block, seat):
 
 def keep_key(layout, seat, centre=None, front=None):
     """How good a seat is, best first, a total order (§15.10.11, owner 2026-10-29): the row nearer the Aron; next to an
-    aisle; fewer seats to an aisle; nearer the bimah (column distance); the right seat facing the Aron."""
+    aisle; nearer the bimah (column distance); fewer seats to an aisle; the right seat facing the Aron."""
     centre = _bimah_centre(layout) if centre is None else centre
     front = _front_row(layout) if front is None else front
     bi = block_index(layout, seat['col'])
     gap = _aisle_gap(layout, layout['blocks'][bi], seat) if bi >= 0 else None
-    return (abs(seat['row'] - front), seat['row'], 0 if gap == 0 else 1, gap if gap is not None else 1 << 30,
-            abs(seat['col'] - centre) if centre is not None else 0, -seat['col'])
-
-
-def _is_aisle_seat(key):
-    return key[2] == 0
+    return (abs(seat['row'] - front), seat['row'], 0 if gap == 0 else 1,
+            abs(seat['col'] - centre) if centre is not None else 0, gap if gap is not None else 1 << 30, -seat['col'])
 
 
 def _head(keys):
-    """The head's seat: the best aisle seat by rank when the family has one, else the best seat."""
-    aisle = [sid for sid, k in keys.items() if _is_aisle_seat(k)]
-    return min(aisle or keys, key=keys.__getitem__)
+    """The head's seat: the best seat by rank within the family's main row (the row holding most of its seats; on a
+    tie the row nearer the Aron)."""
+    per_row = {}
+    for sid, k in keys.items():
+        per_row.setdefault(k[1], []).append(sid)
+    main = min(per_row, key=lambda r: (-len(per_row[r]), keys[per_row[r][0]][0], r))
+    return min(per_row[main], key=keys.__getitem__)
 
 
 def _touch(a, b):
@@ -113,21 +114,35 @@ def _touch(a, b):
 
 def keep_chain(layout, ordered):
     """The family's seats in keep order (§15.10.11, owner 2026-10-29): the head's seat (_head), then each
-    next seat is the best by keep_key among the seats that touch the chain, or the best left when none touches."""
+    next seat is the best by keep_key among the seats that touch the chain, or the best left when none touches.
+    O(n log n): a heap holds the seats that touch the chain."""
     pos = {s['id']: s for s in layout['seats']}
     centre, front = _bimah_centre(layout), _front_row(layout)
     key = {sid: keep_key(layout, pos[sid], centre, front) for sid in ordered}
-    left = sorted(ordered, key=key.__getitem__)
-    chain = []
-    if left:
-        head = _head(key)
-        chain.append(head)
-        left.remove(head)
-    while left:
-        near = [sid for sid in left if any(_touch(pos[sid], pos[c]) for c in chain)]
-        nxt = (near or left)[0]
-        chain.append(nxt)
-        left.remove(nxt)
+    at = {(pos[sid]['row'], pos[sid]['col']): sid for sid in ordered}
+    rest = sorted(ordered, key=key.__getitem__)  # for "none touches"
+    rest_at = 0
+    chain, queued, frontier = [], set(), []
+
+    def add(sid):
+        chain.append(sid)
+        queued.add(sid)
+        seat = pos[sid]
+        for near in ((seat['row'], seat['col'] - 1), (seat['row'], seat['col'] + 1),
+                     (seat['row'] - 1, seat['col']), (seat['row'] + 1, seat['col'])):
+            other = at.get(near)
+            if other is not None and other not in queued and _touch(seat, pos[other]):
+                queued.add(other)
+                heapq.heappush(frontier, (key[other], other))
+    if ordered:
+        add(_head(key))
+    while len(chain) < len(ordered):
+        if frontier:
+            add(heapq.heappop(frontier)[1])
+            continue
+        while rest[rest_at] in queued:
+            rest_at += 1
+        add(rest[rest_at])
     return chain
 
 

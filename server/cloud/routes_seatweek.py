@@ -111,15 +111,22 @@ def _out_member(ctx, k, friday, family_id):
     states = {p: _effective(raw[p], held) for p in wk.PRAYERS}
     staff = [v for p in wk.PRAYERS for s in ordered
              if _is_staff((v := (states[p]['seats']).get(s) or {}).get('by'))]
+    # His family's own answer; else the latest staff edit on his seats for that prayer (so he is never told "not sent"
+    # after the gabbai changed his seats; nothing is stored, so an undo takes it away again).
+    answered_at = {}
+    for p in wk.PRAYERS:
+        own = ((raw[p] or {}).get('answered') or {}).get(ref)
+        by_staff = [v.get('at') or 0 for s in ordered if _is_staff((v := states[p]['seats'].get(s) or {}).get('by'))]
+        answered_at[p] = own if own is not None else (max(by_staff) or 1 if by_staff else None)
     newest = max(staff, key=lambda v: v.get('at') or 0) if staff else None
     latest = newest['by'] if newest else None
     return {**base, 'seats': len(ordered), 'updatedByGabbai': bool(staff),
             'updatedByRole': _staff_role(latest) if staff else None,
             'updatedByAt': (newest.get('at') or None) if newest else None,
             'freeOrder': [ordered.index(sid) + 1 for sid in wk.free_order(layout, ordered)],
-            'answeredAt': {p: ((raw[p] or {}).get('answered') or {}).get(ref) for p in wk.PRAYERS},
+            'answeredAt': {p: answered_at[p] for p in wk.PRAYERS},
             'updatedAt': {p: (raw[p] or {}).get('updatedAt') for p in wk.PRAYERS},
-            'answered': {p: ref in ((raw[p] or {}).get('answered') or {}) for p in wk.PRAYERS},
+            'answered': {p: answered_at[p] is not None for p in wk.PRAYERS},
             'frames': wk.frames(layout, ordered, states)}
 
 

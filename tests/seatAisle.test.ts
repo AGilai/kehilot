@@ -34,20 +34,25 @@ test('each rule decides a pair (the worse seat is freed first)', () => {
   assert.deepEqual(free(r, id(1, 4), id(4, 4)), [id(4, 4), id(1, 4)]); // 1: row nearer the Aron
   assert.deepEqual(free(r, id(2, 3), id(2, 4)), [id(2, 4), id(2, 3)]); // 2: next to an aisle
   assert.deepEqual(free(l, id(2, 7), id(2, 6)), [id(2, 6), id(2, 7)]);
-  assert.deepEqual(free(r, id(2, 4), id(2, 5)), [id(2, 5), id(2, 4)]); // 3: fewer seats to an aisle beats the bimah
-  assert.deepEqual(free(r, id(2, 7), id(2, 3)), [id(2, 3), id(2, 7)]); // 4: nearer the bimah
+  assert.deepEqual(free(r, id(2, 4), id(2, 5)), [id(2, 4), id(2, 5)]); // 3: nearer the bimah beats fewer seats to an aisle
+  assert.deepEqual(free(r, id(2, 7), id(2, 3)), [id(2, 3), id(2, 7)]);
   assert.deepEqual(free(l, id(2, 7), id(2, 3)), [id(2, 7), id(2, 3)]);
-  assert.deepEqual(free(r, id(2, 6), id(2, 4)), [id(2, 4), id(2, 6)]);
+  assert.deepEqual(free(n, id(2, 5), id(2, 4)), [id(2, 5), id(2, 4)]); // 4: fewer seats to an aisle
   assert.deepEqual(free(n, id(2, 6), id(2, 4)), [id(2, 4), id(2, 6)]); // 5: the right seat
   assert.deepEqual(free(hall(['SSSS', 'SSSS']), id(1, 3), id(1, 2), id(1, 1)), [id(1, 1), id(1, 2), id(1, 3)]);
 });
 
-test('walls are aisles; the head takes an aisle seat over a nearer row', () => {
+test('walls are aisles; the head is in the main row', () => {
   const n = hall(FIVE);
   assert.deepEqual(free(n, id(2, 5), id(2, 10)), [id(2, 5), id(2, 10)]);
   assert.equal(keepChain(n, [id(2, 0), id(2, 5)])[0], id(2, 0));
-  assert.deepEqual(keepChain(n, [id(1, 5), id(4, 3)]), [id(4, 3), id(1, 5)]);
-  assert.deepEqual(free(n, id(1, 5), id(4, 3)), [id(1, 5), id(4, 3)]);
+  assert.deepEqual(keepChain(n, [id(4, 3), id(4, 4), id(4, 5), id(1, 5)]), [id(4, 3), id(4, 4), id(4, 5), id(1, 5)]);
+  const r = hall(FIVE, RIGHT);
+  const rows = [2, 3].flatMap((row) => [3, 4, 5, 6, 7].map((c) => id(row, c)));
+  assert.equal(keepChain(r, rows)[0], id(2, 7));
+  assert.equal(keepChain(r, [id(4, 3), id(1, 5)])[0], id(1, 5));
+  assert.deepEqual(keepChain(r, [id(2, 4), id(2, 5)]), [id(2, 5), id(2, 4)]);
+  assert.deepEqual(keepChain(hall(FIVE, LEFT), [id(2, 4), id(2, 5)]), [id(2, 4), id(2, 5)]);
 });
 
 test('whole row: freeing starts at the far end and walks towards the head', () => {
@@ -58,9 +63,9 @@ test('whole row: freeing starts at the far end and walks towards the head', () =
 
 test('two adjacent rows keep the group around the head; separate groups: the non-touching one goes first', () => {
   const lay = hall(FIVE, RIGHT);
-  assert.deepEqual(keepChain(lay, [id(1, 4), id(1, 5), id(2, 4), id(2, 5)]), [id(1, 4), id(1, 5), id(2, 4), id(2, 5)]);
-  assert.deepEqual(free(lay, id(1, 6), id(1, 5), id(4, 4), id(4, 5)), [id(4, 5), id(4, 4), id(1, 5), id(1, 6)]);
-  assert.deepEqual(free(lay, id(1, 6), id(1, 5), id(4, 3), id(4, 4)), [id(1, 5), id(1, 6), id(4, 4), id(4, 3)]);
+  assert.deepEqual(keepChain(lay, [id(1, 4), id(1, 5), id(2, 4), id(2, 5)]), [id(1, 5), id(1, 4), id(2, 5), id(2, 4)]);
+  assert.deepEqual(free(lay, id(1, 6), id(1, 5), id(4, 4), id(4, 5)), [id(4, 4), id(4, 5), id(1, 5), id(1, 6)]);
+  assert.deepEqual(free(lay, id(1, 6), id(1, 5), id(4, 3), id(4, 4)), [id(4, 4), id(4, 3), id(1, 5), id(1, 6)]);
 });
 
 test('an empty cell breaks adjacency; the input order does not matter', () => {
@@ -92,4 +97,14 @@ test('kept seats stay one group after freeing any number', () => {
       }
     }
   }
+});
+
+test('the biggest hall is fast', () => {
+  const lay = hall(Array(40).fill(`${'S'.repeat(29)}A${'S'.repeat(30)}`) as string[], [25, 26, 27, 28, 29, 31, 32, 33, 34]);
+  const ids = lay.seats.map((x) => x.id);
+  assert.ok(ids.length > 2000);
+  const t = Date.now();
+  const out = freeOrderIds(lay, ids);
+  assert.ok(Date.now() - t < 2000);
+  assert.equal(new Set(out).size, ids.length);
 });

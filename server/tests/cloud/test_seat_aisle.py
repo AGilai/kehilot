@@ -1,4 +1,5 @@
 import itertools
+import time
 import unittest
 
 from server.cloud import seating_week as wk
@@ -68,21 +69,20 @@ class SeatAisleTest(unittest.TestCase):
         lay = hall(FIVE, LEFT)
         self.assertEqual(self.free(lay, sid(2, 7), sid(2, 6)), [sid(2, 6), sid(2, 7)])
 
-    def test_rule3_fewer_seats_to_an_aisle_beats_nearer_the_bimah(self):
-        # col 4: one seat from the left aisle, col 5: two. Col 5 is nearer the bimah, but col 4 is kept.
+    def test_rule3_nearer_the_bimah_beats_fewer_seats_to_an_aisle(self):
+        # col 4: one seat from the left aisle, col 5: two. Col 5 is nearer the bimah, so it is kept.
         lay = hall(FIVE, RIGHT)
-        self.assertEqual(self.free(lay, sid(2, 4), sid(2, 5)), [sid(2, 5), sid(2, 4)])
-        self.assertEqual(self.free(lay, sid(2, 5), sid(2, 6)), [sid(2, 5), sid(2, 6)])
-
-    def test_rule4_nearer_the_bimah_is_better(self):
-        # both touch an aisle
-        lay = hall(FIVE, RIGHT)
+        self.assertEqual(self.free(lay, sid(2, 4), sid(2, 5)), [sid(2, 4), sid(2, 5)])
+        # both touch an aisle: the one nearer the bimah is kept
         self.assertEqual(self.free(lay, sid(2, 7), sid(2, 3)), [sid(2, 3), sid(2, 7)])
         lay = hall(FIVE, LEFT)
         self.assertEqual(self.free(lay, sid(2, 7), sid(2, 3)), [sid(2, 7), sid(2, 3)])
-        # cols 4 and 6 are one seat from an aisle each
-        self.assertEqual(self.free(hall(FIVE, RIGHT), sid(2, 6), sid(2, 4)), [sid(2, 4), sid(2, 6)])
-        self.assertEqual(self.free(hall(FIVE, LEFT), sid(2, 6), sid(2, 4)), [sid(2, 6), sid(2, 4)])
+
+    def test_rule4_fewer_seats_to_an_aisle_is_better(self):
+        lay = hall(FIVE)  # no bimah: rule 3 cannot decide
+        self.assertEqual(self.free(lay, sid(2, 5), sid(2, 4)), [sid(2, 5), sid(2, 4)])
+        self.assertEqual(self.free(lay, sid(2, 4), sid(2, 5)), [sid(2, 5), sid(2, 4)])
+        self.assertEqual(self.free(lay, sid(2, 5), sid(2, 6)), [sid(2, 5), sid(2, 6)])
 
     def test_walls_are_aisles_and_a_wall_seat_is_the_head(self):
         lay = hall(FIVE)
@@ -93,11 +93,22 @@ class SeatAisleTest(unittest.TestCase):
         # a hall whose only block touches both walls
         self.assertEqual(wk.keep_chain(hall(['SSSS']), [sid(1, 0), sid(1, 3)])[0], sid(1, 3))
 
-    def test_the_head_takes_an_aisle_seat_over_a_nearer_row(self):
+    def test_the_head_is_in_the_main_row(self):
         lay = hall(FIVE)
-        # a middle seat in the front row and an aisle seat in the back row
-        self.assertEqual(wk.keep_chain(lay, [sid(1, 5), sid(4, 3)]), [sid(4, 3), sid(1, 5)])
-        self.assertEqual(self.free(lay, sid(1, 5), sid(4, 3)), [sid(1, 5), sid(4, 3)])
+        # three seats in a back row and one in the front row: the head is in the back row
+        mine = [sid(4, 3), sid(4, 4), sid(4, 5), sid(1, 5)]
+        self.assertEqual(wk.keep_chain(lay, mine), [sid(4, 3), sid(4, 4), sid(4, 5), sid(1, 5)])
+        self.assertEqual(self.free(lay, *mine), [sid(1, 5), sid(4, 5), sid(4, 4), sid(4, 3)])
+        # two full rows: the head is in the one nearer the Aron
+        lay = hall(FIVE, RIGHT)
+        rows = [sid(r, c) for r in (2, 3) for c in (3, 4, 5, 6, 7)]
+        self.assertEqual(wk.keep_chain(lay, rows)[0], sid(2, 7))
+        # one seat each: the tie goes to the row nearer the Aron
+        self.assertEqual(wk.keep_chain(lay, [sid(4, 3), sid(1, 5)])[0], sid(1, 5))
+
+    def test_two_seats_mid_row_the_one_nearer_the_bimah_is_the_head(self):
+        self.assertEqual(wk.keep_chain(hall(FIVE, RIGHT), [sid(2, 4), sid(2, 5)]), [sid(2, 5), sid(2, 4)])
+        self.assertEqual(wk.keep_chain(hall(FIVE, LEFT), [sid(2, 4), sid(2, 5)]), [sid(2, 4), sid(2, 5)])
 
     def test_rule5_last_tie_the_right_seat_facing_the_aron(self):
         lay = hall(FIVE)  # no bimah
@@ -119,9 +130,9 @@ class SeatAisleTest(unittest.TestCase):
     def test_family_split_across_two_rows_front_row_stays(self):
         lay = hall(FIVE, RIGHT)
         mine = [sid(1, 4), sid(1, 5), sid(4, 3), sid(4, 7)]
-        # the head is the rear row's aisle seat (4,7); the row 1 group follows, the other aisle seat is freed first
-        self.assertEqual(wk.keep_chain(lay, mine), [sid(4, 7), sid(1, 4), sid(1, 5), sid(4, 3)])
-        self.assertEqual(self.free(lay, *mine), [sid(4, 3), sid(1, 5), sid(1, 4), sid(4, 7)])
+        # two and two: the head is in the row nearer the Aron; the rear aisle seats follow, nearer the bimah first
+        self.assertEqual(wk.keep_chain(lay, mine), [sid(1, 5), sid(1, 4), sid(4, 7), sid(4, 3)])
+        self.assertEqual(self.free(lay, *mine), [sid(4, 3), sid(4, 7), sid(1, 4), sid(1, 5)])
         mine = [sid(1, 4), sid(1, 5), sid(4, 4), sid(4, 5)]  # no aisle seat: the front row stays
         out = self.free(lay, *mine)
         self.assertEqual(set(out[:2]), {sid(4, 4), sid(4, 5)})
@@ -129,16 +140,16 @@ class SeatAisleTest(unittest.TestCase):
     def test_family_across_two_adjacent_rows_keeps_the_group_around_the_head(self):
         lay = hall(FIVE, RIGHT)
         mine = [sid(1, 4), sid(1, 5), sid(2, 4), sid(2, 5)]
-        # head (1,4), one seat from the aisle; then its row, then the row behind
-        self.assertEqual(wk.keep_chain(lay, mine), [sid(1, 4), sid(1, 5), sid(2, 4), sid(2, 5)])
-        self.assertEqual(self.free(lay, *mine), [sid(2, 5), sid(2, 4), sid(1, 5), sid(1, 4)])
+        # head (1,5), nearer the bimah; then its row, then the row behind, nearer the bimah first
+        self.assertEqual(wk.keep_chain(lay, mine), [sid(1, 5), sid(1, 4), sid(2, 5), sid(2, 4)])
+        self.assertEqual(self.free(lay, *mine), [sid(2, 4), sid(2, 5), sid(1, 4), sid(1, 5)])
 
     def test_two_separate_groups_the_non_touching_group_goes_first(self):
         lay = hall(FIVE, RIGHT)
         mine = [sid(1, 6), sid(1, 5), sid(4, 4), sid(4, 5)]
-        self.assertEqual(self.free(lay, *mine), [sid(4, 5), sid(4, 4), sid(1, 5), sid(1, 6)])
-        mine = [sid(1, 6), sid(1, 5), sid(4, 3), sid(4, 4)]  # the rear pair touches the aisle: it holds the head
-        self.assertEqual(self.free(lay, *mine), [sid(1, 5), sid(1, 6), sid(4, 4), sid(4, 3)])
+        self.assertEqual(self.free(lay, *mine), [sid(4, 4), sid(4, 5), sid(1, 5), sid(1, 6)])
+        mine = [sid(1, 6), sid(1, 5), sid(4, 3), sid(4, 4)]  # tied rows: the head is in the row nearer the Aron
+        self.assertEqual(self.free(lay, *mine), [sid(4, 4), sid(4, 3), sid(1, 5), sid(1, 6)])
 
     def test_kept_seats_stay_one_group_after_freeing_any_number(self):
         import random
@@ -196,6 +207,15 @@ class SeatAisleTest(unittest.TestCase):
                 self.assertEqual(wk.free_order(lay, perm), expect, bimah)
             for a, b in itertools.combinations(ids[:12], 2):
                 self.assertEqual(wk.free_order(lay, [a, b]), wk.free_order(lay, [b, a]))
+
+    def test_the_biggest_hall_is_fast(self):
+        lay = hall(['S' * 29 + 'A' + 'S' * 30] * 40, tuple(range(25, 35)), 20)
+        ids = [s['id'] for s in lay['seats']]
+        self.assertGreater(len(ids), 2000)
+        start = time.perf_counter()
+        out = wk.free_order(lay, ids)
+        self.assertLess(time.perf_counter() - start, 2)
+        self.assertEqual(sorted(out), sorted(ids))
 
     def test_no_aron_or_bimah_in_the_layout(self):
         lay = hall(FIVE)
