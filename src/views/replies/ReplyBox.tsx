@@ -33,6 +33,7 @@ export function ReplyBox({ message, onSent, to: toProp, onTo, hideHeading }: {
   const to = toProp ?? own;
   const setTo = (x: ReplyTo) => { setOwn(x); onTo?.(x); };
   const [busy, setBusy] = React.useState(false);
+  const flying = React.useRef(false);
   const [error, setError] = React.useState<string | null>(null);
   const [ended, setEnded] = React.useState<string | null>(null);
   const alive = React.useRef(true);
@@ -47,7 +48,8 @@ export function ReplyBox({ message, onSent, to: toProp, onTo, hideHeading }: {
 
   async function send() {
     const body = draft.trim();
-    if (!body || busy) return;
+    if (!body || flying.current) return;
+    flying.current = true;
     setBusy(true); setError(null);
     try {
       // `to` is left out for the author and for the whole family.
@@ -57,7 +59,7 @@ export function ReplyBox({ message, onSent, to: toProp, onTo, hideHeading }: {
       const code = (e as { code?: string } | null)?.code ?? '';
       if (!alive.current) return;
       if (ENDS.includes(code)) setEnded(code); else setError(errText(e));
-    } finally { if (alive.current) setBusy(false); }
+    } finally { flying.current = false; if (alive.current) setBusy(false); }
   }
 
   return (

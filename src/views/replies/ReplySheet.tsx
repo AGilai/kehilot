@@ -3,7 +3,7 @@ import { useSession } from '../../client/SessionProvider.tsx';
 import type { Message } from '../../client/types.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
 import { ActivityIndicator } from 'react-native';
-import { Sheet, Toast, Txt, useTokens } from '../../kit/components.tsx';
+import { Banner, Sheet, Toast, Txt, useTokens } from '../../kit/components.tsx';
 import { headingText } from '../../client/replyView.ts';
 import type { ReplyTo } from '../../client/replyView.ts';
 import { ReplyBox, defaultTo } from './ReplyBox.tsx';
@@ -20,13 +20,18 @@ export function ReplySheet({ messageId, visible, onClose }: { messageId: string;
   const [full, setFull] = React.useState<Message | null>(null);
   const [toast, setToast] = React.useState(false);
   const [to, setTo] = React.useState<ReplyTo>('author');
+  const [failed, setFailed] = React.useState(false);
+  const [attempt, setAttempt] = React.useState(0);
   React.useEffect(() => {
     if (!visible) return;
     let live = true;
-    setFull(null);
-    loadHit(messageId).then(h => { if (live && h.kind === 'full') { setFull(h.message); setTo(defaultTo(h.message)); } }, () => {});
+    setFull(null); setFailed(false);
+    loadHit(messageId).then(h => {
+      if (!live) return;
+      if (h.kind === 'full') { setFull(h.message); setTo(defaultTo(h.message)); } else setFailed(true);
+    }, () => { if (live) setFailed(true); });
     return () => { live = false; };
-  }, [visible, messageId, loadHit]);
+  }, [visible, messageId, loadHit, attempt]);
   React.useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(false), 2500);
@@ -43,7 +48,8 @@ export function ReplySheet({ messageId, visible, onClose }: { messageId: string;
             {m.title ? <Txt content size="small" color={k.muted}>{t('reply.about', { title: m.title })}</Txt> : null}
             <ReplyBox message={m} to={to} onTo={setTo} hideHeading onSent={() => { setToast(true); onClose(); }} />
           </>
-        ) : <ActivityIndicator color={k.tekhelet} />}
+        ) : failed ? <Banner tone="error" text={t('session.loadError')} action={{ title: t('common.retry'), onPress: () => setAttempt(a => a + 1) }} />
+          : <ActivityIndicator color={k.tekhelet} />}
       </Sheet>
       <Toast text={t('reply.toast')} visible={toast} />
     </>
