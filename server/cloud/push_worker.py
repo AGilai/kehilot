@@ -14,12 +14,13 @@ import time
 from datetime import datetime
 
 from . import authz, expo, families, seat_reminders, seat_times, seating_week, type_rules, visibility
-from .push import MESSAGE_TYPES, PUSH_TEXT, REPLY_KEYS, SYSTEM_KEYS, reply_text_key, resolve_text
+from .push import MESSAGE_TYPES, PUSH_TEXT, REPLY_KEYS, SYSTEM_KEYS, reply_text_key, resolve_text, update_texts
 
 logging.getLogger().setLevel(logging.INFO)  # Lambda leaves the root logger at WARNING and drops log.info
 log = logging.getLogger(__name__)
 
 CHUNK = 100
+UPDATE_KIND = 'message_update'  # ref = messageId; texts built here from the stored message
 TICKET_TTL = 86400
 MAX_BACKOFF = 900
 
@@ -94,7 +95,7 @@ def recipients(repo, kind, kehila, ref):
     message = repo.get_message(kehila, ref)
     if not message or message.get('removed'):
         return []
-    if kind != 'message':
+    if kind not in ('message', UPDATE_KIND):
         return []
     channel = repo.get_channel(kehila, message['channelId'])
     rules = type_rules.rules((repo.get_kehila(kehila) or {}).get('settings', {}))  # once per message
@@ -102,7 +103,8 @@ def recipients(repo, kind, kehila, ref):
     for member in repo.list_members(kehila):
         uid = member['userId']
         notify = member.get('notify') or {}
-        if (uid == message['authorId'] or not visibility.in_audience(member, channel)
+        own = message.get('updatedBy') if kind == UPDATE_KIND else message['authorId']  # the one who just acted
+        if (uid == own or not visibility.in_audience(member, channel)
                 or not visibility.message_visible(member, channel, message, rules)):
             continue
         if channel.get('conversation') and message['channelId'] not in notify.get('chatChannels', ()):
@@ -182,6 +184,8 @@ def _build(repo, kind, kehila, ref):
     default = settings.get('defaultLang', 'he')
     default = default if default in ('he', 'en') else 'he'
     data = _data(kind, kehila, ref)
+    quiet = kind == UPDATE_KIND
+    updated = repo.get_message(kehila, ref) if quiet else None
     messages, owners = [], {}
     for uid in recipients(repo, kind, kehila, ref):
         lang = _lang(repo, uid, default)
@@ -191,6 +195,11 @@ def _build(repo, kind, kehila, ref):
                 owners[token].append(uid)
                 continue
             owners[token] = [uid]
+            if quiet:  # no sound or vibration: Android low-priority channel, iOS passive
+                text = update_texts(updated, lang, title)
+                messages.append({'to': token, 'title': text[0], 'body': text[1], 'data': data, 'priority': 'normal',
+                                 'channelId': 'quiet', 'interruptionLevel': 'passive'})
+                continue
             messages.append({'to': token, 'title': title, 'body': resolve_text(meta, text_key, lang), 'data': data,
                              'sound': 'default'})
     return messages, owners
@@ -218,7 +227,7 @@ def _process(repo, job, token):
         if reason:
             log.info('push kind=seat_reminder kehila=%s ref=%s skipped=%s', kehila, ref, reason)
             return
-    elif kind != 'reply' and (kind not in PUSH_TEXT or kind in REPLY_KEYS):
+    elif kind not in ('reply', UPDATE_KIND) and (kind not in PUSH_TEXT or kind in REPLY_KEYS):
         log.warning('unknown push kind %s', kind)
         return
     messages, owners = _build(repo, kind, kehila, ref)

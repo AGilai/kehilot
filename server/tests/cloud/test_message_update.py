@@ -3,7 +3,7 @@ from unittest import mock
 
 from moto import mock_aws
 
-from server.cloud import push, sheet_items
+from server.cloud import push, routes_messages, sheet_items
 from server.cloud.message_fields import event_changes
 from server.tests.cloud import test_messages
 from server.tests.cloud.test_sheet_items import EVENT, at
@@ -225,3 +225,184 @@ class MessageUpdateTest(test_messages.MessagesTest):
 for _name in dir(test_messages.MessagesTest):  # the fixtures only: none of the base class's tests
     if _name.startswith('test_') and _name not in MessageUpdateTest.__dict__:
         setattr(MessageUpdateTest, _name, None)
+
+    # carry-over from the Task 4 review: an update keeps the thread and the viewer fields stay right
+    def test_update_keeps_replier_count_target_family_and_thread(self):
+        fid = self.family()
+        mid = self.shiva(fid)
+        url = f'{self.base()}/messages/{mid}/replies'
+        status, reply = self.call('POST', url, sub='gabbai-sub', body={'body': 'הנחמה'})
+        self.assertEqual(status, 201, reply)
+        before = self.call('GET', f'{self.base()}/messages/{mid}', sub='gabbai-sub')[1]
+        self.assertEqual(before['replierCount'], 1)
+        status, body = self.put(mid, fields=FULL)
+        self.assertEqual(status, 200, body)
+        self.assertEqual((body['replierCount'], body['targetFamilyId'], body['targetMemberId']),
+                         (1, fid, self.quiet))
+        got = self.call('GET', f'{self.base()}/messages/{mid}', sub='gabbai-sub')[1]
+        self.assertEqual((got['replierCount'], got['targetFamilyId']), (1, fid))
+        listed = self.call('GET', f'{self.base()}/messages', sub='other-sub')[1]
+        self.assertEqual((listed[0]['replierCount'], listed[0]['targetFamilyId']), (1, fid))
+        replies = self.call('GET', url, sub='gabbai-sub')[1]
+        self.assertEqual([r['body'] for r in replies], ['הנחמה'])
+        self.assertEqual(len(self.call('GET', url, sub='other-sub')[1]), 1)  # sent to the family: still seen
+
+    def test_viewer_fields_for_family_adult_after_update(self):
+        fid = self.family()
+        mid = self.shiva(fid)
+        status, body = self.put(mid, sub='other-sub', fields=FULL)   # the family adult updates
+        self.assertEqual(status, 200, body)
+        self.assertEqual((body['replyTo'], body['canReply'], body['isRecipient'], body['replied']),
+                         ('family', False, True, False))
+        got = self.call('GET', f'{self.base()}/messages/{mid}', sub='other-sub')[1]
+        self.assertEqual((got['replyTo'], got['canReply'], got['isRecipient'], got['replied']),
+                         ('family', False, True, False))
+        stranger = self.call('GET', f'{self.base()}/messages/{mid}', sub='stranger-sub')[1]
+        self.assertEqual((stranger['canReply'], stranger['isRecipient']), (True, False))
+
+
+@mock_aws
+class NotifyTest(test_messages.MessagesTest):
+    T0 = 1_800_000_000
+
+    def setUp(self):
+        super().setUp()
+        self.t = self.T0
+        self.enqueue = mock.patch.object(push, 'enqueue').start()
+        for patcher in (mock.patch.object(sheet_items, '_now', return_value=at(2026, 10, 28, 9, 0)),
+                        mock.patch.object(routes_messages, '_now', side_effect=lambda: self.t)):
+            patcher.start()
+        self.addCleanup(mock.patch.stopall)
+
+    def updates(self):
+        return [c for c in self.enqueue.call_args_list if c.args[0] == 'message_update']
+
+    def event(self):
+        status, body = self.post('announcements', templateId='event', type='event', fields=EVENT)
+        self.assertEqual(status, 201, body)
+        return body['messageId']
+
+    def put(self, mid, notify=True, sub='gabbai-sub', **fields):
+        status, body = self.call('PUT', f'{self.base()}/messages/{mid}', sub=sub,
+                                 body={'title': 'Updated', 'body': 'b', 'fields': {**EVENT, **fields}, 'notify': notify})
+        self.assertEqual(status, 200, body)
+        return body
+
+    def read(self, mid, sub='member-sub'):
+        self.assertEqual(self.call('POST', f'{self.base()}/messages/{mid}/read', sub=sub)[0], 204)
+
+    def get(self, mid, sub):
+        return self.call('GET', f'{self.base()}/messages/{mid}', sub=sub)[1]
+
+    def test_notify_bumps_marks_unread_and_enqueues(self):
+        old = self.event()
+        self.t += 5
+        self.read(old)
+        self.assertTrue(self.get(old, 'member-sub')['read'])
+        self.t += 5
+        self.event()                  # a newer message, so only the bump can put `old` first
+        self.t += 5
+        out = self.put(old, time='21:00')
+        self.assertTrue(out['notified'])
+        self.assertEqual(self.updates(), [mock.call('message_update', self.k, old)])
+        self.assertFalse(self.get(old, 'member-sub')['read'])
+        self.assertTrue(self.get(old, 'gabbai-sub')['read'])
+        first = self.call('GET', f'{self.base()}/messages', sub='member-sub', query={'limit': '1'})[1]
+        self.assertEqual(len(first), 2)               # the page plus the merged bump
+        self.assertEqual(first[0]['messageId'], old)
+        self.assertEqual(first[0]['bumpId'], out['bumpId'])
+        self.assertEqual(self.get(old, 'member-sub')['bumpId'], out['bumpId'])
+        self.assertFalse(first[0]['read'])
+        self.assertTrue(self.call('GET', f'{self.base()}/messages', sub='gabbai-sub', query={'limit': '1'})[1][0]['read'])
+
+    def test_second_notify_within_12h_is_silent(self):              # Review Focus 2
+        mid = self.event()
+        self.t += 10
+        first = self.put(mid, time='21:00')
+        self.assertTrue(first['notified'])
+        self.t += 60
+        self.read(mid)                                   # read after the first bump
+        self.t += 3600                                   # +1 h: a correction
+        second = self.put(mid, time='21:15')
+        self.assertFalse(second['notified'])
+        self.assertEqual(second['bumpId'], first['bumpId'])
+        self.assertEqual(len(self.updates()), 1)
+        self.assertTrue(self.get(mid, 'member-sub')['read'])
+        self.assertEqual(self.get(mid, 'member-sub')['fields']['time'], '21:15')   # saved
+        self.assertEqual(len(self.repo._query_prefix(self.k, 'BUMP#')), 1)
+        self.t = self.T0 + 10 + 12 * 3600 + 1            # 12 h 1 s after the first notify
+        third = self.put(mid, time='21:30')
+        self.assertTrue(third['notified'])
+        self.assertNotEqual(third['bumpId'], first['bumpId'])
+        self.assertEqual(len(self.updates()), 2)
+        self.assertFalse(self.get(mid, 'member-sub')['read'])
+
+    def test_notify_false_never_bumps(self):
+        mid = self.event()
+        self.read(mid)
+        self.t += 10
+        out = self.put(mid, notify=False, time='21:00')
+        self.assertFalse(out['notified'])
+        self.assertNotIn('bumpId', out)
+        self.assertEqual(self.updates(), [])
+        self.assertTrue(self.get(mid, 'member-sub')['read'])
+        self.assertEqual(self.repo._query_prefix(self.k, 'BUMP#'), [])
+        self.assertNotIn('notifiedAt', self.repo.get_message(self.k, mid))
+
+    def test_a_silent_save_does_not_use_up_the_window(self):
+        mid = self.event()
+        self.t += 10
+        self.put(mid, notify=False, time='21:00')
+        self.assertTrue(self.put(mid, time='21:15')['notified'])
+
+    def test_before_cursor_ignores_bumps(self):
+        old = self.event()
+        self.t += 5
+        newer = self.event()
+        self.t += 5
+        self.put(old, time='21:00')
+        page = self.call('GET', f'{self.base()}/messages', query={'before': newer})[1]
+        self.assertEqual([m['messageId'] for m in page], [old])
+        self.assertNotIn(old, [m['messageId'] for m in self.call('GET', f'{self.base()}/messages', query={'before': old})[1]])
+
+    def test_merge_exceeds_limit_and_skips_removed_and_hidden(self):
+        ids = []
+        for _ in range(3):
+            ids.append(self.event())
+            self.t += 5
+        a, b, _ = ids
+        for _ in range(8):
+            self.post('announcements', type='general')   # push a, b out of a limit-3 page
+        self.t += 5
+        self.put(a, time='21:00')
+        listing = self.call('GET', f'{self.base()}/messages', query={'limit': '3'})[1]
+        self.assertEqual(listing[0]['messageId'], a)
+        self.assertEqual(len(listing), 4)
+        self.assertEqual(len({m['messageId'] for m in listing}), 4)
+        self.t += 5
+        self.put(b, time='21:00')
+        self.call('DELETE', f'{self.base()}/messages/{b}')
+        listing = self.call('GET', f'{self.base()}/messages', query={'limit': '3'})[1]
+        self.assertNotIn(b, [m['messageId'] for m in listing])
+
+    def test_short_page_gets_all_bumps(self):
+        mid = self.event()
+        self.t += 5
+        self.put(mid, time='21:00')
+        listing = self.call('GET', f'{self.base()}/messages', query={'limit': '50'})[1]
+        self.assertEqual([m['messageId'] for m in listing], [mid])
+
+    def test_updater_who_is_not_author_reads_own_bump(self):
+        mid = self.event()
+        self.t += 10
+        self.put(mid, sub='gabbai-sub', time='21:00')
+        self.assertTrue(self.get(mid, 'gabbai-sub')['read'])
+        self.assertFalse(self.get(mid, 'member-sub')['read'])
+
+    def test_read_uses_the_route_clock(self):
+        mid = self.event()
+        self.t += 10
+        self.put(mid, time='21:00')
+        self.t += 1
+        self.read(mid)
+        self.assertTrue(self.get(mid, 'member-sub')['read'])

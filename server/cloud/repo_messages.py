@@ -14,6 +14,9 @@ CHAT_COUNTER_TTL = 2 * 3600
 REPLY_PUSH_WINDOW = 15 * 60  # seconds between pushes for one message to one person
 MSG_PREFIX = 'MSG#'
 HISTORY_KEEP = 10
+BUMP_PREFIX = 'BUMP#'
+BUMP_TTL = 14 * 86400
+NOTIFY_WINDOW = 12 * 3600  # one notified update per message in this many seconds
 
 try:
     from zoneinfo import ZoneInfo
@@ -281,7 +284,7 @@ class MessagesRepo:
         """Blank title and body and set the postsScrubbed marker (account deletion with "delete everything I posted"). Idempotent."""
         try:
             self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
-                                   UpdateExpression='SET title = :e, body = :e, postsScrubbed = :t REMOVE #f, templateId, history, firstFields, changed',
+                                   UpdateExpression='SET title = :e, body = :e, postsScrubbed = :t REMOVE #f, templateId, history, firstFields, changed, notifiedAt, bumpId, bumpedAt',
                                    ConditionExpression='attribute_exists(sk)', ExpressionAttributeNames={'#f': 'fields'},
                                    ExpressionAttributeValues={':e': '', ':t': True})
         except ClientError as error:
@@ -323,15 +326,51 @@ class MessagesRepo:
             raise ApiError(409, 'try_again')
         return int(self.get_message(k, message_id)['joinCount']), True
 
-    def put_read(self, k, message_id, user_id):
+    def put_read(self, k, message_id, user_id, at=None):
         self.table.put_item(Item={'pk': f'K#{k}#U#{user_id}', 'sk': f'READ#{message_id}',
-                                  'at': int(time.time())})
+                                  'at': int(time.time()) if at is None else int(at)})
 
-    def read_flags(self, k, user_id, message_ids):
-        """The subset of message_ids this user has read: one BatchGetItem (at most 50 keys)."""
+    def read_times(self, k, user_id, message_ids):
+        """{messageId: unix seconds the user last read it} for the ones they read: one BatchGetItem (at most 50 keys)."""
         keys = [(f'K#{k}#U#{user_id}', f'READ#{m}') for m in dict.fromkeys(message_ids)]
         found = self.batch_get(keys) if keys else {}
-        return {sk[len('READ#'):] for _, sk in found}
+        return {sk[len('READ#'):]: int(item['at']) for (_, sk), item in found.items()}
+
+    def read_flags(self, k, user_id, message_ids):
+        """The subset of message_ids this user has read (whenever)."""
+        return set(self.read_times(k, user_id, message_ids))
+
+    def mark_notified(self, k, message_id, now, bump_id):
+        """Claim the notify slot of a message: True and `notifiedAt`, `bumpId`, `bumpedAt` set when it was never
+        notified or the last time was NOTIFY_WINDOW or more ago; False when the window blocks (or it is gone)."""
+        try:
+            self.table.update_item(
+                Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
+                UpdateExpression='SET notifiedAt = :now, bumpId = :b, bumpedAt = :now',
+                ConditionExpression='attribute_exists(sk) AND (attribute_not_exists(notifiedAt) OR notifiedAt <= :cut)',
+                ExpressionAttributeValues={':now': now, ':b': bump_id, ':cut': now - NOTIFY_WINDOW})
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+            return False
+        return True
+
+    def put_bump(self, k, bump_id, message_id, expires_at):
+        self.table.put_item(Item={'pk': f'K#{k}', 'sk': f'{BUMP_PREFIX}{bump_id}', 'messageId': message_id,
+                                  'expiresAt': expires_at})
+
+    def list_bumps_after(self, k, after_id=None):
+        """Bump pointers with an id greater than `after_id` (all when None), newest first."""
+        low = f'{BUMP_PREFIX}{after_id}' if after_id else BUMP_PREFIX
+        kwargs = {'KeyConditionExpression': Key('pk').eq(f'K#{k}') & Key('sk').between(low, f'{BUMP_PREFIX}~'),
+                  'ScanIndexForward': False, 'ConsistentRead': True}
+        out = []
+        while True:
+            page = self.table.query(**kwargs)
+            out += [i for i in page['Items'] if i['sk'] != low]  # BETWEEN is inclusive; the cursor is exclusive
+            if 'LastEvaluatedKey' not in page:
+                return out
+            kwargs['ExclusiveStartKey'] = page['LastEvaluatedKey']
 
     # replies
     def put_reply(self, k, message_id, author_id, author_name, body, to='family'):

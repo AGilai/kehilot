@@ -9,6 +9,7 @@ No message content ever enters the queue.
 import json
 import logging
 import os
+from datetime import date
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,15 @@ SYSTEM_KEYS = ('family_request', 'family_gabbai')
 REPLY_KEYS = ('private_reply', 'family_blessing', 'family_word', 'personal_blessing', 'personal_word')
 FIXED_TEXT_KEYS = SYSTEM_KEYS + REPLY_KEYS
 PUSH_TEXT_MAX = 80  # code points: the text is shown on the lock screen
+# Update pushes (kind 'message_update', ref = messageId), built in the worker from the stored message and never
+# queued or editable. Owner ruling (UX-DESIGN 19.2a, e441679): the shiva push carries only the surname, no address
+# and no days; the event push carries the event name and what changed, no address. The body is the Kehila's name.
+UPDATE_TEXT = {
+    'shiva': {'he': 'עודכנו פרטי השבעה · משפחת {surname}', 'en': 'Shiva details updated · {surname} family'},
+    'event': {'he': 'שינוי ב{event}: {what}', 'en': 'Change to {event}: {what}'},
+    'cancelled': {'he': 'בוטל', 'en': 'cancelled'},
+}
+_DAYS = {'he': ('א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳'), 'en': ('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat')}
 MESSAGE_TYPES = ('weekly', 'celebration', 'condolence', 'event', 'chat')
 
 
@@ -84,3 +94,41 @@ def enqueue(kind, kehila, ref) -> None:
         send(kind, kehila, ref)
     except Exception:
         log.exception('push enqueue failed kind=%s kehila=%s', kind, kehila)
+
+
+def short_day(iso, lang) -> str:
+    """he 'יום ב׳ (9.11)' (Saturday: 'שבת (14.11)'), en 'Mon 9.11'. A date that does not parse comes back as is."""
+    try:
+        day = date.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return str(iso)
+    short = f'{day.day}.{day.month}'
+    sunday_first = (day.weekday() + 1) % 7
+    if lang == 'en':
+        return f'{_DAYS["en"][sunday_first]} {short}'
+    return f'שבת ({short})' if sunday_first == 6 else f'יום {_DAYS["he"][sunday_first]} ({short})'
+
+
+def _cut(text) -> str:
+    return text if len(text) <= PUSH_TEXT_MAX else text[:PUSH_TEXT_MAX - 1] + '…'
+
+
+def update_texts(message, lang, kehila_name) -> tuple:
+    """(title, body) of the quiet push for an updated condolence or event; both cut to PUSH_TEXT_MAX code points."""
+    fields = message.get('fields') or {}
+    if message.get('type') == 'condolence':
+        title = UPDATE_TEXT['shiva'][lang].format(surname=fields.get('surname', ''))
+    else:
+        if fields.get('cancelled'):
+            what = UPDATE_TEXT['cancelled'][lang]
+        else:
+            changed = message.get('changed') or {}
+            parts = []
+            for key in ('time', 'date', 'place'):
+                if key in changed and fields.get(key):
+                    parts.append(short_day(fields[key], lang) if key == 'date' else fields[key])
+            what = ' · '.join(parts)
+        title = UPDATE_TEXT['event'][lang].format(event=fields.get('name', ''), what=what)
+        if not what:
+            title = title.rstrip(': ')
+    return _cut(title), _cut(kehila_name)

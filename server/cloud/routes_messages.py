@@ -1,4 +1,5 @@
 """Routes: channels, messages, joining a blessing and read receipts. Visibility comes from visibility.py."""
+import time
 from datetime import datetime, timezone
 
 from . import families, inputs, media, private_replies, message_fields, push, schedule_rules, sheet_items, type_rules, visibility
@@ -6,7 +7,7 @@ from . import authz
 from .errors import ApiError
 from .families import family_name
 from .ids import ID_RE, new_id
-from .repo_messages import local_date
+from .repo_messages import BUMP_TTL, NOTIFY_WINDOW, local_date
 from .routes_admin import _channel_json
 
 TYPES = type_rules.TYPES  # ('weekly', 'event', 'general', 'celebration', 'condolence')
@@ -16,6 +17,12 @@ REPLY_MAX = 1000
 CHAT = 'chat'
 CHAT_MAX = 1000
 CHAT_HOURLY_LIMIT = 30
+# NOTIFY_WINDOW (12 h): one notified update (move up, unread again, quiet push) per message in that time
+
+
+def _now() -> int:
+    """Unix seconds; the one clock of the update and read routes."""
+    return int(time.time())
 
 
 def _message_json(item, read=None, viewer=None):
@@ -36,6 +43,8 @@ def _message_json(item, read=None, viewer=None):
         out['updatedAt'] = int(item['updatedAt'])
     if item.get('changed'):
         out['changed'] = schedule_rules.plain(item['changed'])
+    if item.get('bumpId'):
+        out['bumpId'] = item['bumpId']
     if item.get('image'):  # metadata only: the URL comes from GET .../image after a visibility check
         out['image'] = {'contentType': item['image']['contentType'], 'bytes': int(item['image']['bytes'])}
     if viewer:
@@ -232,10 +241,41 @@ def list_messages(ctx, params):
             page.append(item)
             if len(page) == limit:
                 break
-    flags = ctx.repo.read_flags(k, ctx.user_id, [i['sk'][len('MSG#'):] for i in page])
+    if before is None:
+        page = _merge_bumps(ctx, k, membership, rules, channels, page, limit)
+    ids = [i['sk'][len('MSG#'):] for i in page]
+    times = ctx.repo.read_times(k, ctx.user_id, ids)
     viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, page, channels,
                                            families.TargetMemo(ctx.repo, k))
-    return 200, [_message_json(i, i['sk'][len('MSG#'):] in flags, viewer[i['sk'][len('MSG#'):]]) for i in page]
+    return 200, [_message_json(i, _is_read(times.get(m), i), viewer[m]) for i, m in zip(page, ids)]
+
+
+def _is_read(read_at, item) -> bool:
+    """Read since the last notified update: a bump makes earlier reads stale."""
+    return read_at is not None and read_at >= int(item.get('bumpedAt', 0))
+
+
+def _merge_bumps(ctx, k, membership, rules, channels, page, limit):
+    """The first page plus the visible, live messages whose bump is newer than the page's oldest message, sorted
+    by `bumpId or messageId`, newest first. The page may exceed `limit` by the merged ones."""
+    on_page = {i['sk'][len('MSG#'):] for i in page}
+    oldest = page[-1]['sk'][len('MSG#'):] if len(page) >= limit else None  # a short page holds every message
+    merged = []
+    for bump in ctx.repo.list_bumps_after(k, oldest):
+        mid = bump['messageId']
+        if mid in on_page:
+            continue
+        on_page.add(mid)
+        item = ctx.repo.get_message(k, mid)
+        if not item or item.get('removed'):
+            continue
+        if item['channelId'] not in channels:
+            channels[item['channelId']] = ctx.repo.get_channel(k, item['channelId'])
+        if visibility.message_visible(membership, channels[item['channelId']], item, rules):
+            merged.append(item)
+    if not merged and not any(i.get('bumpId') for i in page):
+        return page
+    return sorted(page + merged, key=lambda i: i.get('bumpId') or i['sk'][len('MSG#'):], reverse=True)
 
 
 def get_message(ctx, params):
@@ -244,7 +284,8 @@ def get_message(ctx, params):
     item, channel = _visible_message(ctx, k, membership, params['m'])
     viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, [item], {item['channelId']: channel},
                                            families.TargetMemo(ctx.repo, k))[params['m']]
-    out = _message_json(item, bool(ctx.repo.read_flags(k, ctx.user_id, [params['m']])), viewer)
+    read_at = ctx.repo.read_times(k, ctx.user_id, [params['m']]).get(params['m'])
+    out = _message_json(item, _is_read(read_at, item), viewer)
     out.update(private_replies.detail_fields(ctx.repo, k, ctx.user_id, item, channel))
     if authz.role_in(membership, authz.MANAGEMENT) and item.get('history'):  # never in lists or the change feed
         out['history'] = [{'title': h['title'], 'body': h['body'], 'at': int(h['at'])} for h in item['history']]
@@ -265,6 +306,19 @@ def _may_update(ctx, k, membership, message):
     return bool(family) and ctx.user_id in {m['userId'] for m in ctx.repo.live_adults(k, family)}
 
 
+def _notify(ctx, k, mid, item, stamp) -> bool:
+    """Move the message up once, make earlier reads stale and queue one quiet push, unless one was notified in the
+    last NOTIFY_WINDOW. The updater has read their own update. `item` gains the bump attributes."""
+    bump_id = new_id()
+    if not ctx.repo.mark_notified(k, mid, stamp, bump_id):
+        return False
+    ctx.repo.put_bump(k, bump_id, mid, stamp + BUMP_TTL)
+    ctx.repo.put_read(k, mid, ctx.user_id, at=stamp)
+    item.update({'notifiedAt': stamp, 'bumpId': bump_id, 'bumpedAt': stamp})
+    push.enqueue('message_update', k, mid)
+    return True
+
+
 def update_message(ctx, params):
     k, mid = params['k'], params['m']
     membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
@@ -278,11 +332,11 @@ def update_message(ctx, params):
     body = inputs.text(d, 'body', 4000)
     template_id = message_fields.TEMPLATE_OF_TYPE[before['type']]
     fields = message_fields.validate_fields(template_id, d.get('fields'))
-    inputs.boolean(d, 'notify')  # applied by the notify step; validated here
+    notify = inputs.boolean(d, 'notify')
     first = schedule_rules.plain(before.get('firstFields') or before.get('fields') or fields)
     changed = message_fields.event_changes(first, fields) if before['type'] == 'event' else {}
-    now = sheet_items._now()
-    stamp = int(now.timestamp())
+    now = sheet_items._now()  # the sheet week maths only
+    stamp = _now()
     seen = int(before['updatedAt']) if before.get('updatedAt') is not None else None
     entry = {'title': before['title'], 'body': before['body'], 'at': int(before.get('updatedAt') or 0) or stamp,
              'by': before.get('updatedBy') or before['authorId']}
@@ -290,10 +344,11 @@ def update_message(ctx, params):
                                    first_fields=first, changed=changed, history_entry=entry, updated_by=ctx.user_id,
                                    now=stamp, seen_updated_at=seen)
     sheet_items.on_update(ctx.repo, k, before, item, now)
+    notified = notify is True and _notify(ctx, k, mid, item, stamp)
     ctx.repo.put_change(k, 'message', mid, item['channelId'])
     viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, [item], {item['channelId']: channel},
                                            families.TargetMemo(ctx.repo, k))[mid]
-    return 200, {**_message_json(item, viewer=viewer), 'notified': False}
+    return 200, {**_message_json(item, viewer=viewer), 'notified': notified}
 
 
 def list_directory(ctx, params):
@@ -366,7 +421,7 @@ def read(ctx, params):
     k = params['k']
     membership = authz.require(ctx.repo, ctx.user_id, k, authz.ALL)
     message, _ = _visible_message(ctx, k, membership, params['m'])
-    ctx.repo.put_read(k, params['m'], ctx.user_id)
+    ctx.repo.put_read(k, params['m'], ctx.user_id, at=_now())
     ctx.repo.put_change(k, 'read', params['m'], message['channelId'], [ctx.user_id])
     return 204, None
 
