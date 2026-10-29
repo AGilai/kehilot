@@ -30,8 +30,9 @@ def make_png(width, height=None, pad=0):
     height = width if height is None else height
     raw = b''.join(b'\x00' + b'\x80' * (width * 3) for _ in range(height))
     png = (b'\x89PNG\r\n\x1a\n' + _chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
-           + _chunk(b'IDAT', zlib.compress(raw)) + _chunk(b'IEND', b''))
-    return png + b'\0' * pad
+           + _chunk(b'IDAT', zlib.compress(raw)) + (_chunk(b'tEXt', b'\0' * (pad - 12)) if pad else b'')
+           + _chunk(b'IEND', b''))
+    return png
 
 
 class ValidateLogoTest(unittest.TestCase):
@@ -69,6 +70,24 @@ class ValidateLogoTest(unittest.TestCase):
             with self.assertRaises(LogoError) as raised:
                 validate_logo(data)
             self.assertEqual(raised.exception.code, code)
+
+    def test_chunk_walk(self):
+        png = make_png(64)
+        for bad in (png + b'junk',                                   # junk tail
+                    png[:-12],                                         # no IEND
+                    png[:40] + bytes([png[40] ^ 1]) + png[41:],        # bad CRC / data
+                    png[:8] + struct.pack('>I', 12) + png[12:],        # IHDR length 12
+                    png[:33] + png[33:-12] [:5]):                      # chunk longer than file
+            with self.assertRaises(ValueError):
+                validate_logo(bad)
+        no_idat = png[:33] + png[-12:]
+        with self.assertRaises(ValueError):
+            validate_logo(no_idat)
+
+    def test_dev_logo_shape_passes(self):
+        data = make_png(384, pad=2000)
+        self.assertLess(len(data), 65536)
+        self.assertEqual(validate_logo(data), (384, 384))
 
     def test_first_chunk_not_ihdr(self):
         png = make_png(64)
@@ -234,6 +253,13 @@ class LogoRouteTest(unittest.TestCase):
         self.assertIsNone(shown['logoVersion'])
         self.assertIsNone(shown['logoInfo'])
         self.assertEqual(self.call('DELETE', f'/v1/kehilot/{self.k}/admin/logo')[0], 204)
+
+    def test_other_kehila_gets_404(self):
+        other = self.repo.create_kehila('Beit Other', {})
+        body = json.dumps({'data': base64.b64encode(make_png(64)).decode()})
+        self.assertEqual(self.call('PUT', f'/v1/kehilot/{other}/admin/logo', body)[0], 404)
+        self.assertEqual(self.call('DELETE', f'/v1/kehilot/{other}/admin/logo')[0], 404)
+        self.assertIsNone(self.repo.get_logo(other))
 
     def test_delete_missing_kehila(self):
         self.assertEqual(self.repo.get_kehila('0' * 26), None)
