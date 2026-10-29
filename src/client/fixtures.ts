@@ -41,6 +41,10 @@ function fixtureUlid(ms: number, n: number): string {
   return t + '0000000000000000'.slice(0, 15) + CROCKFORD[n % 32];
 }
 
+/** Fixture mode: `?logo=1` gives the Kehila a dark mark on a transparent background (it must sit on a white tile in dark mode). */
+const FIXTURE_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAACLElEQVR4nO2TQW4DMQwD84ie+7D+/x/tqUCyhzaxaHMYicBexSHpvd1Go9FoNALr4/Pre+Vzc8dqtfAZZFG7Cp9B/pGr+PZDuAtvO4S74LZDuAttO4S7wNZDuEtrPYK7rLYjkMKTWI6IHpLOV1JaqDTeP5UcJJldEsAKf6fIHHHATygqUwzoi4rIFQFZEDofGk4oZE4XkLMM1AguEPdrRAyQVADBX+W9DOH0JjAove2/IGGAFQ6Lscx00Z/EkmlYZKDxZJkJGGg8GUZCDiIT20TMQWRiGmxioXKxjm9koXJtO74h1zILmY1zeEHtBkgNSWeTH92Ya4mHzuc7WNQMEBKQzic9RgyYwCc7diDXy0wJjOcOCTUDhIRLYDx3SKgZICRcAuO5Q0LNACHhEhjPHRJqBggJl8B47pBQM0BIuATGc4eEmgHMAekDyJmSA5L5fAeLmgFCAtL55AdPhSQPsI0nNSSVjXN4QTOAOSh1gK0sqUGpXEyDDRxEJraJmIPIlGEkYqDxZJkJGGg8mYYFfxKLxXRHcMoAVn+nOWEA9/hLJTi93f4q7xKIy9ftr/Itg6hgnANgXn8FqArVxfM94ASKyBcBuaCYXKug5BHiMlWASUNE56jCOwMksz9IEeRkmDTep6QKtSscnU8idchKYBLLce0M7/zcvb4kd1mty/+Vu7TW5d/LXWDb4q9yF9q2+KvcBbct/ip34W2Lv2qKh2kKh2kKH41Go9E76gf39hYoo5OFvAAAAABJRU5ErkJggg==';
+const fixtureHasLogo = () => config.fixtures && typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('logo') === '1';
+
 export const FIXTURE_PICTURE = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="640" height="400" fill="#C9D3F5"/><circle cx="480" cy="110" r="52" fill="#F2D27A"/><path d="M0 400 L200 170 L340 320 L450 230 L640 400 Z" fill="#2A3F94"/></svg>')}`;
 
@@ -185,7 +189,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const phoneOn = !!screen && ['me', 'me-family', 'me-request', 'me-linked', 'me-man', 'child-sheet', 'partner-picker', 'phone-list', 'tree', 'tree-married', 'tree-solo', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired'].includes(screen);
   const hasPhone = phoneOn || screen === 'phone-list-empty' || card === 'phone';
   const kehila: Kehila = {
-    kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין נווה דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: null, sheetMembers: 'approve',
+    kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין נווה דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: fixtureHasLogo() ? '1' : null, sheetMembers: 'approve',
     canBroadcast: isManagement(role), pendingRequest: false,
     // ?screen=m5 shows M5 with some choices already made (one muted channel, type and member).
     notify: screen === 'm5'
@@ -216,7 +220,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     },
     age13Required: screen === 'age13' || screen === 'age13-under' || screen === 'profile-age',
     kehilot: [
-      { kehilaId: kehila.kehilaId, name: kehila.name, role, logoVersion: null },
+      { kehilaId: kehila.kehilaId, name: kehila.name, role, logoVersion: kehila.logoVersion },
       ...(screen === 'switcher' || screen === 'me-linked' || screen === 'me-man' ? [
         { kehilaId: '01FIXTUREKEHILA0000000002', name: 'בית כנסת הדוגמה', role: 'gabbai' as Role, logoVersion: null },
         { kehilaId: '01FIXTUREKEHILA0000000003', name: 'קהילת הנחל המצויר', role: 'listener' as Role, logoVersion: null },
@@ -283,6 +287,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     'GET /v1/me': me,
     'PUT /v1/me/profile': { firstName: 'דנה', lastName: 'בדויה', lang: 'he' },
     [`GET /v1/kehilot/${kehila.kehilaId}`]: kehila,
+    [`GET /v1/kehilot/${kehila.kehilaId}/logo`]: { logoVersion: '1', contentType: 'image/png', data: FIXTURE_LOGO },
     [`GET /v1/kehilot/${kehila.kehilaId}/channels`]: channels,
     [`GET /v1/kehilot/${kehila.kehilaId}/messages`]: messages.filter(m => !hiddenTypes().includes(m.type)),
     [`GET /v1/kehilot/${kehila.kehilaId}/changes`]: { cursor: 'fixture', more: false, changes: [] },

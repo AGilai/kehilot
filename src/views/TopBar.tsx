@@ -1,9 +1,10 @@
 import React from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSession } from '../client/SessionProvider.tsx';
 import { useI18n } from '../i18n/I18nProvider.tsx';
 import { Txt, useTokens } from '../kit/components.tsx';
 import { Icon } from '../kit/Icon.tsx';
+import { LogoTile } from '../kit/LogoTile.tsx';
 import { TOUCH } from '../kit/theme.ts';
 import { useWaiting } from './useWaiting.ts';
 
@@ -19,12 +20,7 @@ export function KehilaLogo({ kehilaId, name, logoVersion, size = 32 }: { kehilaI
     void logo(kehilaId, logoVersion).then(u => { if (live) setUri(u); });
     return () => { live = false; };
   }, [kehilaId, logoVersion, logo]);
-  if (uri) return <Image accessibilityLabel={t('topbar.logo')} source={{ uri }} style={{ width: size, height: size, borderRadius: size / 4 }} />;
-  return (
-    <View style={{ width: size, height: size, borderRadius: size / 4, backgroundColor: k.tekhelet, alignItems: 'center', justifyContent: 'center' }}>
-      <Txt bold color={k.onAction} style={{ textAlign: 'center', lineHeight: size }}>{[...name.trim()][0] ?? ''}</Txt>
-    </View>
-  );
+  return <LogoTile uri={uri} letter={[...name.trim()][0] ?? ''} size={size} label={t('logo.label', { kehila: name })} />;
 }
 
 /** The Kehila logo in the top bar: 160% of the former 32 px. */

@@ -67,6 +67,8 @@ export function endpoints(http: Http) {
     // kehila, invites, joining
     kehila: (k: string) => r<Kehila>('GET', K(k)),
     logo: (k: string) => r<Logo>('GET', `${K(k)}/logo`),
+    putLogo: (k: string, data: string) => r<{ logoVersion: string }>('PUT', `${A(k)}/logo`, { data }),
+    deleteLogo: (k: string) => r<void>('DELETE', `${A(k)}/logo`),
     createInvite: (k: string, o: InviteOptions = {}) =>
       r<{ code: string; expiresAt: number }>('POST', `${K(k)}/invites`, Object.keys(o).length ? o : undefined),
     invites: (k: string) => r<InviteRow[]>('GET', `${K(k)}/invites`),

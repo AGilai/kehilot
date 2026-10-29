@@ -53,6 +53,10 @@
     "replies_not_allowed": "Replies are not allowed on this message",
     "cannot_reply_to_own": "You cannot send a private blessing to your own family",
     "target_left": "The family is no longer in the community, so a blessing cannot be sent",
+    "invalid_logo_format": "Please upload a PNG or JPEG.",
+    "logo_not_square": "The logo must be square.",
+    "logo_too_small": "The image is too small: at least 64×64 pixels after cropping.",
+    "logo_too_large": "The logo is too detailed for the size limit. Try a simpler version.",
     "invite_expired": "The invitation has expired or was used up",
     "broadcast_limit": "You reached the daily message limit. You can send again tomorrow",
     "invalid_image_upload_id": "The image upload is not valid, try again",
@@ -3126,6 +3130,7 @@
     "pendingGroup": "Waiting for approval · {n}"
   },
   "logo": {
+    "label": "{kehila} logo",
     "row": "Community logo",
     "rowSet": "Uploaded {date} · top bar, sheet and invites",
     "rowNone": "No logo · showing the letter {letter}",
