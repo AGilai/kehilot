@@ -31,7 +31,12 @@ export function applyChanges(state: FeedState, changes: Change[]): FeedState {
       case 'reply_count': {
         const prev = messages[c.item.messageId];
         const read = c.item.read ?? prev?.read;
-        messages[c.item.messageId] = read === undefined ? c.item : { ...c.item, read };
+        // `replyAdults` and `replyBlocked` come only from a single GET: a change that lacks them keeps the ones we have.
+        const carry: Partial<Message> = {};
+        if (c.item.replyAdults === undefined && prev?.replyAdults !== undefined) carry.replyAdults = prev.replyAdults;
+        if (c.item.replyBlocked === undefined && prev?.replyBlocked !== undefined) carry.replyBlocked = prev.replyBlocked;
+        const next = { ...c.item, ...carry };
+        messages[c.item.messageId] = read === undefined ? next : { ...next, read };
         if (!prev) order = [...order, c.item.messageId].sort(byNewest);
         break;
       }

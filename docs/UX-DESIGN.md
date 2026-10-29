@@ -4153,8 +4153,8 @@ display name; both are isolated (§11.5).
 | `reply.button.condolence` | מילה למשפחה | A word to the family |
 | `reply.buttonA11y` | תשובה פרטית ל{name} | Private reply to {name} |
 | `reply.done` | עניתם | Replied |
-| `reply.count` | {n} תשובות פרטיות | {n} private replies |
-| `reply.countOne` | תשובה פרטית אחת | 1 private reply |
+| `reply.count.general` | {n} תשובות פרטיות | {n} private replies |
+| `reply.countOne.general` | תשובה פרטית אחת | 1 private reply |
 | `reply.count.celebration` | {n} ברכות אישיות | {n} personal blessings |
 | `reply.countOne.celebration` | ברכה אישית אחת | 1 personal blessing |
 | `reply.count.condolence` | {n} חברים כתבו למשפחה | {n} people wrote to the family |

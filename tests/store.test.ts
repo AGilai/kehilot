@@ -323,6 +323,54 @@ test('a listener never loads the inbox', async (t) => {
   store.reset();
 });
 
+test('my own reply does not double-count when the feed count arrives before the POST answer', async () => {
+  let release!: () => void;
+  const gate = new Promise<void>(r => { release = r; });
+  const pages: any[] = [];
+  let first = true;
+  const { api } = fakeApi(meOf(['k1']), {
+    changes: async (_k: string, since?: string) => (first || since === undefined ? (first = false, { cursor: 'C0', more: false, changes: [] }) : (pages.shift() ?? { cursor: 'C', more: false, changes: [] })),
+    messages: async () => [{ ...replyMsg, replierCount: 3, replied: false }],
+    postReply: async () => { await gate; return mkReply('r1', 'x'); },
+    deleteReply: async () => {},
+  });
+  const store = createStore(api, memory(), { isActive: () => true, sleep: (_ms, signal) => new Promise<void>(res => signal.addEventListener('abort', () => res())) });
+  await store.start();
+  await new Promise(r => setTimeout(r, 20));
+  const sending = store.sendReply('M1', 'x');
+  pages.push({ cursor: 'C', more: false, changes: [{ kind: 'reply_count', id: 'M1', item: { ...replyMsg, replierCount: 4, replied: true } }] });
+  await store.pollNow();
+  release();
+  await sending;
+  assert.equal(store.getState().feed.messages.M1!.replierCount, 4);
+  assert.equal(store.getState().feed.messages.M1!.replied, true);
+  // the usual order: the POST answers first, then the feed agrees
+  await store.deleteReply('M1', 'r1');
+  assert.equal(store.getState().feed.messages.M1!.replierCount, 3);
+  assert.equal(store.getState().feed.messages.M1!.replied, false);
+  store.reset();
+});
+
+test('deleting one of several old replies keeps replied true', async () => {
+  const { api } = fakeApi(meOf(['k1']), {
+    changes: async () => ({ cursor: 'c', more: false, changes: [] }),
+    messages: async () => [{ ...replyMsg, replierCount: 1, replied: true }],
+    replies: async () => [mkReply('r1', 'א'), mkReply('r2', 'ב')],
+    deleteReply: async () => {},
+  });
+  const store = createStore(api, memory(), { isActive: () => false });
+  await store.start();
+  await new Promise(r => setTimeout(r, 20));
+  await store.loadReplies('M1');
+  await store.deleteReply('M1', 'r1');
+  assert.equal(store.getState().feed.messages.M1!.replied, true);
+  assert.equal(store.getState().feed.messages.M1!.replierCount, 1); // still one replier
+  await store.deleteReply('M1', 'r2');
+  assert.equal(store.getState().feed.messages.M1!.replied, false);
+  assert.equal(store.getState().feed.messages.M1!.replierCount, 0);
+  store.reset();
+});
+
 test('markRead keeps the message unread when the server call fails, so the next open retries', async () => {
   const msg = { messageId: 'M1', channelId: 'c1', type: 'weekly', title: 't', body: 'b', authorId: 'a', authorName: 'x', authorKind: 'management', joinCount: 0 };
   let fail = true; let calls = 0;

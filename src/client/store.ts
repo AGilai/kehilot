@@ -336,20 +336,29 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
     if (still(c)) set({ feed: setReplies(state.feed, m, list) });
   }
 
-  /** Keeps the card's viewer fields in step with my own reply until the feed's `reply_count` brings the server's. */
-  function bumpMine(m: string, delta: 1 | -1): void {
+  /**
+   * Keeps the card's viewer fields in step with my own reply until the feed's `reply_count` brings the server's.
+   * `before` is the count when the call began: if the feed changed it meanwhile the server's count already includes
+   * this reply and is left alone (never added to).
+   */
+  function reconcileMine(m: string, before: number | undefined, delta: 1 | -1): void {
     const msg = state.feed.messages[m];
     if (!msg) return;
-    const replierCount = Math.max(0, (msg.replierCount ?? 0) + delta);
-    set({ feed: { ...state.feed, messages: { ...state.feed.messages, [m]: { ...msg, replierCount, replied: delta > 0 } } } });
+    const count = msg.replierCount ?? 0;
+    const stillMine = state.feed.replies[m]?.some(r => r.authorId === state.me?.userId) ?? false;
+    // Repliers are people: deleting one of several old replies by the same person changes nothing.
+    const replierCount = count !== (before ?? 0) || (delta < 0 && stillMine) ? count : Math.max(0, count + delta);
+    const replied = delta > 0 ? true : stillMine;
+    set({ feed: { ...state.feed, messages: { ...state.feed.messages, [m]: { ...msg, replierCount, replied } } } });
   }
 
   /** The posted reply is added at once from the response; the feed bringing it again replaces it. `to` is `family` or one adult's userId. */
   async function sendReply(m: string, body: string, to?: string): Promise<Reply | null> {
     const c = current();
     if (!c) return null;
+    const before = state.feed.messages[m]?.replierCount;
     const reply = await api.postReply(c.k, m, body, to);
-    if (still(c)) { set({ feed: upsertReply(state.feed, m, reply) }); bumpMine(m, 1); }
+    if (still(c)) { set({ feed: upsertReply(state.feed, m, reply) }); reconcileMine(m, before, 1); }
     return reply;
   }
 
@@ -365,10 +374,11 @@ export function createStore(api: Api, storage: KeyValue, opts: StoreOptions = {}
   async function deleteReply(m: string, r: string): Promise<void> {
     const c = current();
     if (!c) return;
+    const before = state.feed.messages[m]?.replierCount;
     await api.deleteReply(c.k, m, r);
     if (!still(c)) return;
     set({ feed: removeReplyLocal(state.feed, m, r) });
-    bumpMine(m, -1);
+    reconcileMine(m, before, -1);
   }
 
   /** The mailbox. Adults only (a listener never calls the server). Memory only. */

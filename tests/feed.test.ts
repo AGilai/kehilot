@@ -340,3 +340,14 @@ test('pruneFeed keeps only messages (and replies) of readable channels', async (
   assert.deepEqual(Object.keys(out.replies), ['01A']);
   assert.equal(pruneFeed(f, ['c1', 'c2']), f); // nothing to drop: same object
 });
+
+test('a reply_count change keeps replyAdults and replyBlocked it does not carry', () => {
+  const adults = [{ userId: 'u1', name: 'שולמית ברקן' }];
+  const s0 = feedFromMessages([msg('M1', { replyAdults: adults, replyBlocked: 'target_left' })]);
+  const s1 = applyChanges(s0, [{ kind: 'reply_count', id: 'M1', item: msg('M1', { replierCount: 4 }) }]);
+  assert.equal(s1.messages.M1?.replierCount, 4);
+  assert.deepEqual(s1.messages.M1?.replyAdults, adults);
+  assert.equal(s1.messages.M1?.replyBlocked, 'target_left');
+  const s2 = applyChanges(s1, [{ kind: 'message', id: 'M1', item: msg('M1', { replyAdults: [] }) }]);
+  assert.deepEqual(s2.messages.M1?.replyAdults, []); // a carried value wins
+});
