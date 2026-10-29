@@ -42,6 +42,10 @@ function useLogoPanel(onToast: (text: string) => void, onGone: () => void) {
   const [error, setError] = React.useState<LogoErrorKey | null>(() => (fixtureScreen() === 'logo-error' ? 'logo.err.big' : null));
   const [confirm, setConfirm] = React.useState(false);
   const [over, setOver] = React.useState(false);
+  React.useEffect(() => {
+    const u = picked?.uri;
+    return () => { if (u?.startsWith('blob:')) URL.revokeObjectURL(u); };
+  }, [picked?.uri]);
   const input = React.useRef<HTMLInputElement | null>(null);
   const web = Platform.OS === 'web';
 
@@ -77,8 +81,7 @@ function useLogoPanel(onToast: (text: string) => void, onGone: () => void) {
       setPicked(null);
       onToast(t('logo.saved'));
     } catch (e) {
-      setError(logoErrorKey(e)); // the previous logo stays
-      setPicked(null);
+      setError(logoErrorKey(e)); // the previous logo stays; the crop stays so the person can retry
     } finally { setBusy(false); }
   }
   async function remove() {
@@ -119,7 +122,7 @@ function useLogoPanel(onToast: (text: string) => void, onGone: () => void) {
           <Txt bold>{t('logo.none')}</Txt>
         </View>
       )}
-      {error ? <Banner tone="error" text={t(error)} /> : null}
+      {error && !picked ? <Banner tone="error" text={t(error)} /> : null}
       {has ? (
         <View style={{ gap: 10 }}>
           <Txt bold accessibilityRole="header">{t('logo.whereTitle')}</Txt>
@@ -174,7 +177,7 @@ function useLogoPanel(onToast: (text: string) => void, onGone: () => void) {
     </>
   );
 
-  const cropper = picked ? <LogoCropper uri={picked.uri} image={picked} busy={busy} onCancel={() => { if (!busy) setPicked(null); }} onSave={(v, f) => void save(v, f)} /> : null;
+  const cropper = picked ? <LogoCropper uri={picked.uri} image={picked} busy={busy} error={error ? t(error) : null} onCancel={() => { if (!busy) setPicked(null); }} onSave={(v, f) => void save(v, f)} /> : null;
   return { content, footer, cropper, reset: () => { setPicked(null); setError(null); setConfirm(false); } };
 }
 

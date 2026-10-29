@@ -30,6 +30,9 @@ export function cropRect(view: CropView, image: { width: number; height: number 
   };
 }
 
+/** True when a key press on this element (tag name, ARIA role) is that control's own, so the cropper's Enter shortcut must stay out. */
+export const enterIsOwn = (tag: string, role: string | null): boolean => ['BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'A'].includes(tag.toUpperCase()) || role === 'button' || role === 'adjustable' || role === 'slider';
+
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 4;
 export type SourceError = 'logo.err.format';

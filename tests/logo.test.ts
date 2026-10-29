@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LogoEncodeError, MAX_INPUT_BYTES, clampView, cropRect, encodeLogo, logoErrorKey, nudgeView, rotateView, sourceError, targetSides, zoomView } from '../src/media/logo.ts';
+import { LogoEncodeError, MAX_INPUT_BYTES, clampView, cropRect, encodeLogo, logoErrorKey, nudgeView, rotateView, enterIsOwn, sourceError, targetSides, zoomView } from '../src/media/logo.ts';
 import type { LogoDeps } from '../src/media/logo.ts';
 import { ApiCodeError } from '../src/client/errors.ts';
 
@@ -127,4 +127,13 @@ test('zoomView and nudgeView clamp; rotateView turns 90 degrees and recentres', 
   assert.equal(nudgeView(still, 10, 0, img, 300).x, 0);
   assert.deepEqual(rotateView({ scale: 2, x: 5, y: 7, rotation: 270 }), { scale: 2, x: 0, y: 0, rotation: 0 });
   assert.equal(rotateView(still).rotation, 90);
+});
+
+test('enterIsOwn: Enter on a button, input or slider belongs to that control', () => {
+  assert.equal(enterIsOwn('BUTTON', null), true);
+  assert.equal(enterIsOwn('INPUT', null), true);
+  assert.equal(enterIsOwn('DIV', 'button'), true);
+  assert.equal(enterIsOwn('DIV', 'adjustable'), true);
+  assert.equal(enterIsOwn('DIV', null), false);
+  assert.equal(enterIsOwn('BODY', null), false);
 });

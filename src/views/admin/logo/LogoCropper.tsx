@@ -5,7 +5,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { useI18n } from '../../../i18n/I18nProvider.tsx';
 import { Txt } from '../../../kit/components.tsx';
 import { Icon } from '../../../kit/Icon.tsx';
-import { MAX_ZOOM, MIN_ZOOM, clampView, nudgeView, rotateView, zoomView } from '../../../media/logo.ts';
+import { MAX_ZOOM, MIN_ZOOM, clampView, enterIsOwn, nudgeView, rotateView, targetSides, zoomView } from '../../../media/logo.ts';
 import type { CropView } from '../../../media/logo.ts';
 
 /** P45 phone 3: the frame size on a phone (it shrinks only on a screen narrower than 342). */
@@ -101,7 +101,7 @@ const round = (b: React.ReactNode, label: string, onPress: () => void, disabled 
  * to zoom, rotate 90 degrees; live previews at 32, 44 and 66; "ביטול" / "שמירה". On the web: arrows move 1 px (Shift 10),
  * + and - zoom, R rotates, Enter saves, Esc cancels.
  */
-export function LogoCropper({ uri, image, busy, onCancel, onSave }: { uri: string; image: Size; busy: boolean; onCancel: () => void; onSave: (view: CropView, frame: number) => void }) {
+export function LogoCropper({ uri, image, busy, error, onCancel, onSave }: { uri: string; image: Size; busy: boolean; error?: string | null; onCancel: () => void; onSave: (view: CropView, frame: number) => void }) {
   const { t, dir } = useI18n();
   const { width } = useWindowDimensions();
   const frame = Math.min(FRAME, Math.max(200, width - 32));
@@ -122,6 +122,8 @@ export function LogoCropper({ uri, image, busy, onCancel, onSave }: { uri: strin
   React.useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (e.key === 'Enter' && el && enterIsOwn(el.tagName ?? '', el.getAttribute?.('role') ?? null)) return;
       const step = e.shiftKey ? 10 : 1;
       const v = viewRef.current;
       if (e.key === 'ArrowLeft') setView(nudgeView(v, -step, 0, image, frame));
@@ -141,7 +143,7 @@ export function LogoCropper({ uri, image, busy, onCancel, onSave }: { uri: strin
   }, [image.width, image.height, frame]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The saved side: the cropped square in source pixels, capped at 512 (never scaled up).
-  const cropSide = Math.min(512, Math.max(1, Math.round(side / view.scale)));
+  const cropSide = targetSides(Math.max(1, Math.round(side / view.scale)))[0]!;
   const grid = { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.7)' } as const;
   const rootDir = Platform.OS === 'web' ? null : { direction: dir } as const;
   return (
@@ -171,6 +173,7 @@ export function LogoCropper({ uri, image, busy, onCancel, onSave }: { uri: strin
             <PreviewTile uri={uri} image={image} view={view} size={66} label="66" panFrame={frame} />
           </View>
           <Txt size="small" color={SOFT} style={{ textAlign: 'center', maxWidth: frame }}>{t('logo.crop.note', { size: cropSide })}</Txt>
+          {error ? <Txt size="small" bold color="#F2A6C0" accessibilityRole="alert" style={{ textAlign: 'center', maxWidth: frame }}>{error}</Txt> : null}
           <View style={{ flexDirection: 'row', gap: 12, width: frame }}>
             <View style={{ flex: 1 }}><DarkButton title={t('common.cancel')} onPress={onCancel} disabled={busy} /></View>
             <View style={{ flex: 1 }}><DarkButton primary title={busy ? t('logo.saving') : t('common.save')} onPress={save} busy={busy} /></View>
