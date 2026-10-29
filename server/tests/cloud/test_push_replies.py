@@ -177,3 +177,28 @@ class ReplyPushTest(unittest.TestCase):
         self.assertEqual(push.PUSH_TEXT['personal_word'], {'he': 'מילה אישית חדשה', 'en': 'New personal word'})
         self.assertEqual(push.PUSH_TEXT['family_blessing']['en'], 'New personal blessing for your family')
         self.assertEqual(push.PUSH_TEXT['family_word']['en'], 'New personal word for your family')
+
+    def test_expo_failure_releases_claims_so_the_retry_sends(self):
+        m = self.general()
+        r = self.reply(m, 'rep1', 'author')
+        calls = []
+
+        def flaky(messages, token):
+            calls.append(len(messages))
+            if len(calls) == 1:
+                raise RuntimeError('expo down')
+            return self.fake_send(messages, token)
+        with mock.patch.object(expo, 'send', side_effect=flaky):
+            out = push_worker.handler({'Records': [record('reply', self.k, f'{m}/{r}')]}, None)
+            self.assertEqual(out, {'batchItemFailures': [{'itemIdentifier': 'r1'}]})
+            self.assertEqual(self.sent, [])
+            push_worker.handler({'Records': [record('reply', self.k, f'{m}/{r}')]}, None)
+        self.assertEqual([s['to'] for s in self.sent], ['ExponentPushToken[auth]'])
+
+    def test_recipient_without_device_does_not_use_up_the_window(self):
+        m = self.general()
+        self.repo.delete_device('auth', 'ExponentPushToken[auth]')
+        self.assertEqual(self.run_reply(m, self.reply(m, 'rep1', 'author')), {})
+        self.repo.put_device('auth', 'ExponentPushToken[auth]', 'ios')
+        self.now += 60
+        self.assertEqual(list(self.run_reply(m, self.reply(m, 'rep2', 'author'))), ['ExponentPushToken[auth]'])

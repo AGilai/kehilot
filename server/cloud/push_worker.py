@@ -69,6 +69,7 @@ def _reply_recipients(repo, kehila, ref):
     else:
         found = [repo.get_membership(kehila, to)]
     uids = [m['userId'] for m in found if visibility.reply_target_ok(m, channel) and m['userId'] != reply['authorId']]
+    uids = [uid for uid in dict.fromkeys(uids) if repo.list_devices(uid)]  # no device: do not use up the window
     now = int(time.time())
     message_id = _split_reply_ref(ref)[0]
     return [uid for uid in dict.fromkeys(uids) if repo.claim_reply_push(kehila, message_id, uid, now)]
@@ -201,6 +202,12 @@ def _release_users(repo, kehila, ref, uids):
         repo.release_seat_reminder(kehila, friday, f'{n}#U#{uid}')
 
 
+def _release_reply_claims(repo, kehila, ref, uids):
+    message_id = _split_reply_ref(ref)[0]
+    for uid in set(uids):
+        repo.table.delete_item(Key={'pk': f'K#{kehila}#U#{uid}', 'sk': f'RXPUSH#{message_id}'})
+
+
 def _process(repo, job, token):
     kind, kehila, ref = job['kind'], job['kehila'], job['ref']
     if kind == seat_reminders.KIND:
@@ -224,6 +231,8 @@ def _process(repo, job, token):
         except Exception:
             if kind == seat_reminders.KIND:  # nothing came back: let the retry send this chunk's users
                 _release_users(repo, kehila, ref, [u for m in chunk for u in owners[m['to']]])
+            elif kind == 'reply':  # the same for the throttle claims, or the SQS retry would find them taken
+                _release_reply_claims(repo, kehila, ref, [u for m in chunk for u in owners[m['to']]])
             raise
         for message, ticket in zip(chunk, tickets):
             uids = owners[message['to']]

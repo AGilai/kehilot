@@ -169,7 +169,12 @@ class RepliesTest(test_messages.MessagesTest):
             self.repo.table.update_item(Key={'pk': f'K#{self.k}', 'sk': f'M#{uid}'}, UpdateExpression='SET #g = :g',
                                         ExpressionAttributeNames={'#g': 'groups'}, ExpressionAttributeValues={':g': {'g1'}})
 
+    def devices(self, *uids):
+        for uid in uids:
+            self.repo.put_device(uid, f'ExponentPushToken[{uid}]', 'ios')
+
     def test_partner_who_cannot_read_channel_sees_nothing(self):
+        self.devices(self.quiet, self.other)
         self.link(self.quiet, self.other)
         status, sent = self.reply('member-sub', 'hi')
         self.assertEqual(status, 201)
@@ -205,6 +210,7 @@ class RepliesTest(test_messages.MessagesTest):
         self.assertEqual(self.reply('other-sub'), (409, {'error': 'cannot_reply_to_own'}))
 
     def test_reply_allowed_while_one_adult_remains(self):
+        self.devices(self.quiet, self.other)
         fid = self.link(self.quiet, self.other)
         mid = self.post('simchas', type='celebration', targetMemberId=self.quiet, targetFamilyId=fid)[1]['messageId']
         self.assertEqual(self.call('DELETE', f'{self.base()}/membership', sub='quiet-sub')[0], 204)
@@ -233,6 +239,7 @@ class RepliesTest(test_messages.MessagesTest):
                                                      targetMemberId=self.other)[1])
 
     def test_stale_adult_with_other_family_loses_access(self):
+        self.devices(self.quiet, self.other)
         fid = self.link(self.quiet, self.other)
         mid = self.post('simchas', type='celebration', targetMemberId=self.quiet, targetFamilyId=fid)[1]['messageId']
         sent = self.reply('member-sub', 'hi', mid=mid)[1]
