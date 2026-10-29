@@ -41,7 +41,8 @@ FIXED_TEXT_KEYS = SYSTEM_KEYS + REPLY_KEYS
 PUSH_TEXT_MAX = 80  # code points: the text is shown on the lock screen
 # Update pushes (kind 'message_update', ref = messageId), built in the worker from the stored message and never
 # queued or editable. Owner ruling (UX-DESIGN 19.2a, e441679): the shiva push carries only the surname, no address
-# and no days; the event push carries the event name and what changed, no address. The body is the Kehila's name.
+# and no days; the event push carries the event name and what changed (a changed place is named in that text, never the
+# full address). The body is the Kehila's name.
 UPDATE_TEXT = {
     'shiva': {'he': 'עודכנו פרטי השבעה · משפחת {surname}', 'en': 'Shiva details updated · {surname} family'},
     'event': {'he': 'שינוי ב{event}: {what}', 'en': 'Change to {event}: {what}'},
