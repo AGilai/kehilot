@@ -7,7 +7,7 @@ export const seatPrintAllowed = (role: string | undefined, flag: boolean): boole
 export function seatScreenFor(screen: string | null, role: string | undefined, flag: boolean): 'seats' | 'seatPrint' | null {
   if (!flag || !screen) return null;
   if (screen === 'seat-print') return seatPrintAllowed(role, flag) ? 'seatPrint' : null;
-  return ['seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai'].includes(screen) ? 'seats' : null;
+  return ['seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seats-big'].includes(screen) ? 'seats' : null;
 }
 
 /** The seating editor (paste, check, match, layout): gabbaim only. The server refuses everyone else too. */

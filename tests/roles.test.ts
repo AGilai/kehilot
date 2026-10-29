@@ -52,7 +52,7 @@ const ROLE_CHECK = /(?:[=!]=+\s*|\b(?:includes|indexOf)\(\s*|\bcase\s+)(['"`])ga
 
 /** The only places a literal 'gabbai' check may stay, by file and exact line count: the definitions in roles.ts and the fixture switches
  * that compare a `card` / `variant` URL value (not a role). A new one anywhere else, or one more in these files, fails. */
-const ALLOWED: Record<string, number> = { 'src/client/roles.ts': 3, 'src/client/fixtures.ts': 1, 'src/seats/fixtureSeats.ts': 5 };
+const ALLOWED: Record<string, number> = { 'src/client/roles.ts': 3, 'src/client/fixtures.ts': 1, 'src/seats/fixtureSeats.ts': 4 };
 
 test('the role-check detector knows every form', () => {
   for (const line of [`x === 'gabbai'`, `x !== "gabbai"`, `x == 'gabbai'`, `x != "gabbai"`, `'gabbai' === x`, "x === `gabbai`", `['gabbai'].includes(x)`, `['gabbai', 'tech'].indexOf(x)`, `list.includes('gabbai')`, `list.indexOf("gabbai")`, `case 'gabbai':`, `case "gabbai":`, `const isGabbai = 1`]) {

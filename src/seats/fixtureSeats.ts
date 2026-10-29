@@ -7,15 +7,26 @@ import { ApiCodeError } from '../client/errors.ts';
 import { parseSeatKey } from './hall.ts';
 import { DEFAULT_WINDOW, israelInstant } from './window.ts';
 import type { MemberWire, OnBehalfBody, WeekWire, WireFrame, WireLayout, WirePrayer } from './wire.ts';
+import { freeOrderIds, laneSides } from './aisle.ts';
 
 // --- Seat-release preview (UX-DESIGN §15; the seats are the gabbai-side data, the member only ever gets memberView's cut) ---
 // All names are invented.
-export type SeatVariant = 'default' | 'split' | 'none' | 'closed' | 'gabbai';
+export type SeatVariant = 'default' | 'split' | 'none' | 'closed' | 'gabbai' | 'big';
 const SURNAMES = ['בדיוני', 'דוגמה', 'ניסוי', 'אלמוני', 'פלוני', 'מדומה', 'קהילתי', 'ניסיון', 'דגמי', 'שמי', 'תבנית', 'דמיוני', 'אקראי', 'מקרי', 'פיקטיבי'];
 const MINE: Record<'default' | 'split', SeatRef[]> = {
   default: [{ block: 'CR', row: 6, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
   split: [{ block: 'FL', row: 2, col: 1 }, { block: 'CR', row: 6, col: 2 }, { block: 'CR', row: 6, col: 3 }],
 };
+/** A big family (P38 d): row 3 of block R in full, plus the two seats at the aisle-less end of row 4. */
+const BIG: SeatRef[] = [0, 1, 2, 3, 4].map((col) => ({ block: 'R' as const, row: 3, col })).concat([3, 4].map((col) => ({ block: 'R' as const, row: 4, col })));
+
+/** The other families of a variant. `big` takes its seats from them; the shared hall (and so every other variant) stays as it was. */
+function othersOf(variant: SeatVariant, allocations: Allocation[]): Allocation[] {
+  if (variant !== 'big') return allocations;
+  const claimed = new Set(BIG.map(seatKey));
+  return allocations.map((a) => ({ ...a, seats: a.seats.filter((s) => !claimed.has(seatKey(s))) })).filter((a) => a.seats.length > 0);
+}
+const mineOf = (variant: SeatVariant): SeatRef[] => (variant === 'split' ? MINE.split : variant === 'none' ? [] : variant === 'big' ? BIG : MINE.default);
 
 /** The whole hall for the gabbai: fixed pseudo-random households over the 225 seats (about one in eight stays unallocated) and what each prayer released. */
 export function fixtureSeatHall(hall: Hall = HALL): { hall: Hall; allocations: Allocation[]; released: Record<Prayer, Set<string>> } {
@@ -51,8 +62,8 @@ export type FixtureMemberSeats = MemberSeats & { closed: boolean; source: 'membe
 export function fixtureMemberSeats(variant: SeatVariant = 'default'): FixtureMemberSeats {
   const h = fixtureSeatHall();
   const me = h.allocations[0]!;
-  const seats = variant === 'split' ? MINE.split : variant === 'none' ? [] : MINE.default;
-  const allocations = [{ ...me, seats }, ...h.allocations.slice(1)];
+  const seats = mineOf(variant);
+  const allocations = [{ ...me, seats }, ...othersOf(variant, h.allocations.slice(1))];
   const cut = memberView(h.hall, allocations, 'me');
   const mineKeys = seats.map(seatKey);
   const answers: Record<Prayer, string[]> = variant === 'gabbai' ? { arvit: [mineKeys[2]!], shacharit: [] } : { arvit: [], shacharit: [] };
@@ -74,6 +85,7 @@ export function homeSeatOf(screen: string | null): HomeSeat | null {
 }
 
 export function seatVariantOf(screen: string | null): SeatVariant {
+  if (screen === 'seats-big') return 'big';
   if (screen === 'home-row-none') return 'none';
   return screen === 'seats-split' ? 'split' : screen === 'seats-none' ? 'none' : screen === 'seats-closed' ? 'closed' : screen === 'seats-gabbai' ? 'gabbai' : 'default';
 }
@@ -101,8 +113,8 @@ type Rec = { by: 'member' | 'gabbai' | 'tech'; at: number };
 export function createSeatsFixture(variant: SeatVariant, card: string | null, friday: string, home: { screen: string | null; now: Date } | null = null) {
   const hs = homeSeatOf(home?.screen ?? null);
   const h = fixtureSeatHall();
-  const mine = variant === 'split' ? MINE.split : variant === 'none' ? [] : MINE.default;
-  const allocations: Allocation[] = [{ ...h.allocations[0]!, seats: mine }, ...h.allocations.slice(1)];
+  const mine = mineOf(variant);
+  const allocations: Allocation[] = [{ ...h.allocations[0]!, seats: mine }, ...othersOf(variant, h.allocations.slice(1))];
   const assignments: Record<string, string> = {};
   const households: Record<string, string> = {};
   for (const a of allocations) { households[`family:${a.householdId}`] = a.householdId === 'me' ? 'משפחת דוגמה' : `משפחת ${a.name}`; for (const s of a.seats) assignments[fixtureSeatId(s)] = `family:${a.householdId}`; }
@@ -136,15 +148,25 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
     const base = { week: friday, deadline: deadline(), open, remindable: hs ? hs.remindable : true };
     const view = cut();
     if (!view.seatCount) return { ...base, seats: 0, hadSeats: home?.screen === 'home-row-none' };
+    const layout = hallLayout(h.hall);
+    const firstRow = layout.cells.findIndex((row) => row.some((k) => k === 'seat' || k === 'bimah'));
     const frames: WireFrame[] = view.frames.map((f) => ({
       blockName: f.blockName, cols: f.cols, rowFrom: rowLabel(f.rowFrom), rowTo: rowLabel(f.rowTo),
+      lanes: laneSides(layout, layout.blocks.findIndex((b) => b.name === f.blockName)), gapAbove: f.rowFrom > firstRow,
       rows: f.rows.map((r) => ({
         label: rowLabel(r.row), mine: r.mine, bimah: r.bimah,
         cells: r.cells.map((c) => (c.kind === 'mine' ? { kind: 'mine' as const, k: c.k, n: c.n, state: { erev: stateOf('erev', idOfKey(c.key)), day: stateOf('day', idOfKey(c.key)) } } : { kind: c.kind })),
       })),
     }));
-    const flagged = [...myIds()].some((id) => state.erev.get(id)?.by === 'gabbai' || state.day.get(id)?.by === 'gabbai');
-    return { ...base, seats: view.seatCount, updatedByGabbai: flagged, updatedAt: { ...updatedAt }, answered: { erev: answered.erev.has('family:me'), day: answered.day.has('family:me') }, frames };
+    const staff = [...myIds()].flatMap((id) => [state.erev.get(id), state.day.get(id)]).filter((r): r is Rec => !!r && r.by !== 'member');
+    const order = myOrder();
+    const free = freeOrderIds(layout, order);
+    return {
+      ...base, seats: view.seatCount, updatedByGabbai: staff.length > 0, updatedByAt: staff.length ? Math.max(...staff.map((r) => r.at)) : null,
+      updatedAt: { ...updatedAt }, answered: { erev: answered.erev.has('family:me'), day: answered.day.has('family:me') },
+      answeredAt: { erev: answered.erev.get('family:me') ?? null, day: answered.day.get('family:me') ?? null },
+      freeOrder: free.map((id) => order.indexOf(id) + 1), frames,
+    };
   }
 
   /** The family's seats by order k (the server's order). */

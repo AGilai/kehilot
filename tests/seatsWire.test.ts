@@ -302,3 +302,27 @@ test('fixture member wire round-trips; a member save and a gabbai on-behalf chan
 function releasedNowOf(w: WeekWire, h: ReturnType<typeof households>[number]): string[] {
   return h.seats.filter((s) => w.prayers.erev.seats[s.id]?.released).map((s) => s.id);
 }
+
+// ---- the P37 fields
+
+test('memberFromWire maps the new fields', () => {
+  const m = member({ freeOrder: [2, 1], answeredAt: { erev: 11, day: null }, updatedByAt: 99 });
+  assert.deepEqual(m.freeOrder, ['2', '1']);
+  assert.deepEqual(m.answeredAt, { arvit: 11, shacharit: null });
+  assert.equal(m.updatedByAt, 99);
+  const w = wire({ freeOrder: [2, 1] });
+  w.frames![0]!.lanes = ['left'];
+  w.frames![0]!.gapAbove = true;
+  const f = memberFromWire(w).frames[0]!;
+  assert.deepEqual(f.lanes, ['left']);
+  assert.equal(f.gapAbove, true);
+});
+
+test('memberFromWire without the new fields falls back', () => {
+  const m = member();
+  assert.deepEqual(m.freeOrder, ['3', '2', '1']);
+  assert.deepEqual(m.frames[0]!.lanes, []);
+  assert.equal(m.frames[0]!.gapAbove, false);
+  assert.equal(m.updatedByAt, null);
+  assert.deepEqual(m.answeredAt, { arvit: null, shacharit: null });
+});

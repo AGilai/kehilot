@@ -16,17 +16,20 @@ export type WireCell =
   | { kind: 'gap' } | { kind: 'bimah' } | { kind: 'other' }
   | { kind: 'mine'; k: number; n: number; state: Record<WirePrayer, 'kept' | 'released'> };
 export type WireRow = { label: string | null; mine: boolean; bimah: boolean; cells: WireCell[] };
-export type WireFrame = { blockName: string; cols: number; rowFrom: string | null; rowTo: string | null; rows: WireRow[] };
+/** A side of a block, as drawn in the room (the hall does not mirror). */
+export type Side = 'left' | 'right';
+export type WireFrame = { blockName: string; cols: number; rowFrom: string | null; rowTo: string | null; rows: WireRow[]; /** The block's sides that are an aisle lane. */ lanes?: Side[]; /** Rows are hidden between the hall's first row and this frame. */ gapAbove?: boolean };
 /** `GET/PUT …/seats/me`. A family with no seats gets `seats: 0` and nothing else. */
 export type MemberWire = {
   week: string; deadline: string; open: boolean; /** He is among the people the reminders go to. */ remindable: boolean; seats: number; /** Only with `seats: 0`: his family held a seat the week before. */ hadSeats?: boolean;
   updatedByGabbai?: boolean; /** The role of the latest staff edit: `gabbai` or `tech`. */ updatedByRole?: 'gabbai' | 'tech' | null; updatedAt?: Record<WirePrayer, number | null>; /** His family has answered that prayer (any successful save, even with no seat change, or a gabbai's on-behalf save). */ answered?: Record<WirePrayer, boolean>; frames?: WireFrame[];
+  /** His seats' orders (1..n), first to free first. Old servers omit it. */ freeOrder?: number[]; /** When his family answered each prayer (ms). */ answeredAt?: Record<WirePrayer, number | null>; /** When a gabbai or tech last changed his seats (ms). */ updatedByAt?: number | null;
 };
 
 /** `mine` is the only cell that carries an identity: its order k, which is also the key the page toggles by. */
 export type SeatCell = { kind: 'gap' } | { kind: 'bimah' } | { kind: 'other' } | { kind: 'mine'; key: string; k: number; n: number };
 export type SeatRow = { label: string | null; mine: boolean; bimah: boolean; cells: SeatCell[] };
-export type SeatFrame = { id: string; blockName: string; cols: number; rowFrom: string | null; rowTo: string | null; rows: SeatRow[] };
+export type SeatFrame = { id: string; blockName: string; cols: number; rowFrom: string | null; rowTo: string | null; rows: SeatRow[]; lanes: Side[]; gapAbove: boolean };
 export type MemberSeats = {
   week: string;
   deadline: Date;
@@ -41,6 +44,12 @@ export type MemberSeats = {
   updatedByRole: 'gabbai' | 'tech' | null;
   updatedAt: Record<Prayer, number | null>;
   answered: Record<Prayer, boolean>;
+  /** When his family answered each prayer (ms), null when not. */
+  answeredAt: Record<Prayer, number | null>;
+  /** When a staff member last changed his seats (ms); null when none. */
+  updatedByAt: number | null;
+  /** His seat orders as strings, the first to free first (the server's rule; old servers: the family order reversed). */
+  freeOrder: string[];
   frames: SeatFrame[];
   /** The orders (as strings) of his seats that are released, per prayer. */
   released: Record<Prayer, Set<string>>;
@@ -54,6 +63,8 @@ export function memberFromWire(w: MemberWire): MemberSeats {
     cols: f.cols,
     rowFrom: f.rowFrom,
     rowTo: f.rowTo,
+    lanes: f.lanes ?? [],
+    gapAbove: !!f.gapAbove,
     rows: f.rows.map((r): SeatRow => ({
       label: r.label,
       mine: r.mine,
@@ -76,6 +87,9 @@ export function memberFromWire(w: MemberWire): MemberSeats {
     updatedByRole: w.updatedByGabbai ? staffRole(w.updatedByRole) : null,
     updatedAt: { arvit: w.updatedAt?.erev ?? null, shacharit: w.updatedAt?.day ?? null },
     answered: { arvit: !!w.answered?.erev, shacharit: !!w.answered?.day },
+    answeredAt: { arvit: w.answeredAt?.erev ?? null, shacharit: w.answeredAt?.day ?? null },
+    updatedByAt: w.updatedByAt ?? null,
+    freeOrder: w.freeOrder ? w.freeOrder.map(String) : Array.from({ length: w.seats }, (_, i) => String(w.seats - i)),
     frames,
     released,
   };
