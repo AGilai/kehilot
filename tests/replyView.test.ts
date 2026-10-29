@@ -198,3 +198,15 @@ test('sentText to a named adult, with toName', () => {
   const rep: Reply = { replyId: 'R1', authorId: 'me', authorName: 'x', body: 'b', createdAt: 1, to: 'u-shulamit', toName: 'שולמית ברקן' };
   assert.equal(sentText(rep, bless(), 'היום, 09:58', t), 'נשלחה אל שולמית ברקן בלבד · היום, 09:58');
 });
+
+test('spouses: each mailbox counts only what that spouse may see (A: 11 with 2 personal, B: 10 with 1)', () => {
+  const th = (total: number, personal: number, unread: number): InboxThread => ({ message: bless(), total, unread, personal, replies: [] });
+  const a = { unread: 2, threads: [th(11, 2, 2)] };
+  const b = { unread: 2, threads: [th(10, 1, 2)] };
+  assert.equal(threadLine(a.threads[0]!, t), 'ברכות למשפחה שלכם · 11 ברכות · 2 אישיות · 2 חדשות');
+  assert.equal(threadLine(b.threads[0]!, t), 'ברכות למשפחה שלכם · 10 ברכות · 1 אישיות · 2 חדשות');
+  assert.equal(mailboxStatus(a, t), '2 חדשות');
+  assert.equal(mailboxStatus({ unread: 3, threads: a.threads }, t), '3 חדשות');
+  assert.equal(mailboxStatus({ unread: 0, threads: a.threads }, t), 'אין חדשות');
+  assert.equal(mailboxStatus({ unread: 0, threads: [] }, t), 'עוד לא הגיעו תשובות');
+});

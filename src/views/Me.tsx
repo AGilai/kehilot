@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider.tsx';
 import { inviteUrl } from '../client/links.ts';
 import { meLayout } from '../client/meMap.ts';
 import { mutedCount } from '../client/meView.ts';
+import { mailboxStatus } from '../client/replyView.ts';
 import { ApiCodeError } from '../client/errors.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import type { Lang } from '../client/types.ts';
@@ -79,7 +80,7 @@ export function LinkShare({ code, onToast }: { code: string; onToast: (text: str
  * the button to the tree), then "שלי בקהילה", "התראות ושפה" and "החשבון". Every edit lives in the family tree; the only
  * exception is a listener's name (החשבון › פרטיות ונתונים › "השם שלי"). Community things are in the Kehila menu.
  */
-export function Me({ onPrefs, onTree, onGroups, onBack, onToast, onLeft }: { onPrefs?: () => void; /** Opens the family tree at my figure. */ onTree?: () => void; /** Opens "הקבוצות שלי". */ onGroups?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
+export function Me({ onPrefs, onTree, onGroups, onInbox, onBack, onToast, onLeft }: { onPrefs?: () => void; /** Opens the family tree at my figure. */ onTree?: () => void; /** Opens "הקבוצות שלי". */ onGroups?: () => void; /** Opens the private replies mailbox. */ onInbox?: () => void; onBack?: () => void; onToast: (text: string) => void; onLeft?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const { signOut, api } = useAuth();
   const { state, editProfile, leaveKehila } = useSession();
@@ -138,6 +139,7 @@ export function Me({ onPrefs, onTree, onGroups, onBack, onToast, onLeft }: { onP
     }
   }
   const muted = mutedCount(kehila.notify);
+  const unread = state.inbox?.unread ?? 0;
   const langSwitch = (
     <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', gap: 4, padding: 3, borderRadius: 10, borderWidth: 1, borderColor: k.line, backgroundColor: k.stone }}>
       {(['he', 'en'] as const).map(l => (
@@ -150,6 +152,7 @@ export function Me({ onPrefs, onTree, onGroups, onBack, onToast, onLeft }: { onP
   );
   const rowOf = (id: string) => {
     switch (id) {
+      case 'replies': return <NavRow key={id} icon="lock" title={t('inbox.row')} status={mailboxStatus(state.inbox, t)} badge={unread} onPress={onInbox} />;
       case 'groups': return <NavRow key={id} icon="users" title={t('me.groups.mine')} status={groups ?? undefined} onPress={onGroups} />;
       case 'prefs': return <NavRow key={id} icon="bell" title={t('me.prefs')} status={muted > 0 ? t('me.prefsMuted', { n: muted }) : t('me.prefsAll')} onPress={onPrefs} />;
       case 'lang': return <NavRow key={id} icon="lang" title={t('me.lang.title')} end={langSwitch} />;

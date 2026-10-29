@@ -57,6 +57,7 @@ import { Simchas } from './admin/Simchas.tsx';
 import { TreeRoute } from './tree/TreeRoute.tsx';
 import { NotifyPrefs } from './NotifyPrefs.tsx';
 import { MessageDetail } from './MessageDetail.tsx';
+import { Inbox } from './me/Inbox.tsx';
 import { Messages } from './Messages.tsx';
 import type { Filter } from './Messages.tsx';
 import { TopBar } from './TopBar.tsx';
@@ -65,10 +66,11 @@ import { isManagement, isAdult } from '../client/roles.ts';
 type Nav =
   | { tab: 'home' }
   | { tab: 'messages' }
-  | { tab: 'detail'; id: string; from: 'home' | 'messages'; /** M3 scrolls to the received replies or to my reply. */ focus?: 'received' | 'mine' }
+  | { tab: 'detail'; id: string; from: 'home' | 'messages' | 'inbox'; /** M3 scrolls to the received replies or to my reply. */ focus?: 'received' | 'mine' }
   | { tab: 'chat'; channelId: string }
   | { tab: 'compose' }
   | { tab: 'me' }
+  | { tab: 'inbox' }
   | { tab: 'tree' }
   | { tab: 'myGroups' }
   | { tab: 'myInvite' }
@@ -108,7 +110,8 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   // P48 (private replies). The sheet, the actions and the mailbox open on the screen that hosts them (Tasks 7 to 9 wire the rest).
   if (s === 'p48-messages' || s === 'p48-actions' || s === 'p48-sheet' || s === 'p48-sheet-picker') return { nav: { tab: 'messages' } };
-  if (s === 'p48-inbox' || s === 'p48-inbox-a' || s === 'p48-inbox-b') return { nav: { tab: 'me' } };
+  if (s === 'p48-inbox' || s === 'p48-inbox-a' || s === 'p48-inbox-b' || s === 'p48-inbox-empty') return { nav: { tab: 'inbox' } };
+  if (s === 'p48-me') return { nav: { tab: 'me' } };
   if (s?.startsWith('p48-')) {
     const list = state.feed.order.map(id => state.feed.messages[id]!);
     const m = s === 'p48-m3' ? list.find(x => x.type === 'general' && x.canReply)
@@ -168,8 +171,10 @@ type ToastAction = { title: string; onPress: () => void };
 export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, takeMenu }: { onOpenMenu: () => void; banner?: React.ReactNode; /** Changes when a push is tapped; `takePush` then returns the target once (a remount gets null). */ pushSignal?: number; takePush?: () => { messageId?: string; screen?: string; week?: string } | null; /** Changes when the Kehila menu asks for a screen (management, tree, phone list, invite). */ menuSignal?: number; /** Returns the pending request once. */ takeMenu?: () => MenuAction | null }) {
   const { t } = useI18n();
   const k = useTokens();
-  const { state } = useSession();
+  const { state, loadInbox } = useSession();
   const { api } = useAuth();
+  // The Me badge: its first value must not wait for a focus event or a reply change.
+  React.useEffect(() => { void loadInbox().catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [manage, setManage] = React.useState(false);
   const waiting = useWaiting();
   const pending = waiting.requests;
@@ -285,7 +290,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
   const feats = roleFeatures(kehila?.role);
   const unread = kehila ? unreadCount(state.feed, kehila.notify, state.channels) : 0;
   const adminTab = nav.tab === 'overview' || nav.tab === 'area' || nav.tab === 'simchas' || nav.tab === 'approvals' || nav.tab === 'members' || nav.tab === 'invite' || nav.tab === 'groups' || nav.tab === 'channels' || nav.tab === 'import' || nav.tab === 'pushTexts' || nav.tab === 'seatPrint' || nav.tab === 'seatEditor' || nav.tab === 'seatResponses' || nav.tab === 'seatHolders' || nav.tab === 'seatTimes' || nav.tab === 'scheduleEditor' || nav.tab === 'sheetItems' || nav.tab === 'adminTree' || (nav.tab === 'group' && nav.from === 'groups');
-  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : nav.tab === 'adminTree' ? 'members' : 'overview') : nav.tab === 'me' || nav.tab === 'tree' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || nav.tab === 'myGroups' || nav.tab === 'myInvite' || (nav.tab === 'group' && nav.from === 'myGroups') ? 'me'
+  const active: 'home' | 'messages' | 'me' | 'overview' | 'approvals' | 'members' = manage && adminTab ? (nav.tab === 'approvals' || nav.tab === 'members' ? nav.tab : nav.tab === 'adminTree' ? 'members' : 'overview') : nav.tab === 'me' || nav.tab === 'tree' || (nav.tab === 'phoneList' && nav.from === 'me') || (nav.tab === 'prefs' && nav.from === 'me') || nav.tab === 'inbox' || (nav.tab === 'detail' && nav.from === 'inbox') || nav.tab === 'myGroups' || nav.tab === 'myInvite' || (nav.tab === 'group' && nav.from === 'myGroups') ? 'me'
     : nav.tab === 'home' || nav.tab === 'seats' || nav.tab === 'schedule' || (nav.tab === 'phoneList' && nav.from === 'home') || ((nav.tab === 'detail' || nav.tab === 'prefs') && nav.from === 'home') ? 'home' : 'messages';
   const tabs = manage ? [
     { key: 'overview' as const, label: t('admin.tabs.overview'), icon: 'grid' as const, badge: 0 },
@@ -296,7 +301,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     key,
     label: key === 'home' ? t('tabs.home') : key === 'messages' ? t('tabs.messages') : t('me.tab'),
     icon: (key === 'home' ? 'home' : key === 'messages' ? 'msg' : 'user') as 'home' | 'msg' | 'user',
-    badge: key === 'messages' ? unread : 0,
+    badge: key === 'messages' ? unread : key === 'me' && isAdult(kehila?.role) ? state.inbox?.unread ?? 0 : 0,
   }));
 
   let body: React.ReactNode;
@@ -341,6 +346,9 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
     case 'detail':
       body = <MessageDetail key={nav.id} messageId={nav.id} focus={nav.focus} onBack={() => setNav({ tab: nav.from })} />;
       break;
+    case 'inbox':
+      body = isAdult(kehila?.role) ? <Inbox onBack={() => setNav({ tab: 'me' })} onOpen={id => setNav({ tab: 'detail', id, from: 'inbox', focus: 'received' })} onPhoneList={feats.phoneList ? () => setNav({ tab: 'phoneList', from: 'me' }) : undefined} /> : null;
+      break;
     case 'prefs':
       body = <NotifyPrefs onBack={returnFrom({ tab: nav.from })} onToast={showToast} />;
       break;
@@ -383,7 +391,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = !isManagement(kehila?.role) ? <Me onToast={showToast} /> : <TreeRoute key={nav.familyId} readOnly familyId={nav.familyId} familyName={nav.name} onBack={() => setNav({ tab: 'members' })} />;
       break;
     case 'me':
-      body = <Me onTree={() => setNav({ tab: 'tree' })} onGroups={() => setNav({ tab: 'myGroups' })} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
+      body = <Me onTree={() => setNav({ tab: 'tree' })} onGroups={() => setNav({ tab: 'myGroups' })} onPrefs={() => setNav({ tab: 'prefs', from: 'me' })} onInbox={() => setNav({ tab: 'inbox' })} onToast={showToast} onLeft={() => setNav({ tab: 'home' })} />;
       break;
     case 'myGroups':
       body = <PadScroll contentContainerStyle={{ padding: 16, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center' }}><BackLink onPress={() => setNav({ tab: 'me' })} /><MyGroups onManage={g => setNav({ tab: 'group', ...g, from: 'myGroups' })} onToast={showToast} /></PadScroll>;

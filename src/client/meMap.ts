@@ -18,7 +18,8 @@ export function meLayout(role: Role | undefined): MeLayout {
     // The card: name and role always; phone lines and the tree (family line + button) for members and gabbaim only.
     card: { phone: f.phoneList, tree: f.family },
     sections: [
-      { id: 'mine', rows: [{ id: 'groups', kind: 'nav' }] },
+      // The mailbox (§22.5) is for adults only; the private replies never reach a listener.
+      { id: 'mine', rows: [...(isAdult(role) ? [{ id: 'replies', kind: 'nav' } as const] : []), { id: 'groups', kind: 'nav' }] },
       { id: 'notify', rows: [{ id: 'prefs', kind: 'nav' }, { id: 'lang', kind: 'langSwitch' }] },
       { id: 'account', rows: [{ id: 'privacy', kind: 'nav' }, { id: 'leave', kind: 'action' }, { id: 'signOut', kind: 'action' }, { id: 'delete', kind: 'danger' }] },
     ],

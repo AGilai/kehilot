@@ -5,7 +5,7 @@ import { ApiCodeError } from './errors.ts';
 import type { Inbox, InboxThread, Message, Reply, Role } from './types.ts';
 
 /** Frame P48: phones 1 to 4 and their states. Wired in `fixtureNav` (src/views/Main.tsx). */
-export const P48_SCREENS = ['p48-messages', 'p48-actions', 'p48-sheet', 'p48-sheet-picker', 'p48-m3', 'p48-condolence', 'p48-picker', 'p48-inbox', 'p48-inbox-a', 'p48-inbox-b', 'p48-author'];
+export const P48_SCREENS = ['p48-messages', 'p48-actions', 'p48-sheet', 'p48-sheet-picker', 'p48-m3', 'p48-condolence', 'p48-picker', 'p48-inbox', 'p48-inbox-a', 'p48-inbox-b', 'p48-inbox-empty', 'p48-me', 'p48-author'];
 
 const U = (n: number) => `01FIXTUREUSER000000000${n}`;
 export const P48_PEOPLE = {
@@ -13,6 +13,7 @@ export const P48_PEOPLE = {
   shulamit: { userId: U(61), firstName: 'שולמית', lastName: 'ברקן' },
   yigal: { userId: U(62), firstName: 'יגאל', lastName: 'ברקן' },
   alon: { userId: U(63), firstName: 'אלון', lastName: 'שדמי' },
+  dana: { userId: U(64), firstName: 'דנה', lastName: 'בדיונית' },
 };
 const BARKAN = '01FIXTUREFAMILY0000000061';
 const SHADMI = '01FIXTUREFAMILY0000000063';
@@ -20,7 +21,8 @@ const SHADMI = '01FIXTUREFAMILY0000000063';
 /** Who the signed-in user is on a P48 screen; null keeps the usual fixture user. */
 export function p48Who(screen: string | null): { userId: string; firstName: string; lastName: string } | null {
   if (screen === 'p48-inbox' || screen === 'p48-author') return P48_PEOPLE.rotem;
-  if (screen === 'p48-inbox-a') return P48_PEOPLE.shulamit;
+  if (screen === 'p48-inbox-a' || screen === 'p48-me') return P48_PEOPLE.shulamit;
+  if (screen === 'p48-inbox-empty') return P48_PEOPLE.dana;
   if (screen === 'p48-inbox-b') return P48_PEOPLE.yigal;
   return null;
 }
@@ -128,7 +130,7 @@ export function createRepliesFixture(o: Opts) {
     seed(mazal, WRITERS.slice(0, 12), i => BLESS[i % BLESS.length]!, i => (i === 3 || i === 8 ? P48_PEOPLE.shulamit.userId : i === 5 ? P48_PEOPLE.yigal.userId : 'family'), 20);
     seed(cond, WRITERS.slice(0, 9), i => WORDS[i % WORDS.length]!, () => 'family', 50);
     if (o.screen === 'p48-inbox' || o.screen === 'p48-author') unreadOnly(author, o.meId, 2);
-    if (o.screen === 'p48-inbox-a') unreadOnly(mazal, o.meId, 1);
+    if (o.screen === 'p48-inbox-a' || o.screen === 'p48-me') unreadOnly(mazal, o.meId, 1);
     if (o.screen === 'p48-inbox-b') unreadOnly(mazal, o.meId, 2);
   } else {
     // The usual fixture list: the blessing for the "family" (or for me with ?screen=m3target), a condolence and a member's note.

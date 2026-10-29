@@ -128,3 +128,20 @@ test('top bar: no bell; notification settings are a Kehila menu row; the logo si
   assert.ok(src('views/Main.tsx').includes("tab: 'prefs', from: 'me'"));
   assert.ok(MIGRATED['me.15 notification prefs'].me === 'notify.prefs');
 });
+
+test('replies row for member, gabbai and tech, not for listener', () => {
+  const first = (role: 'member' | 'gabbai' | 'tech' | 'listener') => meLayout(role).sections.find(s => s.id === 'mine')!.rows;
+  for (const role of ['member', 'gabbai', 'tech'] as const) {
+    assert.deepEqual(first(role)[0], { id: 'replies', kind: 'nav' }, role);
+    assert.equal(first(role)[1]?.id, 'groups', role);
+  }
+  assert.ok(!first('listener').some(r => r.id === 'replies'));
+  assert.ok(!meLayout(undefined).sections.some(s => s.rows.some(r => r.id === 'replies')));
+});
+
+test('Main: the Me badge is the unread count for adults and loadInbox runs when Main mounts', () => {
+  const main = src('views/Main.tsx');
+  assert.ok(main.includes('state.inbox?.unread'));
+  assert.ok(main.includes('loadInbox()'));
+  assert.ok(main.includes("tab: 'inbox'"));
+});
