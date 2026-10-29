@@ -780,16 +780,16 @@ class Smoke:
                 'fields': {'occasion': 'birthSon', 'whose': 'parents', 'surname': 'ניסיון'}})
             expect('template_mazal_posted_by_member', status == 201 and msg.get('templateId') == 'mazal', f'{status} {msg}')
             status, listed = self.call(self.gab, 'GET', sheet)
-            mine = [i for i in listed['items'] if i.get('messageId') == msg.get('messageId')] if status == 200 else []
+            mine = [i for i in listed['items'] if i.get('itemId') == msg.get('messageId')] if status == 200 else []
             expect('sheet_item_pending_for_gabbai', len(mine) == 1 and mine[0]['state'] == 'pending', f'{status} {mine}')
             status, listed = self.call(lis, 'GET', sheet)
             expect('sheet_pending_hidden_from_listener', status == 200
-                   and not [i for i in listed['items'] if i.get('messageId') == msg.get('messageId')], str(status))
+                   and not [i for i in listed['items'] if i.get('itemId') == msg.get('messageId')], str(status))
             status, _ = self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/sheet/{week}/items/{msg.get("messageId")}',
                                   {'state': 'in'})
             expect('sheet_item_approved', status == 200, str(status))
             status, listed = self.call(lis, 'GET', sheet)
-            seen = [i for i in listed['items'] if i.get('messageId') == msg.get('messageId')] if status == 200 else []
+            seen = [i for i in listed['items'] if i.get('itemId') == msg.get('messageId')] if status == 200 else []
             expect('sheet_approved_visible_to_listener', len(seen) == 1 and seen[0]['state'] == 'in', f'{status} {seen}')
 
             fields = {'variant': 'only', 'surname': 'דוגמה', 'deceased': 'יוסף', 'relation': 'אביו'}
