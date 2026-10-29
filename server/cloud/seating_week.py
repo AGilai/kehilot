@@ -54,40 +54,86 @@ def lanes(layout, block):
     return out
 
 
-def head_side(layout, block):
-    """The side that counts as "the aisle": the only lane, or the lane nearer the bimah's centre column (the mean
-    column of all bimah cells). A tie, or no bimah, goes to the right lane. None when the block has no lane."""
-    ls = lanes(layout, block)
-    if len(ls) < 2:
-        return ls[0] if ls else None
+def _bimah_centre(layout):
     cols = [c for row in layout['cells'] for c, k in enumerate(row) if k == 'bimah']
-    if not cols:
-        return 'right'
-    centre = sum(cols) / len(cols)
-    left, right = abs(block['colStart'] - 1 - centre), abs(block['colEnd'] + 1 - centre)
-    return 'left' if left < right else 'right'
+    return sum(cols) / len(cols) if cols else None
 
 
-def _aisle_distance(layout, block, seat):
-    """Seats (anyone's) between this seat and the aisle edge of its block, in its row."""
-    side = head_side(layout, block)
-    if side is None:
-        return 0
+def _front_row(layout):
+    """The row of the Aron (ark cells; row 0, the front row, when the layout has none)."""
+    return next((r for r, row in enumerate(layout['cells']) if 'ark' in row), 0)
+
+
+def _aisle_sides(layout, block):
+    """The sides of a block that count as an aisle for the free order: a lane, or the hall's side wall (owner: "wall is
+    an aisle"). So every block has at least its outer side."""
+    out = []
+    for side, col in (('left', block['colStart'] - 1), ('right', block['colEnd'] + 1)):
+        if not 0 <= col < len(layout['cells'][0]) or block_index(layout, col) == -1:
+            out.append(side)
+    return out
+
+
+def _aisle_gap(layout, block, seat):
+    """Seats (anyone's) between this seat and the nearer aisle of its block, in its row; None without an aisle."""
     row, col = layout['cells'][seat['row']], seat['col']
-    span = range(col + 1, block['colEnd'] + 1) if side == 'right' else range(block['colStart'], col)
-    return sum(1 for c in span if row[c] == 'seat')
+    gaps = []
+    for side in _aisle_sides(layout, block):
+        span = range(block['colStart'], col) if side == 'left' else range(col + 1, block['colEnd'] + 1)
+        gaps.append(sum(1 for c in span if row[c] == 'seat'))
+    return min(gaps) if gaps else None
+
+
+def keep_key(layout, seat, centre=None, front=None):
+    """How good a seat is, best first, a total order (§15.10.11, owner 2026-10-29): the row nearer the Aron; next to an
+    aisle; fewer seats to an aisle; nearer the bimah (column distance); the right seat facing the Aron."""
+    centre = _bimah_centre(layout) if centre is None else centre
+    front = _front_row(layout) if front is None else front
+    bi = block_index(layout, seat['col'])
+    gap = _aisle_gap(layout, layout['blocks'][bi], seat) if bi >= 0 else None
+    return (abs(seat['row'] - front), seat['row'], 0 if gap == 0 else 1, gap if gap is not None else 1 << 30,
+            abs(seat['col'] - centre) if centre is not None else 0, -seat['col'])
+
+
+def _is_aisle_seat(key):
+    return key[2] == 0
+
+
+def _head(keys):
+    """The head's seat: the best aisle seat by rank when the family has one, else the best seat."""
+    aisle = [sid for sid, k in keys.items() if _is_aisle_seat(k)]
+    return min(aisle or keys, key=keys.__getitem__)
+
+
+def _touch(a, b):
+    """Two seats touch when they are neighbours in a row (a gap or a bimah cell in between breaks it) or sit directly
+    in front of / behind one another in neighbouring rows."""
+    return (a['row'] == b['row'] and abs(a['col'] - b['col']) == 1) or (a['col'] == b['col'] and abs(a['row'] - b['row']) == 1)
+
+
+def keep_chain(layout, ordered):
+    """The family's seats in keep order (§15.10.11, owner 2026-10-29): the head's seat (_head), then each
+    next seat is the best by keep_key among the seats that touch the chain, or the best left when none touches."""
+    pos = {s['id']: s for s in layout['seats']}
+    centre, front = _bimah_centre(layout), _front_row(layout)
+    key = {sid: keep_key(layout, pos[sid], centre, front) for sid in ordered}
+    left = sorted(ordered, key=key.__getitem__)
+    chain = []
+    if left:
+        head = _head(key)
+        chain.append(head)
+        left.remove(head)
+    while left:
+        near = [sid for sid in left if any(_touch(pos[sid], pos[c]) for c in chain)]
+        nxt = (near or left)[0]
+        chain.append(nxt)
+        left.remove(nxt)
+    return chain
 
 
 def free_order(layout, ordered):
-    """Seat ids, first to free first: rear row first, then the largest aisle distance, then the higher family order."""
-    pos = {s['id']: s for s in layout['seats']}
-    keyed = []
-    for i, sid in enumerate(ordered):
-        seat = pos[sid]
-        bi = block_index(layout, seat['col'])
-        dist = _aisle_distance(layout, layout['blocks'][bi], seat) if bi >= 0 else 0
-        keyed.append(((-seat['row'], -dist, -i), sid))
-    return [sid for _, sid in sorted(keyed)]
+    """Seat ids, first to free first: the keep chain backwards, so the kept seats stay one group around the head."""
+    return keep_chain(layout, ordered)[::-1]
 
 
 def to_release(free_ordered, count):
@@ -109,6 +155,7 @@ def frames(layout, ordered, states):
     name, no state. Seats of one block within SPLIT_GAP rows share a frame, else one frame per group."""
     pos = {s['id']: s for s in layout['seats']}
     order = {sid: i + 1 for i, sid in enumerate(ordered)}
+    hall_first = min(r for r, row in enumerate(layout['cells']) if any(k in ('seat', 'bimah') for k in row))
     out = []
     for bi in sorted(range(len(layout['blocks'])), reverse=True):
         block = layout['blocks'][bi]
@@ -118,7 +165,6 @@ def frames(layout, ordered, states):
             continue
         used = [r for r, row in enumerate(layout['cells'])
                 if any(k in ('seat', 'bimah') for k in row[block['colStart']:block['colEnd'] + 1])]
-        hall_first = min(r for r, row in enumerate(layout['cells']) if any(k in ('seat', 'bimah') for k in row))
         lo_all, hi_all = min(used), max(used)
         groups = []
         for s in seats:

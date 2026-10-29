@@ -369,7 +369,7 @@ class SeatWeekTest(test_messages.MessagesTest):
     def test_big_family_rear_row_first(self):
         self.mine((3, 3), (3, 4), (3, 5), (3, 6), (4, 5), (4, 6))
         body = self.me()[1]
-        self.assertEqual(body['freeOrder'], [5, 6, 1, 2, 3, 4])
+        self.assertEqual(body['freeOrder'], [6, 5, 1, 2, 3, 4])
         self.assertEqual(len(body['frames']), 1)
         rows = {r['label']: r for r in body['frames'][0]['rows']}
         self.assertTrue(rows['3']['mine'] and rows['4']['mine'])
@@ -412,6 +412,40 @@ class SeatWeekTest(test_messages.MessagesTest):
         self.assertEqual(self.respond([{'household': f'family:{self.fam}', 'released': 1}])[0], 200)
         self.assertEqual(self.released(), {self.at[(5, 5)]})
         self.assertEqual(self.respond([{'household': f'family:{self.fam}', 'released': 2}])[0], 200)
+        self.assertEqual(self.released(), {self.at[(5, 5)], self.at[(5, 4)]})
+
+    def test_free_order_whole_row_in_a_middle_block(self):
+        rows = [[S, S, A, S, S, S, S, S, A, S, S] for _ in range(6)]
+        for c in (9, 10):
+            rows[5][c] = B
+        layout = {'rows': 7, 'cols': 11, 'cells': [[K] * 11] + rows,
+                  'blocks': [{'name': 'שמאל בדיוני', 'colStart': 0, 'colEnd': 1}, {'name': 'אמצע בדיוני', 'colStart': 3, 'colEnd': 7},
+                             {'name': 'ימין בדיוני', 'colStart': 9, 'colEnd': 10}],
+                  'rowLabels': ['קדמית'] + [str(i) for i in range(1, 7)]}
+        current = self.call('GET', f'{self.base()}/admin/seating/layouts/{friday()}')[1]
+        status, out = self.call('PUT', f'{self.base()}/admin/seating/layouts/{friday()}',
+                                body={**layout, 'ifUpdatedAt': current.get('updatedAt')})
+        self.assertEqual(status, 200, out)
+        self.at = {(s['row'], s['col']): s['id'] for s in out['seats']}
+        self.owned = {}
+        self.mine((2, 7), (2, 6), (2, 5), (2, 4), (2, 3))
+        body = self.me()[1]
+        self.assertEqual(body['frames'][0]['lanes'], ['left', 'right'])
+        # the aisle seat nearer the bimah (col 7) is the head's; freeing walks from col 3 towards him
+        self.assertEqual(body['freeOrder'], [5, 4, 3, 2, 1])
+        ref = f'family:{self.fam}'
+        self.assertEqual(self.respond([{'household': ref, 'released': 4}])[0], 200)
+        self.assertEqual(self.released(), {self.at[(2, c)] for c in (3, 4, 5, 6)})
+
+    def test_override_upload_frees_in_the_free_order(self):
+        self.mine((5, 3), (5, 4), (5, 5))
+        ref = f'family:{self.fam}'
+        with self.now(at(9)):
+            self.put_me([3])  # the member released his order 3, the seat nearest the aisle
+        status, out = self.respond([{'household': ref, 'released': 1}])
+        self.assertEqual(out['warnings'], [{'household': ref, 'code': 'app_answer_kept'}])
+        status, out = self.respond([{'household': ref, 'released': 2, 'override': True}])
+        self.assertEqual((status, out['warnings']), (200, []))
         self.assertEqual(self.released(), {self.at[(5, 5)], self.at[(5, 4)]})
 
     def test_apply_holders_and_marks_gabbai(self):

@@ -3,9 +3,10 @@
  * server's responses apply/undo, so the upload screens can be walked through without a backend. Every name here is made up.
  */
 import { ApiCodeError } from '../client/errors.ts';
+import { freeOrderIds } from './aisle.ts';
 import { fixtureSeatFamilies } from './fixturePaste.ts';
 import type { ApplyResult, ResponseCall } from './upload.ts';
-import type { WeekWire, WirePrayer } from './wire.ts';
+import type { WeekWire, WirePrayer, WireLayout } from './wire.ts';
 
 export const FIXTURE_HOLDER_ID = '01FIXTUREHOLDER00000000001';
 const fam = (i: number) => `family:${fixtureSeatFamilies()[i - 1]!.familyId}`;
@@ -66,9 +67,10 @@ export function createUploadFixture(friday: string) {
   const bd = order.get(fam(1))!;
   state.erev[bd[0]!] = { released: false, by: 'member', at: 1_790_000_000_000 };
 
+  const layout: WireLayout = { effectiveFrom: '2026-01-02', rows: 1, cols: ids.length, cells: [ids.map(() => 'seat' as const)], blocks: [{ name: 'מרכז', colStart: 0, colEnd: ids.length - 1 }], rowLabels: [null], seats: ids.map((id, i) => ({ id, row: 0, col: i })) };
   const adminWeek = (): WeekWire => ({
     week: friday, deadline: new Date(Date.now() + 86_400_000).toISOString(), open: true,
-    layout: { effectiveFrom: '2026-01-02', rows: 1, cols: ids.length, cells: [ids.map(() => 'seat' as const)], blocks: [{ name: 'מרכז', colStart: 0, colEnd: ids.length - 1 }], rowLabels: [null], seats: ids.map((id, i) => ({ id, row: 0, col: i })) },
+    layout,
     assignments, households,
     prayers: Object.fromEntries((['erev', 'day'] as const).map((p) => [p, { seats: structuredClone(state[p]), requests: {}, canUndo: !!undo[p], updatedAt: 1_790_000_000_000 }])) as WeekWire['prayers'],
   });
@@ -87,7 +89,7 @@ export function createUploadFixture(friday: string) {
       for (const [a, n] of Object.entries(row.requests ?? {})) totals[a] = (totals[a] ?? 0) + n;
       if (app && !row.override) { warnings.push({ household: row.household, code: 'app_answer_kept' }); continue; }
       if (row.released > own.length) warnings.push({ household: row.household, code: 'above_seats' });
-      const free = new Set(own.slice(Math.max(0, own.length - row.released)));
+      const free = new Set(freeOrderIds(layout, own).slice(0, Math.max(0, row.released)));
       applied++;
       for (const id of own) {
         const want = free.has(id);
