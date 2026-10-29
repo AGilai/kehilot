@@ -8,12 +8,13 @@ import { PadScroll } from '../kit/PadScroll.tsx';
 import { useReportPad } from '../client/reportUi.ts';
 import type { Prayer } from '../seats/release.ts';
 import { readMapFolded, writeMapFolded } from '../seats/mapFold.ts';
-import { afterSend, copyArvit, footerOf, formMode, headKey, hintOf, initDraft, pickCount, saveChoices, segState, tapChair } from '../seats/seatForm.ts';
+import { copyArvit, footerOf, formMode, headKey, hintOf, initDraft, pickCount, runSend, saveChoices, segState, tapChair } from '../seats/seatForm.ts';
 import type { FormDraft } from '../seats/seatForm.ts';
 import { useMemberSeats } from '../seats/useMemberSeats.ts';
 import { useShabbat } from '../seats/useShabbat.ts';
 import { whenParts } from '../seats/window.ts';
 import type { MemberSeats } from '../seats/wire.ts';
+import { BackIcon } from '../kit/Icon.tsx';
 import { BackLink } from './Me.tsx';
 import { useErrorText } from './auth/Frame.tsx';
 import { NumberCircles } from './seatForm/NumberCircles.tsx';
@@ -76,24 +77,31 @@ function SeatPageReady({ data, save, onBack, onDone, onToast }: { data: MemberSe
   const edit = (f: (d: FormDraft) => FormDraft) => { if (locked || busy) return; setStale(false); setDraft(f); };
   const back = () => { if (dirty && !locked) setConfirmLeave(true); else onBack(); };
 
+  const sending = React.useRef(false);
   async function submit() {
-    if (busy || !footer || footer.kind === 'next') return;
+    if (sending.current || !footer || footer.kind === 'next') return;
+    sending.current = true;
     setBusy(true); setError(null); setStale(false);
     try {
-      const r = await save(saveChoices(draft, data));
-      const a = afterSend(r);
-      if (a === 'close') { onToast(t('seats.form.savedToast')); onDone(); } else if (a === 'stale') setStale(true);
-    } catch (e) { setError(errText(e)); } finally { setBusy(false); }
+      const a = await runSend(() => save(saveChoices(draft, data)), { toast: t('seats.form.savedToast'), onToast, onDone });
+      if (a === 'stale') setStale(true);
+      else if (a === 'none') setError(t('seats.loadError'));
+    } catch (e) { setError(errText(e)); } finally { sending.current = false; setBusy(false); }
   }
 
   const shabbat = parasha ? t('seats.shabbatLine', { parasha, date: dualDate(saturday, lang) }) : dualDate(saturday, lang);
   const titleBlock = (
-    <View style={{ gap: 2 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Txt serif accessibilityRole="header" style={{ fontSize: 19, lineHeight: 26 }}>{t('seats.form.title')}</Txt>
-        {config.seatsPreview ? <Tag tone="preview" label={t('seats.preview')} /> : null}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={t('me.back')} onPress={back} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <BackIcon color={k.tekhelet} />
+      </Pressable>
+      <View style={{ flex: 1, gap: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Txt serif accessibilityRole="header" style={{ fontSize: 19, lineHeight: 26 }}>{t('seats.form.title')}</Txt>
+          {config.seatsPreview ? <Tag tone="preview" label={t('seats.preview')} /> : null}
+        </View>
+        <Txt color={k.muted} style={{ fontSize: 12.5, lineHeight: 17 }}>{shabbat}</Txt>
       </View>
-      <Txt color={k.muted} style={{ fontSize: 12.5, lineHeight: 17 }}>{shabbat}</Txt>
     </View>
   );
   const dialog = (
@@ -107,7 +115,6 @@ function SeatPageReady({ data, save, onBack, onDone, onToast }: { data: MemberSe
   if (mode === 'noSeats') {
     return (
       <PadScroll contentContainerStyle={colStyle}>
-        <BackLink onPress={back} />
         {titleBlock}
         <Card edgeColor={k.tekhelet}>
           <Txt bold size="heading" accessibilityRole="header">{t('seats.noneTitle')}</Txt>
@@ -180,8 +187,7 @@ function SeatPageReady({ data, save, onBack, onDone, onToast }: { data: MemberSe
     return (
       <View style={{ flex: 1 }}>
         <PadScroll contentContainerStyle={colStyle}>
-          <BackLink onPress={back} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             {titleBlock}
             <View style={{ width: 420 }}>{segments}</View>
           </View>
@@ -212,7 +218,6 @@ function SeatPageReady({ data, save, onBack, onDone, onToast }: { data: MemberSe
   return (
     <View style={{ flex: 1 }}>
       <PadScroll contentContainerStyle={colStyle}>
-        <BackLink onPress={back} />
         {titleBlock}
         {banner}
         {error ? <Banner tone="error" text={error} /> : null}

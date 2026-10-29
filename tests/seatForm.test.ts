@@ -4,7 +4,7 @@ import { ICON_PATHS } from '../src/kit/iconPaths.ts';
 import { CHAIR_COLORS, chairSvg } from '../src/seats/chairSvg.ts';
 import { createSeatsFixture, fixtureMemberSeats } from '../src/seats/fixtureSeats.ts';
 import {
-  afterSend, autoRelease, changed, circleLayout, copyArvit, footerOf, formMode, headKey, hintOf, initDraft, isAutoChoice, mineRowLabels,
+  afterSend, runSend, autoRelease, changed, circleLayout, copyArvit, footerOf, formMode, headKey, hintOf, initDraft, isAutoChoice, mineRowLabels,
   pickCount, saveChoices, segState, tapChair,
 } from '../src/seats/seatForm.ts';
 import type { PrayerDraft } from '../src/seats/seatForm.ts';
@@ -190,4 +190,16 @@ test('fixture: big variant', () => {
   assert.equal(mineRows[0]!.cells.filter((c) => c.kind === 'mine').length, 5);
   assert.deepEqual(mineRows[1]!.cells.map((c) => c.kind), ['other', 'other', 'other', 'mine', 'mine']);
   assert.equal(memberFromWire(w).seatCount, 7);
+});
+
+test('runSend: saved toasts then closes; stale and failures stay open without a toast', async () => {
+  const log: string[] = [];
+  const hooks = { toast: 'נשמר', onToast: (x: string) => log.push(`toast:${x}`), onDone: () => log.push('done') };
+  assert.equal(await runSend(async () => ({ kind: 'saved' }) as never, hooks), 'close');
+  assert.deepEqual(log, ['toast:נשמר', 'done']);
+  log.length = 0;
+  assert.equal(await runSend(async () => ({ kind: 'updated' }) as never, hooks), 'stale');
+  assert.equal(await runSend(async () => null, hooks), 'none');
+  await assert.rejects(runSend(async () => { throw new Error('net'); }, hooks), /net/);
+  assert.deepEqual(log, []);
 });

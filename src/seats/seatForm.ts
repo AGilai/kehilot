@@ -100,3 +100,10 @@ export function circleLayout(n: number, width: number): { size: number; gap: num
 
 /** After "Send": saved closes the screen, a changed week keeps it open, a failure (null) leaves it. */
 export const afterSend = (r: SaveResult | null): 'close' | 'stale' | 'none' => (!r ? 'none' : r.kind === 'saved' ? 'close' : 'stale');
+
+/** The send step: save, then act on the result. Saved: toast, then close. Stale or null: stay open, no toast. A throw reaches the caller (stay open, show the error). */
+export async function runSend(save: () => Promise<SaveResult | null>, hooks: { toast: string; onToast: (text: string) => void; onDone: () => void }): Promise<'close' | 'stale' | 'none'> {
+  const a = afterSend(await save());
+  if (a === 'close') { hooks.onToast(hooks.toast); hooks.onDone(); }
+  return a;
+}
