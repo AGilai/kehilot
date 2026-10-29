@@ -1818,10 +1818,14 @@ Still open:
 
 **Free order, owner 2026-10-29 (supersedes "free from the far side of the aisle" everywhere in §15).** The family
 stays together, and the head of the family keeps the best seat.
+- **Aisle:** an empty column between blocks, **and the hall's side walls** (owner, 2026-10-29: "wall is an aisle").
 - **Seat rank** (compare two seats; the first difference decides): (1) the row nearer the Aron (ארון הקודש) is better;
-  (2) in the same row, a seat next to an aisle is better; (3) the seat nearer the bimah is better; (4) fewer seats
-  between it and an aisle is better; (5) last tie: the seat on the right, facing the Aron.
-- **The head's seat** is the family's best seat by that rank.
+  (2) in the same row, a seat next to an aisle is better; (3) fewer seats between it and an aisle is better; (4) the
+  seat nearer the bimah is better; (5) last tie: the seat on the right, facing the Aron.
+- **The head's seat** is the family's best seat, except that for the head an aisle seat beats a nearer row: the head's
+  seat is the best aisle seat by rank if the family has one, else the best seat by rank.
+- Validated against the owner's manual allocation (2026-10-29): 69 of 69 families, every seat, in the same order.
+  Steps (3)-before-(4) and the head's aisle preference each rest on one family (CTO call to adopt; owner may revert).
 - **The chain (keep order):** start from the head's seat; each next seat is, among the family's seats not yet in the
   chain that touch the chain (the next seat in the same row, else the seat in the row in front of or behind it), the
   best by rank; if none touches, the best remaining by rank.
