@@ -359,6 +359,9 @@ class MessagesRepo:
         self.table.put_item(Item={'pk': f'K#{k}', 'sk': f'{BUMP_PREFIX}{bump_id}', 'messageId': message_id,
                                   'expiresAt': expires_at})
 
+    def delete_bump(self, k, bump_id):
+        self.table.delete_item(Key={'pk': f'K#{k}', 'sk': f'{BUMP_PREFIX}{bump_id}'})
+
     def list_bumps_after(self, k, after_id=None):
         """Bump pointers with an id greater than `after_id` (all when None), newest first."""
         low = f'{BUMP_PREFIX}{after_id}' if after_id else BUMP_PREFIX

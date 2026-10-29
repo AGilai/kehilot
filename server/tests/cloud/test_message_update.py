@@ -221,11 +221,6 @@ class MessageUpdateTest(test_messages.MessagesTest):
         self.assertIsNone(self.call('GET', self.base(), sub='gabbai-sub')[1]['familyId'])
         self.assertNotIn('familyId', self.call('GET', self.base(), sub='listener-sub')[1])
 
-
-for _name in dir(test_messages.MessagesTest):  # the fixtures only: none of the base class's tests
-    if _name.startswith('test_') and _name not in MessageUpdateTest.__dict__:
-        setattr(MessageUpdateTest, _name, None)
-
     # carry-over from the Task 4 review: an update keeps the thread and the viewer fields stay right
     def test_update_keeps_replier_count_target_family_and_thread(self):
         fid = self.family()
@@ -259,6 +254,11 @@ for _name in dir(test_messages.MessagesTest):  # the fixtures only: none of the 
                          ('family', False, True, False))
         stranger = self.call('GET', f'{self.base()}/messages/{mid}', sub='stranger-sub')[1]
         self.assertEqual((stranger['canReply'], stranger['isRecipient']), (True, False))
+
+
+for _name in dir(test_messages.MessagesTest):  # the fixtures only: none of the base class's tests
+    if _name.startswith('test_') and _name not in MessageUpdateTest.__dict__:
+        setattr(MessageUpdateTest, _name, None)
 
 
 @mock_aws
@@ -362,8 +362,47 @@ class NotifyTest(test_messages.MessagesTest):
         self.t += 5
         self.put(old, time='21:00')
         page = self.call('GET', f'{self.base()}/messages', query={'before': newer})[1]
-        self.assertEqual([m['messageId'] for m in page], [old])
-        self.assertNotIn(old, [m['messageId'] for m in self.call('GET', f'{self.base()}/messages', query={'before': old})[1]])
+        self.assertEqual(page, [])    # `old` is shown by the first page while its bump is live
+
+    def test_bumped_message_appears_once_across_pages(self):
+        ids = []
+        for _ in range(6):
+            ids.append(self.event())
+            self.t += 5
+        self.put(ids[0], time='21:00')      # the oldest moves to the top
+        first = self.call('GET', f'{self.base()}/messages', query={'limit': '3'})[1]
+        self.assertEqual(first[0]['messageId'], ids[0])
+        seen = [m['messageId'] for m in first]
+        while True:
+            rest = self.call('GET', f'{self.base()}/messages', query={'limit': '3', 'before': first[-1]['messageId']})[1]
+            if not rest:
+                break
+            seen += [m['messageId'] for m in rest]
+            first = rest
+        self.assertEqual(len(seen), len(set(seen)))
+        self.assertEqual(set(seen), set(ids))
+
+    def test_expired_bump_stops_moving_the_message(self):
+        old = self.event()
+        self.t += 5
+        self.event()
+        self.t += 5
+        self.put(old, time='21:00')
+        self.t += 15 * 86400
+        listing = self.call('GET', f'{self.base()}/messages', query={'limit': '1'})[1]
+        self.assertNotEqual(listing[0]['messageId'], old)
+        before = self.call('GET', f'{self.base()}/messages', query={'before': listing[0]['messageId']})[1]
+        self.assertEqual([m['messageId'] for m in before], [old])
+
+    def test_bump_write_failure_leaves_window_unclaimed(self):
+        mid = self.event()
+        self.t += 5
+        with mock.patch.object(self.repo, 'put_bump', side_effect=RuntimeError('boom')):
+            status, _ = self.call('PUT', f'{self.base()}/messages/{mid}',
+                                  body={'title': 'U', 'body': 'b', 'fields': {**EVENT, 'time': '21:00'}, 'notify': True})
+        self.assertEqual(status, 500)
+        self.assertNotIn('notifiedAt', self.repo.get_message(self.k, mid))
+        self.assertTrue(self.put(mid, time='21:15')['notified'])
 
     def test_merge_exceeds_limit_and_skips_removed_and_hidden(self):
         ids = []
@@ -406,3 +445,8 @@ class NotifyTest(test_messages.MessagesTest):
         self.t += 1
         self.read(mid)
         self.assertTrue(self.get(mid, 'member-sub')['read'])
+
+
+for _name in dir(test_messages.MessagesTest):  # the fixtures only: none of the base class's tests
+    if _name.startswith('test_') and _name not in NotifyTest.__dict__:
+        setattr(NotifyTest, _name, None)

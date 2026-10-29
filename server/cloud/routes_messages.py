@@ -232,8 +232,10 @@ def list_messages(ctx, params):
     if before is not None and not ID_RE.fullmatch(before):
         raise ApiError(400, 'invalid_before')
     rules = kehila_rules(ctx, k)
-    channels, page = {}, []
+    channels, page, now = {}, [], _now()
     for item in ctx.repo.iter_messages(k, before):
+        if before is not None and _bump_live(item, now):
+            continue  # page 1 already shows it at the top: later pages never repeat a moved message
         cid = item['channelId']
         if cid not in channels:
             channels[cid] = ctx.repo.get_channel(k, cid)
@@ -250,6 +252,11 @@ def list_messages(ctx, params):
     return 200, [_message_json(i, _is_read(times.get(m), i), viewer[m]) for i, m in zip(page, ids)]
 
 
+def _bump_live(item, now) -> bool:
+    """The message has a bump pointer that the first page still merges (pointers last BUMP_TTL)."""
+    return bool(item.get('bumpId')) and int(item.get('bumpedAt', 0)) + BUMP_TTL > now
+
+
 def _is_read(read_at, item) -> bool:
     """Read since the last notified update: a bump makes earlier reads stale."""
     return read_at is not None and read_at >= int(item.get('bumpedAt', 0))
@@ -261,14 +268,15 @@ def _merge_bumps(ctx, k, membership, rules, channels, page, limit):
     on_page = {i['sk'][len('MSG#'):] for i in page}
     oldest = page[-1]['sk'][len('MSG#'):] if len(page) >= limit else None  # a short page holds every message
     merged = []
+    now = _now()
     for bump in ctx.repo.list_bumps_after(k, oldest):
         mid = bump['messageId']
-        if mid in on_page:
+        if mid in on_page or int(bump.get('expiresAt', 0)) <= now:  # TTL deletion lags: expiry is checked here
             continue
-        on_page.add(mid)
         item = ctx.repo.get_message(k, mid)
-        if not item or item.get('removed'):
-            continue
+        if not item or item.get('removed') or item.get('bumpId') != bump['sk'][len('BUMP#'):]:
+            continue  # gone, or a pointer that is not the message's current bump (a lost race)
+        on_page.add(mid)
         if item['channelId'] not in channels:
             channels[item['channelId']] = ctx.repo.get_channel(k, item['channelId'])
         if visibility.message_visible(membership, channels[item['channelId']], item, rules):
@@ -309,10 +317,13 @@ def _may_update(ctx, k, membership, message):
 def _notify(ctx, k, mid, item, stamp) -> bool:
     """Move the message up once, make earlier reads stale and queue one quiet push, unless one was notified in the
     last NOTIFY_WINDOW. The updater has read their own update. `item` gains the bump attributes."""
+    if int(item.get('notifiedAt', -NOTIFY_WINDOW)) > stamp - NOTIFY_WINDOW:
+        return False  # inside the window: no write at all (mark_notified decides for real below)
     bump_id = new_id()
+    ctx.repo.put_bump(k, bump_id, mid, stamp + BUMP_TTL)  # first: a failure here leaves the window unclaimed
     if not ctx.repo.mark_notified(k, mid, stamp, bump_id):
+        ctx.repo.delete_bump(k, bump_id)  # lost a race with a concurrent notified update
         return False
-    ctx.repo.put_bump(k, bump_id, mid, stamp + BUMP_TTL)
     ctx.repo.put_read(k, mid, ctx.user_id, at=stamp)
     item.update({'notifiedAt': stamp, 'bumpId': bump_id, 'bumpedAt': stamp})
     push.enqueue('message_update', k, mid)
