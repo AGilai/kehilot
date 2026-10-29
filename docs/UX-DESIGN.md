@@ -171,7 +171,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 ## 8. Open questions for the user
 
 1. **Shabbat quiet mode:** hold notifications from candle lighting to nightfall and deliver them after? (Shown as a suggestion in M5.)
-2. **Mi Sheberach expiry:** remind members after 30 days to renew or remove a name? *Answered (owner, 2026-10-29): 2 or 4 weeks, renew or the name leaves (§23.5).*
+2. **Mi Sheberach expiry:** remind members after 30 days to renew or remove a name? *Answered (owner, 2026-10-29): a period up to the Kehila's maximum, renew or the name leaves; permanent names only if the Kehila allows (§23.5a).*
 3. Should gabbaim see private replies to a mazal tov or condolence, or only the family?
 4. Rejected newcomers: may they re-request, and after how long?
 5. Invite link: expiry (7 days?), single use or many, who may create one (every member?).
@@ -2761,8 +2761,8 @@ mother's-name field ("השם העברי של אמא", saved also on the mother's
 does not turn it on again. Turning it off (recovery) removes the badge and the name from the sick list, silently — no
 message to anyone. Same visibility as the rest of the tree (family and the Kehila's gabbaim, §17.11).
 
-**Joined with the Mi Sheberach list (§23, 2026-10-29).** Turning the heart on now also asks for a period (2 or 4
-weeks) and puts the name on the Kehila's list for the sick, owned by whoever turned it on; it is renewed like any
+**Joined with the Mi Sheberach list (§23, 2026-10-29).** Turning the heart on now also asks for a period (weeks up to
+the Kehila's maximum, or קבוע when allowed, §23.5a) and puts the name on the Kehila's list for the sick, owned by whoever turned it on; it is renewed like any
 name, and a name that leaves the list turns the heart off. Deceased still clears it silently. The sheet line "(בקרוב)"
 becomes "ברשימת מי שברך לחולים עד {date}" with "חידוש ‹" in the renewal window. Details, duplicates and a missing
 mother's name: §23.6.
@@ -4288,8 +4288,9 @@ expiry, renewal through Messages and Gregorian-only dates are not carried over.
 4. **Adding** takes one name or a pasted list split by commas or new lines. **A preview shows each parsed name on
    its own line** before saving; the user fixes or removes lines and confirms. Nothing unchecked reaches the list.
 5. **Deleting** (recovery, etc.) only by the name's **owner** (whoever added it) or **management**.
-6. **Period:** the adder picks **2 or 4 weeks** (default 2). Nothing longer, no permanent names. Near the end the owner
-   is asked to renew for 2 or 4 more weeks; **no answer = the name leaves the list.** The same for tree names, and a
+6. **Period:** the adder picks a number of weeks (default 2). Near the end the owner is asked to renew; **no answer =
+   the name leaves the list.** *Changed by the owner's review (2026-10-29, round 2, §23.5a): the longest period, the
+   reminder lead and permanent names are Kehila settings.* The same for tree names, and a
    tree name that leaves also **turns the heart off** (the reminder says so). **The push never contains the sick
    person's name.**
 7. **Management** sees every name with full CRUD, who added it and its end date. **Print:** the full Mi Sheberach
@@ -4306,12 +4307,15 @@ Calls marked **(my call)** below are the designer's; the open items for the owne
 ### 23.1 Terms and data
 
 - **Name** (`MiName`): one line on the list. Fields: `id`, `kehilaId`, `text` (as shown and printed), `key`
-  (normalized, §23.4), `source: 'free' | 'tree'`, `personId` (tree only), `ownerUserId`, `addedAt`, `weeks: 2 | 4`
-  (the last choice), `endsOn` (Israel date, inclusive), `editedAt?`, `reminderSentAt?`.
+  (normalized, §23.4), `source: 'free' | 'tree'`, `personId` (tree only), `ownerUserId`, `addedAt`, `weeks: 1…8 | null`
+  (the last choice; `null` = permanent), `endsOn` (Israel date, inclusive; `null` = permanent), `editedAt?`,
+  `reminderSentAt?`.
 - **Owner**: the account that added the name. For a tree name: the family adult who turned the heart on.
 - **End date**: the name is on the list through the whole of `endsOn` and leaves at 00:00 Israel time after it.
-  `endsOn = added date + 14 or 28 days` (added Thursday → ends Thursday two weeks later, two Shabbatot covered).
-- **Renewal window**: from the reminder day (§23.5) until the end of `endsOn`.
+  `endsOn = added date + 7 × weeks days` (2 weeks added Thursday → ends Thursday two weeks later, two Shabbatot).
+- **Renewal window**: from the reminder day (§23.5) until the end of `endsOn`. A permanent name has neither.
+- **Period settings** (§23.5a): `maxWeeks` 1–8 (default 4), `leadDays` 1–7 (default 3), `allowPermanent` (default
+  false).
 - **Kehila settings** (`mi`): `showAll: bool` (default false), `opening` and `closing` (text; `null` = the default of
   §23.8), `columns: 2 | 3` (the last print's choice, default 2), `order: 'abc' | 'added'` (default `'abc'`),
   `lastPrintAt` (ms, or null).
@@ -4354,7 +4358,8 @@ the built app has three tabs).
    "לטיפול עכשיו"). One row per name: the name (serif 19), "מסתיים {weekday}, {dual date}" in bold pomegranate, and two
    40-high buttons: primary **"חידוש"** (→ the renew Sheet, §23.5) and secondary **"הסרה"** (→ confirm).
 4. **השמות שהוספתי · {n}**: one row per name, by end date (soonest first). Row: the name (serif 19, wraps, never
-   cut); under it "עד {weekday}, {dual date}" muted; a tree name adds the Tag **"מהעץ"** (`heartPulse`, rose
+   cut); under it "עד {weekday}, {dual date}" muted (a permanent name: the quiet ash Tag **"קבוע"** instead of the
+   date, last in the group); a tree name adds the Tag **"מהעץ"** (`heartPulse`, rose
    border) before the date. A free name with no בן/בת keeps a quiet gold "בלי בן/בת" Tag (the hint stays after saving,
    never blocks). End: a `more` button (48) → the name's Sheet:
    - free name: "עריכת השם" (the same Field with the §23.4 checks, single line), "חידוש" (enabled only in the renewal
@@ -4382,8 +4387,9 @@ for the whole Kehila:** "הרשימה ריקה כרגע." under the count.
 - Title "הוספת שמות למי שברך".
 - A multi-line `Field` "שמות" (min 5 lines, grows to 10, then scrolls), placeholder "פלוני בן פלונית", helper "שם אחד
   בכל שורה, או כמה שמות מופרדים בפסיק. בן/בת ושם האם, כמו שקוראים בבית הכנסת."
-- **"לכמה זמן"**: `Segmented` "שבועיים" | "4 שבועות" (default שבועיים), with the result under it: "עד {weekday},
-  {dual date}" (muted). One period for the whole batch; each name can be renewed on its own later.
+- **"לכמה זמן"**: the **period chips** (§23.5a), with the result under them: "עד {weekday}, {dual date}" (muted), or
+  for קבוע "השם יישאר עד שיוסר. בלי תזכורות." One period for the whole batch; each name can be renewed on its own
+  later.
 - Primary **"המשך לבדיקה"** (disabled while the field has no letters). Secondary "ביטול".
 
 **Parsing (for the developer, client and server share one function, `src/mi/parse.ts`):**
@@ -4439,8 +4445,8 @@ meantime) and answers per row: `added | duplicate | near` (near only if the clie
 
 ### 23.5 Period, reminder, renewal and expiry (P49 phone 5, the states panel)
 
-**The reminder (my call on the owner's 2-day suggestion): 3 days before the end date, at 19:00 Israel time.** If that
-moment falls on Friday, Shabbat, Yom Tov or its eve, it moves to the last weekday before, at 19:00. Why 3 and not 2:
+**The reminder: `leadDays` before the end date (Kehila setting, default 3, §23.5a), at 19:00 Israel time.** If that
+moment falls on Friday, Shabbat, Yom Tov or its eve, it moves to the last weekday before, at 19:00. Why the default is 3:
 a 2-week name added on a weekday often ends on the same weekday after Shabbat, and "2 days before" then lands on
 Friday or Shabbat (no push on Shabbat, and Friday afternoon is lost). Three days with the shift always leaves at
 least two weekday evenings to answer. The reminder job runs every 5 minutes (as §21.4), once per name per period
@@ -4460,11 +4466,13 @@ and its rows can be seen by people looking over a shoulder in shul; Home's card 
 menu row's status (§23.3). The card disappears when nothing waits.
 
 **The renew Sheet** (from "חידוש"): title "לחדש את {name}?", a line "עכשיו ברשימה עד {weekday}, {dual date}.",
-`Segmented` "עוד שבועיים" | "עוד 4 שבועות" (default: the name's last period), the result "יהיה ברשימה עד {dual
+the period chips with "עוד" in the label ("כמה שבועות עוד", 1…`maxWeeks`, plus קבוע when allowed; default: the
+name's last period, capped at `maxWeeks`), the result "יהיה ברשימה עד {dual
 date}", primary **"חידוש"**, then a text button **"הסרה מהרשימה"** (danger, → confirm), and "לא עכשיו". A tree name
 adds a gold line: "אם לא תחדשו עד {dual date}, השם ייצא מהרשימה והסימון ״לרפואה״ בעץ יכובה." Renewal adds to the
-**current end date** (an early renewal loses no days): `endsOn += 14 | 28`. It is possible only inside the renewal
-window, so a name is never much more than 4 weeks ahead (at most 33 days, when the reminder moved off Shabbat). Toast "חודש · עד {dual date}".
+**current end date** (an early renewal loses no days): `endsOn += 7 × weeks`. It is possible only inside the renewal
+window, so a name is never more than `maxWeeks` plus the lead (and a Shabbat shift) ahead. Choosing קבוע makes it
+permanent. Toast "חודש · עד {dual date}".
 
 **Expiry:** at 00:00 after `endsOn` with no renewal, the server deletes the name (and turns the heart off for a tree
 name: `Person.ill = false`, silently, no push). The owner sees it for 7 days under "יצאו מהרשימה לאחרונה" with
@@ -4473,10 +4481,34 @@ name: `Person.ill = false`, silently, no push). The owner sees it for 7 days und
 **Renewing a tree name from the tree:** the person sheet (P32) shows, under the Mi Sheberach name card, "ברשימת מי
 שברך עד {dual date}" and, in the renewal window, a link "חידוש ‹" (same Sheet).
 
+### 23.5a Period settings per Kehila (owner review, 2026-10-29, round 2; binding)
+
+The owner turned the fixed choices into **Kehila settings**, set by management in the list's **הגדרות** group (P50
+phone 5). Each value row opens a Sheet with its choices and "שמירה" (§18.4: no inline edits); toggles save at once.
+
+| Setting | Values | Default | Effect |
+|---|---|---|---|
+| **"תקופה מרבית"** (`maxWeeks`) | 1–8 weeks (chips in the Sheet) | 4 | The adder and the renewer choose **any number of weeks from 1 to this**. Default choice 2 (1 when the max is 1) |
+| **"תזכורת לפני הסוף"** (`leadDays`, "כמה ימים לפני הסוף") | 1–7 days | 3 | The reminder and the renewal window start that many days before `endsOn`, at 19:00, moved off Friday, Shabbat, Yom Tov and its eve (§23.5). If the lead is longer than the period, the reminder goes on the first weekday after adding |
+| **"לאפשר שם קבוע (מחלה ממושכת)"** (`allowPermanent`) | on / off | off | When on, the period chips end with **"קבוע"**. A permanent name has no end date, **no reminder and no expiry**; the owner and management can still remove it. It shows the quiet ash Tag "קבוע" in every list (member, all-names, management); never on the print |
+
+**The period control (my call): chips.** One wrapping row of `Chip size="filter"` (radio, 40 high, 48 hit area,
+selected = ink fill with `check`, as §19.2): "שבוע" · "שבועיים" · "3" · … · "{max}" under the label "לכמה שבועות", then,
+after a small gap, "קבוע" (`infinity` glyph ∞) when allowed. Chips, not a stepper, because the whole choice is visible
+in one glance and one tap, and 8 + 1 chips fit in two rows at 360. The result line under it is unchanged ("עד
+{weekday}, {dual date}"). The same control is used in add (§23.4), renew (§23.5), the tree heart (§23.6) and the
+gabbai's name Sheet (§23.7).
+
+**Changing a setting (my calls):** lowering `maxWeeks` does not shorten names already on the list; it applies to the
+next add or renewal. Changing `leadDays` applies to reminders not yet sent. Turning `allowPermanent` off leaves
+existing permanent names as they are (still removable; the gabbai's "קבועים" filter lists them); new adds and renewals
+can no longer choose it. A permanent name can be given an end date again by management ("הגבלה בזמן"), or by its owner
+from its ⋯ Sheet ("הגבלה בזמן") while the setting is on.
+
 ### 23.6 The tree heart (§17.15 joined, P49 phone 7)
 
 - **Turning the heart on** now asks for the period: the §17.15 confirm becomes "לסמן את {name} כחולה?" with the line
-  "{miName} ייכנס לרשימת מי שברך לחולים.", the same "לכמה זמן" `Segmented` (default שבועיים) with "עד {dual date}",
+  "{miName} ייכנס לרשימת מי שברך לחולים.", the same "לכמה זמן" period chips (§23.5a) with "עד {dual date}",
   and "כן, לרפואה שלמה" / "ביטול". On confirm: `Person.ill = true` and a tree `MiName` with the turner as owner.
 - **Name incomplete** (no mother's name): the heart can be turned on; the list and print show "{hebrewFirst} בן/בת
   ______" (a blank the gabbai can write in, **my call**), the member's row shows the gold Tag "חסר שם האם", and the
@@ -4512,22 +4544,26 @@ side (specified, not drawn).
    ("עוד לא הודפס").
 2. Two buttons in a row: primary **"הדפסה"** (`print`, → print options, §23.9) and secondary **"הוספת שמות"** (the
    same add flow as §23.4; management becomes the owner of what it adds and gets its reminders).
-3. Filter `Chip`s (radio): "הכול · {n}" · "חדשים מאז ההדפסה · {k}" · "מסתיימים השבוע · {e}". Search Field ("חיפוש
+3. Filter `Chip`s (radio): "הכול · {n}" · "חדשים מאז ההדפסה · {k}" · "מסתיימים השבוע · {e}" · **"קבועים · {p}"**
+   (my call: shown whenever a permanent name exists, even after the setting was turned off, so the gabbai can review
+   them now and then). Search Field ("חיפוש
    שם או מי שהוסיף") when n > 15.
 4. The list, in print order (§23.9). Row (min 64): the name (serif 18, wraps); Tags: **"חדש"** (tekhelet; added after
    the last print), **"שונה"** (ash; edited after it), **"מהעץ"** (rose), **"דומה"** (gold, when its key is near
-   another live name: the gabbai decides), **"חסר שם האם"** (gold); a muted line "{adder} · נוסף {d.m} · עד {weekday},
-   {dual date}". Tap or `more` → the name's Sheet. Marks are on screen only, never printed (owner).
-5. **הגדרות** (a `ListGroup` at the end): "נוסח התפילה" (value "ברירת מחדל" / "נוסח הקהילה" → editor, §23.8) and the
-   **Toggle "חברי הקהילה רואים את כל השמות"** with the helper by state: off "חברים רואים רק את השמות שהם הוסיפו ואת
+   another live name: the gabbai decides), **"חסר שם האם"** (gold), **"קבוע"** (ash); a muted line "{adder} · נוסף {d.m} · עד {weekday},
+   {dual date}" (permanent: "{adder} · נוסף {d.m}"). Tap or `more` → the name's Sheet. Marks are on screen only, never printed (owner).
+5. **הגדרות** (a `ListGroup` at the end, P50 phone 5): "נוסח התפילה" (value "ברירת מחדל" / "נוסח הקהילה" → editor,
+   §23.8), the three period settings of §23.5a ("תקופה מרבית", "תזכורת לפני הסוף", the Toggle "לאפשר שם קבוע"),
+   and the **Toggle "חברי הקהילה רואים את כל השמות"** with the helper by state: off "חברים רואים רק את השמות שהם הוסיפו ואת
    מספר השמות ברשימה."; on "חברים רואים את כל השמות, בלי מי הוסיף. מי הוסיף רואים רק הגבאים." Saves at once with a
    Toast.
 
 **The name's Sheet (gabbai):** the name (free: an editable Field with the §23.4 checks; tree: read-only with "השם מגיע
 מעץ המשפחה של {family}. מתקנים בעץ."), a label/value list: "הוסיף/ה" (name; phone link if the gabbai sees it, §18.2),
-"נוסף" (dual date), "עד" (dual date), "תקופה" (שבועיים / 4 שבועות), "חודש" (count, when renewed). Actions:
-"חידוש" (`Segmented` 2/4; for management the new end is **today + 14 | 28**, any time, so the gabbai can extend a name
-whose owner is away, still never more than 4 weeks ahead), "שמירה" for an edited name, danger **"הסרה מהרשימה"**
+"נוסף" (dual date), "עד" (dual date), "תקופה" ("{n} שבועות" / "קבוע"), "חודש" (count, when renewed). Actions:
+"חידוש" (the period chips; for management the new end is **today + 7 × weeks**, any time, so the gabbai can extend a
+name whose owner is away, still never more than `maxWeeks` ahead; קבוע when allowed; a permanent name gets "הגבלה
+בזמן" with the same chips instead), "שמירה" for an edited name, danger **"הסרה מהרשימה"**
 (confirm "להסיר את {name}? מי שהוסיף/ה יראה שהשם הוסר."). A tree name removed by management turns the heart off; the
 owner sees "הוסר בידי הגבאים" under "יצאו מהרשימה לאחרונה" (no push). Management's edits keep the owner.
 
@@ -4626,10 +4662,11 @@ the short weekday ("יום א׳").
 | `mi.treeNote` | השם מגיע מעץ המשפחה. מתקנים אותו בדמות ב{relation}. | This name comes from the family tree. Fix it on the figure in {relation}. |
 | `mi.removeTitle` / `.removeBody` / `.removeBodyTree` | להסיר את {name} מהרשימה? / השם לא ייקרא עוד במי שברך. / השם לא ייקרא עוד במי שברך, והסימון ״לרפואה״ בעץ יכובה. | Remove {name} from the list? / The name won't be read in the Mi Sheberach any more. / The name won't be read any more, and the "for recovery" mark in the tree will be turned off. |
 | `mi.removed` | הוסר מהרשימה. רפואה שלמה. | Removed from the list. A full recovery. |
-| `mi.empty.title` / `.body` / `.kehila` | עוד לא הוספתם שמות / אפשר להוסיף שם אחד או רשימה. השמות נשארים שבועיים או ארבעה, ואפשר לחדש. / הרשימה ריקה כרגע. | You haven't added names yet / Add one name or a list. Names stay two or four weeks, and you can renew. / The list is empty right now. |
+| `mi.empty.title` / `.body` / `.kehila` | עוד לא הוספתם שמות / אפשר להוסיף שם אחד או רשימה. כל שם נשאר כמה שבועות שתבחרו, ואפשר לחדש. / הרשימה ריקה כרגע. | You haven't added names yet / Add one name or a list. Each name stays for the weeks you choose, and you can renew. / The list is empty right now. |
 | `mi.ended.left` / `.byGabbai` / `.readd` | יצא ב־{date} / הוסר בידי הגבאים / הוספה מחדש | Left on {date} / Removed by the gabbaim / Add again |
 | `mi.addTitle` / `.namesLabel` / `.placeholder` / `.helper` | הוספת שמות למי שברך / שמות / פלוני בן פלונית / שם אחד בכל שורה, או כמה שמות מופרדים בפסיק. בן/בת ושם האם, כמו שקוראים בבית הכנסת. | Add names to the Mi Sheberach / Names / Ploni ben Plonit / One name per line, or several separated by commas. Ben/bat and the mother's name, as read in shul. |
-| `mi.period` / `.weeks2` / `.weeks4` | לכמה זמן / שבועיים / 4 שבועות | For how long / 2 weeks / 4 weeks |
+| `mi.period` / `.weeksLabel` / `.week1` / `.week2` / `.weeksN` / `.permanent` | לכמה זמן / לכמה שבועות / שבוע / שבועיים / {n} / קבוע | For how long / How many weeks / 1 week / 2 weeks / {n} / Permanent |
+| `mi.permanentResult` / `.tag.permanent` / `.limit` | השם יישאר עד שיוסר. בלי תזכורות. / קבוע / הגבלה בזמן | The name stays until removed. No reminders. / Permanent / Set an end date |
 | `mi.next` / `.back` | המשך לבדיקה / עריכה | Continue to check / Edit |
 | `mi.check.title` / `.line` / `.save` | בדיקת השמות / {k} שמות ייכנסו · עד {date} / הוספה לרשימה ({k}) | Check the names / {k} names will be added · until {date} / Add to the list ({k}) |
 | `mi.row.ok` | ייכנס לרשימה | Will be added |
@@ -4640,7 +4677,7 @@ the short weekday ("יום א׳").
 | `mi.row.removeLine` | הסרת השורה | Remove line |
 | `mi.max30` / `.max40` | אפשר להוסיף עד 30 שמות בכל פעם. השאר לא נכנסו. / אפשר עד 40 שמות לכל חבר. הסירו שם שכבר לא צריך. | Up to 30 names at a time. The rest weren't included. / Up to 40 names per member. Remove one you no longer need. |
 | `mi.added` / `.addedOne` / `.addedSome` | נוספו {k} שמות · עד {date} / השם נוסף · עד {date} / {k} נוספו. {d} כבר היו ברשימה ולא נוספו שוב. | {k} names added · until {date} / Name added · until {date} / {k} added. {d} were already on the list. |
-| `mi.renewTitle` / `.now` / `.more2` / `.more4` / `.result` / `.later` | לחדש את {name}? / עכשיו ברשימה עד {weekday}, {date}. / עוד שבועיים / עוד 4 שבועות / יהיה ברשימה עד {date} / לא עכשיו | Renew {name}? / On the list until {weekday}, {date}. / 2 more weeks / 4 more weeks / Will stay until {date} / Not now |
+| `mi.renewTitle` / `.now` / `.moreLabel` / `.result` / `.later` | לחדש את {name}? / עכשיו ברשימה עד {weekday}, {date}. / לכמה שבועות עוד / יהיה ברשימה עד {date} / לא עכשיו | Renew {name}? / On the list until {weekday}, {date}. / How many more weeks / Will stay until {date} / Not now |
 | `mi.renewTreeWarn` | אם לא תחדשו עד {date}, השם ייצא מהרשימה והסימון ״לרפואה״ בעץ יכובה. | If you don't renew by {date}, the name leaves the list and the "for recovery" mark in the tree is turned off. |
 | `mi.renewed` | חודש · עד {date} | Renewed · until {date} |
 | `mi.card.title` / `.line` / `.more` / `.button` | מי שברך לחולים · לחידוש / {name} · עד {weekday} / ועוד {n} / חידוש או הסרה | Mi Sheberach · to renew / {name} · until {weekday} / and {n} more / Renew or remove |
@@ -4658,6 +4695,9 @@ the short weekday ("יום א׳").
 | `admin.mi.settings` / `.text` / `.textDefault` / `.textOwn` | הגדרות / נוסח התפילה / ברירת מחדל / נוסח הקהילה | Settings / Prayer text / Default / Community's text |
 | `admin.mi.showAll` / `.showAllOff` / `.showAllOn` | חברי הקהילה רואים את כל השמות / חברים רואים רק את השמות שהם הוסיפו ואת מספר השמות ברשימה. / חברים רואים את כל השמות, בלי מי הוסיף. מי הוסיף רואים רק הגבאים. | Members see all names / Members see only the names they added and the total. / Members see all names, without who added them. Only the gabbaim see who added each. |
 | `admin.mi.before` / `.after` / `.restore` / `.textNote` | לפני השמות / אחרי השמות / שחזור הנוסח הרגיל / הנוסח נקבע לכל הקהילה. הנוסח הרגיל הוא נוסח אשכנז; קהילה בנוסח אחר מתקנת כאן. | Before the names / After the names / Restore the standard text / The text applies to the whole community. The standard is Ashkenazi; a community with another nusach edits it here. |
+| `admin.mi.maxWeeks` / `.maxWeeksValue` / `.lead` / `.leadSub` / `.leadValue` | תקופה מרבית / {n} שבועות / תזכורת לפני הסוף / כמה ימים לפני הסוף / {n} ימים | Longest period / {n} weeks / Reminder before the end / How many days before the end / {n} days |
+| `admin.mi.allowPermanent` / `.permanentOff` / `.permanentOn` / `.filterPermanent` | לאפשר שם קבוע (מחלה ממושכת) / כל שם נשאר לתקופה ומתחדש. / אפשר לבחור ״קבוע״: בלי תזכורות ובלי סוף, עד שמסירים. / קבועים · {p} | Allow a permanent name (long illness) / Every name stays for a period and is renewed. / "Permanent" can be chosen: no reminders and no end, until removed. / Permanent · {p} |
+| `admin.mi.periodNote` | שינוי חל על הוספות וחידושים מעכשיו. שמות שכבר ברשימה לא מתקצרים. | Applies to adds and renewals from now on. Names already on the list are not shortened. |
 | `admin.mi.columns` / `.order` / `.abc` / `.byAdded` / `.share` | עמודות / סדר השמות / לפי א״ב / לפי מועד ההוספה / שיתוף PDF | Columns / Order / Alphabetical / By date added / Share PDF |
 | `admin.mi.fit1` / `.fitN` | עמוד אחד / {p} עמודים · ב־3 עמודות נכנס בעמוד אחד | One page / {p} pages · Fits one page in 3 columns |
 | `print.mi.title` / `.for` / `.footer` / `.page` | מי שברך לחולים / לשבת פרשת {parasha} / {n} שמות · הודפס {weekday}, {date} / עמוד {p} מתוך {t} | Mi Sheberach for the sick / For Shabbat {parasha} / {n} names · Printed {weekday}, {date} / Page {p} of {t} |
@@ -4676,7 +4716,7 @@ real text (not an image), so a screen reader or a magnifier can read the PDF. Ta
 
 - **§4 "A. Member (4 tabs)" and M8 (מי שברך tab):** no tab; Kehila menu › מי שברך לחולים (§23.3).
 - **GM6's combined list and GD7 (מי שברך מאוחד):** management › תפילות וזמנים › מי שברך לחולים (§23.7).
-- **§8 question 2** (expiry after 30 days): answered by owner decision 6 (2 or 4 weeks, renew or leave).
+- **§8 question 2** (expiry after 30 days): answered by owner decision 6 and §23.5a (Kehila period settings).
 - **§17.15 "Future (not now)"** and `tree.ill.toGabbai` "(בקרוב)": joined here (§23.6).
 - **§20.1 row 41** (tech ✗): ✓, by the §20 override.
 - `origin/main`'s Mi Sheberach (a19c062): its renewal message in Messages, 30-day expiry and DD-MM-YYYY dates.
@@ -4688,9 +4728,8 @@ real text (not an image), so a screen reader or a magnifier can read the PDF. Ta
    "בעבור שכל הקהל…" and the Shabbat line.
 2. When a name's owner lets it leave, should members who tried to add the same name (and got "השם כבר ברשימה") be
    told? Assumed **no** (we don't store failed attempts); they can add it again.
-3. Reminder **3 days** before at 19:00, moved off Shabbat (§23.5), instead of the suggested 2 days. Confirm.
-4. A tree name with no mother's name prints with a blank "בן ______" (§23.6). Some communities use "בן שרה" (Sarah
-   Imeinu) instead; confirm the blank.
+*Items 2 and 4 decided by the owner (2026-10-29, round 2): no notice, and the blank stays. Item 3 is now a Kehila
+setting (§23.5a).*
 
 **For the CTO (not owner questions):** the job (every 5 minutes, as §21.4) does reminders and expiry in one pass;
 the conditional write on `key` for duplicates; `Person.miNameId` for a linked heart; Hebrew collation for the print
