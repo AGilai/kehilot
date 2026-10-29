@@ -153,3 +153,5 @@ class PostFieldsTest(unittest.TestCase):
         stored = self.repo.get_message(self.k, body['messageId'])
         self.assertNotIn('fields', stored)
         self.assertNotIn('templateId', stored)
+        for key in ('history', 'firstFields', 'changed'):
+            self.assertNotIn(key, stored)

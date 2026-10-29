@@ -13,6 +13,7 @@ COUNTER_TTL = 2 * 86400
 CHAT_COUNTER_TTL = 2 * 3600
 REPLY_PUSH_WINDOW = 15 * 60  # seconds between pushes for one message to one person
 MSG_PREFIX = 'MSG#'
+HISTORY_KEEP = 10
 
 try:
     from zoneinfo import ZoneInfo
@@ -208,6 +209,46 @@ class MessagesRepo:
         self.table.put_item(Item=item)
         return item
 
+    def update_message(self, k, message_id, *, title, body, template_id, fields, first_fields, changed, history_entry,
+                       updated_by, now, seen_updated_at):
+        """Change a live message in place (same id) and push the old text onto its history (the last HISTORY_KEEP
+        are kept). `first_fields` is only written once. One update_item, guarded by the `updatedAt` the caller read:
+        a concurrent update makes this 409 try_again; a message that is gone is 404."""
+        key = {'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'}
+        sets = ['title = :t', 'body = :b', 'templateId = :tid', '#f = :f', '#ff = if_not_exists(#ff, :ff)',
+                'updatedAt = :now', 'updatedBy = :by', 'history = list_append(if_not_exists(history, :none), :entry)']
+        values = {':t': title, ':b': body, ':tid': template_id, ':f': fields, ':ff': first_fields, ':now': now,
+                  ':by': updated_by, ':none': [], ':entry': [history_entry], ':false': False}
+        names = {'#f': 'fields', '#ff': 'firstFields'}
+        if changed:
+            sets.append('changed = :ch')
+            values[':ch'] = changed
+        guard = 'updatedAt = :seen' if seen_updated_at is not None else 'attribute_not_exists(updatedAt)'
+        if seen_updated_at is not None:
+            values[':seen'] = seen_updated_at
+        try:
+            attrs = self.table.update_item(
+                Key=key, UpdateExpression='SET ' + ', '.join(sets) + ('' if changed else ' REMOVE changed'),
+                ConditionExpression=f'attribute_exists(sk) AND removed = :false AND {guard}',
+                ExpressionAttributeNames=names, ExpressionAttributeValues=values, ReturnValues='ALL_NEW')['Attributes']
+        except ClientError as error:
+            if not _failed(error, 'ConditionalCheckFailedException'):
+                raise
+            current = self.get_message(k, message_id)
+            if not current or current.get('removed'):
+                raise ApiError(404, 'message_not_found')
+            raise ApiError(409, 'try_again')
+        if len(attrs['history']) > HISTORY_KEEP:
+            attrs['history'] = attrs['history'][-HISTORY_KEEP:]
+            try:
+                self.table.update_item(Key=key, UpdateExpression='SET history = :h',
+                                       ConditionExpression='attribute_exists(sk) AND updatedAt = :now',
+                                       ExpressionAttributeValues={':h': attrs['history'], ':now': now})
+            except ClientError as error:
+                if not _failed(error, 'ConditionalCheckFailedException'):
+                    raise  # a newer update trims on its own
+        return attrs
+
     def get_message(self, k, message_id):
         return self._get(f'K#{k}', f'{MSG_PREFIX}{message_id}')
 
@@ -240,7 +281,7 @@ class MessagesRepo:
         """Blank title and body and set the postsScrubbed marker (account deletion with "delete everything I posted"). Idempotent."""
         try:
             self.table.update_item(Key={'pk': f'K#{k}', 'sk': f'{MSG_PREFIX}{message_id}'},
-                                   UpdateExpression='SET title = :e, body = :e, postsScrubbed = :t REMOVE #f, templateId',
+                                   UpdateExpression='SET title = :e, body = :e, postsScrubbed = :t REMOVE #f, templateId, history, firstFields, changed',
                                    ConditionExpression='attribute_exists(sk)', ExpressionAttributeNames={'#f': 'fields'},
                                    ExpressionAttributeValues={':e': '', ':t': True})
         except ClientError as error:

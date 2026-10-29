@@ -32,3 +32,29 @@ def on_remove(repo, k, message):
     friday = message.get('sheetWeek')
     if friday:
         repo.delete_sheet_item(k, friday, message['sk'][len('MSG#'):])
+
+
+def on_update(repo, k, before, after, now):
+    """The message was updated: its sheet line updates by itself (the gabbai's override goes), and an event whose
+    week changed moves its item to the new week with the same state and source. Safe to repeat."""
+    old_week = before.get('sheetWeek')
+    if not old_week:
+        return
+    message_id = before['sk'][len('MSG#'):]
+    item = repo.get_sheet_item(k, old_week, message_id)
+    if not item:
+        return
+    if 'line' in item:
+        repo.update_sheet_item(k, old_week, message_id, {}, ['line'])
+    fields = after.get('fields') if after.get('templateId') else None
+    if after['type'] != 'event' or not fields:
+        return
+    friday = sheet_rules.week_for_post(now, 'event', fields).isoformat()
+    if friday == old_week:
+        return
+    moved = {key: item[key] for key in ('itemId', 'kind', 'type', 'group', 'state', 'source', 'wasPending',
+                                        'messageId', 'createdAt', 'approvedBy') if key in item}
+    repo.put_sheet_item(k, friday, {**moved, 'week': friday,
+                                    'order': sheet_rules.default_order('event', message_id, fields)})
+    repo.set_message_sheet_week(k, message_id, friday)
+    repo.delete_sheet_item(k, old_week, message_id)

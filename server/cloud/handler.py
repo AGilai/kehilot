@@ -119,6 +119,7 @@ ROUTES = [
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.post_message),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages$'), routes_messages.list_messages),
     ('GET', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)$'), routes_messages.get_message),
+    ('PUT', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)$'), routes_messages.update_message),
     ('DELETE', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)$'), routes_messages.remove_message),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/join$'), routes_messages.join),
     ('POST', re.compile(r'^/v1/kehilot/(?P<k>[^/]+)/messages/(?P<m>[^/]+)/read$'), routes_messages.read),

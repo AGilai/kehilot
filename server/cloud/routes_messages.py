@@ -32,6 +32,10 @@ def _message_json(item, read=None, viewer=None):
     if item.get('templateId'):
         out['templateId'] = item['templateId']
         out['fields'] = schedule_rules.plain(item.get('fields', {}))
+    if item.get('updatedAt') is not None:
+        out['updatedAt'] = int(item['updatedAt'])
+    if item.get('changed'):
+        out['changed'] = schedule_rules.plain(item['changed'])
     if item.get('image'):  # metadata only: the URL comes from GET .../image after a visibility check
         out['image'] = {'contentType': item['image']['contentType'], 'bytes': int(item['image']['bytes'])}
     if viewer:
@@ -242,7 +246,54 @@ def get_message(ctx, params):
                                            families.TargetMemo(ctx.repo, k))[params['m']]
     out = _message_json(item, bool(ctx.repo.read_flags(k, ctx.user_id, [params['m']])), viewer)
     out.update(private_replies.detail_fields(ctx.repo, k, ctx.user_id, item, channel))
+    if authz.role_in(membership, authz.MANAGEMENT) and item.get('history'):  # never in lists or the change feed
+        out['history'] = [{'title': h['title'], 'body': h['body'], 'at': int(h['at'])} for h in item['history']]
     return 200, out
+
+
+UPDATABLE_TYPES = ('event', 'condolence')
+
+
+def _may_update(ctx, k, membership, message):
+    """Management, the author, or (a condolence) an adult of the family it is for, from the family's live adults
+    now. Not families.target_adults, whose fallbacks would widen the set."""
+    if authz.role_in(membership, authz.MANAGEMENT) or message['authorId'] == ctx.user_id:
+        return True
+    if message['type'] != 'condolence' or not message.get('targetFamilyId'):
+        return False
+    family = ctx.repo.get_family(k, message['targetFamilyId'])
+    return bool(family) and ctx.user_id in {m['userId'] for m in ctx.repo.live_adults(k, family)}
+
+
+def update_message(ctx, params):
+    k, mid = params['k'], params['m']
+    membership = authz.require(ctx.repo, ctx.user_id, k, authz.ADULTS)
+    before, channel = _visible_message(ctx, k, membership, mid)
+    if not _may_update(ctx, k, membership, before):
+        raise ApiError(403, 'forbidden')
+    if before['type'] not in UPDATABLE_TYPES:
+        raise ApiError(409, 'not_updatable')
+    d = inputs.body_object(ctx)
+    title = inputs.text(d, 'title', 120, required=True)
+    body = inputs.text(d, 'body', 4000)
+    template_id = message_fields.TEMPLATE_OF_TYPE[before['type']]
+    fields = message_fields.validate_fields(template_id, d.get('fields'))
+    inputs.boolean(d, 'notify')  # applied by the notify step; validated here
+    first = schedule_rules.plain(before.get('firstFields') or before.get('fields') or fields)
+    changed = message_fields.event_changes(first, fields) if before['type'] == 'event' else {}
+    now = sheet_items._now()
+    stamp = int(now.timestamp())
+    seen = int(before['updatedAt']) if before.get('updatedAt') is not None else None
+    entry = {'title': before['title'], 'body': before['body'], 'at': int(before.get('updatedAt') or 0) or stamp,
+             'by': before.get('updatedBy') or before['authorId']}
+    item = ctx.repo.update_message(k, mid, title=title, body=body, template_id=template_id, fields=fields,
+                                   first_fields=first, changed=changed, history_entry=entry, updated_by=ctx.user_id,
+                                   now=stamp, seen_updated_at=seen)
+    sheet_items.on_update(ctx.repo, k, before, item, now)
+    ctx.repo.put_change(k, 'message', mid, item['channelId'])
+    viewer = private_replies.viewer_fields(ctx.repo, k, ctx.user_id, membership, [item], {item['channelId']: channel},
+                                           families.TargetMemo(ctx.repo, k))[mid]
+    return 200, {**_message_json(item, viewer=viewer), 'notified': False}
 
 
 def list_directory(ctx, params):

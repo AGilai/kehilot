@@ -81,3 +81,8 @@ def validate_fields(template_id, value):
         if key not in out:
             _checker.fail(key)
     return out
+
+
+def event_changes(first, new):
+    """{key: first value} for the date, time and place of an event that now differ from the first posted ones."""
+    return {key: first[key] for key in ('date', 'time', 'place') if new.get(key) != first.get(key)}

@@ -53,6 +53,8 @@ def kehila(ctx, params):
                              'bytes': int(info['bytes']), 'side': int(info['side'])} if info else None
     is_member = authz.role_in(membership, authz.ADULTS)
     if is_member:
+        family = ctx.repo.family_of(params['k'], ctx.user_id)  # the live family, never created here
+        extra['familyId'] = family['familyId'] if family else None
         extra['sheetMembers'] = sheet_rules.sheet_members(settings)
     cards = {'gabbaiLink': None, 'request': None, 'imported': bool(membership.get('importNotice')),
              'seatLink': None, 'phoneAsk': is_member and membership.get('phoneAsked') != consents.VERSIONS['phoneList'],
