@@ -351,7 +351,41 @@ class Smoke:
         fam_kinds = {c['kind'] for c in self.feed_until(fam1, self.cursors['fam1'], 'reply')['changes']}
         expect('feed_reply_visibility', 'reply_count' in gab_kinds and 'reply' not in gab_kinds
                and {'reply', 'reply_count'} <= fam_kinds, f'{gab_kinds} {fam_kinds}')
+        base = f'/v1/kehilot/{k}/messages/{m}'
+        status, body = self.call(fam2, 'POST', f'{base}/replies', {'body': 'Again'})
+        expect('second_reply_409', (status, body) == (409, {'error': 'already_replied'}), f'{status} {body}')
+        status, edited = self.call(fam2, 'PUT', f'{base}/replies/{reply["replyId"]}', {'body': 'Mazal tov, edited'})
+        expect('reply_edited', status == 200 and edited['body'] == 'Mazal tov, edited', f'{status} {edited}')
+        self.check_reply_to_author()
+        status, _ = self.call(fam2, 'DELETE', f'{base}/replies/{reply["replyId"]}')
+        expect('reply_deleted', status == 204, str(status))
+        seen = self.call(self.gab, 'GET', base)[1]
+        expect('replier_count_back_to_zero', seen['replierCount'] == 0, str(seen))
         print('PASS  check_private_reply')
+
+    def check_reply_to_author(self):
+        """A member's general message is answered privately: only the author's mailbox gets it, never the gabbai's."""
+        k, fam1, fam2 = self.k, self.people['fam1'], self.people['fam2']
+        channel = self.channels['announcements']['channelId']
+        self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam2[1]}', {'canBroadcast': True})
+        try:
+            status, msg = self.call(fam2[0], 'POST', f'/v1/kehilot/{k}/messages', {
+                'channelId': channel, 'type': 'general', 'title': 'Smoke general', 'body': ''})
+            expect('member_general_for_reply_posted', status == 201, f'{status} {msg}')
+            base = f'/v1/kehilot/{k}/messages/{msg["messageId"]}'
+            status, reply = self.call(fam1[0], 'POST', f'{base}/replies', {'body': 'Thanks!', 'to': 'author'})
+            expect('reply_to_author_201', status == 201 and reply['body'] == 'Thanks!', f'{status} {reply}')
+            status, inbox = self.call(fam2[0], 'GET', f'/v1/kehilot/{k}/replies/inbox')
+            expect('author_inbox_has_reply', status == 200 and any(t['message']['messageId'] == msg['messageId']
+                                                                  for t in inbox['threads']), f'{status} {inbox}')
+            expect('gabbai_replies_empty_for_author_reply',
+                   self.call(self.gab, 'GET', f'{base}/replies') == (200, []), 'gabbai saw a reply to the author')
+            status, _ = self.call(fam1[0], 'DELETE', f'{base}/replies/{reply["replyId"]}')
+            expect('reply_to_author_deleted', status == 204, str(status))
+            status, _ = self.call(fam2[0], 'DELETE', base)
+            expect('smoke_general_removed', status in (200, 204), str(status))
+        finally:
+            self.call(self.gab, 'PUT', f'/v1/kehilot/{k}/admin/members/{fam2[1]}', {'canBroadcast': False})
 
     def check_devices(self):
         token = f'ExponentPushToken[smoke-{secrets.token_hex(6)}]'
