@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P51 מי שברך לחולים · הדפסה</title>
+<style>
+/* Kehilot mockups · P49–P51 (UX-DESIGN §23). Self-contained: page tokens and the kit (--k-*, mirrors src/kit/theme.ts). */
+:root{
+  --board:#E4E7E0; --ink:#151A33; --ink2:#4B516E; --line2:#C5C9BC;
+  --tek:#2A3F94; --tek-bg:#E2E8F8; --deep:#161C44; --on-deep:#E9ECFA;
+  --f-serif:"Noto Serif Hebrew","David Libre","Times New Roman",serif;
+  --f-ui:"Heebo","Assistant","Segoe UI",Roboto,Arial,sans-serif;
+  --k-stone:#F6F7F2;--k-ink:#151A33;--k-tek:#2A3F94;--k-pom:#A32A47;--k-ash:#555B75;--k-gold:#8F6512;--k-olive:#44652A;--k-band:#161C44;--k-surface:#FFFFFF;--k-line:#DDE0D4;--k-muted:#555B75;--k-on:#FFFFFF;--k-danger:#A32A47;--k-tint:#DCE3F7;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --board:#090B16; --ink:#E9ECF8; --ink2:#A6ACC9; --line2:#3C4268; --tek:#93A8F2; --tek-bg:#1F2756; --deep:#0A0D24; color-scheme:dark;
+  --k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A;--k-tint:#2A3466}}
+:root[data-theme="dark"]{
+  --board:#090B16; --ink:#E9ECF8; --ink2:#A6ACC9; --line2:#3C4268; --tek:#93A8F2; --tek-bg:#1F2756; --deep:#0A0D24; color-scheme:dark;
+  --k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A;--k-tint:#2A3466}
+/* the two rows of phones are pinned to one theme each, whatever the device theme */
+.lt{--k-stone:#F6F7F2;--k-ink:#151A33;--k-tek:#2A3F94;--k-pom:#A32A47;--k-ash:#555B75;--k-gold:#8F6512;--k-olive:#44652A;--k-band:#161C44;--k-surface:#FFFFFF;--k-line:#DDE0D4;--k-muted:#555B75;--k-on:#FFFFFF;--k-danger:#A32A47;--k-tint:#DCE3F7}
+.dk{--k-stone:#10132A;--k-ink:#ECEEF7;--k-tek:#8FA2F0;--k-pom:#E8829A;--k-ash:#AEB4CC;--k-gold:#D9AD55;--k-olive:#93BC72;--k-band:#0A0D24;--k-surface:#1A1E3A;--k-line:#2E3358;--k-muted:#AEB4CC;--k-on:#10132A;--k-danger:#E8829A;--k-tint:#2A3466}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--board);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.45}
+a{color:inherit}
+button{font:inherit}
+svg.i{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+svg.i.s{width:20px;height:20px}
+svg.i.xs{width:16px;height:16px}
+
+/* page chrome */
+.bar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--deep);color:var(--on-deep)}
+.bar a{text-decoration:none;font-size:14px;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.28);white-space:nowrap}
+.bar .ttl{flex:1;min-width:0;display:grid}
+.bar .ttl b{font-family:var(--f-serif);font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .ttl span{font-size:12.5px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .pn{display:flex;gap:8px}
+.rowh{margin:24px 16px 0;font:700 18px/1.3 var(--f-serif);color:var(--ink)}
+.stage{padding:16px 16px 32px;display:flex;gap:28px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.stage.dk{background:#05060E;border-radius:0}
+.stage.dk .cap{color:#A6ACC9}
+.notes{max-width:760px;display:grid;gap:10px;font-size:14.5px;color:var(--ink2)}
+.notes h2{margin:0;font-family:var(--f-serif);font-size:18px;color:var(--ink)}
+.notes ul{margin:0;padding-inline-start:18px;display:grid;gap:8px}
+.notes b{color:var(--ink)}
+.xfig{margin:0;display:flex;flex-direction:column;gap:8px;align-items:center}
+.cap{font-size:13.5px;font-weight:700;color:var(--ink2);text-align:center;max-width:390px}
+
+/* phone */
+.phone{width:390px;height:844px;flex:none;border-radius:26px;outline:8px solid #14172b;position:relative;overflow:hidden;display:flex;flex-direction:column;margin:8px}
+.phone.kit{background:var(--k-stone);color:var(--k-ink)}
+.sb{height:24px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font-size:12px;font-weight:600;color:var(--k-ink)}
+.sb .ic{display:flex;gap:5px;align-items:center}
+.sb .ic i{display:block;width:12px;height:8px;border-radius:2px;background:currentColor;opacity:.85}
+.sb .ic i:last-child{width:18px;border-radius:3px}
+.gest{height:24px;flex:none;display:grid;place-items:center;background:var(--k-surface)}
+.gest::after{content:"";width:108px;height:4px;border-radius:2px;background:var(--k-ink);opacity:.55}
+.app{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+
+/* kit: top bar, band, scroll, tabs */
+.ktop{min-height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px}
+.ktop .kn{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-weight:700;text-decoration:none;color:inherit;min-height:48px;position:relative}
+.ktop .kn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xcv{color:var(--k-muted);flex:none}
+.xhd{position:absolute;top:8px;inset-inline-start:24px;width:10px;height:10px;border-radius:50%;background:var(--k-pom);border:2px solid var(--k-stone)}
+.klogo{width:32px;height:32px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--k-tek);color:var(--k-on);font-weight:700}
+.ktop .bell{width:48px;height:48px;display:grid;place-items:center;color:var(--k-ink)}
+.kband{flex:none;min-height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--k-band);color:#fff;font-weight:700}
+.kband small{font-size:14px}
+.kscroll{flex:1;min-height:0;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px;position:relative}
+.kscroll>*{flex:none}
+.kscroll.fade::after{content:"";position:absolute;inset-inline:0;bottom:0;height:36px;background:linear-gradient(to bottom,transparent,var(--k-stone));pointer-events:none}
+.ktabs{flex:none;display:flex;justify-content:center;border-top:1px solid var(--k-line);background:var(--k-surface)}
+.ktabs a{flex:1;max-width:227px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--k-muted);font-weight:700;font-size:12.5px;text-decoration:none;position:relative}
+.ktabs a b{display:grid;place-items:center;font-weight:400}
+.ktabs a.on{color:var(--k-tek)}
+.ktabs a.on::before{content:"";position:absolute;top:0;width:36px;height:3px;border-radius:0 0 3px 3px;background:var(--k-tek)}
+.ktabs .kbd{position:absolute;top:6px;inset-inline-start:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--k-pom);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
+
+/* kit: text, card, button, tag, banner, sheet */
+.kt{margin:0;font-size:16px;line-height:1.5}
+.kt.s{font-size:14px}.kt.c{font-size:12.5px}.kt.m{color:var(--k-muted)}
+.ktitle{margin:0;font:700 21px/1.5 var(--f-serif)}
+.knum{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+.kback{min-height:48px;display:flex;align-items:center;align-self:flex-start;color:var(--k-tek);font-weight:700;margin-bottom:-12px}
+.kc{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.kb{min-height:48px;padding:0 20px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;background:var(--k-tek);color:var(--k-on);font:700 16px/1.5 var(--f-ui)}
+.ktag{display:inline-flex;align-items:center;min-height:24px;padding:0 10px;border-radius:12px;border:1px solid var(--k-ash);background:var(--k-stone);color:var(--k-ash);font-size:12.5px;font-weight:700;white-space:nowrap}
+.ktag.st{border-color:var(--k-tek);color:var(--k-tek)}
+.kbn{border:1px solid var(--k-tek);border-inline-start-width:6px;border-radius:10px;background:var(--k-surface);padding:12px;display:flex;gap:8px;align-items:flex-start;font-size:14px;line-height:1.5}
+.kbn .i{color:var(--k-tek);margin-top:1px}
+.kscrim{position:absolute;inset:0;background:rgba(21,26,51,.5);z-index:5}
+.ksheet{position:absolute;inset-inline:0;bottom:0;z-index:6;max-height:85%;background:var(--k-stone);border-radius:20px 20px 0 0;padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.grab{display:block;width:36px;height:4px;border-radius:2px;background:var(--k-line);margin:0 auto}
+
+/* ListGroup + NavRow (§18.5) */
+.xgh{margin:6px 4px -4px;font-size:14px;font-weight:700;color:var(--k-muted)}
+.xl{background:var(--k-surface);border:1px solid var(--k-line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.xl.e{border-inline-start:6px solid var(--e,var(--k-pom))}
+.xl>.hd{margin:0;padding:12px 16px 4px;font:700 17px/1.4 var(--f-serif)}
+.xr{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 16px 8px 10px;padding-inline:16px 10px;border-top:1px solid var(--k-line);color:var(--k-ink);text-decoration:none}
+.xr:first-child,.xl>.hd+.xr{border-top:0}
+.xr>.i{color:var(--k-tek)}
+.xr .g{flex:1;min-width:0;display:flex;flex-direction:column}
+.xr .t{font-weight:700;font-size:16px;line-height:1.4}
+.xr .s{font-size:14px;line-height:1.4;color:var(--k-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xr .cv{color:var(--k-muted);width:20px;height:20px}
+.xr .v{font-size:14px;color:var(--k-muted);font-weight:700;white-space:nowrap}
+.xr.big{min-height:72px}
+.xr.xlocked>.i{color:var(--k-muted)}
+.bdg{flex:none;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--k-pom);color:#fff;font-size:12.5px;font-weight:700;display:grid;place-items:center}
+.xp{display:flex;gap:14px;align-items:center}
+.xav{width:56px;height:56px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--k-tek);color:var(--k-on);font:700 21px/1 var(--f-serif)}
+.xp .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.xp .n{margin:0;font:700 21px/1.35 var(--f-serif)}
+.xtags{display:flex;gap:6px;flex-wrap:wrap}
+.xlk{margin:0;display:flex;gap:6px;align-items:center;font-size:14px;color:var(--k-muted)}
+
+/* NEW: role Choice rows (radio) in the picker Sheet */
+.xps{gap:10px}
+.xchs{display:flex;flex-direction:column;gap:8px}
+.xch{min-height:64px;display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;border:1px solid var(--k-line);background:var(--k-surface)}
+.xch>i{flex:none;width:22px;height:22px;margin-top:2px;border-radius:50%;border:2px solid var(--k-muted);display:grid;place-items:center}
+.xch.on{border:2px solid var(--k-tek);padding:11px 13px}
+.xch.on>i{border-color:var(--k-tek)}
+.xch.on>i::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--k-tek)}
+.xch .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.xch b{font-size:16px}
+.xch .g span{font-size:14px;line-height:1.45;color:var(--k-muted)}
+
+/* hall without names */
+.xtt{display:flex;align-items:center;gap:10px}
+.xhall{gap:8px;padding:14px 12px}
+.hark{align-self:center;padding:2px 18px;border-radius:6px;border:1.5px solid var(--k-gold);color:var(--k-gold);font:700 13px/1.6 var(--f-serif)}
+.hgrid,.hbn{display:grid;grid-template-columns:14px repeat(6,1fr) 8px repeat(8,1fr) 8px repeat(6,1fr) 14px;gap:3px 2px;direction:ltr}
+.hbn{gap:0 2px;font-size:11.5px;font-weight:700;color:var(--k-muted);text-align:center}
+.hbn span:nth-child(2),.hbn span:nth-child(6){grid-column:span 6}
+.hbn span:nth-child(4){grid-column:span 8}
+.hl{font-size:10px;color:var(--k-muted);text-align:center;line-height:14px}
+.hs{display:block;height:14px;border-radius:3px}
+.hs.t{background:var(--k-tint);border:1px solid var(--k-tek)}
+.hs.f{border:1.5px dashed var(--k-muted)}
+.he,.ha{display:block}
+.hb{grid-column:span 4;grid-row:span 3;border-radius:6px;border:1.5px solid var(--k-ash);background:repeating-linear-gradient(135deg,transparent 0 4px,var(--k-line) 4px 5px);display:grid;place-items:center;font:700 12.5px var(--f-serif);color:var(--k-ash)}
+.hleg{display:flex;gap:14px;justify-content:center;font-size:12.5px;color:var(--k-muted)}
+.hleg span{display:inline-flex;align-items:center;gap:5px}
+.hleg i{display:inline-block;width:14px;height:12px}
+.hleg .hbx{border-radius:3px;border:1.5px solid var(--k-ash);background:repeating-linear-gradient(135deg,transparent 0 3px,var(--k-line) 3px 4px)}
+.xdl{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;font-size:14px}
+.xdl dt{color:var(--k-muted)}.xdl dd{margin:0;font-weight:700}
+.xtot{grid-template-columns:repeat(5,1fr);text-align:center;gap:0 4px}
+.xtot dt{grid-row:1}.xtot dd{grid-row:2;font-size:18px}
+
+@media (max-width:440px){
+  .stage.xst{padding:0 0 32px;gap:24px}
+  .stage.xst>.xfig{width:100%}
+  .stage.xst .phone{width:100%;margin:0;outline:0;border-radius:0}
+  .stage.xst>.notes{margin:0 16px}
+}
+
+
+
+/* from P48 */
+.xh{margin:0;font:700 28px/1.3 var(--f-serif)}
+.xday{margin:4px 4px -4px;font-size:13px;font-weight:700;color:var(--k-muted)}
+.lk{margin:0;display:flex;gap:6px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--k-muted)}
+.lk .i{width:16px;height:16px;margin-top:2px}
+.xpriv{margin:0;display:flex;gap:6px;align-items:center;font-size:13.5px;color:var(--k-muted)}
+.xpriv .i{width:16px;height:16px}
+.stbl{width:390px;max-width:100%;display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--k-stone);color:var(--k-ink);border-radius:16px}
+.stbl h3{margin:0;font-size:13px;color:var(--k-muted)}
+.as{display:flex;flex-direction:column}
+.as a{min-height:52px;display:flex;align-items:center;gap:12px;padding:0 4px;border-top:1px solid var(--k-line);color:var(--k-ink);text-decoration:none;font-weight:700}
+.as a:first-child{border-top:0}
+.as a .i{color:var(--k-tek)}
+.as a.first{color:var(--k-tek)}
+.sm{font-size:12.5px;color:var(--k-muted);margin:0}
+.nt{border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;background:rgba(255,255,255,.78);color:#111;text-align:start}
+.dk .nt{background:rgba(40,42,60,.9);color:#f2f2f6}
+.nt .h{display:flex;align-items:center;gap:8px;font-size:12.5px;opacity:.75}
+.nt .h .ap{width:20px;height:20px;border-radius:5px;background:#2A3F94;color:#fff;display:grid;place-items:center;font:700 12px var(--f-serif)}
+.nt .h .tm{margin-inline-start:auto}
+.nt .tt{font-weight:700;font-size:15px}
+.nt .bd{font-size:15px}
+.lockbg{border-radius:16px;padding:14px 10px;background:linear-gradient(170deg,#7d8fc9 0%,#b9a7c9 55%,#e8c9a8 100%);display:flex;flex-direction:column;gap:8px}
+.dk .lockbg{background:linear-gradient(170deg,#0b0f2a 0%,#1e2350 55%,#3a2f45 100%)}
+
+/* §23 additions (frame-only helpers) */
+:root{--k-heal:#B8507A}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--k-heal:#F2A6C0}}
+:root[data-theme="dark"]{--k-heal:#F2A6C0}
+.lt{--k-heal:#B8507A}.dk{--k-heal:#F2A6C0}
+.nm{margin:0;font:700 19px/1.4 var(--f-serif);overflow-wrap:anywhere}
+.nm.s{font-size:17px}
+.mrow{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;padding-inline:16px 6px;border-top:1px solid var(--k-line)}
+.xl>.mrow:first-child,.xl>.hd+.mrow{border-top:0}
+.mrow .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.mrow .sub{margin:0;font-size:14px;color:var(--k-muted);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.mrow .sub b.pm{color:var(--k-pom)}
+.mrow .mb{flex:none;width:48px;height:48px;display:grid;place-items:center;color:var(--k-muted);margin-top:-6px}
+.btns{display:flex;gap:8px;margin-top:6px}
+.btns .kb{min-height:40px;width:auto;padding:0 16px;font-size:15px}
+.kb.sec{background:var(--k-surface);color:var(--k-tek);border:1.5px solid var(--k-tek)}
+.kb.dan{background:var(--k-surface);color:var(--k-danger);border:1.5px solid var(--k-danger)}
+.kb.txt{background:transparent;color:var(--k-tek);min-height:44px}
+.kb.txt.dn{color:var(--k-danger)}
+.kb[aria-disabled="true"]{opacity:.45}
+.tg{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:0 8px;border-radius:11px;border:1px solid var(--k-ash);color:var(--k-ash);font-size:12px;font-weight:700;white-space:nowrap;background:var(--k-surface)}
+.tg .i{width:13px;height:13px;stroke-width:2}
+.tg.heal{border-color:var(--k-heal);color:var(--k-heal)}
+.tg.gold{border-color:var(--k-gold);color:var(--k-gold);border-style:dashed}
+.tg.new{border-color:var(--k-tek);color:var(--k-tek);background:var(--k-tint)}
+.cntl{margin:0;font-size:14px;font-weight:700;color:var(--k-ink)}
+.seg{display:flex;border:1px solid var(--k-line);border-radius:12px;background:var(--k-surface);padding:3px;gap:3px}
+.seg span{flex:1;min-height:40px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:9px;font-weight:700;font-size:15px;color:var(--k-muted)}
+.seg span.on{background:var(--k-tint);color:var(--k-tek);box-shadow:inset 0 0 0 2px var(--k-tek)}
+.seg span .i{width:16px;height:16px}
+.flab{margin:0;font-size:14px;font-weight:700}
+.fbox{background:var(--k-surface);border:1px solid var(--k-line);border-radius:10px;padding:10px 12px;font-size:16px;line-height:1.55;min-height:48px}
+.fbox.on{border:2px solid var(--k-tek);padding:9px 11px}
+.fbox.ta{min-height:150px;white-space:pre-line}
+.fhelp{margin:0;font-size:13px;color:var(--k-muted);line-height:1.45}
+.prow{display:flex;gap:6px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--k-line)}
+.prow:first-child{border-top:0}
+.prow .g{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.prow .fbox{min-height:44px;padding:7px 10px;font:700 17px/1.45 var(--f-serif)}
+.prow .fbox.gd{border:1.5px solid var(--k-gold)}
+.prow .fbox.dn{border:1.5px solid var(--k-danger)}
+.prow.mu .fbox{background:transparent;border-style:dashed;color:var(--k-muted);font-weight:500}
+.prow .x{flex:none;width:44px;height:44px;display:grid;place-items:center;color:var(--k-muted)}
+.st{margin:0;display:flex;gap:6px;align-items:flex-start;font-size:13.5px;line-height:1.4;font-weight:600}
+.st .i{width:16px;height:16px;margin-top:1px;stroke-width:2.2}
+.st.ok{color:var(--k-olive)}.st.gd{color:var(--k-gold)}.st.mu{color:var(--k-muted)}.st.dn{color:var(--k-danger)}
+.chk{align-self:flex-start;min-height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:18px;border:1.5px solid var(--k-gold);color:var(--k-ink);font-size:14px;font-weight:700;background:var(--k-surface)}
+.chk i{width:18px;height:18px;border-radius:4px;border:2px solid var(--k-muted)}
+.sheetfoot{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid var(--k-line);background:var(--k-stone)}
+.ksheet.tall{max-height:92%;top:auto}
+.ksheet .sc{display:flex;flex-direction:column;overflow:hidden;min-height:0;flex:1}
+.shh{display:flex;align-items:center;gap:8px}
+.shh .ktitle{flex:1;font-size:19px}
+.shh .bk{color:var(--k-tek);font-weight:700;font-size:15px;min-height:44px;display:flex;align-items:center}
+.res{margin:0;font-size:14px;color:var(--k-muted)}
+.res b{color:var(--k-ink)}
+.tgl{flex:none;width:52px;height:32px;border-radius:16px;background:var(--k-line);position:relative;box-shadow:inset 0 0 0 1px var(--k-muted)}
+.tgl::after{content:"";position:absolute;top:3px;inset-inline-end:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tgl.on{background:var(--k-tek)}
+.tgl.on::after{inset-inline-end:auto;inset-inline-start:3px}
+.xr .hd2{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.allg{display:grid;grid-template-columns:1fr;gap:0}
+.allg span{font:700 16px/1.45 var(--f-serif);padding:8px 16px;border-top:1px solid var(--k-line)}
+.allg span:first-child{border-top:0}
+.homecard{border-inline-start:6px solid var(--k-heal)}
+.homecard .hh{display:flex;gap:8px;align-items:center;color:var(--k-heal)}
+.homecard .hh b{font:700 17px/1.4 var(--f-serif);color:var(--k-ink)}
+.homecard ul{margin:0;padding:0;list-style:none;display:grid;gap:2px}
+.homecard li{font-size:15px}
+.homecard li b{font-family:var(--f-serif)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips span{min-height:36px;display:inline-flex;align-items:center;padding:0 12px;border-radius:18px;border:1px solid var(--k-line);background:var(--k-surface);font-size:14px;font-weight:700}
+.chips span.on{background:var(--k-ink);color:var(--k-stone);border-color:var(--k-ink)}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:14.5px}
+.dl dt{color:var(--k-muted)}.dl dd{margin:0;font-weight:700}
+.dl dd a{color:var(--k-tek)}
+.thumb{align-self:center;width:150px;height:212px;background:#fff;border:1px solid var(--k-line);border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);padding:10px 9px;display:flex;flex-direction:column;gap:5px;color:#151A33}
+.thumb i{display:block;height:3px;border-radius:2px;background:#C9CCD8}
+.thumb i.t{height:6px;width:60%;align-self:center;background:#151A33}
+.thumb .cl{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin:4px 0}
+.thumb .cl i{height:4px;background:#5A5F78}
+.fsheet{position:absolute;inset-inline:0;bottom:0;z-index:6;background:var(--k-stone);border-radius:20px 20px 0 0;padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.figure-chip{display:flex;gap:10px;align-items:center}
+.fdisc{width:52px;height:52px;border-radius:50%;background:var(--k-tint);display:grid;place-items:center;color:var(--k-tek);position:relative}
+.fdisc .bd{position:absolute;bottom:-3px;inset-inline-start:-3px;width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--k-heal);color:var(--k-heal);display:grid;place-items:center}
+.fdisc .bd .i{width:15px;height:15px}
+.miname{border:1px solid var(--k-line);border-inline-start:6px solid var(--k-olive);border-radius:12px;background:var(--k-surface);padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+.miname .ov{margin:0;font-size:12.5px;font-weight:700;color:var(--k-olive)}
+.miname .n{margin:0;font:700 22px/1.35 var(--f-serif)}
+/* A4 */
+.a4w{overflow:hidden;flex:none;border-radius:2px;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+.a4{width:794px;height:1123px;background:#fff;color:#151A33;padding:57px 57px 40px;display:flex;flex-direction:column;transform-origin:top right;direction:rtl;font-family:var(--f-serif)}
+.a4 .hdr{display:flex;align-items:center;gap:16px}
+.a4 .lg{width:53px;height:53px;border-radius:10px;background:#2A3F94;color:#fff;display:grid;place-items:center;font:700 28px var(--f-serif);flex:none}
+.a4 .kn{font:700 15px/1.3 var(--f-ui);width:150px}
+.a4 h1{flex:1;margin:0;text-align:center;font:700 35px/1.2 var(--f-serif)}
+.a4 .when{width:150px;text-align:end;font:600 14px/1.4 var(--f-ui)}
+.a4 .rl{height:0;border-top:1.5px solid #151A33;margin:14px 0 16px}
+.a4 .pr{margin:0;font:500 20px/1.65 var(--f-serif);text-align:justify}
+.a4 .pr small{font:400 14.5px/1.4 var(--f-ui);color:#6A6F86}
+.a4 .names{columns:2;column-gap:40px;column-rule:1px solid #D9DCE6;margin:16px 0;padding:6px 0;border-top:1px dotted #9BA0B6;border-bottom:1px dotted #9BA0B6}
+.a4 .names span{display:block;break-inside:avoid;white-space:nowrap;font:700 26.5px/1.5 var(--f-serif);padding:2px 0;border-bottom:.5px dotted #C9CCD8}
+.a4.c3 .names{columns:3;column-gap:26px}
+.a4.c3 .names span{font-size:21px;line-height:1.4}
+.a4 .ft{margin-top:auto;display:flex;justify-content:space-between;font:400 11px/1.3 var(--f-ui);color:#6A6F86}
+.a4 .blank{letter-spacing:.05em;color:#6A6F86}
+.paper-note{max-width:520px}
+.xfig{max-width:100%;min-width:0}
+.a4box{max-width:100%;overflow:auto}
+</style>
+</head>
+<body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="fwd" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="back" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="belloff" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4M4 4l16 16"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5 6.5-5s6.5 1.5 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c3 0 4.5 1.5 4.5 4"/></symbol>
+<symbol id="send" viewBox="0 0 24 24"><path d="M3 12L21 4l-6 16-3-7z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="chair" viewBox="0 0 24 24"><path d="M7 3h10v9H7zM5 12h14v3H5zM8 15v6M16 15v6"/></symbol>
+<symbol id="mega" viewBox="0 0 24 24"><path d="M3 10v4h4l8 4V6L7 10zM18 9a4 4 0 0 1 0 6"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+<symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="scroll" viewBox="0 0 24 24"><path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V6a2 2 0 0 0-2-2zM9 20H6"/><path d="M11 9h4M11 13h4"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="heart" viewBox="0 0 24 24"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+<symbol id="tree" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.5"/><rect x="3" y="16" width="6" height="5" rx="1.5"/><rect x="15" y="16" width="6" height="5" rx="1.5"/><path d="M12 8v4M6 16v-4h12v4"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></symbol>
+<symbol id="out" viewBox="0 0 24 24"><path d="M10 4H5v16h5M14 8l-4 4 4 4M10 12h10"/></symbol>
+<symbol id="door" viewBox="0 0 24 24"><path d="M6 20V4h9v16M15 20h3M11 12h.01"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 8V4h10v4M6 17H4v-7h16v7h-2M7 14h10v6H7z"/></symbol>
+<symbol id="upload" viewBox="0 0 24 24"><path d="M12 16V5M7 9l5-5 5 5M5 20h14"/></symbol>
+<symbol id="star" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5l-5.3 2.9 1.2-6-4.5-4.1 6-.7z"/></symbol>
+<symbol id="tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></symbol>
+<symbol id="lang" viewBox="0 0 24 24"><path d="M4 6h9M8.5 4v2M11 6c-1 4-3.5 7-7 8.5M6 9c1.3 2.4 3.4 4.3 6 5.2M13 20l4-9 4 9M14.5 17h5"/></symbol>
+<symbol id="hand" viewBox="0 0 24 24"><path d="M5 12h3l3 3h3a2 2 0 0 1 0 4H9M5 9h4l3-3h3a2 2 0 0 1 0 4"/></symbol>
+<symbol id="alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+<symbol id="cog" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol><symbol id="reply" viewBox="0 0 24 24"><path d="M14 7l5 5-5 5M19 12h-9a5 5 0 0 0-5 5v1"/></symbol>
+<symbol id="inbox" viewBox="0 0 24 24"><path d="M4 13l2.5-8h11L20 13v6H4zM4 13h5l1 2h4l1-2h5"/></symbol><symbol id="hp" viewBox="0 0 24 24"><path d="M12 20.6s-7.8-4.7-7.8-10.4A4.4 4.4 0 0 1 12 7.5a4.4 4.4 0 0 1 7.8 2.7c0 5.7-7.8 10.4-7.8 10.4z"/><path d="M5 12.6h3.4l1.5-2.8 2.3 5.2 1.7-3.4H19"/></symbol><symbol id="share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 12v8h14v-8"/></symbol><symbol id="undo" viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-2"/></symbol></defs></svg>
+<header class="bar"><a href="../index.html">→ כל העיצובים</a><div class="ttl"><b>P51 · מי שברך לחולים · הדפסה</b><span>UX-DESIGN §23.9: A4 לאורך, 2 או 3 עמודות.</span></div><nav class="pn"><a href="P50.html" aria-label="הקודם">הקודם</a></nav></header>
+<main><h2 class="rowh">בהיר</h2><div class="stage xst lt"><figure class="xfig"><figcaption class="cap">1 · A4 לאורך, 2 עמודות (ברירת מחדל), 14 שמות</figcaption><div class="a4box"><div class="a4w" style="width:492px;height:696px"><div class="a4" style="transform:scale(0.62)" role="img" aria-label="דף מי שברך לחולים, 2 עמודות"><div class="hdr"><div class="lg">א</div><div class="kn">קהילת אור הדוגמה</div><h1>מי שברך לחולים</h1><div class="when">לשבת פרשת וירא<br>כ׳ בחשוון (31.10)</div></div><div class="rl"></div><p class="pr">מִי שֶׁבֵּרַךְ אֲבוֹתֵינוּ אַבְרָהָם יִצְחָק וְיַעֲקֹב, מֹשֶׁה וְאַהֲרֹן, דָּוִד וּשְׁלֹמֹה, הוּא יְבָרֵךְ וִירַפֵּא אֶת הַחוֹלִים:</p><div class="names"><span>אברהם בן שרה</span><span>דבורה בת חנה</span><span>דוד בן ישי</span><span>חיים בן אסתר</span><span>חנה בת פנינה</span><span>יוסף בן רחל</span><span>יעקב בן רבקה</span><span>מירים בת שולמית</span><span>מרים בת שולמית</span><span>משה בן יוכבד</span><span>נועה בת <span class="blank">______</span></span><span>פלוני אלמוני</span><span>רחל בת מרים</span><span>שרה בת לאה</span></div><p class="pr">בַּעֲבוּר שֶׁכָּל הַקָּהָל הַקָּדוֹשׁ הַזֶּה מִתְפַּלְּלִים בַּעֲבוּרָם. בִּשְׂכַר זֶה הַקָּדוֹשׁ בָּרוּךְ הוּא יִמָּלֵא רַחֲמִים עֲלֵיהֶם, לְהַחֲלִימָם וּלְרַפְּאֹתָם וּלְהַחֲזִיקָם וּלְהַחֲיוֹתָם, וְיִשְׁלַח לָהֶם מְהֵרָה רְפוּאָה שְׁלֵמָה מִן הַשָּׁמַיִם לְכָל אֵבְרֵיהֶם וּלְכָל גִּידֵיהֶם, בְּתוֹךְ שְׁאָר חוֹלֵי יִשְׂרָאֵל, רְפוּאַת הַנֶּפֶשׁ וּרְפוּאַת הַגּוּף, <small>[בשבת:]</small> שַׁבָּת הִיא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא, <small>[ביום טוב: יוֹם טוֹב הוּא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא,]</small> הַשְׁתָּא בַּעֲגָלָא וּבִזְמַן קָרִיב, וְנֹאמַר אָמֵן.</p><div class="ft"><span>14 שמות · הודפס יום ה׳, י״ח בחשוון (29.10)</span><span>קהילת אור הדוגמה</span></div></div></div></div></figure><figure class="xfig"><figcaption class="cap">2 · אותו דף, 3 עמודות, 44 שמות בעמוד אחד</figcaption><div class="a4box"><div class="a4w" style="width:492px;height:696px"><div class="a4 c3" style="transform:scale(0.62)" role="img" aria-label="דף מי שברך לחולים, 3 עמודות"><div class="hdr"><div class="lg">א</div><div class="kn">קהילת אור הדוגמה</div><h1>מי שברך לחולים</h1><div class="when">לשבת פרשת וירא<br>כ׳ בחשוון (31.10)</div></div><div class="rl"></div><p class="pr">מִי שֶׁבֵּרַךְ אֲבוֹתֵינוּ אַבְרָהָם יִצְחָק וְיַעֲקֹב, מֹשֶׁה וְאַהֲרֹן, דָּוִד וּשְׁלֹמֹה, הוּא יְבָרֵךְ וִירַפֵּא אֶת הַחוֹלִים:</p><div class="names"><span>אברהם בן חנה</span><span>אברהם בן רבקה</span><span>אהרן בן חנה</span><span>אהרן בן רבקה</span><span>אליהו בן יוכבד</span><span>אליהו בן שולמית</span><span>אסתר בת אסתר</span><span>אסתר בת שרה</span><span>בנימין בן לאה</span><span>בנימין בן רחל</span><span>ברוך בן מרים</span><span>ברוך בן פנינה</span><span>גילה בת מרים</span><span>גילה בת פנינה</span><span>דבורה בת לאה</span><span>דבורה בת רחל</span><span>דוד בן אסתר</span><span>דוד בן שרה</span><span>הדסה בת יוכבד</span><span>הדסה בת שולמית</span><span>זהבה בת רבקה</span><span>חיים בן חנה</span><span>חנה בת יוכבד</span><span>טובה בת שרה</span><span>יהודית בת לאה</span><span>יוסף בן מרים</span><span>יעקב בן פנינה</span><span>יצחק בן רחל</span><span>לאה בת אסתר</span><span>מנחם בן שולמית</span><span>מרים בת רבקה</span><span>משה בן חנה</span><span>נחום בן יוכבד</span><span>נעמי בת שרה</span><span>עזרא בן לאה</span><span>פנינה בת מרים</span><span>צביה בת פנינה</span><span>ראובן בן רחל</span><span>רבקה בת אסתר</span><span>רחל בת שולמית</span><span>שלמה בן רבקה</span><span>שמואל בן חנה</span><span>שרה בת יוכבד</span><span>תמר בת שרה</span></div><p class="pr">בַּעֲבוּר שֶׁכָּל הַקָּהָל הַקָּדוֹשׁ הַזֶּה מִתְפַּלְּלִים בַּעֲבוּרָם. בִּשְׂכַר זֶה הַקָּדוֹשׁ בָּרוּךְ הוּא יִמָּלֵא רַחֲמִים עֲלֵיהֶם, לְהַחֲלִימָם וּלְרַפְּאֹתָם וּלְהַחֲזִיקָם וּלְהַחֲיוֹתָם, וְיִשְׁלַח לָהֶם מְהֵרָה רְפוּאָה שְׁלֵמָה מִן הַשָּׁמַיִם לְכָל אֵבְרֵיהֶם וּלְכָל גִּידֵיהֶם, בְּתוֹךְ שְׁאָר חוֹלֵי יִשְׂרָאֵל, רְפוּאַת הַנֶּפֶשׁ וּרְפוּאַת הַגּוּף, <small>[בשבת:]</small> שַׁבָּת הִיא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא, <small>[ביום טוב: יוֹם טוֹב הוּא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא,]</small> הַשְׁתָּא בַּעֲגָלָא וּבִזְמַן קָרִיב, וְנֹאמַר אָמֵן.</p><div class="ft"><span>44 שמות · הודפס יום ה׳, י״ח בחשוון (29.10)</span><span>קהילת אור הדוגמה</span></div></div></div></div></figure><figure class="xfig"><figcaption class="cap">3 · בגודל אמיתי (חלק עליון)</figcaption><div style="max-width:100%;overflow:auto;border-radius:2px"><div class="a4box"><div class="a4w" style="width:794px;height:620px"><div class="a4" style="transform:scale(1.0)" role="img" aria-label="דף בגודל מלא"><div class="hdr"><div class="lg">א</div><div class="kn">קהילת אור הדוגמה</div><h1>מי שברך לחולים</h1><div class="when">לשבת פרשת וירא<br>כ׳ בחשוון (31.10)</div></div><div class="rl"></div><p class="pr">מִי שֶׁבֵּרַךְ אֲבוֹתֵינוּ אַבְרָהָם יִצְחָק וְיַעֲקֹב, מֹשֶׁה וְאַהֲרֹן, דָּוִד וּשְׁלֹמֹה, הוּא יְבָרֵךְ וִירַפֵּא אֶת הַחוֹלִים:</p><div class="names"><span>אברהם בן שרה</span><span>דבורה בת חנה</span><span>דוד בן ישי</span><span>חיים בן אסתר</span><span>חנה בת פנינה</span><span>יוסף בן רחל</span><span>יעקב בן רבקה</span><span>מירים בת שולמית</span><span>מרים בת שולמית</span><span>משה בן יוכבד</span><span>נועה בת <span class="blank">______</span></span><span>פלוני אלמוני</span><span>רחל בת מרים</span><span>שרה בת לאה</span></div><p class="pr">בַּעֲבוּר שֶׁכָּל הַקָּהָל הַקָּדוֹשׁ הַזֶּה מִתְפַּלְּלִים בַּעֲבוּרָם. בִּשְׂכַר זֶה הַקָּדוֹשׁ בָּרוּךְ הוּא יִמָּלֵא רַחֲמִים עֲלֵיהֶם, לְהַחֲלִימָם וּלְרַפְּאֹתָם וּלְהַחֲזִיקָם וּלְהַחֲיוֹתָם, וְיִשְׁלַח לָהֶם מְהֵרָה רְפוּאָה שְׁלֵמָה מִן הַשָּׁמַיִם לְכָל אֵבְרֵיהֶם וּלְכָל גִּידֵיהֶם, בְּתוֹךְ שְׁאָר חוֹלֵי יִשְׂרָאֵל, רְפוּאַת הַנֶּפֶשׁ וּרְפוּאַת הַגּוּף, <small>[בשבת:]</small> שַׁבָּת הִיא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא, <small>[ביום טוב: יוֹם טוֹב הוּא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא,]</small> הַשְׁתָּא בַּעֲגָלָא וּבִזְמַן קָרִיב, וְנֹאמַר אָמֵן.</p><div class="ft"><span>14 שמות · הודפס יום ה׳, י״ח בחשוון (29.10)</span><span>קהילת אור הדוגמה</span></div></div></div></div></div></figure></div><h2 class="rowh">כהה</h2><div class="stage xst dk"><figure class="xfig"><figcaption class="cap">הדף מודפס תמיד בהיר</figcaption><p class="sm" style="color:#A6ACC9">אין גרסה כהה להדפסה. ראו את השורה הבהירה.</p></figure></div>
+<div class="stage xst"><aside class="notes"><h2>P51 · מי שברך לחולים · הדפסה (UX-DESIGN §23)</h2><ul><li><b>מבנה:</b> כותרת (לוגו, "מי שברך לחולים", לשבת פרשת…, תאריך עברי ולועזי בסוגריים) → נוסח "לפני השמות" → השמות → נוסח "אחרי השמות" → שורת תחתית קטנה.</li>
+<li><b>גופן גדול לבימה:</b> שמות סריף מודגש 20pt בשתי עמודות, 16pt בשלוש; הנוסח 15pt עם ניקוד. לא מקטינים מתחת לזה: רשימה ארוכה עוברת לעמוד שני, שום שם לא נחתך.</li>
+<li><b>סדר:</b> לפי א״ב (ברירת מחדל, כך שמות דומים יוצאים זה ליד זה), או לפי מועד ההוספה.</li>
+<li><b>בלי</b> מי הוסיף, בלי תאריכים ובלי תגיות. שם מהעץ בלי שם האם מודפס עם קו ריק.</li>
+<li>הנוסח הוא טיוטה בנוסח אשכנז, לבדיקת רב או עורך ילידי.</li><li>כל השמות בדויים.</li></ul></aside></div></main>
+</body>
+</html>

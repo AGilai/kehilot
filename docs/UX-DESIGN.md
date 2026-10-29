@@ -61,7 +61,7 @@ A gabbai also uses the member app in that Kehila; M6 offers "מצב ניהול" 
 
 ## 4. Information architecture
 
-**A. Member (bottom bar, 4 tabs).** Listener has 3: no Mi Sheberach tab.
+**A. Member (bottom bar, 4 tabs).** Listener has 3: no Mi Sheberach tab. *(Superseded: the app has three tabs; Mi Sheberach is in the Kehila menu, §23.3.)*
 
 ```
  בית            הודעות             מי שברך          אני
@@ -93,7 +93,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 | M5 | העדפות התראות | Channels, message types, "התראה על שידורי חברים" (management only), mute specific members, locked private replies. Banner: mute only affects notifications. | Device push permission off: banner with a button to settings. |
 | M6 | החלפת קהילה | Sheet with all Kehilot, role chip, unread, management-mode shortcut, join by invite link. | Single Kehila: chip shows no chevron. |
 | M7 | אני | Name, standing (א, household head, tribe), personal, spouse, children, yahrzeits, settings. Each group opens an edit screen (no mockup for the edit forms: reuse today's fields, new styling). | Listener: only name and phone. |
-| M8 | מי שברך | Add name (name and mother's name), my list with dates, delete with confirm. | Empty: "הוסיפו שם לרפואה." |
+| M8 | ~~מי שברך~~ **Superseded by §23 (P49):** no tab; Kehila menu › מי שברך לחולים. | Add name (name and mother's name), my list with dates, delete with confirm. | Empty: "הוסיפו שם לרפואה." |
 | M9 | מקומות בשבת | Allocated seats shown as chairs per prayer (Arvit, Shacharit). Tap a chair to release it. Deadline, save. | Special event: wording becomes "needed seats", chairs start empty. Closed: read-only. Not allocated: "פנו לגבאי". |
 | M10 | בית, מתפלל אורח | Zmanim, "בקשת חברות" card (shows who invited), open channels, locked rows for what members get. | Request sent: card becomes "הבקשה נשלחה, ממתינה לגבאי". Approved: tabs appear at once. |
 | M11 | הצטרפות בקישור | Landing from invite: Kehila, inviter, short registration, "כבר יש לי חשבון". | Expired link: "הקישור פג. בקשו מחבר קישור חדש." No form. |
@@ -108,7 +108,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 | GM3 | פרסום הודעה | Type, recipients (all members or a channel), title, body, pin, notify, schedule. Recipient count at the bottom. |
 | GM4 | חברים והרשאות | Search, filters, bulk "התר לכולם / חסום לכולם" (confirm with count), per-row broadcast switch, lock for gabbaim. |
 | GM5 | מקומות לשבת | Needed / released / allocated per prayer as bars, households not reported with a reminder button, copy summary. |
-| GM6 | Combined Mi Sheberach, member card, invite link creation (no mockup) | List with copy; invite link with expiry. |
+| GM6 | Combined Mi Sheberach (superseded by §23.7), member card, invite link creation (no mockup) | List with copy; invite link with expiry. |
 
 ### C. Gabbai, desktop
 
@@ -120,7 +120,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 | GD4 | סגל ועליות | Roster with tribe, derived class (דור ב, חתן), last aliyah, 12-month meter. Per-person aliyah timeline, manual add with audit mark. |
 | GD5 | מקומות בשבת | Event strip (parasha, mode, allocation, deadline), one chart per prayer, households table with "not reported" filter, bulk reminder, print, copy. |
 | GD6 | הודעות | All messages with a "member broadcasts" filter, read rate, preview, remove with optional reason sent to the author, pin. |
-| GD7 | מי שברך מאוחד (no mockup) | Combined list, names with member, date, print for the service. |
+| GD7 | ~~מי שברך מאוחד (no mockup)~~ **Superseded by §23.7 (P50, P51).** | Combined list, names with member, date, print for the service. |
 | GD8 | Platform admin: create Kehila (no mockup, low priority) | Name, city, first gabbai invite. |
 
 ## 6. Key flows
@@ -171,7 +171,7 @@ IDs match `design/mockups/frames/<id>.html`. "(no mockup)" screens are specified
 ## 8. Open questions for the user
 
 1. **Shabbat quiet mode:** hold notifications from candle lighting to nightfall and deliver them after? (Shown as a suggestion in M5.)
-2. **Mi Sheberach expiry:** remind members after 30 days to renew or remove a name?
+2. **Mi Sheberach expiry:** remind members after 30 days to renew or remove a name? *Answered (owner, 2026-10-29): 2 or 4 weeks, renew or the name leaves (§23.5).*
 3. Should gabbaim see private replies to a mazal tov or condolence, or only the family?
 4. Rejected newcomers: may they re-request, and after how long?
 5. Invite link: expiry (7 days?), single use or many, who may create one (every member?).
@@ -2761,18 +2761,21 @@ mother's-name field ("השם העברי של אמא", saved also on the mother's
 does not turn it on again. Turning it off (recovery) removes the badge and the name from the sick list, silently — no
 message to anyone. Same visibility as the rest of the tree (family and the Kehila's gabbaim, §17.11).
 
-**Future (not now):** sending the names to the gabbai's Mi Sheberach list for the sick, its preview, and how long a
-name stays. The M8 "מי שברך" tab and this flag will be joined then.
+**Joined with the Mi Sheberach list (§23, 2026-10-29).** Turning the heart on now also asks for a period (2 or 4
+weeks) and puts the name on the Kehila's list for the sick, owned by whoever turned it on; it is renewed like any
+name, and a name that leaves the list turns the heart off. Deceased still clears it silently. The sheet line "(בקרוב)"
+becomes "ברשימת מי שברך לחולים עד {date}" with "חידוש ‹" in the renewal window. Details, duplicates and a missing
+mother's name: §23.6.
 
 **Data.** `Person.ill: boolean` (default false; only when `deceased` is false). Mi Sheberach name =
 `hebrewFirst + בן/בת + motherHebrewFirst` (§17.5).
 
 | Key | Hebrew | English |
 |---|---|---|
-| `tree.ill.button` / `.confirm` / `.yes` | סימון כחולה · לרפואה שלמה / לסמן את {name} כחולה? השם יופיע במי שברך לחולים. / כן, לרפואה שלמה | Mark as ill · for a full recovery / Mark {name} as ill? The name will appear in the Mi Sheberach for the sick. / Yes, for a full recovery |
+| `tree.ill.button` / `.confirm` / `.yes` | סימון כחולה · לרפואה שלמה / לסמן את {name} כחולה? (changed by §23.12: + `.adds` and the period) / כן, לרפואה שלמה | Mark as ill · for a full recovery / Mark {name} as ill? (see §23.12) / Yes, for a full recovery |
 | `tree.dec.button` / `.confirm` / `.yes` / `.caption` | סימון כנפטר/ה / לסמן את {name} כנפטר/ה? יופיע נר נשמה ו״ז״ל״, ושדות תאריך הפטירה ייפתחו. / כן, לסמן / נפטר/ה · {hdate} | Mark as deceased / Mark {name} as deceased? A memorial candle and ז״ל will appear, and the date-of-death fields open. / Yes, mark / Deceased · {hdate} |
 | `tree.ill.badge` / `.a11y` / `.legend` | לרפואה / חולה, לרפואה שלמה / לרפואה שלמה | For recovery / Ill, for a full recovery / For a full recovery |
-| `tree.ill.nameTitle` / `.toGabbai` | השם למי שברך לחולים / השם יישלח לגבאי למי שברך לחולים (בקרוב) | Mi Sheberach name for the sick / The name will be sent to the gabbai for the Mi Sheberach (coming soon) |
+| `tree.ill.nameTitle` / `.toGabbai` | השם למי שברך לחולים / ברשימת מי שברך לחולים עד {date} (§23.6; was "השם יישלח לגבאי למי שברך לחולים (בקרוב)") | Mi Sheberach name for the sick / On the Mi Sheberach list until {date} |
 
 Frames: P31 (שרה, the grandmother, is ill in the test family), P32 (her sheet with the heart on; Avraham's with the
 candle lit; confirm panels for both; the missing-mother panel), P34 section 5 (both styles, light and dark, tile and header size).
@@ -3512,7 +3515,7 @@ become one test: call the route as a tech and expect the result in the last colu
 | 38 | Seat answers: Kehila-wide totals ("61 מתוך 84 ענו") | — | ✓ in principle | Counts without names are allowed, but not built in v1. The seating group's status line for a tech is the layout ("225 מקומות · בתוקף מ־י״ט באלול (1.9)"; dates follow the §2 rule) |
 | 39 | שמחות קרובות (§17.14) | `GET admin/simchas` | ✗ | 403 (children's names and birthdays from the trees). The whole group **שמחות ועליות** is hidden |
 | 40 | עליות לתורה (reserved) | — | ✗ | names, the name for an aliyah, history per person |
-| 41 | Combined Mi Sheberach / healing names list (§17.15, GD7) | — | ✗ | names of the sick |
+| 41 | Combined Mi Sheberach list for the sick (§23.7: all names, adders, CRUD, print, text, the visibility switch) | `admin/mi*` | ✓ (§20 override; was ✗) | 200, exactly as a gabbai, adders included |
 | 42 | Push "family_gabbai", gabbai edits of a family | — | ✗ | — |
 
 **Pushes a tech gets:** join requests (`request`), and group join requests where a group has no admin (with the
@@ -4266,3 +4269,438 @@ Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P48 
 state panels at 390 × 844 in light and dark, and the page at 390 wide (no horizontal scroll). Not checked: real
 devices, 360-wide Android, English, screen readers, the long-press gesture itself, web fonts, and the wide layout (the
 mailbox follows the 680 content column of M3; not drawn).
+
+## 23. מי שברך לחולים (Mi Sheberach for the sick)
+
+Added 2026-10-29 from the owner's decisions of the same day (binding). Frames: `P49` (member: the Kehila menu row,
+my list, adding with the preview, renewing, the tree heart with a period, the states panel), `P50` (management: the
+list, a name's Sheet, the print options, the prayer text and the visibility switch), `P51` (the A4 print, 2 and 3
+columns), at 390 × 844, light and dark; the A4 at 794 × 1123. All names are invented. "Management" means gabbai or
+tech (§20 override: a tech has every gabbai permission). This section fulfils §17.15 "Future (not now)" and replaces
+M8, GM6's combined list and GD7. Noam's build on `origin/main` (a19c062) was read for its rules only: its 30-day
+expiry, renewal through Messages and Gregorian-only dates are not carried over.
+
+**Owner decisions (2026-10-29, binding).**
+1. **Purpose:** the gabbai prints the list of the sick for the Mi Sheberach.
+2. **Two sources:** (a) the heart (ill) on a family-tree figure (§17.15; name = `hebrewFirst` + בן/בת + the mother's
+   Hebrew first name), (b) free names typed or pasted by a member.
+3. **Only Kehila members add** (member, gabbai, tech). Listeners do not see the feature at all.
+4. **Adding** takes one name or a pasted list split by commas or new lines. **A preview shows each parsed name on
+   its own line** before saving; the user fixes or removes lines and confirms. Nothing unchecked reaches the list.
+5. **Deleting** (recovery, etc.) only by the name's **owner** (whoever added it) or **management**.
+6. **Period:** the adder picks **2 or 4 weeks** (default 2). Nothing longer, no permanent names. Near the end the owner
+   is asked to renew for 2 or 4 more weeks; **no answer = the name leaves the list.** The same for tree names, and a
+   tree name that leaves also **turns the heart off** (the reminder says so). **The push never contains the sick
+   person's name.**
+7. **Management** sees every name with full CRUD, who added it and its end date. **Print:** the full Mi Sheberach
+   text for the sick (plural), then the names, then the closing; A4 **portrait**, **2 columns** (3 as an option), a
+   large font for reading at the bimah. The text is a **Kehila-editable** setting with an Ashkenazi default.
+8. **Members reach their screen from the Kehila menu** (§18.2a).
+9. **Duplicates:** a name already on the list is ignored; the first adder stays its owner; the later adder sees "השם
+   כבר ברשימה". Near-matches are **flagged in the preview, never merged.**
+10. **Kehila switch "חברי הקהילה רואים את כל השמות", default off.** Off: a member sees only the names they added and
+    the total count. On: all names, **never who added them**. Only management sees adders.
+
+Calls marked **(my call)** below are the designer's; the open items for the owner are in §23.15.
+
+### 23.1 Terms and data
+
+- **Name** (`MiName`): one line on the list. Fields: `id`, `kehilaId`, `text` (as shown and printed), `key`
+  (normalized, §23.4), `source: 'free' | 'tree'`, `personId` (tree only), `ownerUserId`, `addedAt`, `weeks: 2 | 4`
+  (the last choice), `endsOn` (Israel date, inclusive), `editedAt?`, `reminderSentAt?`.
+- **Owner**: the account that added the name. For a tree name: the family adult who turned the heart on.
+- **End date**: the name is on the list through the whole of `endsOn` and leaves at 00:00 Israel time after it.
+  `endsOn = added date + 14 or 28 days` (added Thursday → ends Thursday two weeks later, two Shabbatot covered).
+- **Renewal window**: from the reminder day (§23.5) until the end of `endsOn`.
+- **Kehila settings** (`mi`): `showAll: bool` (default false), `opening` and `closing` (text; `null` = the default of
+  §23.8), `columns: 2 | 3` (the last print's choice, default 2), `order: 'abc' | 'added'` (default `'abc'`),
+  `lastPrintAt` (ms, or null).
+- A tree name's `text` is **not stored**: it is computed from the tree at every read (`hebrewFirst` + בן/בת +
+  `motherHebrewFirst`, §17.5), so a fix in the tree shows on the list at once. Its `key` is recomputed on each tree
+  save.
+- The old `healing_prayers` data on `origin/main` is not migrated (different architecture; the owner's Kehila will
+  re-enter its names).
+
+### 23.2 Who sees what
+
+| | Listener | Member (switch off) | Member (switch on) | Gabbai / tech |
+|---|---|---|---|---|
+| Kehila menu row, the screen | ✗ | ✓ | ✓ | ✓ (their own screen as members, plus management) |
+| Total count | ✗ | ✓ | ✓ | ✓ |
+| Names I added (with end date, renew, edit, delete) | ✗ | ✓ | ✓ | ✓ |
+| Other members' names | ✗ | ✗ | ✓, names only, no adder, no dates | ✓ |
+| Who added a name, added / end dates of others | ✗ | ✗ | ✗ | ✓ |
+| "חדש מאז ההדפסה" marks | ✗ | ✗ | ✗ | ✓ |
+| Print | ✗ | ✗ | ✗ | ✓ |
+
+The family tree's own rules are unchanged (§17.11): family and management see the heart. A member never learns who
+added a name, not through the duplicate message, a near-match flag, the count or an error. Server rule: every
+member-facing response is filtered on the server; the app never receives adders it may not show.
+
+### 23.3 The member's screen (P49 phones 1, 2, 6)
+
+**Entry (owner): Kehila menu › "מי שברך לחולים"**, a `NavRow` after "עץ המשפחה" with the `heartPulse` icon in
+`k.heal` (the §17.15 heart). Status line: "{n} שמות שלכם · {m} לחידוש" (the part after the dot bold pomegranate,
+with the 10 px dot, tone `attention`), "{n} שמות שלכם", or "עוד לא הוספתם שמות" (muted). Shown to adults only
+(`ADULTS`: member, gabbai, tech); `menuRows` gains `'mi'` after `'tree'`. No bottom tab (§4's "מי שברך" tab is gone;
+the built app has three tabs).
+
+**The screen** (stack screen, back "› " to where it was opened, title "מי שברך לחולים"):
+
+1. A muted line: "השמות נקראים בבית הכנסת במי שברך לחולים. הגבאים מדפיסים את הרשימה." and the **count line**
+   (`Txt small bold`): "ברשימה כרגע {N} שמות · {n} מהם הוספתם" (one name: "שם אחד").
+2. Primary Button **"הוספת שמות"** (`plus`).
+3. **לחידוש** (only when something is in its renewal window): `ListGroup` with a pomegranate start edge (as
+   "לטיפול עכשיו"). One row per name: the name (serif 19), "מסתיים {weekday}, {dual date}" in bold pomegranate, and two
+   40-high buttons: primary **"חידוש"** (→ the renew Sheet, §23.5) and secondary **"הסרה"** (→ confirm).
+4. **השמות שהוספתי · {n}**: one row per name, by end date (soonest first). Row: the name (serif 19, wraps, never
+   cut); under it "עד {weekday}, {dual date}" muted; a tree name adds the Tag **"מהעץ"** (`heartPulse`, rose
+   border) before the date. A free name with no בן/בת keeps a quiet gold "בלי בן/בת" Tag (the hint stays after saving,
+   never blocks). End: a `more` button (48) → the name's Sheet:
+   - free name: "עריכת השם" (the same Field with the §23.4 checks, single line), "חידוש" (enabled only in the renewal
+     window; before it the row is disabled with the caption "אפשר לחדש מ־{dual date}"), danger **"הסרה מהרשימה"**;
+   - tree name: the line "השם מגיע מעץ המשפחה. מתקנים אותו בדמות ב{relation}." then **"פתיחה בעץ המשפחה ‹"** (opens
+     P32 on that figure), "חידוש" (as above), danger **"הסרה מהרשימה"** (also turns the heart off; the confirm says so).
+   Delete confirm (`Sheet`): "להסיר את {name} מהרשימה?" / free: "השם לא ייקרא עוד במי שברך." / tree: "השם לא ייקרא
+   עוד במי שברך, והסימון ״לרפואה״ בעץ יכובה." Buttons "הסרה" (danger) / "ביטול". Toast "הוסר מהרשימה. רפואה שלמה."
+   Edit and delete save at once. No undo (my call): removing is rare and deliberate, and the name can be added again.
+5. **כל השמות ברשימה · {N}** (only when the Kehila switch is on): a plain list of names (serif 17, two columns at
+   ≥ 600, one on a phone), the same order as the print (§23.9), my own names without a mark. No adders, no dates, no
+   actions. A muted line above: "רק השמות. מי הוסיף כל שם רואים רק הגבאים."
+6. **יצאו מהרשימה לאחרונה** (my call; only when there is one, for 7 days after it left): muted rows "{name}" with
+   "יצא ב־{dual date}" (or "הוסר בידי הגבאים") and a text button **"הוספה מחדש"** (opens the add Sheet with that name
+   filled in). Only names that **expired or were removed by management**: a name the owner removed, and a name removed
+   because the figure was marked deceased, are not shown (§23.6).
+
+**Empty** (no names of mine): a Card instead of groups 3–4: title "עוד לא הוספתם שמות", body "אפשר להוסיף שם אחד או
+רשימה. השמות נשארים שבועיים או ארבעה, ואפשר לחדש.", and the count line still shows the Kehila total. **List empty
+for the whole Kehila:** "הרשימה ריקה כרגע." under the count.
+
+### 23.4 Adding: parsing, the preview, normalization, duplicates (P49 phones 3, 4)
+
+**Step 1: the add Sheet** (85% high; full screen on web ≥ 1024 as a 560 dialog):
+- Title "הוספת שמות למי שברך".
+- A multi-line `Field` "שמות" (min 5 lines, grows to 10, then scrolls), placeholder "פלוני בן פלונית", helper "שם אחד
+  בכל שורה, או כמה שמות מופרדים בפסיק. בן/בת ושם האם, כמו שקוראים בבית הכנסת."
+- **"לכמה זמן"**: `Segmented` "שבועיים" | "4 שבועות" (default שבועיים), with the result under it: "עד {weekday},
+  {dual date}" (muted). One period for the whole batch; each name can be renewed on its own later.
+- Primary **"המשך לבדיקה"** (disabled while the field has no letters). Secondary "ביטול".
+
+**Parsing (for the developer, client and server share one function, `src/mi/parse.ts`):**
+1. Split on new lines and on `,` `،` `;` (my call: semicolons too). Never split on spaces or on "ו".
+2. On each piece: trim; drop a leading list mark (`1.` `1)` `-` `•` `*` `–`); collapse runs of spaces; drop pieces
+   with no letters.
+3. Up to **30 names** per add; more → the preview shows the first 30 and a gold Banner "אפשר להוסיף עד 30 שמות בכל
+   פעם. השאר לא נכנסו." (the rest stay in step 1's field when the user goes back).
+
+**Step 2: the preview** (same Sheet, back arrow "› עריכה" returns to step 1 with the text as edited lines):
+- Title "בדיקת השמות", a line "{k} שמות ייכנסו · עד {dual date}".
+- One row per parsed name, in the pasted order. Each row is the name in a single-line `Field` (editable in place,
+  serif 17), a status line under it (icon + words, never colour alone), and a 48 `x` button "הסרת השורה". Editing a
+  line re-checks it at once (debounce 300 ms for the server check).
+- Primary **"הוספה לרשימה ({k})"**: adds only rows in state ✓ or "hint". Disabled when k = 0. Secondary "ביטול".
+
+| Row state | Status line (he) | Look | Saved? |
+|---|---|---|---|
+| OK | ייכנס לרשימה | `check` olive | yes |
+| No בן/בת (hint) | אין "בן" או "בת". נהוג: שם + בן/בת + שם האם. | `alert` gold; Field border gold | yes (never blocks) |
+| Not Hebrew letters (hint) | השם לא בעברית. כך הוא יודפס. | `alert` gold | yes |
+| Near-match (§ below) | דומה ל״{other}״ שכבר ברשימה. אם זה אותו אדם, הסירו את השורה. / without permission to see it: יש ברשימה שם דומה מאוד. אם זה אותו אדם, הסירו את השורה. | `alert` gold, plus a `Chip` **"זה שם אחר, להוסיף"** that must be tapped | only after the chip is tapped |
+| Exact duplicate on the list | השם כבר ברשימה. לא יתווסף שוב. | `check` muted, row text muted, no Field | no (ignored; the owner stays) |
+| Twice in this paste | מופיע כבר למעלה. לא יתווסף פעמיים. | `x` muted | no |
+| Too long | עד 60 תווים. קצרו את השם. | `alert` danger, Field error | no (blocks only this row) |
+
+**Normalization (`key`), owner rule 9; one function `src/mi/normalize.ts` with a Python twin tested on shared
+fixtures.** Applied to compare only; the stored `text` keeps what the user wrote, cleaned (trimmed, single spaces,
+list marks dropped).
+1. Unicode NFC, then remove niqqud and cantillation (U+0591–U+05C7 except U+05BE maqaf, which step 3 handles).
+2. Remove geresh ׳ (U+05F3), gershayim ״ (U+05F4) and every quote or apostrophe (U+0022, U+0027, U+0060, U+00B4,
+   U+2018–U+201F).
+3. Maqaf `־`, hyphen, en dash, dot, comma → space.
+4. Final letters → regular (ך→כ, ם→מ, ן→נ, ף→פ, ץ→צ).
+5. Latin to lower case; collapse spaces; trim.
+So "יוֹסֵף בֶּן שָׂרָה", "יוסף בן שרה" and "יוסף  בן־שרה" are one name.
+
+**Near-match (flag only, never merged):** after normalizing, two keys are near when (a) they are equal after removing
+every י and ו (full and defective spelling: "מרים" / "מירים"), or (b) they differ by one letter (Levenshtein 1) and are
+at least 6 letters long, or (c) they are equal after dropping a title word at the start (הרב, הרבנית, ר, מרת, ד"ר →
+after step 2 "דר"). The check runs against **every** name on the Kehila's list, but the other name's text is shown only
+if the user may see it (§23.2): their own names, or all when the switch is on (my call; otherwise the flag would leak
+a name the member cannot see). An exact duplicate reveals nothing new: it is the user's own text.
+
+**After saving:** the Sheet closes, Toast "נוספו {k} שמות · עד {dual date}" (one: "השם נוסף · עד …"). If some rows
+were exact duplicates, the Toast is replaced by an info `Banner` at the top of the screen for 8 s: "{k} נוספו. {d}
+כבר היו ברשימה ולא נוספו שוב." The server checks again on save (another member may have added the same name in the
+meantime) and answers per row: `added | duplicate | near` (near only if the client sent it unconfirmed).
+
+**Limits (my calls):** 60 characters per name; 30 names per add; 2,000 characters in step 1's field (the counter
+"{n}/2000" appears from 1,800); **40 live names per owner** (tree names included), over it: Banner "אפשר עד 40 שמות
+לכל חבר. הסירו שם שכבר לא צריך." and "הוספה לרשימה" disabled.
+
+### 23.5 Period, reminder, renewal and expiry (P49 phone 5, the states panel)
+
+**The reminder (my call on the owner's 2-day suggestion): 3 days before the end date, at 19:00 Israel time.** If that
+moment falls on Friday, Shabbat, Yom Tov or its eve, it moves to the last weekday before, at 19:00. Why 3 and not 2:
+a 2-week name added on a weekday often ends on the same weekday after Shabbat, and "2 days before" then lands on
+Friday or Shabbat (no push on Shabbat, and Friday afternoon is lost). Three days with the shift always leaves at
+least two weekday evenings to answer. The reminder job runs every 5 minutes (as §21.4), once per name per period
+(idempotency key: name id + `endsOn`).
+
+**Push** (one per owner per run, grouped): title "{kehila}", body **"יש שם ברשימת מי שברך לחולים שמחכה לחידוש."** /
+plural **"יש {n} שמות ברשימת מי שברך לחולים שמחכים לחידוש."** Never a name, never "tree", never the end date. Data
+`{kehila, screen: 'mi'}` opens the member screen (switching Kehila if needed). Fixed system text, not in
+`admin/push-texts`; it obeys the device permission only (it is about the user's own entry, like replies to them).
+No second push: the in-app card carries the rest.
+
+**In the app (my call: Home, not Messages):** from the reminder until the end date, a **one-time card on Home** in
+the P7 slot, priority right after the partner request: `Card` with `edgeColor={k.heal}`, `heartPulse` icon, title
+"מי שברך לחולים · לחידוש", one line per name (max 3, then "ועוד {n}"): "{name} · עד {weekday}" and one primary
+Button "חידוש או הסרה" → the member screen scrolled to "לחידוש". Not a feed message: Messages is the Kehila's voice
+and its rows can be seen by people looking over a shoulder in shul; Home's card is the user's own. Also the Kehila
+menu row's status (§23.3). The card disappears when nothing waits.
+
+**The renew Sheet** (from "חידוש"): title "לחדש את {name}?", a line "עכשיו ברשימה עד {weekday}, {dual date}.",
+`Segmented` "עוד שבועיים" | "עוד 4 שבועות" (default: the name's last period), the result "יהיה ברשימה עד {dual
+date}", primary **"חידוש"**, then a text button **"הסרה מהרשימה"** (danger, → confirm), and "לא עכשיו". A tree name
+adds a gold line: "אם לא תחדשו עד {dual date}, השם ייצא מהרשימה והסימון ״לרפואה״ בעץ יכובה." Renewal adds to the
+**current end date** (an early renewal loses no days): `endsOn += 14 | 28`. It is possible only inside the renewal
+window, so a name is never much more than 4 weeks ahead (at most 33 days, when the reminder moved off Shabbat). Toast "חודש · עד {dual date}".
+
+**Expiry:** at 00:00 after `endsOn` with no renewal, the server deletes the name (and turns the heart off for a tree
+name: `Person.ill = false`, silently, no push). The owner sees it for 7 days under "יצאו מהרשימה לאחרונה" with
+"הוספה מחדש". The gabbai's list just no longer has it.
+
+**Renewing a tree name from the tree:** the person sheet (P32) shows, under the Mi Sheberach name card, "ברשימת מי
+שברך עד {dual date}" and, in the renewal window, a link "חידוש ‹" (same Sheet).
+
+### 23.6 The tree heart (§17.15 joined, P49 phone 7)
+
+- **Turning the heart on** now asks for the period: the §17.15 confirm becomes "לסמן את {name} כחולה?" with the line
+  "{miName} ייכנס לרשימת מי שברך לחולים.", the same "לכמה זמן" `Segmented` (default שבועיים) with "עד {dual date}",
+  and "כן, לרפואה שלמה" / "ביטול". On confirm: `Person.ill = true` and a tree `MiName` with the turner as owner.
+- **Name incomplete** (no mother's name): the heart can be turned on; the list and print show "{hebrewFirst} בן/בת
+  ______" (a blank the gabbai can write in, **my call**), the member's row shows the gold Tag "חסר שם האם", and the
+  gabbai's row the same. The tree's gold missing-name state (§17.15) already asks for it.
+- **Already on the list** (the computed key equals a live name): the heart turns on, **no second name is created**,
+  and the sheet says "השם כבר ברשימת מי שברך (נוסף בידי חבר אחר)." The heart is then linked to that name
+  (`Person.miNameId`): when that name leaves the list for any reason, the heart turns off too. To own it, turn the
+  heart on again after it left. (My call: one name on the list, one rule for the heart.)
+- **Turning the heart off** = removing the name, silently (§17.15 rule kept). Any adult who can edit the tree may do
+  it (tree rights, my call: this is the one exception to owner rule 5, because both partners edit the family's
+  figures). If the heart was only linked to someone else's name, turning it off leaves that name alone.
+- **Marked deceased** (§17.15): clears `ill` and **removes the name silently**: no push, no "יצאו מהרשימה" row, the
+  reminder is cancelled. A free name of the same person is untouched (the app cannot know it is the same person; its
+  owner removes it).
+- **Editing the figure** (name, mother's name, gender) changes the list name at once. If the new key collides with
+  another live name, the tree name stays (it was first) and the gabbai sees both with the near/duplicate flag (§23.7).
+- **Owner leaves the family or the Kehila:** a tree name passes to the other adult of the family if they are in the
+  Kehila (they get the reminders); otherwise it runs to its end date and expires. A free name of an owner who leaves
+  runs to its end date with no reminder (nobody to ask); management can delete or renew it at any time.
+- §17.15's line "השם יישלח לגבאי למי שברך לחולים (בקרוב)" becomes "ברשימת מי שברך לחולים עד {dual date}"
+  (`tree.ill.toGabbai`, changed).
+
+### 23.7 Management: the list (P50 phones 1–3 and 5)
+
+**Where:** management › **תפילות וזמנים** › **"מי שברך לחולים"**, third row after הגיליון השבועי (§18.3; it is
+printed for the service, like the sheet). Status: "{n} שמות · {k} חדשים מאז ההדפסה" (or "· הודפס {weekday}"). No
+"לטיפול עכשיו" row (nothing waits for the gabbai). Gabbai and tech alike. Wide (≥ 1024): the same screen in the
+content column, the list as a table (שם · הוסיף/ה · נוסף · עד · מקור · פעולות) with a sticky A4 preview on the end
+side (specified, not drawn).
+
+**The screen:**
+1. Back "› תפילות וזמנים", title "מי שברך לחולים", a muted line "{n} שמות · הדפסה אחרונה: {weekday}, {dual date}"
+   ("עוד לא הודפס").
+2. Two buttons in a row: primary **"הדפסה"** (`print`, → print options, §23.9) and secondary **"הוספת שמות"** (the
+   same add flow as §23.4; management becomes the owner of what it adds and gets its reminders).
+3. Filter `Chip`s (radio): "הכול · {n}" · "חדשים מאז ההדפסה · {k}" · "מסתיימים השבוע · {e}". Search Field ("חיפוש
+   שם או מי שהוסיף") when n > 15.
+4. The list, in print order (§23.9). Row (min 64): the name (serif 18, wraps); Tags: **"חדש"** (tekhelet; added after
+   the last print), **"שונה"** (ash; edited after it), **"מהעץ"** (rose), **"דומה"** (gold, when its key is near
+   another live name: the gabbai decides), **"חסר שם האם"** (gold); a muted line "{adder} · נוסף {d.m} · עד {weekday},
+   {dual date}". Tap or `more` → the name's Sheet. Marks are on screen only, never printed (owner).
+5. **הגדרות** (a `ListGroup` at the end): "נוסח התפילה" (value "ברירת מחדל" / "נוסח הקהילה" → editor, §23.8) and the
+   **Toggle "חברי הקהילה רואים את כל השמות"** with the helper by state: off "חברים רואים רק את השמות שהם הוסיפו ואת
+   מספר השמות ברשימה."; on "חברים רואים את כל השמות, בלי מי הוסיף. מי הוסיף רואים רק הגבאים." Saves at once with a
+   Toast.
+
+**The name's Sheet (gabbai):** the name (free: an editable Field with the §23.4 checks; tree: read-only with "השם מגיע
+מעץ המשפחה של {family}. מתקנים בעץ."), a label/value list: "הוסיף/ה" (name; phone link if the gabbai sees it, §18.2),
+"נוסף" (dual date), "עד" (dual date), "תקופה" (שבועיים / 4 שבועות), "חודש" (count, when renewed). Actions:
+"חידוש" (`Segmented` 2/4; for management the new end is **today + 14 | 28**, any time, so the gabbai can extend a name
+whose owner is away, still never more than 4 weeks ahead), "שמירה" for an edited name, danger **"הסרה מהרשימה"**
+(confirm "להסיר את {name}? מי שהוסיף/ה יראה שהשם הוסר."). A tree name removed by management turns the heart off; the
+owner sees "הוסר בידי הגבאים" under "יצאו מהרשימה לאחרונה" (no push). Management's edits keep the owner.
+
+**Empty:** "אין כרגע שמות ברשימה." and "הדפסה" disabled with the caption "אין מה להדפיס".
+
+### 23.8 The prayer text (P50 phone 6)
+
+Management › … › מי שברך לחולים › הגדרות › **"נוסח התפילה"**: a stack screen with two multi-line Fields,
+**"לפני השמות"** and **"אחרי השמות"** (each up to 1,500 characters, niqqud allowed, serif 17), a live preview of the
+top of the A4, "שחזור הנוסח הרגיל" (text button; confirm), and "שמירה". A line on top: "הנוסח נקבע לכל הקהילה. הנוסח
+הרגיל הוא נוסח אשכנז; קהילה בנוסח אחר מתקנת כאן." **Text in square brackets** prints smaller and in grey, for
+instructions to the reader (used below for the Shabbat words).
+
+**Default (Ashkenazi, plural, for the whole list). For review by a rabbi or a native editor before release (owner
+item 1).**
+
+> **לפני השמות:** מִי שֶׁבֵּרַךְ אֲבוֹתֵינוּ אַבְרָהָם יִצְחָק וְיַעֲקֹב, מֹשֶׁה וְאַהֲרֹן, דָּוִד וּשְׁלֹמֹה, הוּא יְבָרֵךְ
+> וִירַפֵּא אֶת הַחוֹלִים:
+>
+> **אחרי השמות:** בַּעֲבוּר שֶׁכָּל הַקָּהָל הַקָּדוֹשׁ הַזֶּה מִתְפַּלְּלִים בַּעֲבוּרָם. בִּשְׂכַר זֶה הַקָּדוֹשׁ בָּרוּךְ הוּא
+> יִמָּלֵא רַחֲמִים עֲלֵיהֶם, לְהַחֲלִימָם וּלְרַפְּאֹתָם וּלְהַחֲזִיקָם וּלְהַחֲיוֹתָם, וְיִשְׁלַח לָהֶם מְהֵרָה רְפוּאָה שְׁלֵמָה
+> מִן הַשָּׁמַיִם לְכָל אֵבְרֵיהֶם וּלְכָל גִּידֵיהֶם, בְּתוֹךְ שְׁאָר חוֹלֵי יִשְׂרָאֵל, רְפוּאַת הַנֶּפֶשׁ וּרְפוּאַת הַגּוּף,
+> [בשבת:] שַׁבָּת הִיא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא, [ביום טוב: יוֹם טוֹב הוּא מִלִּזְעֹק וּרְפוּאָה קְרוֹבָה לָבוֹא,]
+> הַשְׁתָּא בַּעֲגָלָא וּבִזְמַן קָרִיב, וְנֹאמַר אָמֵן.
+
+Review points: "בעבור שכל הקהל הקדוש הזה מתפללים בעבורם" (the congregational form, instead of a pledge to tzedakah);
+"לכל אבריהם ולכל גידיהם" versus "לרמ״ח אבריהם ושס״ה גידיהם"; the niqqud; whether the Shabbat line should print
+plainly (the list is printed on Friday for Shabbat; Monday and Thursday readers skip it).
+
+### 23.9 The print (P50 phone 4, P51)
+
+**Print options** (Sheet from "הדפסה"): "עמודות" `Segmented` **2** | 3 (default: the last choice, first time 2);
+"סדר השמות" `Segmented` **לפי א״ב** | לפי מועד ההוספה; the fit line ("עמוד אחד" / "2 עמודים · ב־3 עמודות נכנס בעמוד
+אחד"); a thumbnail of page 1; primary **"הדפסה"** and secondary **"שיתוף PDF"** (phone share sheet). Both fetch a fresh
+list first (as Noam's rule: no stale print; on failure an error Banner and nothing opens), record `lastPrintAt`, and
+save the two choices for the Kehila. "חדש" marks clear from that moment.
+
+**Order (my call): alphabetical by default** (Hebrew collation on `key`, so niqqud and quotes do not move a name).
+At the bimah order does not matter to the listener, but the reader and the gabbai find a name faster, and a
+near-duplicate pair ends up side by side where the gabbai spots it. "By date added" (oldest first) is the option.
+
+**The A4 (portrait, margins 15 mm):**
+1. Header: the Kehila logo (or letter tile) 14 mm and name at the start; at the end "לשבת פרשת {X}" and the dual date
+   ("כ׳ בחשוון (31.10)"); between them the title **"מי שברך לחולים"** (Noto Serif Hebrew 26 pt). A hairline.
+2. "לפני השמות": serif 15 pt, line height 1.6, full width, justified; bracket text 11 pt grey.
+3. The names: **2 columns, serif bold 20 pt** (3 columns: 16 pt), line height 1.5, a 0.3 pt dotted rule between names,
+   columns filled top to bottom, the first column on the right. A name never breaks across lines in 2 columns at
+   60 characters; in 3 columns it may wrap with a hanging indent. A name never splits across columns or pages.
+4. "אחרי השמות": as 2, after the last name, kept whole (moves to the next page with at least the last 3 names).
+5. Footer (8 pt grey): "{n} שמות · הודפס {weekday}, {dual date}" and the page number "עמוד 1 מתוך 2" when there are
+   two pages.
+
+Capacity, as a guide: one page holds the texts plus about 30 names in 2 columns or 54 in 3. Fitting rule: never
+shrink below the sizes above; a long list goes to a second page. Nothing is ever cut or dropped. Tree names with a
+missing mother's name print with the blank (§23.6). The print never shows adders, dates or marks.
+
+### 23.10 Edge cases
+
+| Case | What happens |
+|---|---|
+| Same name added by two members at once | The server's write is conditional on the key; the second gets `duplicate` and "השם כבר ברשימה" |
+| The owner removes a name another member had tried to add (duplicate) | It leaves. The later adder was told and owns nothing; they may add it again (open point 2) |
+| Owner deletes their account | Free names: deleted with the account (they are the owner's data). Tree names: §23.6 |
+| A member becomes a listener | Their names stay to their end date with no reminder; management can renew |
+| The switch is turned off | Members' "כל השמות" group disappears at the next load; nothing is deleted |
+| A free name is edited to equal another name | Refused like a duplicate on that row ("השם כבר ברשימה") |
+| Renew after the name left | The renew call returns 410; the app shows "השם כבר יצא מהרשימה. אפשר להוסיף אותו מחדש." with "הוספה מחדש" |
+| Delete without permission (lost role, someone else's name) | 403; "אפשר להסיר רק שמות שהוספתם." and the list reloads |
+| Offline | The screen shows the last loaded list with the offline line; add, renew, edit and delete are disabled |
+| Data export (my data) | My names: text, added, end, source. Never others' |
+| Two Kehilot | Lists are per Kehila; a tree heart creates a name only in the Kehila where it was turned on (the tree is per Kehila) |
+
+### 23.11 Errors
+
+Save failed: the Sheet stays with the rows as they are, error Banner "לא הצלחנו לשמור. השמות לא נוספו. נסו שוב." Load
+failed: "לא הצלחנו לטעון את הרשימה." with "נסו שוב". Print fetch failed: "לא הצלחנו להביא את הרשימה העדכנית. לא
+הודפס." Field errors are linked to their Field (§19.2).
+
+### 23.12 Copy
+
+`{name}` is the Mi Sheberach name, LTR-isolated where mixed; `{date}` is a dual date per §2 (`dualDate`), `{weekday}`
+the short weekday ("יום א׳").
+
+| Key | Hebrew | English |
+|---|---|---|
+| `mi.title` | מי שברך לחולים | Mi Sheberach for the sick |
+| `kehila.menu.mi` / `.miStatus` / `.miRenew` / `.miNone` | מי שברך לחולים / {n} שמות שלכם / {m} לחידוש / עוד לא הוספתם שמות | Mi Sheberach for the sick / {n} of your names / {m} to renew / You haven't added names |
+| `mi.intro` | השמות נקראים בבית הכנסת במי שברך לחולים. הגבאים מדפיסים את הרשימה. | The names are read in shul in the Mi Sheberach for the sick. The gabbaim print the list. |
+| `mi.count` / `.countOne` | ברשימה כרגע {N} שמות · {n} מהם הוספתם / ברשימה כרגע שם אחד | {N} names on the list · {n} added by you / 1 name on the list |
+| `mi.add` | הוספת שמות | Add names |
+| `mi.group.renew` / `.mine` / `.all` / `.ended` | לחידוש / השמות שהוספתי · {n} / כל השמות ברשימה · {N} / יצאו מהרשימה לאחרונה | To renew / Names I added · {n} / All names on the list · {N} / Recently left the list |
+| `mi.allNote` | רק השמות. מי הוסיף כל שם רואים רק הגבאים. | Names only. Only the gabbaim see who added each one. |
+| `mi.until` / `.ends` / `.renewFrom` | עד {weekday}, {date} / מסתיים {weekday}, {date} / אפשר לחדש מ־{date} | Until {weekday}, {date} / Ends {weekday}, {date} / Can be renewed from {date} |
+| `mi.tag.tree` / `.noBenBat` / `.noMother` / `.new` / `.edited` / `.near` | מהעץ / בלי בן/בת / חסר שם האם / חדש / שונה / דומה | From the tree / No ben/bat / Mother's name missing / New / Changed / Similar |
+| `mi.renew` / `.remove` / `.edit` / `.openTree` | חידוש / הסרה מהרשימה / עריכת השם / פתיחה בעץ המשפחה ‹ | Renew / Remove from the list / Edit the name / Open in the family tree › |
+| `mi.treeNote` | השם מגיע מעץ המשפחה. מתקנים אותו בדמות ב{relation}. | This name comes from the family tree. Fix it on the figure in {relation}. |
+| `mi.removeTitle` / `.removeBody` / `.removeBodyTree` | להסיר את {name} מהרשימה? / השם לא ייקרא עוד במי שברך. / השם לא ייקרא עוד במי שברך, והסימון ״לרפואה״ בעץ יכובה. | Remove {name} from the list? / The name won't be read in the Mi Sheberach any more. / The name won't be read any more, and the "for recovery" mark in the tree will be turned off. |
+| `mi.removed` | הוסר מהרשימה. רפואה שלמה. | Removed from the list. A full recovery. |
+| `mi.empty.title` / `.body` / `.kehila` | עוד לא הוספתם שמות / אפשר להוסיף שם אחד או רשימה. השמות נשארים שבועיים או ארבעה, ואפשר לחדש. / הרשימה ריקה כרגע. | You haven't added names yet / Add one name or a list. Names stay two or four weeks, and you can renew. / The list is empty right now. |
+| `mi.ended.left` / `.byGabbai` / `.readd` | יצא ב־{date} / הוסר בידי הגבאים / הוספה מחדש | Left on {date} / Removed by the gabbaim / Add again |
+| `mi.addTitle` / `.namesLabel` / `.placeholder` / `.helper` | הוספת שמות למי שברך / שמות / פלוני בן פלונית / שם אחד בכל שורה, או כמה שמות מופרדים בפסיק. בן/בת ושם האם, כמו שקוראים בבית הכנסת. | Add names to the Mi Sheberach / Names / Ploni ben Plonit / One name per line, or several separated by commas. Ben/bat and the mother's name, as read in shul. |
+| `mi.period` / `.weeks2` / `.weeks4` | לכמה זמן / שבועיים / 4 שבועות | For how long / 2 weeks / 4 weeks |
+| `mi.next` / `.back` | המשך לבדיקה / עריכה | Continue to check / Edit |
+| `mi.check.title` / `.line` / `.save` | בדיקת השמות / {k} שמות ייכנסו · עד {date} / הוספה לרשימה ({k}) | Check the names / {k} names will be added · until {date} / Add to the list ({k}) |
+| `mi.row.ok` | ייכנס לרשימה | Will be added |
+| `mi.row.noBenBat` | אין "בן" או "בת". נהוג: שם + בן/בת + שם האם. | No "ben" or "bat". Usually: name + ben/bat + mother's name. |
+| `mi.row.notHebrew` | השם לא בעברית. כך הוא יודפס. | Not in Hebrew. It will print like this. |
+| `mi.row.near` / `.nearHidden` / `.nearKeep` | דומה ל״{other}״ שכבר ברשימה. אם זה אותו אדם, הסירו את השורה. / יש ברשימה שם דומה מאוד. אם זה אותו אדם, הסירו את השורה. / זה שם אחר, להוסיף | Similar to "{other}", already on the list. If it's the same person, remove this line. / A very similar name is already on the list. If it's the same person, remove this line. / It's someone else, add it |
+| `mi.row.dup` / `.dupBatch` / `.tooLong` | השם כבר ברשימה. לא יתווסף שוב. / מופיע כבר למעלה. לא יתווסף פעמיים. / עד 60 תווים. קצרו את השם. | Already on the list. It won't be added again. / Already above. It won't be added twice. / Up to 60 characters. Shorten the name. |
+| `mi.row.removeLine` | הסרת השורה | Remove line |
+| `mi.max30` / `.max40` | אפשר להוסיף עד 30 שמות בכל פעם. השאר לא נכנסו. / אפשר עד 40 שמות לכל חבר. הסירו שם שכבר לא צריך. | Up to 30 names at a time. The rest weren't included. / Up to 40 names per member. Remove one you no longer need. |
+| `mi.added` / `.addedOne` / `.addedSome` | נוספו {k} שמות · עד {date} / השם נוסף · עד {date} / {k} נוספו. {d} כבר היו ברשימה ולא נוספו שוב. | {k} names added · until {date} / Name added · until {date} / {k} added. {d} were already on the list. |
+| `mi.renewTitle` / `.now` / `.more2` / `.more4` / `.result` / `.later` | לחדש את {name}? / עכשיו ברשימה עד {weekday}, {date}. / עוד שבועיים / עוד 4 שבועות / יהיה ברשימה עד {date} / לא עכשיו | Renew {name}? / On the list until {weekday}, {date}. / 2 more weeks / 4 more weeks / Will stay until {date} / Not now |
+| `mi.renewTreeWarn` | אם לא תחדשו עד {date}, השם ייצא מהרשימה והסימון ״לרפואה״ בעץ יכובה. | If you don't renew by {date}, the name leaves the list and the "for recovery" mark in the tree is turned off. |
+| `mi.renewed` | חודש · עד {date} | Renewed · until {date} |
+| `mi.card.title` / `.line` / `.more` / `.button` | מי שברך לחולים · לחידוש / {name} · עד {weekday} / ועוד {n} / חידוש או הסרה | Mi Sheberach · to renew / {name} · until {weekday} / and {n} more / Renew or remove |
+| push `mi_renew` (fixed) / `mi_renew_many` | יש שם ברשימת מי שברך לחולים שמחכה לחידוש. / יש {n} שמות ברשימת מי שברך לחולים שמחכים לחידוש. | A name on the Mi Sheberach list is waiting to be renewed. / {n} names on the Mi Sheberach list are waiting to be renewed. |
+| `mi.err.save` / `.load` / `.gone` / `.forbidden` / `.print` | לא הצלחנו לשמור. השמות לא נוספו. נסו שוב. / לא הצלחנו לטעון את הרשימה. / השם כבר יצא מהרשימה. אפשר להוסיף אותו מחדש. / אפשר להסיר רק שמות שהוספתם. / לא הצלחנו להביא את הרשימה העדכנית. לא הודפס. | Couldn't save. The names weren't added. Try again. / Couldn't load the list. / This name has already left the list. You can add it again. / You can only remove names you added. / Couldn't get the latest list. Nothing was printed. |
+| `tree.ill.confirm` (changed) / `.adds` / `.already` | לסמן את {name} כחולה? / {miName} ייכנס לרשימת מי שברך לחולים. / השם כבר ברשימת מי שברך (נוסף בידי חבר אחר). | Mark {name} as ill? / {miName} will be added to the Mi Sheberach list. / This name is already on the Mi Sheberach list (added by another member). |
+| `tree.ill.toGabbai` (changed) / `.renew` | ברשימת מי שברך לחולים עד {date} / חידוש ‹ | On the Mi Sheberach list until {date} / Renew › |
+| `admin.mi.row` / `.status` / `.printed` / `.never` | מי שברך לחולים / {n} שמות · {k} חדשים מאז ההדפסה / {n} שמות · הדפסה אחרונה: {weekday}, {date} / עוד לא הודפס | Mi Sheberach for the sick / {n} names · {k} new since printing / {n} names · Last printed {weekday}, {date} / Not printed yet |
+| `admin.mi.print` / `.filterAll` / `.filterNew` / `.filterEnding` / `.search` | הדפסה / הכול · {n} / חדשים מאז ההדפסה · {k} / מסתיימים השבוע · {e} / חיפוש שם או מי שהוסיף | Print / All · {n} / New since printing · {k} / Ending this week · {e} / Search a name or who added it |
+| `admin.mi.meta` | {adder} · נוסף {d} · עד {weekday}, {date} | {adder} · added {d} · until {weekday}, {date} |
+| `admin.mi.addedBy` / `.added` / `.until` / `.period` / `.renewals` | הוסיף/ה / נוסף / עד / תקופה / חודש | Added by / Added / Until / Period / Renewed |
+| `admin.mi.treeNote` | השם מגיע מעץ המשפחה של {family}. מתקנים בעץ. | This name comes from the {family} family tree. It's fixed in the tree. |
+| `admin.mi.removeBody` | מי שהוסיף/ה יראה שהשם הוסר. | Whoever added it will see that it was removed. |
+| `admin.mi.empty` / `.nothing` | אין כרגע שמות ברשימה. / אין מה להדפיס | No names on the list right now. / Nothing to print |
+| `admin.mi.settings` / `.text` / `.textDefault` / `.textOwn` | הגדרות / נוסח התפילה / ברירת מחדל / נוסח הקהילה | Settings / Prayer text / Default / Community's text |
+| `admin.mi.showAll` / `.showAllOff` / `.showAllOn` | חברי הקהילה רואים את כל השמות / חברים רואים רק את השמות שהם הוסיפו ואת מספר השמות ברשימה. / חברים רואים את כל השמות, בלי מי הוסיף. מי הוסיף רואים רק הגבאים. | Members see all names / Members see only the names they added and the total. / Members see all names, without who added them. Only the gabbaim see who added each. |
+| `admin.mi.before` / `.after` / `.restore` / `.textNote` | לפני השמות / אחרי השמות / שחזור הנוסח הרגיל / הנוסח נקבע לכל הקהילה. הנוסח הרגיל הוא נוסח אשכנז; קהילה בנוסח אחר מתקנת כאן. | Before the names / After the names / Restore the standard text / The text applies to the whole community. The standard is Ashkenazi; a community with another nusach edits it here. |
+| `admin.mi.columns` / `.order` / `.abc` / `.byAdded` / `.share` | עמודות / סדר השמות / לפי א״ב / לפי מועד ההוספה / שיתוף PDF | Columns / Order / Alphabetical / By date added / Share PDF |
+| `admin.mi.fit1` / `.fitN` | עמוד אחד / {p} עמודים · ב־3 עמודות נכנס בעמוד אחד | One page / {p} pages · Fits one page in 3 columns |
+| `print.mi.title` / `.for` / `.footer` / `.page` | מי שברך לחולים / לשבת פרשת {parasha} / {n} שמות · הודפס {weekday}, {date} / עמוד {p} מתוך {t} | Mi Sheberach for the sick / For Shabbat {parasha} / {n} names · Printed {weekday}, {date} / Page {p} of {t} |
+
+The prayer texts themselves are Kehila data, not i18n: an English UI still prints the Hebrew prayer.
+
+### 23.13 Accessibility
+
+Each name row is one element labelled "{name}, עד {date}" (+ ", מהעץ", ", לחידוש"); the `more` button "פעולות על
+{name}". Preview rows: the Field is labelled "שם {i} מתוך {k}", its status line is its description, and a change of
+status is announced politely once (not on every keystroke). The near-match chip is a `checkbox`. The Segmented
+controls are `radiogroup`s. The renew card and the menu status never rely on colour (words + icon). The print uses
+real text (not an image), so a screen reader or a magnifier can read the PDF. Targets 48.
+
+### 23.14 What this supersedes
+
+- **§4 "A. Member (4 tabs)" and M8 (מי שברך tab):** no tab; Kehila menu › מי שברך לחולים (§23.3).
+- **GM6's combined list and GD7 (מי שברך מאוחד):** management › תפילות וזמנים › מי שברך לחולים (§23.7).
+- **§8 question 2** (expiry after 30 days): answered by owner decision 6 (2 or 4 weeks, renew or leave).
+- **§17.15 "Future (not now)"** and `tree.ill.toGabbai` "(בקרוב)": joined here (§23.6).
+- **§20.1 row 41** (tech ✗): ✓, by the §20 override.
+- `origin/main`'s Mi Sheberach (a19c062): its renewal message in Messages, 30-day expiry and DD-MM-YYYY dates.
+
+### 23.15 Open points
+
+**For the owner:**
+1. The default prayer text (§23.8) needs a rabbi's or a native editor's review; in particular the congregational
+   "בעבור שכל הקהל…" and the Shabbat line.
+2. When a name's owner lets it leave, should members who tried to add the same name (and got "השם כבר ברשימה") be
+   told? Assumed **no** (we don't store failed attempts); they can add it again.
+3. Reminder **3 days** before at 19:00, moved off Shabbat (§23.5), instead of the suggested 2 days. Confirm.
+4. A tree name with no mother's name prints with a blank "בן ______" (§23.6). Some communities use "בן שרה" (Sarah
+   Imeinu) instead; confirm the blank.
+
+**For the CTO (not owner questions):** the job (every 5 minutes, as §21.4) does reminders and expiry in one pass;
+the conditional write on `key` for duplicates; `Person.miNameId` for a linked heart; Hebrew collation for the print
+order (`Intl.Collator('he')` on `key` on both sides, or sort on the server only); the PDF uses the §14.5 print
+pipeline.
+
+### 23.16 Verification
+
+Rendered with headless Chromium (Playwright 1.47.2), one browser at a time: P49 and P50 phones at 390 × 844 in light
+and dark, P51 at A4 size, and each page at 390 wide (no horizontal scroll). Not checked: real devices, 360-wide
+Android, English, screen readers, real printing (the A4 is a drawing at 96 dpi, not a PDF), web fonts, the wide
+layout (specified, not drawn), and the prayer text's niqqud (needs a native editor). Hebrew dates in the frames were
+computed with `Intl` (hebrew calendar).
