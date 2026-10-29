@@ -1813,6 +1813,9 @@ Still open:
 2. ~~Middle block with aisles on both sides~~ — **decided (owner, 2026-10-28):** the head's seat is the aisle seat
    **closer to the bimah (תיבה)**, see §15.10.4.
 
+**Owner, 2026-10-29:** after "שליחה" succeeds the seat screen closes by itself and returns to Home, with the Toast
+"נשמר" (the Home card/row then shows the new state). A failed send keeps the screen open with the error.
+
 #### 15.10.13 One tap "לא מגיעים השבת" from Home and the push (P24, redrawn)
 
 Owner, 2026-10-28: a real one-click. **"לא מגיעים השבת" frees all the family's seats for both ליל שבת and שבת בבוקר
