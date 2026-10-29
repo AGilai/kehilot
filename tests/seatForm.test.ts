@@ -172,3 +172,21 @@ test('fixture: big variant', () => {
   assert.deepEqual(mineRows[1]!.cells.map((c) => c.kind), ['other', 'other', 'other', 'mine', 'mine']);
   assert.equal(memberFromWire(w).seatCount, 7);
 });
+
+test('mapFold: default open, round-trips, survives a throwing storage', async () => {
+  const { readMapFolded, writeMapFolded } = await import('../src/seats/mapFold.ts');
+  const g = globalThis as { localStorage?: unknown };
+  const had = g.localStorage;
+  try {
+    const mem = new Map<string, string>();
+    g.localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    assert.equal(await readMapFolded(), false);
+    await writeMapFolded(true);
+    assert.equal(await readMapFolded(), true);
+    await writeMapFolded(false);
+    assert.equal(await readMapFolded(), false);
+    g.localStorage = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
+    assert.equal(await readMapFolded(), false);
+    await writeMapFolded(true);
+  } finally { g.localStorage = had; }
+});

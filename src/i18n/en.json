@@ -1595,6 +1595,8 @@
       "aisle": "Aisle",
       "kept": "Coming · taken",
       "free": "Free for others",
+      "wordKept": "Coming",
+      "wordFree": "Free",
       "others": "Other people's",
       "homeOpen": "Fill in the form",
       "noSeatsLater": "When you have seats, the form will reach you every week by notification.",
