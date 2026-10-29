@@ -2952,6 +2952,12 @@ divider, "תחומים" with the six groups, and "יציאה ממצב ניהול
 row of up to three items, then the six groups as a 3-column grid of cards, each listing its rows. On a computer every
 tool is one click from the overview. A group in the sidebar opens the same group screen in the content column.
 
+**Collapsible sidebar (owner, 2026-10-29).** From 1024 the management sidebar can be collapsed to a 64-wide icon rail
+(one icon per group, the same order; the waiting badge stays on its icon; each icon has its group name as the
+accessibility label and a hover tooltip on web). A toggle at the top of the sidebar ("כיווץ התפריט" / "הרחבת התפריט",
+`chevron` icon pointing to the content when collapsed). The choice is remembered per device. Wide screens like the
+seat map gain the width.
+
 ### 18.4 Rules (for any new item)
 
 - **Every new item names its group** in its spec. If it fits none, raise it with the designer. Do not append to
