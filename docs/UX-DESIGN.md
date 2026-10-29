@@ -4360,8 +4360,7 @@ the built app has three tabs).
 4. **השמות שהוספתי · {n}**: one row per name, by end date (soonest first). Row: the name (serif 19, wraps, never
    cut); under it "עד {weekday}, {dual date}" muted (a permanent name: the quiet ash Tag **"קבוע"** instead of the
    date, last in the group); a tree name adds the Tag **"מהעץ"** (`heartPulse`, rose
-   border) before the date. A free name with no בן/בת keeps a quiet gold "בלי בן/בת" Tag (the hint stays after saving,
-   never blocks). End: a `more` button (48) → the name's Sheet:
+   border) before the date. End: a `more` button (48) → the name's Sheet:
    - free name: "עריכת השם" (the same Field with the §23.4 checks, single line), "חידוש" (enabled only in the renewal
      window; before it the row is disabled with the caption "אפשר לחדש מ־{dual date}"), danger **"הסרה מהרשימה"**;
    - tree name: the line "השם מגיע מעץ המשפחה. מתקנים אותו בדמות ב{relation}." then **"פתיחה בעץ המשפחה ‹"** (opens
@@ -4404,17 +4403,24 @@ for the whole Kehila:** "הרשימה ריקה כרגע." under the count.
 - One row per parsed name, in the pasted order. Each row is the name in a single-line `Field` (editable in place,
   serif 17), a status line under it (icon + words, never colour alone), and a 48 `x` button "הסרת השורה". Editing a
   line re-checks it at once (debounce 300 ms for the server check).
-- Primary **"הוספה לרשימה ({k})"**: adds only rows in state ✓ or "hint". Disabled when k = 0. Secondary "ביטול".
+- Primary **"הוספה לרשימה ({k})"**: k counts only valid rows (✓ or a hint); blocked rows are never sent. Disabled
+  when k = 0. Secondary "ביטול".
 
 | Row state | Status line (he) | Look | Saved? |
 |---|---|---|---|
 | OK | ייכנס לרשימה | `check` olive | yes |
-| No בן/בת (hint) | אין "בן" או "בת". נהוג: שם + בן/בת + שם האם. | `alert` gold; Field border gold | yes (never blocks) |
+| No mother's name (**blocks**, owner 2026-10-29) | חסר שם האם · יש לתקן או להסיר | `alert` danger; Field border danger | no, until fixed |
 | Not Hebrew letters (hint) | השם לא בעברית. כך הוא יודפס. | `alert` gold | yes |
 | Near-match (§ below) | דומה ל״{other}״ שכבר ברשימה. אם זה אותו אדם, הסירו את השורה. / without permission to see it: יש ברשימה שם דומה מאוד. אם זה אותו אדם, הסירו את השורה. | `alert` gold, plus a `Chip` **"זה שם אחר, להוסיף"** that must be tapped | only after the chip is tapped |
 | Exact duplicate on the list | השם כבר ברשימה. לא יתווסף שוב. | `check` muted, row text muted, no Field | no (ignored; the owner stays) |
 | Twice in this paste | מופיע כבר למעלה. לא יתווסף פעמיים. | `x` muted | no |
 | Too long | עד 60 תווים. קצרו את השם. | `alert` danger, Field error | no (blocks only this row) |
+
+**Mother's name required (owner ruling, 2026-10-29, binding).** A name without a mother's name may not enter the list.
+A line is valid only when, after normalization, it has the word **בן** or **בת** (as a separate word; in a Latin line
+"ben" / "bat") with at least one word before it and at least one word after it ("משה בן שרה" ✓; "משה", "משה בן", "בן
+שרה" ✗). The same rule applies to "עריכת השם" (§23.3) and to management's edits (§23.7), and **the server rejects such
+a line** (`400 mother_missing` per row), so no client can add one.
 
 **Normalization (`key`), owner rule 9; one function `src/mi/normalize.ts` with a Python twin tested on shared
 fixtures.** Applied to compare only; the stored `text` keeps what the user wrote, cleaned (trimmed, single spaces,
@@ -4510,9 +4516,15 @@ from its ⋯ Sheet ("הגבלה בזמן") while the setting is on.
 - **Turning the heart on** now asks for the period: the §17.15 confirm becomes "לסמן את {name} כחולה?" with the line
   "{miName} ייכנס לרשימת מי שברך לחולים.", the same "לכמה זמן" period chips (§23.5a) with "עד {dual date}",
   and "כן, לרפואה שלמה" / "ביטול". On confirm: `Person.ill = true` and a tree `MiName` with the turner as owner.
-- **Name incomplete** (no mother's name): the heart can be turned on; the list and print show "{hebrewFirst} בן/בת
-  ______" (a blank the gabbai can write in, **my call**), the member's row shows the gold Tag "חסר שם האם", and the
-  gabbai's row the same. The tree's gold missing-name state (§17.15) already asks for it.
+- **No mother's Hebrew name** (owner ruling, 2026-10-29): the heart can be turned on and the tree mark shows, but
+  **the name does not enter the list.** The confirm then has no period line; instead, and in the figure's sheet while
+  the heart is on, a gold block says **"כדי שהשם ייכנס למי שברך, הוסיפו את שם האם"** with the mother's-name field
+  ("השם העברי של אמא", saved also on the mother's figure, §17.15). The period chips appear under the field once it has a
+  name. **The name enters the list when the field is filled and saved**, with the period then chosen (counted from that
+  day) and the saver as owner. Until then there is no `MiName`, no reminder and no expiry. On the member's screen
+  (§23.3), a gold line above "השמות שהוספתי" says "{n} שמות מהעץ מחכים לשם האם · פתיחה בעץ ‹" (my call, so it isn't
+  forgotten). The gabbai's list never shows incomplete names. If an edit later clears a mother's name, the name leaves
+  the list silently (the heart stays on, waiting as above).
 - **Already on the list** (the computed key equals a live name): the heart turns on, **no second name is created**,
   and the sheet says "השם כבר ברשימת מי שברך (נוסף בידי חבר אחר)." The heart is then linked to that name
   (`Person.miNameId`): when that name leaves the list for any reason, the heart turns off too. To own it, turn the
@@ -4550,7 +4562,7 @@ side (specified, not drawn).
    שם או מי שהוסיף") when n > 15.
 4. The list, in print order (§23.9). Row (min 64): the name (serif 18, wraps); Tags: **"חדש"** (tekhelet; added after
    the last print), **"שונה"** (ash; edited after it), **"מהעץ"** (rose), **"דומה"** (gold, when its key is near
-   another live name: the gabbai decides), **"חסר שם האם"** (gold), **"קבוע"** (ash); a muted line "{adder} · נוסף {d.m} · עד {weekday},
+   another live name: the gabbai decides), **"קבוע"** (ash); a muted line "{adder} · נוסף {d.m} · עד {weekday},
    {dual date}" (permanent: "{adder} · נוסף {d.m}"). Tap or `more` → the name's Sheet. Marks are on screen only, never printed (owner).
 5. **הגדרות** (a `ListGroup` at the end, P50 phone 5): "נוסח התפילה" (value "ברירת מחדל" / "נוסח הקהילה" → editor,
    §23.8), the three period settings of §23.5a ("תקופה מרבית", "תזכורת לפני הסוף", the Toggle "לאפשר שם קבוע"),
@@ -4617,8 +4629,8 @@ near-duplicate pair ends up side by side where the gabbai spots it. "By date add
    two pages.
 
 Capacity, as a guide: one page holds the texts plus about 30 names in 2 columns or 54 in 3. Fitting rule: never
-shrink below the sizes above; a long list goes to a second page. Nothing is ever cut or dropped. Tree names with a
-missing mother's name print with the blank (§23.6). The print never shows adders, dates or marks.
+shrink below the sizes above; a long list goes to a second page. Nothing is ever cut or dropped. Every printed name has
+a mother's name (§23.4 rule; no blanks). The print never shows adders, dates or marks.
 
 ### 23.10 Edge cases
 
@@ -4657,7 +4669,7 @@ the short weekday ("יום א׳").
 | `mi.group.renew` / `.mine` / `.all` / `.ended` | לחידוש / השמות שהוספתי · {n} / כל השמות ברשימה · {N} / יצאו מהרשימה לאחרונה | To renew / Names I added · {n} / All names on the list · {N} / Recently left the list |
 | `mi.allNote` | רק השמות. מי הוסיף כל שם רואים רק הגבאים. | Names only. Only the gabbaim see who added each one. |
 | `mi.until` / `.ends` / `.renewFrom` | עד {weekday}, {date} / מסתיים {weekday}, {date} / אפשר לחדש מ־{date} | Until {weekday}, {date} / Ends {weekday}, {date} / Can be renewed from {date} |
-| `mi.tag.tree` / `.noBenBat` / `.noMother` / `.new` / `.edited` / `.near` | מהעץ / בלי בן/בת / חסר שם האם / חדש / שונה / דומה | From the tree / No ben/bat / Mother's name missing / New / Changed / Similar |
+| `mi.tag.tree` / `.new` / `.edited` / `.near` | מהעץ / חדש / שונה / דומה | From the tree / New / Changed / Similar |
 | `mi.renew` / `.remove` / `.edit` / `.openTree` | חידוש / הסרה מהרשימה / עריכת השם / פתיחה בעץ המשפחה ‹ | Renew / Remove from the list / Edit the name / Open in the family tree › |
 | `mi.treeNote` | השם מגיע מעץ המשפחה. מתקנים אותו בדמות ב{relation}. | This name comes from the family tree. Fix it on the figure in {relation}. |
 | `mi.removeTitle` / `.removeBody` / `.removeBodyTree` | להסיר את {name} מהרשימה? / השם לא ייקרא עוד במי שברך. / השם לא ייקרא עוד במי שברך, והסימון ״לרפואה״ בעץ יכובה. | Remove {name} from the list? / The name won't be read in the Mi Sheberach any more. / The name won't be read any more, and the "for recovery" mark in the tree will be turned off. |
@@ -4670,7 +4682,8 @@ the short weekday ("יום א׳").
 | `mi.next` / `.back` | המשך לבדיקה / עריכה | Continue to check / Edit |
 | `mi.check.title` / `.line` / `.save` | בדיקת השמות / {k} שמות ייכנסו · עד {date} / הוספה לרשימה ({k}) | Check the names / {k} names will be added · until {date} / Add to the list ({k}) |
 | `mi.row.ok` | ייכנס לרשימה | Will be added |
-| `mi.row.noBenBat` | אין "בן" או "בת". נהוג: שם + בן/בת + שם האם. | No "ben" or "bat". Usually: name + ben/bat + mother's name. |
+| `mi.row.noMother` (was `mi.row.noBenBat`, now blocking) | חסר שם האם · יש לתקן או להסיר | Mother's name missing · fix or remove |
+| `mi.treeWaiting` / `tree.ill.needMother` | {n} שמות מהעץ מחכים לשם האם · פתיחה בעץ ‹ / כדי שהשם ייכנס למי שברך, הוסיפו את שם האם | {n} names from the tree are waiting for the mother's name · Open the tree › / To add the name to the Mi Sheberach, add the mother's name |
 | `mi.row.notHebrew` | השם לא בעברית. כך הוא יודפס. | Not in Hebrew. It will print like this. |
 | `mi.row.near` / `.nearHidden` / `.nearKeep` | דומה ל״{other}״ שכבר ברשימה. אם זה אותו אדם, הסירו את השורה. / יש ברשימה שם דומה מאוד. אם זה אותו אדם, הסירו את השורה. / זה שם אחר, להוסיף | Similar to "{other}", already on the list. If it's the same person, remove this line. / A very similar name is already on the list. If it's the same person, remove this line. / It's someone else, add it |
 | `mi.row.dup` / `.dupBatch` / `.tooLong` | השם כבר ברשימה. לא יתווסף שוב. / מופיע כבר למעלה. לא יתווסף פעמיים. / עד 60 תווים. קצרו את השם. | Already on the list. It won't be added again. / Already above. It won't be added twice. / Up to 60 characters. Shorten the name. |
@@ -4728,7 +4741,8 @@ real text (not an image), so a screen reader or a magnifier can read the PDF. Ta
    "בעבור שכל הקהל…" and the Shabbat line.
 2. When a name's owner lets it leave, should members who tried to add the same name (and got "השם כבר ברשימה") be
    told? Assumed **no** (we don't store failed attempts); they can add it again.
-*Items 2 and 4 decided by the owner (2026-10-29, round 2): no notice, and the blank stays. Item 3 is now a Kehila
+*Item 2 decided by the owner (2026-10-29, round 2): no notice. Item 4 decided by the owner's later ruling: a name
+without a mother's name never enters the list (§23.4, §23.6).* Item 3 is now a Kehila
 setting (§23.5a).*
 
 **For the CTO (not owner questions):** the job (every 5 minutes, as §21.4) does reminders and expiry in one pass;
