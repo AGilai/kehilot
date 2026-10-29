@@ -110,7 +110,7 @@ export function Field({ label, value, onChangeText, maxCodePoints, error, ltr, i
  * `size="filter"`: the small pill for filter rows and pickers (selected = ink, tekhelet stays the action colour).
  * `multi` makes it one of several that can be on: a checkbox, with a dot in `dot` colour when off and a check when on.
  */
-export function Chip({ label, selected, onPress, size = 'regular', icon, multi, dot, suggest, accessibilityLabel }: { label: string; selected?: boolean; onPress?: () => void; size?: 'regular' | 'filter'; icon?: IconName; multi?: boolean; dot?: string; /** Reads as "add": dashed tekhelet outline, tekhelet text. */ suggest?: boolean; accessibilityLabel?: string }) {
+export function Chip({ label, selected, onPress, size = 'regular', icon, multi, radio, dot, suggest, accessibilityLabel }: { label: string; selected?: boolean; onPress?: () => void; size?: 'regular' | 'filter'; icon?: IconName; multi?: boolean; /** One of an exclusive set: a radio button; the chosen one shows a check. */ radio?: boolean; dot?: string; /** Reads as "add": dashed tekhelet outline, tekhelet text. */ suggest?: boolean; accessibilityLabel?: string }) {
   const k = useTokens();
   if (size === 'filter' && suggest) {
     return (
@@ -124,9 +124,9 @@ export function Chip({ label, selected, onPress, size = 'regular', icon, multi, 
   if (size === 'filter') {
     const fg = selected ? k.stone : k.ink;
     return (
-      <Pressable accessibilityRole={multi ? 'checkbox' : 'button'} accessibilityState={multi ? { checked: !!selected } : { selected: !!selected }} onPress={onPress} hitSlop={{ top: 6, bottom: 6 }}
+      <Pressable accessibilityRole={multi ? 'checkbox' : radio ? 'radio' : 'button'} accessibilityState={multi || radio ? { checked: !!selected } : { selected: !!selected }} onPress={onPress} hitSlop={{ top: 6, bottom: 6 }}
         style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: selected ? k.ink : k.line, backgroundColor: selected ? k.ink : k.surface }}>
-        {multi ? (selected ? <Icon name="check" size={16} color={fg} /> : dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} /> : null) : icon ? <Icon name={icon} size={16} color={fg} /> : null}
+        {radio ? <Icon name={selected ? 'check' : icon ?? 'user'} size={16} color={fg} /> : multi ? (selected ? <Icon name="check" size={16} color={fg} /> : dot ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} /> : null) : icon ? <Icon name={icon} size={16} color={fg} /> : null}
         <Txt size="small" bold color={fg}>{label}</Txt>
       </Pressable>
     );

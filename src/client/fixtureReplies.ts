@@ -5,7 +5,7 @@ import { ApiCodeError } from './errors.ts';
 import type { Inbox, InboxThread, Message, Reply, Role } from './types.ts';
 
 /** Frame P48: phones 1 to 4 and their states. Wired in `fixtureNav` (src/views/Main.tsx). */
-export const P48_SCREENS = ['p48-messages', 'p48-actions', 'p48-sheet', 'p48-m3', 'p48-condolence', 'p48-picker', 'p48-inbox', 'p48-inbox-a', 'p48-inbox-b', 'p48-author'];
+export const P48_SCREENS = ['p48-messages', 'p48-actions', 'p48-sheet', 'p48-sheet-picker', 'p48-m3', 'p48-condolence', 'p48-picker', 'p48-inbox', 'p48-inbox-a', 'p48-inbox-b', 'p48-author'];
 
 const U = (n: number) => `01FIXTUREUSER000000000${n}`;
 export const P48_PEOPLE = {

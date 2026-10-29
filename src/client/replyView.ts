@@ -35,6 +35,26 @@ export function buttonState(m: Message, role: Role): 'reply' | 'replied' | 'none
   return m.canReply ? 'reply' : 'none';
 }
 
+/** The pill's colour name: tekhelet for answers, pomegranate for a blessing, ash for a word to a mourning family. */
+export function pillTone(type: MessageType): 'tekhelet' | 'pomegranate' | 'ash' {
+  const kind = replyKind(type);
+  return kind === 'celebration' ? 'pomegranate' : kind === 'condolence' ? 'ash' : 'tekhelet';
+}
+
+/** Whether the card shows the reply row at all: a count or a button. */
+export const hasReplyRow = (m: Message, role: Role): boolean => !!m.replierCount || buttonState(m, role) !== 'none';
+
+/** The pill is its own button: "תשובה פרטית לרותם אלמוג". */
+export const pillA11y = (m: Message, t: T): string =>
+  replyKind(m.type) === 'general' ? t('reply.buttonA11y', { name: m.authorName }) : headingText(m, 'family', t);
+
+/** The "אל מי" picker: nothing under two adults, else the whole family first and then each adult in the stored order. */
+export function toChoices(m: Message, t: T): Array<{ key: ReplyTo; label: string }> {
+  const adults = m.replyAdults ?? [];
+  if (adults.length < 2) return [];
+  return [{ key: 'family', label: t('reply.toFamily') }, ...adults.map(a => ({ key: a.userId, label: a.name }))];
+}
+
 export const buttonLabel = (m: Message, t: T): string => t(`reply.button.${kindOf(m)}`);
 export const placeholder = (m: Message, t: T): string => t(`reply.placeholder.${kindOf(m)}`);
 export const receivedTitle = (m: Message, t: T): string => t(`reply.received.${kindOf(m)}`);

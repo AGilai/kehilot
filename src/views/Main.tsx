@@ -107,7 +107,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'm3' || s === 'm3target') { const m = byType('celebration'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   if (s === 'm3b') { const m = byType('condolence'); return m ? { nav: { tab: 'detail', id: m.messageId, from: 'messages' } } : null; }
   // P48 (private replies). The sheet, the actions and the mailbox open on the screen that hosts them (Tasks 7 to 9 wire the rest).
-  if (s === 'p48-messages' || s === 'p48-actions' || s === 'p48-sheet') return { nav: { tab: 'messages' } };
+  if (s === 'p48-messages' || s === 'p48-actions' || s === 'p48-sheet' || s === 'p48-sheet-picker') return { nav: { tab: 'messages' } };
   if (s === 'p48-inbox' || s === 'p48-inbox-a' || s === 'p48-inbox-b') return { nav: { tab: 'me' } };
   if (s?.startsWith('p48-')) {
     const list = state.feed.order.map(id => state.feed.messages[id]!);

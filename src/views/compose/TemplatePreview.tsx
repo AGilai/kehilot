@@ -33,7 +33,7 @@ export function TemplatePreview({ message, meta, sheetLine, caption, missing }: 
         <Icon name="eye" size={16} color={k.muted} />
         <Txt size="caption" bold color={k.muted}>{t('compose.tpl.preview')}</Txt>
       </View>
-      <MessageRow message={message} meta={meta} muted={false} onPress={() => {}} />
+      <MessageRow message={message} meta={meta} muted={false} onPress={() => {}} previewReply />
       {missing.length ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{missing.map(name => <MissingChip key={name} name={name} />)}</View>
       ) : null}

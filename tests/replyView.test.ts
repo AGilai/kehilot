@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   buttonLabel, buttonState, canSendReply, countText, counterText, headingText, lockText, mailboxStatus, myReply,
-  placeholder, readUpTo, receivedTitle, replyKind, replyTime, sentText, threadLine,
+  hasReplyRow, pillA11y, pillTone, placeholder, readUpTo, toChoices, receivedTitle, replyKind, replyTime, sentText, threadLine,
 } from '../src/client/replyView.ts';
 import type { InboxThread, Message, Reply } from '../src/client/types.ts';
 
@@ -141,4 +141,33 @@ test('mailboxStatus and threadLine', () => {
 test('every key replyView uses exists in both languages', () => {
   const used = ['time.today', 'time.yesterday', 'new', 'unreadA11y', 'personalTag', 'formerMember'].map(k => `reply.${k}`);
   for (const k of used) for (const d of [he, en]) assert.equal(typeof look(d, k), 'string', k);
+});
+
+test('pill colour per kind', () => {
+  assert.equal(pillTone('general'), 'tekhelet');
+  assert.equal(pillTone('event'), 'tekhelet');
+  assert.equal(pillTone('celebration'), 'pomegranate');
+  assert.equal(pillTone('condolence'), 'ash');
+});
+
+test('toChoices: no picker under two adults, otherwise the family first then the adults in order', () => {
+  assert.deepEqual(toChoices(bless({ replyAdults: [] }), t), []);
+  assert.deepEqual(toChoices(bless({ replyAdults: undefined }), t), []);
+  assert.deepEqual(toChoices(bless({ replyAdults: [{ userId: 'u-a', name: 'שולמית ברקן' }] }), t), []);
+  assert.deepEqual(toChoices(bless(), t), [
+    { key: 'family', label: 'כל המשפחה' },
+    { key: 'u-shulamit', label: 'שולמית ברקן' },
+    { key: 'u-yigal', label: 'יגאל ברקן' },
+  ]);
+});
+
+test('the pill has its own name', () => {
+  assert.equal(pillA11y(msg(), t), 'תשובה פרטית לרותם אלמוג');
+  assert.equal(pillA11y(bless(), t), 'ברכה אישית למשפחת ברקן');
+});
+
+test('hasReplyRow: nothing to show means no row', () => {
+  assert.equal(hasReplyRow(msg({ replierCount: 0 }), 'member'), false);
+  assert.equal(hasReplyRow(msg({ replierCount: 2 }), 'listener'), true);
+  assert.equal(hasReplyRow(msg({ replyTo: 'author', canReply: true }), 'member'), true);
 });

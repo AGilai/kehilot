@@ -20,7 +20,7 @@ export type ComposerProps = {
   onChange: (v: string) => void;
   maxCodePoints: number;
   placeholder: string;
-  /** A line that stays visible above the box while typing (the privacy promise of a private blessing). */
+  /** A line that stays visible under the box while typing (the privacy promise of a private blessing). */
   lockLine?: string;
   /** Without it there is no send button (the compose screen has its own publish button). */
   onSend?: () => void;
@@ -30,13 +30,19 @@ export type ComposerProps = {
   /** Extra controls beside the emoji button (the attach button). */
   extras?: React.ReactNode;
   disabled?: boolean;
+  /** The counter shows from this many code points (default: 80% of the limit; replies pass 900). */
+  counterFrom?: number;
+  /** The counter's text (default: field.counter, "n מתוך max"). */
+  counterLabel?: (n: number) => string;
+  /** The send button's text (default: composer.send). */
+  sendLabel?: string;
 };
 
 /**
  * Multi-line input with a code-point counter (from 80% of the limit), a send button and, on web, an emoji
  * popover. Enter adds a newline; only the button sends. There is no `maxLength`: the limit is in code points.
  */
-export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine, onSend, busy, allowEmpty, extras, disabled }: ComposerProps) {
+export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine, onSend, busy, allowEmpty, extras, disabled, counterFrom, counterLabel, sendLabel }: ComposerProps) {
   const { lang, dir, t } = useI18n();
   const k = useTokens();
   const input = React.useRef<TextInput>(null);
@@ -59,15 +65,9 @@ export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine
 
   return (
     <View style={{ gap: 8 }}>
-      {lockLine ? (
-        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-          <Icon name="lock" size={16} color={k.muted} />
-          <Txt size="small" color={k.muted} style={{ flex: 1 }}>{lockLine}</Txt>
-        </View>
-      ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
         <TextInput ref={input} value={value} multiline editable={!disabled} keyboardType="default" autoCorrect textAlignVertical="top"
-          accessibilityLabel={placeholder} placeholder={placeholder} placeholderTextColor={k.muted}
+          accessibilityLabel={placeholder} accessibilityHint={lockLine} placeholder={placeholder} placeholderTextColor={k.muted}
           onChangeText={v => { if (Platform.OS === 'web') setHeight(MIN_H); onChange(v); }}
           onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => { selection.current = e.nativeEvent.selection; }}
           onContentSizeChange={(e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => setHeight(Math.min(MAX_H, Math.max(MIN_H, Math.ceil(e.nativeEvent.contentSize.height) + (Platform.OS === 'web' ? 0 : PAD))))}
@@ -76,13 +76,19 @@ export function Composer({ value, onChange, maxCodePoints, placeholder, lockLine
         <EmojiButton onPick={pick} />
         {extras}
       </View>
+      {lockLine ? (
+        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+          <Icon name="lock" size={16} color={k.muted} />
+          <Txt size="small" color={k.muted} style={{ flex: 1 }}>{lockLine}</Txt>
+        </View>
+      ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <View style={{ flex: 1 }}>
-          {n >= maxCodePoints * 0.8 ? <Txt size="caption" color={over ? k.danger : k.muted}>{t('field.counter', { n, max: maxCodePoints })}</Txt> : null}
+          {n >= (counterFrom ?? maxCodePoints * 0.8) ? <Txt size="caption" color={over ? k.danger : k.muted}>{counterLabel ? counterLabel(n) : t('field.counter', { n, max: maxCodePoints })}</Txt> : null}
         </View>
         {onSend ? (
           <View style={{ minWidth: 120, minHeight: TOUCH }}>
-            <Button title={t('composer.send')} onPress={onSend} busy={busy} disabled={!canSend} />
+            <Button title={sendLabel ?? t('composer.send')} onPress={onSend} busy={busy} disabled={!canSend} />
           </View>
         ) : null}
       </View>

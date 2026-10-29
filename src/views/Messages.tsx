@@ -1,6 +1,8 @@
 import React from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, SectionList, TextInput, View, useColorScheme, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { config } from '../config.ts';
+import { fixtureParams } from '../client/fixtures.ts';
 import { useSession } from '../client/SessionProvider.tsx';
 import { channelLabel } from '../client/channelsView.ts';
 import { groupByDay, isMuted, timeOfDay, visibleList } from '../client/messageView.ts';
@@ -17,6 +19,8 @@ import { fonts, TOUCH, edge, type } from '../kit/theme.ts';
 import { queryWords } from '../search/normalize.ts';
 import type { CachedMessage } from '../search/cache.ts';
 import { MessageRow } from './MessageRow.tsx';
+import { CardActions } from './replies/CardActions.tsx';
+import { ReplySheet } from './replies/ReplySheet.tsx';
 import { TypeFilter } from './TypeFilter.tsx';
 
 /** Fixture entry only: 'all' opens with the muted switch on. */
@@ -43,6 +47,10 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
   const [types, setTypes] = React.useState<MessageType[]>([]);
   const [archive, setArchive] = React.useState<CachedMessage[]>([]);
   const [status, setStatus] = React.useState({ complete: true, count: 0 });
+  const [sheet, setSheet] = React.useState<{ id: string; kind: 'reply' | 'actions' } | null>(null);
+  // The reply Sheet stays mounted after it closes, so its "נשלחה" Toast outlives it.
+  const [replyId, setReplyId] = React.useState<string | null>(null);
+  const openSheet = (id: string, kind: 'reply' | 'actions') => { if (kind === 'reply') setReplyId(id); setSheet({ id, kind }); };
   const key = me && kehilaId ? showMutedKey(me.userId, kehilaId) : null;
 
   // The choice is remembered per Kehila on this device.
@@ -78,6 +86,19 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
     return () => { live = false; };
   }, [archiveRev, loadArchive, kehilaId]); // read once, then only when the cache changed
 
+  // Fixture screens that open on a Sheet (P48 1a, 1b).
+  const fixtureSheet = React.useRef(config.fixtures ? fixtureParams().screen : undefined);
+  React.useEffect(() => {
+    const screen = fixtureSheet.current;
+    if (!screen?.startsWith('p48-') || !feed.loaded) return;
+    const all = Object.values(feed.messages);
+    const m = screen === 'p48-actions' || screen === 'p48-sheet' ? all.find(x => x.type === 'general' && x.canReply)
+      : screen === 'p48-sheet-picker' ? all.find(x => x.type === 'celebration' && x.canReply) : undefined;
+    if (!m) return;
+    fixtureSheet.current = undefined;
+    openSheet(m.messageId, screen === 'p48-actions' ? 'actions' : 'reply');
+  }, [feed.loaded, feed.messages]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const notify = kehila?.notify;
   const role = kehila?.role;
   const visibleTypes = React.useMemo(() => filterTypeChips(role, Object.values(feed.messages)), [role, feed.messages]);
@@ -88,6 +109,11 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
   const counts = React.useMemo(() => typeCounts(faceted, visibleTypes), [faceted, visibleTypes]);
   const list = React.useMemo(() => filterMessages(faceted, { text: '', types: selTypes }), [faceted, selTypes]);
   const sections = React.useMemo(() => groupByDay(list).map(g => ({ day: g.day, data: g.items })), [list]);
+  const unreadById = React.useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const th of state.inbox?.threads ?? []) out[th.message.messageId] = th.unread;
+    return out;
+  }, [state.inbox]);
   if (!kehila || !notify) return null;
   const multiChannel = showChannelChips(channels);
   const facet = { text: debounced, channelId, showMuted, notify, channels };
@@ -97,6 +123,7 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
   const today = israelDate();
   const dayLabel = (day: string) => day === today ? t('messages.today')
     : day ? dualDate(day, lang, { weekday: true }) : '';
+  const sheetMsg = sheet ? feed.messages[sheet.id] : undefined;
   const canPostSomewhere = !!onNew && showCompose(kehila.role, channels);
   // A mouse cannot drag a horizontal scroller: on wide web windows the chips wrap.
   const wrapChips = Platform.OS === 'web' && width >= 600;
@@ -199,18 +226,24 @@ export function Messages({ onOpen, onChat, onNew, initialFilter, initialQuery = 
         keyExtractor={m => m.messageId}
         ListHeaderComponent={header}
         keyboardShouldPersistTaps="handled"
+        extraData={state.inbox}
         stickySectionHeadersEnabled={false}
         initialNumToRender={6}
         windowSize={5}
         contentContainerStyle={{ padding: 16, paddingBottom: 96, gap: 10, width: '100%', maxWidth: 680, alignSelf: 'center' }}
         renderSectionHeader={({ section }) => <Txt size="small" bold color={k.muted} style={{ paddingTop: 8 }}>{dayLabel(section.day)}</Txt>}
         renderItem={({ item }) => (
-          <MessageRow message={item} meta={messageMeta(item, channels, timeOfDay(item.messageId), t)} muted={isMuted(item, notify, channels)} onPress={() => onOpen(item.messageId)} />
+          <MessageRow message={item} meta={messageMeta(item, channels, timeOfDay(item.messageId), t)} muted={isMuted(item, notify, channels)} onPress={() => onOpen(item.messageId)}
+            reply={{ unreadNew: unreadById[item.messageId] ?? 0, onReply: () => openSheet(item.messageId, 'reply'), onOpenReplies: () => onOpen(item.messageId), onActions: () => openSheet(item.messageId, 'actions') }} />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 0 }} />}
         ListEmptyComponent={empty}
         ListFooterComponent={footer}
       />
+      {replyId ? <ReplySheet messageId={replyId} visible={sheet?.kind === 'reply'} onClose={() => setSheet(null)} /> : null}
+      {sheetMsg && sheet?.kind === 'actions' ? (
+        <CardActions message={sheetMsg} visible onClose={() => setSheet(null)} onOpen={() => onOpen(sheetMsg.messageId)} onReply={() => openSheet(sheetMsg.messageId, 'reply')} />
+      ) : null}
       {canPostSomewhere ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', bottom: 16, left: 0, right: 0, alignItems: 'center' }}>
           <View pointerEvents="box-none" style={{ width: '100%', maxWidth: 680, paddingHorizontal: 16, alignItems: 'flex-end' }}>
