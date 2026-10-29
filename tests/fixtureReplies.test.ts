@@ -18,10 +18,10 @@ test('p48: viewer fields, one reply per person, edit and delete', async () => {
   assert.equal(mazal.replied, false);
   assert.equal(mazal.replierCount, 12);
   const one = await api.message(K, mazal.messageId);
-  assert.deepEqual(one.replyAdults?.map(a => a.name), ['שולמית ברקן', 'יגאל ברקן']);
+  assert.deepEqual(one.replyAdults?.map(a => a.name), ['שולמית פלוני', 'יגאל פלוני']);
   assert.deepEqual(await api.replies(K, mazal.messageId), []); // 12 replies, none readable by an outsider
   const r = await api.postReply(K, mazal.messageId, 'מזל טוב', one.replyAdults![1]!.userId);
-  assert.equal(r.toName, 'יגאל ברקן');
+  assert.equal(r.toName, 'יגאל פלוני');
   await assert.rejects(api.postReply(K, mazal.messageId, 'עוד אחת'), { code: 'already_replied' });
   assert.equal((await api.message(K, mazal.messageId)).replierCount, 13);
   const edited = await api.putReply(K, mazal.messageId, r.replyId, 'מזל טוב מאוד');

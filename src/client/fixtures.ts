@@ -91,7 +91,7 @@ export function printItemsFixture(week: string, kind: 'items' | 'many'): SheetIt
   const cond = make('condolence', 'condolence', { variant: 'only', surname: 'בדיוני', deceased: 'שרה', relation: 'אמו של יעקב' });
   if (kind === 'items') return [...list, cond, event('ערב לימוד לנשים', 4, '20:30', 'עזרת הנשים'), event('שיעור פתוח', 5, '19:30', 'בית הכנסת', true)];
   return [
-    ...list, mazal('אורי', 'עמית', 'דור', 'barMitzvah'), mazal('נווה', 'רונית', 'שיר', 'batMitzvah'), mazal('שדמי', 'גדעון', 'ליאור', 'birthSon'), mazal('כרמי', 'חנה', 'אור', 'birthDaughter'),
+    ...list, mazal('בדיוני', 'עמית', 'דור', 'barMitzvah'), mazal('דוגמה', 'רונית', 'שיר', 'batMitzvah'), mazal('ניסיון', 'גדעון', 'ליאור', 'birthSon'), mazal('לדוגמה', 'חנה', 'אור', 'birthDaughter'),
     event('ערב לימוד לנשים', 4, '20:30', 'עזרת הנשים'), event('שיעור פתוח', 5, '19:30', 'בית הכנסת'), event('סעודה שלישית', 5, '18:00', 'אולם הקהילה'), event('מפגש נוער', 6, '21:00', 'מועדון הנוער'),
   ];
 }
@@ -196,7 +196,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   const phoneOn = !!screen && ['me', 'me-family', 'me-request', 'me-linked', 'me-man', 'child-sheet', 'partner-picker', 'phone-list', 'tree', 'tree-married', 'tree-solo', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired'].includes(screen);
   const hasPhone = phoneOn || screen === 'phone-list-empty' || card === 'phone';
   const kehila: Kehila = {
-    kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין נווה דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: fixtureHasLogo() ? '1' : null, sheetMembers: 'approve', familyId: '01FIXTUREFAMILY0000000001',
+    kehilaId: '01FIXTUREKEHILA0000000001', name: screen === 'leave-listener' ? 'מניין בדיוני דמיון' : frame ? 'קהילת אור הדוגמה' : 'קהילת בדיוני', role, classification: '', logoVersion: fixtureHasLogo() ? '1' : null, sheetMembers: 'approve', familyId: '01FIXTUREFAMILY0000000001',
     canBroadcast: isManagement(role), pendingRequest: false,
     // ?screen=m5 shows M5 with some choices already made (one muted channel, type and member).
     notify: screen === 'm5'
@@ -432,7 +432,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
     { week: '2026-11-01', shabbat: '2026-11-07', parasha: 'חיי שרה', label: 'שבת פרשת חיי שרה', items: [] },
     { week: '2026-11-08', shabbat: '2026-11-14', parasha: 'תולדות', label: 'שבת פרשת תולדות', items: [{ kind: 'bat', firstName: 'נגה', surname: 'ניסיון', date: '2026-11-09', manual: false }] },
     { week: '2026-11-15', shabbat: '2026-11-21', parasha: 'ויצא', label: 'שבת פרשת ויצא', items: [{ kind: 'bar', firstName: 'עמית', surname: 'בדיוני', date: '2026-11-21', manual: true }] },
-    { week: '2026-11-22', shabbat: '2026-11-28', parasha: 'וישלח', label: 'שבת פרשת וישלח', items: [{ kind: 'bat', firstName: 'אילה', surname: 'אלמוגי', date: '2026-11-25', manual: false }] },
+    { week: '2026-11-22', shabbat: '2026-11-28', parasha: 'וישלח', label: 'שבת פרשת וישלח', items: [{ kind: 'bat', firstName: 'אילה', surname: 'משל', date: '2026-11-25', manual: false }] },
     { week: '2026-11-29', shabbat: '2026-12-05', parasha: 'וישב', label: 'שבת פרשת וישב', items: [{ kind: 'bar', firstName: 'יונתן', surname: 'דמיון', date: '2026-12-05', manual: false }] },
     { week: '2026-12-06', shabbat: '2026-12-12', parasha: 'מקץ', label: 'שבת פרשת מקץ', items: [] },
     { week: '2026-12-13', shabbat: '2026-12-19', parasha: 'ויגש', label: 'שבת פרשת ויגש', items: [] },
@@ -553,18 +553,18 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       mazal('ניסיוני', 'birthSon', { state: 'pending', source: 'member', wasPending: true, postedBy: 'יעל דוגמה', postedAt: Date.now() / 1000 - 86400 }, { name: 'אורי' }),
       { ...mazal('בדיוני', 'other', { state: 'pending', source: 'member', wasPending: true, postedBy: 'אבי בדיוני', postedAt: Date.now() / 1000 - 3600 * 3 }), group: 'events', type: 'event', kind: 'message',
         message: msg('SHFIXTURE0000000000000099', 'event', 'event', { name: 'הקפות שניות לילדים', date: addDays(week, 1), time: '19:00', place: 'החצר', for: 'kids' }) },
-      mazal('ניסיון', 'birthDaughter', { postedBy: 'משה כהן' }, { name: 'נועה', whose: 'grandparents', parents: 'דוד ושרה' }),
+      mazal('ניסיון', 'birthDaughter', { postedBy: 'משה משל' }, { name: 'נועה', whose: 'grandparents', parents: 'דוד ושרה' }),
       mazal('בדיוני', 'barMitzvah', { source: 'byGabbai', byRole: 'gabbai' }, { name: 'הלל' }),
       mazal('דוגמתי', 'birthDaughter', { source: 'byGabbai', byRole: 'tech' }, { name: 'מיכל' }),
-      mazal('דוגמה', 'engagement', { source: 'approved', approvedBy: 'משה', postedBy: 'נעמה לוי' }),
+      mazal('דוגמה', 'engagement', { source: 'approved', approvedBy: 'משה', postedBy: 'נעמה פלוני' }),
       mazal('דוגמאי', 'batMitzvah', { source: 'approved', approvedBy: 'משה', postedBy: 'תמר דוגמאי' }, { name: 'שירה' }),
     ];
-    if (many) out.push(mazal('לוי', 'wedding'), mazal('ניסיונית', 'birthSon'), mazal('דוגמית', 'engagement'));
+    if (many) out.push(mazal('משל', 'wedding'), mazal('ניסיונית', 'birthSon'), mazal('דוגמית', 'engagement'));
     const cid = id();
     out.push({ ...base, itemId: cid, group: 'condolence', type: 'condolence', postedAt: at, message: msg(cid, 'condolence', 'condolence', { variant: 'only', surname: 'בדיוני', deceased: 'שרה', relation: 'אמו של יעקב' }) });
     const eid = id();
     out.push({ ...base, itemId: eid, group: 'events', type: 'event', postedAt: at, message: msg(eid, 'event', 'event', { name: 'ערב לימוד לנשים', date: addDays(week, 4), time: '20:30', place: 'עזרת הנשים', for: 'women' }) });
-    out.push({ ...base, itemId: id(), group: 'events', kind: 'free', type: 'notice', source: 'free', postedAt: at + 5, line: { text: 'שיעור פתוח · מוצ״ש 19:30 · הרב ניסיון', bold: '' }, postedBy: 'משה כהן' });
+    out.push({ ...base, itemId: id(), group: 'events', kind: 'free', type: 'notice', source: 'free', postedAt: at + 5, line: { text: 'שיעור פתוח · מוצ״ש 19:30 · הרב ניסיון', bold: '' }, postedBy: 'משה משל' });
     return out;
   };
   const sheetFixture = (method: string, path: string, body: unknown): unknown => {

@@ -342,7 +342,7 @@ test('pruneFeed keeps only messages (and replies) of readable channels', async (
 });
 
 test('a reply_count change keeps replyAdults and replyBlocked it does not carry', () => {
-  const adults = [{ userId: 'u1', name: 'שולמית ברקן' }];
+  const adults = [{ userId: 'u1', name: 'שולמית פלוני' }];
   const s0 = feedFromMessages([msg('M1', { replyAdults: adults, replyBlocked: 'target_left' })]);
   const s1 = applyChanges(s0, [{ kind: 'reply_count', id: 'M1', item: msg('M1', { replierCount: 4 }) }]);
   assert.equal(s1.messages.M1?.replierCount, 4);

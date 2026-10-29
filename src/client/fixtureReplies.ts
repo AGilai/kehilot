@@ -9,10 +9,10 @@ export const P48_SCREENS = ['p48-messages', 'p48-actions', 'p48-sheet', 'p48-she
 
 const U = (n: number) => `01FIXTUREUSER000000000${n}`;
 export const P48_PEOPLE = {
-  rotem: { userId: U(60), firstName: 'רותם', lastName: 'אלמוג' },
-  shulamit: { userId: U(61), firstName: 'שולמית', lastName: 'ברקן' },
-  yigal: { userId: U(62), firstName: 'יגאל', lastName: 'ברקן' },
-  alon: { userId: U(63), firstName: 'אלון', lastName: 'שדמי' },
+  rotem: { userId: U(60), firstName: 'רותם', lastName: 'בדיוני' },
+  shulamit: { userId: U(61), firstName: 'שולמית', lastName: 'פלוני' },
+  yigal: { userId: U(62), firstName: 'יגאל', lastName: 'פלוני' },
+  alon: { userId: U(63), firstName: 'אלון', lastName: 'ניסיון' },
   dana: { userId: U(64), firstName: 'דנה', lastName: 'בדיונית' },
 };
 const BARKAN = '01FIXTUREFAMILY0000000061';
@@ -54,9 +54,9 @@ export function p48Messages(o: { now: number; channelId: string; ulid: (ms: numb
   const base = { channelId, joinCount: 0 };
   return [
     { ...base, messageId: ulid(now - 40 * MIN, 41), type: 'weekly', title: 'שבת שלום מהקהילה הבדיונית', body: 'קבלת שבת תתקיים בשעה הרגילה.', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management' },
-    { ...base, messageId: ulid(now - 90 * MIN, 42), type: 'general', title: 'מי מצטרף לשיעור גמרא בשבת בבוקר?', body: 'השיעור יתחיל בשבע וחצי. נשמח לכל מי שרוצה להצטרף.', authorId: P48_PEOPLE.rotem.userId, authorName: 'רותם אלמוג', authorKind: 'member' },
-    { ...base, messageId: ulid(now - 120 * MIN, 43), type: 'celebration', title: 'מזל טוב לבר המצווה בבית ברקן', body: 'משפחת ברקן מזמינה את כולם לשמחה בשבת הקרובה.', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 14, targetMemberId: P48_PEOPLE.shulamit.userId, targetFamilyId: BARKAN, targetName: 'ברקן' },
-    { ...base, messageId: ulid(now - 200 * MIN, 44), type: 'condolence', title: 'השתתפות בצער משפחת שדמי', body: 'בצער רב אנו מודיעים על פטירת אבי המשפחה. יהי זכרו ברוך.', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', targetMemberId: P48_PEOPLE.alon.userId, targetFamilyId: SHADMI, targetName: 'שדמי' },
+    { ...base, messageId: ulid(now - 90 * MIN, 42), type: 'general', title: 'מי מצטרף לשיעור גמרא בשבת בבוקר?', body: 'השיעור יתחיל בשבע וחצי. נשמח לכל מי שרוצה להצטרף.', authorId: P48_PEOPLE.rotem.userId, authorName: 'רותם בדיוני', authorKind: 'member' },
+    { ...base, messageId: ulid(now - 120 * MIN, 43), type: 'celebration', title: 'מזל טוב לבר המצווה בבית פלוני', body: 'משפחת פלוני מזמינה את כולם לשמחה בשבת הקרובה.', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', joinCount: 14, targetMemberId: P48_PEOPLE.shulamit.userId, targetFamilyId: BARKAN, targetName: 'פלוני' },
+    { ...base, messageId: ulid(now - 200 * MIN, 44), type: 'condolence', title: 'השתתפות בצער משפחת ניסיון', body: 'בצער רב אנו מודיעים על פטירת אבי המשפחה. יהי זכרו ברוך.', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management', targetMemberId: P48_PEOPLE.alon.userId, targetFamilyId: SHADMI, targetName: 'ניסיון' },
     { ...base, messageId: ulid(now - 26 * 60 * MIN, 45), type: 'general', title: 'כיסאות לשבת', body: 'חסרים כמה כיסאות באולם. מי יכול להביא?', authorId: 'm1', authorName: 'יוסי לדוגמה', authorKind: 'management' },
     { ...base, messageId: ulid(now - 28 * 60 * MIN, 46), type: 'event', title: 'שיעור ערב שבת', body: 'שיעור קצר לפני מנחה.', authorId: 'u7', authorName: 'רון לדוגמה', authorKind: 'member' },
   ];
