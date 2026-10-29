@@ -1816,6 +1816,17 @@ Still open:
 **Owner, 2026-10-29:** after "שליחה" succeeds the seat screen closes by itself and returns to Home, with the Toast
 "נשמר" (the Home card/row then shows the new state). A failed send keeps the screen open with the error.
 
+**Free order, owner 2026-10-29 (supersedes "free from the far side of the aisle" everywhere in §15).** The head of the
+family keeps the best seat; seats are freed from the worst. Compare two of the family's seats in this order, the
+first difference decides:
+1. the row nearer the Aron (ארון הקודש) is better;
+2. in the same row, a seat next to an aisle is better;
+3. the seat nearer the bimah is better;
+4. the seat with fewer seats between it and an aisle is better;
+5. last tie: the seat on the right, facing the Aron.
+Example (owner): a family filling a whole row touches both aisles; the aisle seat nearer the bimah is the head's, the
+middle seats go first, then the other aisle seat. The gabbai's count upload frees in the same order.
+
 #### 15.10.13 One tap "לא מגיעים השבת" from Home and the push (P24, redrawn)
 
 Owner, 2026-10-28: a real one-click. **"לא מגיעים השבת" frees all the family's seats for both ליל שבת and שבת בבוקר
