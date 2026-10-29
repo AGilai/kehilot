@@ -332,7 +332,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
       body = scheduleEditorAllowed(kehila?.role) ? <ScheduleEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} onSheet={() => guard(() => { setBackNav({ tab: 'scheduleEditor' }); setNav({ tab: 'sheetItems' }); })} /> : null;
       break;
     case 'seats':
-      body = isAdult(kehila?.role) ? <SeatPage week={nav.week} onBack={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
+      body = isAdult(kehila?.role) ? <SeatPage week={nav.week} onBack={() => setNav({ tab: 'home' })} onDone={() => setNav({ tab: 'home' })} onToast={showToast} /> : null;
       break;
     case 'seatEditor':
       body = seatEditorAllowed(kehila?.role) ? <SeatEditor onBack={() => guard(() => toolBack())} onDirty={dirty => { editorDirty.current = dirty; }} onToast={showToast} /> : null;
@@ -459,7 +459,7 @@ export function Main({ onOpenMenu, banner, pushSignal, takePush, menuSignal, tak
         {sidebar}
         <AdminContext.Provider value={{ onForbidden: leaveManage }}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, minWidth: 0 }}>{body}</KeyboardAvoidingView></AdminContext.Provider>
       </View>
-      {sidebar || nav.tab === 'compose' || nav.tab === 'update' ? null : <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
+      {sidebar || nav.tab === 'compose' || nav.tab === 'update' || nav.tab === 'seats' ? null : <View style={{ borderTopWidth: 1, borderTopColor: k.line, backgroundColor: k.surface }}>
         <View style={{ flexDirection: 'row', width: '100%', maxWidth: 680, alignSelf: 'center' }}>
           {tabs.map(tab => {
             const on = active === tab.key;

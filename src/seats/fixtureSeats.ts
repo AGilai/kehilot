@@ -125,6 +125,7 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
     if (h.released.shacharit.has(seatKey(s))) state.day.set(fixtureSeatId(s), { by: 'member', at: 1_790_000_000_000 });
   }
   if (variant === 'gabbai' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'gabbai', at: 1_790_000_100_000 });
+  if (card === 'seats-tech' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'tech', at: 1_790_000_100_000 });
   if (card === 'seats-gabbai' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'gabbai', at: 1_790_000_100_000 });
   if (card === 'seats-done' && mine[2]) state.erev.set(fixtureSeatId(mine[2]), { by: 'member', at: 1_790_000_100_000 });
 
@@ -134,7 +135,7 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
   // Who has answered: every other household with an even number; his family only for the "done"/gabbai cards.
   const answered: Record<WirePrayer, Map<string, number>> = { erev: new Map(), day: new Map() };
   allocations.slice(1).forEach((a, i) => { if (i % 2 === 0) { answered.erev.set(`family:${a.householdId}`, 1_790_000_000_000); answered.day.set(`family:${a.householdId}`, 1_790_000_000_000); } });
-  if (card === 'seats-done' || card === 'seats-gabbai' || variant === 'gabbai' || hs?.answered) for (const p of ['erev', 'day'] as const) answered[p].set('family:me', 1_790_000_100_000);
+  if (card === 'seats-done' || card === 'seats-gabbai' || card === 'seats-tech' || variant === 'gabbai' || hs?.answered) for (const p of ['erev', 'day'] as const) answered[p].set('family:me', 1_790_000_100_000);
 
   const dueAt = israelInstant(friday, DEFAULT_WINDOW.deadline.time);
   const open = variant !== 'closed' && (home ? home.now < dueAt : true);
@@ -163,6 +164,7 @@ export function createSeatsFixture(variant: SeatVariant, card: string | null, fr
     const free = freeOrderIds(layout, order);
     return {
       ...base, seats: view.seatCount, updatedByGabbai: staff.length > 0, updatedByAt: staff.length ? Math.max(...staff.map((r) => r.at)) : null,
+      updatedByRole: staff.length ? staff.reduce((a, b) => (b.at >= a.at ? b : a)).by as 'gabbai' | 'tech' : null,
       updatedAt: { ...updatedAt }, answered: { erev: answered.erev.has('family:me'), day: answered.day.has('family:me') },
       answeredAt: { erev: answered.erev.get('family:me') ?? null, day: answered.day.get('family:me') ?? null },
       freeOrder: free.map((id) => order.indexOf(id) + 1), frames,

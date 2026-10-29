@@ -55,6 +55,9 @@ export type MemberSeats = {
   released: Record<Prayer, Set<string>>;
 };
 
+/** A server's free order must be a permutation of 1..seats; anything else (old server, bad length) falls back to the old rule. */
+const validFreeOrder = (o: number[] | undefined, seats: number): o is number[] => !!o && o.length === seats && new Set(o).size === seats && o.every((x) => Number.isInteger(x) && x >= 1 && x <= seats);
+
 export function memberFromWire(w: MemberWire): MemberSeats {
   const released: Record<Prayer, Set<string>> = { arvit: new Set(), shacharit: new Set() };
   const frames: SeatFrame[] = (w.frames ?? []).map((f, i) => ({
@@ -89,7 +92,7 @@ export function memberFromWire(w: MemberWire): MemberSeats {
     answered: { arvit: !!w.answered?.erev, shacharit: !!w.answered?.day },
     answeredAt: { arvit: w.answeredAt?.erev ?? null, shacharit: w.answeredAt?.day ?? null },
     updatedByAt: w.updatedByAt ?? null,
-    freeOrder: w.freeOrder ? w.freeOrder.map(String) : Array.from({ length: w.seats }, (_, i) => String(w.seats - i)),
+    freeOrder: validFreeOrder(w.freeOrder, w.seats) ? w.freeOrder.map(String) : Array.from({ length: w.seats }, (_, i) => String(w.seats - i)),
     frames,
     released,
   };

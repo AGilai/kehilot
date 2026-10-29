@@ -306,11 +306,11 @@ function releasedNowOf(w: WeekWire, h: ReturnType<typeof households>[number]): s
 // ---- the P37 fields
 
 test('memberFromWire maps the new fields', () => {
-  const m = member({ freeOrder: [2, 1], answeredAt: { erev: 11, day: null }, updatedByAt: 99 });
-  assert.deepEqual(m.freeOrder, ['2', '1']);
+  const m = member({ freeOrder: [2, 1, 3], answeredAt: { erev: 11, day: null }, updatedByAt: 99 });
+  assert.deepEqual(m.freeOrder, ['2', '1', '3']);
   assert.deepEqual(m.answeredAt, { arvit: 11, shacharit: null });
   assert.equal(m.updatedByAt, 99);
-  const w = wire({ freeOrder: [2, 1] });
+  const w = wire({ freeOrder: [2, 1, 3] });
   w.frames![0]!.lanes = ['left'];
   w.frames![0]!.gapAbove = true;
   const f = memberFromWire(w).frames[0]!;

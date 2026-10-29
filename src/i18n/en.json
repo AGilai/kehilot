@@ -1572,8 +1572,8 @@
       "hint": {
         "none": "Tap a number, or the chairs on the map.",
         "zero": "All {n} seats are kept for you.",
-        "some": "Freed from the far side of the aisle. You can also tap a chair.",
-        "someRear": "Rear row first, from the far side of the aisle.",
+        "some": "Seats are freed in the usual order; you can also tap a chair.",
+        "someRear": "Seats are freed in the usual order; you can also tap a chair.",
         "all": "Not coming: all {n} seats are free for others.",
         "custom": "You picked chairs on the map. The number follows them.",
         "sent": "This is what you sent."
@@ -1616,6 +1616,9 @@
       "circleN": "{n}, not coming",
       "segLabel": "{prayer}, {state}",
       "answeredWord": "answered",
+      "nameArvit": "Friday night",
+      "nameShacharit": "Shabbat morning",
+      "stateUnanswered": "Not yet",
       "savedToast": "Saved"
     },
     "title": "Shabbat seats",

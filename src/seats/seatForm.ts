@@ -39,7 +39,7 @@ export function tapChair(d: FormDraft, m: MemberSeats, p: Prayer, key: string): 
 }
 /** "Same as Friday night": shacharit becomes a copy of arvit. */
 export function copyArvit(d: FormDraft): FormDraft {
-  return { ...d, shacharit: { released: new Set(d.arvit.released), answered: true, custom: d.arvit.custom } };
+  return { ...d, shacharit: { released: new Set(d.arvit.released), answered: d.arvit.answered, custom: d.arvit.custom } };
 }
 /** Does the draft differ from what the server has for that prayer? */
 export const changed = (d: FormDraft, m: MemberSeats, p: Prayer): boolean => !sameSet(d[p].released, m.released[p]);

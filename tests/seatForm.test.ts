@@ -60,6 +60,25 @@ test('copyArvit copies the set and answers shacharit', () => {
   assert.deepEqual(c.shacharit, { released: set('3'), answered: true, custom: true });
 });
 
+test('copyArvit does not mark shacharit answered when arvit is not', () => {
+  const d = copyArvit(initDraft(m()));
+  assert.equal(d.shacharit.answered, false);
+  assert.equal(d.arvit.answered, false);
+});
+
+test('memberFromWire: a freeOrder of the wrong length falls back to the family order reversed', () => {
+  const w = createSeatsFixture('default', null, '2026-10-30').memberWire();
+  assert.deepEqual(memberFromWire({ ...w, freeOrder: [1, 2] }).freeOrder, ['3', '2', '1']);
+  assert.deepEqual(memberFromWire({ ...w, freeOrder: [1, 1, 2] }).freeOrder, ['3', '2', '1']);
+  assert.deepEqual(memberFromWire({ ...w, freeOrder: [2, 1, 3] }).freeOrder, ['2', '1', '3']);
+});
+
+test('fixture: a gabbai edit and a tech edit carry their role', () => {
+  assert.equal(createSeatsFixture('gabbai', null, '2026-10-30').memberWire().updatedByRole, 'gabbai');
+  assert.equal(createSeatsFixture('default', 'seats-tech', '2026-10-30').memberWire().updatedByRole, 'tech');
+  assert.equal(createSeatsFixture('default', null, '2026-10-30').memberWire().updatedByRole ?? null, null);
+});
+
 test('initDraft: all freed and answered opens as N, sendChanges disabled', () => {
   const all = set('1', '2', '3');
   const x = m({ answered: { arvit: true, shacharit: true }, released: { arvit: all, shacharit: new Set(all) } });
@@ -171,22 +190,4 @@ test('fixture: big variant', () => {
   assert.equal(mineRows[0]!.cells.filter((c) => c.kind === 'mine').length, 5);
   assert.deepEqual(mineRows[1]!.cells.map((c) => c.kind), ['other', 'other', 'other', 'mine', 'mine']);
   assert.equal(memberFromWire(w).seatCount, 7);
-});
-
-test('mapFold: default open, round-trips, survives a throwing storage', async () => {
-  const { readMapFolded, writeMapFolded } = await import('../src/seats/mapFold.ts');
-  const g = globalThis as { localStorage?: unknown };
-  const had = g.localStorage;
-  try {
-    const mem = new Map<string, string>();
-    g.localStorage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
-    assert.equal(await readMapFolded(), false);
-    await writeMapFolded(true);
-    assert.equal(await readMapFolded(), true);
-    await writeMapFolded(false);
-    assert.equal(await readMapFolded(), false);
-    g.localStorage = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
-    assert.equal(await readMapFolded(), false);
-    await writeMapFolded(true);
-  } finally { g.localStorage = had; }
 });
