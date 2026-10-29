@@ -1264,7 +1264,9 @@
       "every": "Every week"
     },
     "sidebar": {
-      "label": "Management"
+      "label": "Management",
+      "collapse": "Collapse menu",
+      "expand": "Expand menu"
     },
     "role": {
       "row": "Role",
