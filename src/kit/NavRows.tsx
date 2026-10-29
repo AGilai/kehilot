@@ -29,8 +29,8 @@ export function CountBadge({ n }: { n: number }) {
  * `attention` (pomegranate), an optional end value or custom end, and the forward arrow. `action`: 52 high, no arrow.
  * `band`: the Kehila menu's manage row (white on the band colour).
  */
-export function NavRow({ title, status, icon, tone, big, action, danger, band, badge, value, end, onPress, testID, label }: {
-  title: string; status?: string; icon?: IconName; tone?: 'warn' | 'attention'; big?: boolean; action?: boolean; danger?: boolean; band?: boolean;
+export function NavRow({ title, status, icon, lead, tone, big, action, danger, band, badge, value, end, onPress, testID, label }: {
+  title: string; status?: string; icon?: IconName; /** Replaces the icon (the logo tile). */ lead?: React.ReactNode; tone?: 'warn' | 'attention'; big?: boolean; action?: boolean; danger?: boolean; band?: boolean;
   badge?: number; value?: string; end?: React.ReactNode; onPress?: () => void; testID?: string; label?: string;
 }) {
   const k = useTokens();
@@ -38,7 +38,7 @@ export function NavRow({ title, status, icon, tone, big, action, danger, band, b
   const statusColor = band ? '#FFFFFF' : tone === 'warn' ? k.gold : tone === 'attention' ? k.pomegranate : k.muted;
   const inner = (
     <>
-      {icon ? <Icon name={icon} size={24} color={danger ? k.danger : band ? '#FFFFFF' : k.tekhelet} /> : null}
+      {lead ?? (icon ? <Icon name={icon} size={24} color={danger ? k.danger : band ? '#FFFFFF' : k.tekhelet} /> : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Txt bold={!action} color={color} style={action ? { fontWeight: '500' } : undefined}>{title}</Txt>
         {status ? <Txt size="small" bold={!!tone} color={statusColor} numberOfLines={1}>{status}</Txt> : null}

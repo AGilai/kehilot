@@ -16,7 +16,7 @@ export type AreaTarget =
   | 'scheduleEditor' | 'seatPrint' | 'seatBehalf' | 'seatResponses' | 'seatTimes' | 'seatEditor' | 'seatHolders'
   | 'compose' | 'channels' | 'pushTexts' | 'simchas' | 'sheetItems'
   | 'approvals' | 'members' | 'membersTags' | 'groups' | 'invite' | 'import'
-  | 'sheet:cap' | 'sheet:privacy' | 'sheet:terms';
+  | 'sheet:logo' | 'sheet:cap' | 'sheet:privacy' | 'sheet:terms';
 export type BadgeKind = 'requests' | 'linkHints' | 'groupRequests' | 'sheetPending';
 export type AreaRow = { id: string; target: AreaTarget | null; badge?: BadgeKind; section?: 'week' | 'every' | 'hall' };
 export type Area = { id: AreaId; rows: AreaRow[] };
@@ -40,7 +40,7 @@ export function areas(role: Role | string | undefined): Area[] {
       { id: 'approvals', target: 'approvals', badge: 'requests' }, { id: 'members', target: 'members' }, { id: 'tags', target: 'membersTags' },
       { id: 'groups', target: 'groups', badge: 'groupRequests' }, { id: 'invite', target: 'invite' }, { id: 'import', target: 'import' },
     ] },
-    { id: 'settings', rows: [{ id: 'cap', target: 'sheet:cap' }, { id: 'privacy', target: 'sheet:privacy' }, { id: 'terms', target: 'sheet:terms' }] },
+    { id: 'settings', rows: [{ id: 'logo', target: 'sheet:logo' }, { id: 'cap', target: 'sheet:cap' }, { id: 'privacy', target: 'sheet:privacy' }, { id: 'terms', target: 'sheet:terms' }] },
   ];
 }
 

@@ -28,10 +28,10 @@ export function assertFixturesAllowed(apiUrl: string = config.apiUrl): void {
 /** Screens that open the signed-in app at once (the others are for the sign-in screens). */
 /** Screens for the P-frames. `me-linked` is P2's main state and P6's member-with-a-partner check;
  *  `leave-listener` is P6's guest listener; `home-card` takes `&card=` (P7). */
-export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+export const FRAME_SCREENS = ['phone-list', 'phone-list-empty', 'me', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'logo', 'logo-none', 'logo-crop', 'logo-error', 'compose-family', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 export const FIXTURE_APP_SCREENS = ['profile', 'switcher', 'home', 'me', 'messages', 'messages-all', 'm3', 'm3b', 'm3target', 'chat', 'search-loading', 'compose', 'compose-target', 'compose-image', 'compose-tpl-event', 'compose-tpl-mazal', 'compose-tpl-condolence', 'compose-tpl-missing', 'compose-tpl-free', 'm5', 'prefs-seats', 'overview', 'approvals', 'members', 'invite-member', 'groups', 'channels', 'channel-sheet', 'group-admin', 'import',
-  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'sheet-items', 'sheet-items-many', 'sheet-items-sheet', 'sheet-items-free', 'sheet-items-rules', 'print-items', 'print-items-many', 'home-week', 'home-week-guest', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
+  'phone-list', 'phone-list-empty', 'me-family', 'me-request', 'me-linked', 'me-man', 'partner-picker', 'child-sheet', 'privacy', 'privacy-ready', 'kehila-info', 'leave-listener', 'home-card', 'age13', 'age13-under', 'terms', 'profile-age', 'delete', 'delete-ticked', 'admin-families', 'admin-link', 'overview-privacy', 'area-seats', 'area-people', 'area-settings', 'logo', 'logo-none', 'logo-crop', 'logo-error', 'compose-family', 'tags-manage', 'tags-assign', 'tags-empty', 'schedule', 'schedule-none', 'schedule-editor', 'schedule-editor-none', 'sheet-items', 'sheet-items-many', 'sheet-items-sheet', 'sheet-items-free', 'sheet-items-rules', 'print-items', 'print-items-many', 'home-week', 'home-week-guest', 'home-row-open', 'home-row-answered', 'home-row-gabbai', 'home-row-closed', 'home-row-none', 'home-seat-thu', 'home-seat-closed', 'home-not-reminded', 'seats', 'seats-split', 'seats-none', 'seats-closed', 'seats-gabbai', 'seat-print', 'seat-editor', 'seat-editor-check', 'seat-editor-match', 'seat-editor-save', 'seat-map', 'seat-upload', 'seat-upload-preview', 'seat-holders', 'seat-link', 'seat-approval', 'seat-times', 'seat-times-off', 'tree', 'tree-married', 'tree-solo', 'tree-empty', 'tree-admin', 'tree-link', 'tree-link-sent', 'tree-link-received', 'tree-link-declined', 'tree-link-expired', 'simchas', 'simchas-empty', 'simchas-card', 'simchas-card-empty'];
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** A valid-looking ULID for a time, so fixtures group by day like real messages. */
@@ -43,7 +43,12 @@ function fixtureUlid(ms: number, n: number): string {
 
 /** Fixture mode: `?logo=1` gives the Kehila a dark mark on a transparent background (it must sit on a white tile in dark mode). */
 const FIXTURE_LOGO = 'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAACLElEQVR4nO2TQW4DMQwD84ie+7D+/x/tqUCyhzaxaHMYicBexSHpvd1Go9FoNALr4/Pre+Vzc8dqtfAZZFG7Cp9B/pGr+PZDuAtvO4S74LZDuAttO4S7wNZDuEtrPYK7rLYjkMKTWI6IHpLOV1JaqDTeP5UcJJldEsAKf6fIHHHATygqUwzoi4rIFQFZEDofGk4oZE4XkLMM1AguEPdrRAyQVADBX+W9DOH0JjAove2/IGGAFQ6Lscx00Z/EkmlYZKDxZJkJGGg8GUZCDiIT20TMQWRiGmxioXKxjm9koXJtO74h1zILmY1zeEHtBkgNSWeTH92Ya4mHzuc7WNQMEBKQzic9RgyYwCc7diDXy0wJjOcOCTUDhIRLYDx3SKgZICRcAuO5Q0LNACHhEhjPHRJqBggJl8B47pBQM0BIuATGc4eEmgHMAekDyJmSA5L5fAeLmgFCAtL55AdPhSQPsI0nNSSVjXN4QTOAOSh1gK0sqUGpXEyDDRxEJraJmIPIlGEkYqDxZJkJGGg8mYYFfxKLxXRHcMoAVn+nOWEA9/hLJTi93f4q7xKIy9ftr/Itg6hgnANgXn8FqArVxfM94ASKyBcBuaCYXKug5BHiMlWASUNE56jCOwMksz9IEeRkmDTep6QKtSscnU8idchKYBLLce0M7/zcvb4kd1mty/+Vu7TW5d/LXWDb4q9yF9q2+KvcBbct/ip34W2Lv2qKh2kKh2kKH41Go9E76gf39hYoo5OFvAAAAABJRU5ErkJggg==';
-const fixtureHasLogo = () => config.fixtures && typeof window !== 'undefined' && !!window.location && new URLSearchParams(window.location.search).get('logo') === '1';
+const fixtureHasLogo = () => {
+  if (!config.fixtures || typeof window === 'undefined' || !window.location) return false;
+  const q = new URLSearchParams(window.location.search);
+  // The management logo screens: `logo`, `logo-crop` and `logo-error` have a logo, `logo-none` has none.
+  return q.get('logo') === '1' || ['logo', 'logo-crop', 'logo-error'].includes(q.get('screen') ?? '');
+};
 
 export const FIXTURE_PICTURE = `data:image/svg+xml;utf8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="640" height="400" fill="#C9D3F5"/><circle cx="480" cy="110" r="52" fill="#F2D27A"/><path d="M0 400 L200 170 L340 320 L450 230 L640 400 Z" fill="#2A3F94"/></svg>')}`;
@@ -208,6 +213,7 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
       seatLink: card === 'seat-link' ? { seats: 2, at: 1_790_000_000 } : null,
     },
     ...(isManagement(role) ? { typeRules: { celebration: { post: 'broadcasters' as const, listeners: false }, condolence: { post: 'management' as const, listeners: true } } } : {}),
+    ...(isManagement(role) && fixtureHasLogo() ? { logoInfo: { name: 'משה דוגמה', at: 1_790_000_000, bytes: 38_912, side: 512 } } : {}),
     ...(isManagement(role) ? { termsAccepted: screen === 'terms' || card === 'terms' ? null : { name: 'עמית דוגמה', at: TERMS_AT } } : {}),
   };
   const me = {
@@ -373,6 +379,8 @@ export function createFixtureApi(roleIn: Role, screen: string | null = null, lan
   routes[`GET ${K}/groups/01FIXTUREGROUP00000000002/requests`] = [];
   routes[`GET ${K}/groups/01FIXTUREGROUP00000000002/members`] = [{ userId: 'u8', displayName: 'מיכל בדויה', role: 'member', isAdmin: true }];
   routes[`PUT ${A}/settings`] = {};
+  routes[`PUT ${A}/logo`] = { logoVersion: '2' };
+  routes[`DELETE ${A}/logo`] = null;
   routes[`PUT ${A}/broadcast`] = {};
   routes[`PUT ${A}/push-texts`] = {};
   routes[`GET ${A}/push-texts`] = {

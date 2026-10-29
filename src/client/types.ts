@@ -35,6 +35,8 @@ export type Kehila = {
   role: Role;
   classification: Classification;
   logoVersion: string | null;
+  /** Management only: who set the logo, when (Unix seconds), PNG bytes and side; null when there is none. */
+  logoInfo?: { name: string; at: number; bytes: number; side: number } | null;
   /** Members only: whether their mazal tov, condolence and event lines go on the sheet at once or wait for approval. */
   sheetMembers?: 'approve' | 'auto';
   canBroadcast: boolean;

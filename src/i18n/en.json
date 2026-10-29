@@ -3150,6 +3150,7 @@
     "source": {
       "photos": "From photos",
       "files": "From files",
+    "removeDo": "Remove",
       "drop": "Drop a PNG or JPEG here"
     },
     "crop": {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LogoEncodeError, MAX_INPUT_BYTES, cropRect, encodeLogo, logoErrorKey, targetSides } from '../src/media/logo.ts';
+import { LogoEncodeError, MAX_INPUT_BYTES, clampView, cropRect, encodeLogo, logoErrorKey, nudgeView, rotateView, sourceError, targetSides, zoomView } from '../src/media/logo.ts';
 import type { LogoDeps } from '../src/media/logo.ts';
 import { ApiCodeError } from '../src/client/errors.ts';
 
@@ -95,4 +95,36 @@ test('logoErrorKey', () => {
   assert.equal(logoErrorKey(new LogoEncodeError('big')), 'logo.err.big');
   assert.equal(logoErrorKey(new Error('x')), 'logo.err.save');
   assert.equal(logoErrorKey(undefined), 'logo.err.save');
+});
+
+test('sourceError: PNG and JPEG up to 10 MB pass, anything else is a format error', () => {
+  assert.equal(sourceError('image/png', 1000), null);
+  assert.equal(sourceError('image/jpeg', MAX_INPUT_BYTES), null);
+  assert.equal(sourceError('image/gif', 1000), 'logo.err.format');
+  assert.equal(sourceError('image/png', MAX_INPUT_BYTES + 1), 'logo.err.format');
+  assert.equal(sourceError('', 1000), 'logo.err.format');
+  assert.equal(sourceError('', 1000, true), null);
+});
+
+test('clampView: scale 1..4 and the pan keeps the image over the frame', () => {
+  const img = { width: 1000, height: 500 };
+  assert.deepEqual(clampView({ scale: 0.5, x: 999, y: 999, rotation: 0 }, img, 300), { scale: 1, x: 150, y: 0, rotation: 0 });
+  assert.equal(clampView({ scale: 9, x: 0, y: 0, rotation: 0 }, img, 300).scale, 4);
+  // scale 2: displayed 1200x600, so the pan may reach 450 across and 150 down
+  assert.deepEqual(clampView({ scale: 2, x: -999, y: 999, rotation: 0 }, img, 300), { scale: 2, x: -450, y: 150, rotation: 0 });
+  // rotated 90: the short side is the width of the original
+  assert.deepEqual(clampView({ scale: 1, x: 99, y: 999, rotation: 90 }, img, 300), { scale: 1, x: 0, y: 150, rotation: 90 });
+});
+
+test('zoomView and nudgeView clamp; rotateView turns 90 degrees and recentres', () => {
+  const img = { width: 500, height: 500 };
+  assert.equal(zoomView(still, 0.5, img, 300).scale, 1.5);
+  assert.equal(zoomView({ ...still, scale: 3.8 }, 0.5, img, 300).scale, 4);
+  assert.equal(zoomView(still, -1, img, 300).scale, 1);
+  const z = { scale: 2, x: 0, y: 0, rotation: 0 } as const;
+  assert.deepEqual(nudgeView(z, 1, 0, img, 300), { ...z, x: 1 });
+  assert.deepEqual(nudgeView(z, 10, -10, img, 300), { ...z, x: 10, y: -10 });
+  assert.equal(nudgeView(still, 10, 0, img, 300).x, 0);
+  assert.deepEqual(rotateView({ scale: 2, x: 5, y: 7, rotation: 270 }), { scale: 2, x: 0, y: 0, rotation: 0 });
+  assert.equal(rotateView(still).rotation, 90);
 });

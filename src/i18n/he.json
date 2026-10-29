@@ -3150,6 +3150,7 @@
     "source": {
       "photos": "מהתמונות",
       "files": "מהקבצים",
+    "removeDo": "הסרה",
       "drop": "גוררים לכאן קובץ PNG או JPEG"
     },
     "crop": {

@@ -114,6 +114,7 @@ function fixtureNav(state: ReturnType<typeof useSession>['state']): { nav: Nav; 
   if (s === 'phone-list' || s === 'phone-list-empty') return { nav: { tab: 'phoneList', from: 'home' } };
   if (s === 'overview' || s === 'overview-privacy' || s === 'terms' || s === 'simchas-card' || s === 'simchas-card-empty') return { nav: { tab: 'overview' }, manage: true };
   if (s === 'area-seats' || s === 'area-people' || s === 'area-settings') return { nav: { tab: 'area', id: s.slice(5) as AreaId }, manage: true };
+  if (s === 'logo' || s === 'logo-none' || s === 'logo-crop' || s === 'logo-error') return isManagement(state.kehila?.role) ? { nav: { tab: 'area', id: 'settings' }, manage: true } : null;
   if (s === 'simchas' || s === 'simchas-empty') return { nav: { tab: 'simchas' }, manage: true };
   if (s === 'approvals' || s === 'seat-approval') return seatEditorAllowed(state.kehila?.role) || s === 'approvals' ? { nav: { tab: 'approvals' }, manage: true } : null;
   if (s === 'members' || s === 'admin-families' || s === 'admin-link' || s === 'tags-manage' || s === 'tags-assign' || s === 'tags-empty') return { nav: { tab: 'members' }, manage: true };

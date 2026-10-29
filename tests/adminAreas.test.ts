@@ -22,7 +22,9 @@ test('areas: rows inside each group, in order', () => {
   assert.deepEqual(rows('messages'), ['compose', 'channels', 'types', 'pushTexts']);
   assert.deepEqual(rows('simchas'), ['simchas', 'aliyot']);
   assert.deepEqual(rows('people'), ['approvals', 'members', 'tags', 'groups', 'invite', 'import']);
-  assert.deepEqual(rows('settings'), ['cap', 'privacy', 'terms']);
+  assert.deepEqual(rows('settings'), ['logo', 'cap', 'privacy', 'terms']);
+  assert.deepEqual(areas('gabbai').find(a => a.id === 'settings')!.rows[0], { id: 'logo', target: 'sheet:logo' });
+  assert.deepEqual(areas('tech').find(a => a.id === 'settings')!.rows[0], { id: 'logo', target: 'sheet:logo' });
 });
 
 test('areas: seat rows keep their two sections; the aliyot row is reserved (no destination)', () => {
@@ -43,7 +45,7 @@ test('areas: the times row is in section every, for gabbai and tech, not for a m
 
 test('areas: every existing management screen is reachable from some row', () => {
   const t = allowedTargets('gabbai');
-  for (const x of ['approvals', 'members', 'membersTags', 'groups', 'invite', 'import', 'channels', 'pushTexts', 'compose', 'simchas', 'scheduleEditor', 'seatPrint', 'seatBehalf', 'seatResponses', 'seatTimes', 'seatEditor', 'seatHolders', 'sheet:cap', 'sheet:privacy', 'sheet:terms']) assert.ok(t.has(x as never), x);
+  for (const x of ['approvals', 'members', 'membersTags', 'groups', 'invite', 'import', 'channels', 'pushTexts', 'compose', 'simchas', 'scheduleEditor', 'seatPrint', 'seatBehalf', 'seatResponses', 'seatTimes', 'seatEditor', 'seatHolders', 'sheet:logo', 'sheet:cap', 'sheet:privacy', 'sheet:terms']) assert.ok(t.has(x as never), x);
   assert.equal(allowedTargets('member').size, 0);
 });
 

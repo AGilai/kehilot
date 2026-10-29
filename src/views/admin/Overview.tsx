@@ -4,6 +4,8 @@ import { useAuth } from '../../auth/AuthProvider.tsx';
 import { AREA_IDS, areas, todoItems } from '../../client/adminAreas.ts';
 import type { Area, AreaId, AreaRow, AreaTarget, TodoItem } from '../../client/adminAreas.ts';
 import { useSession } from '../../client/SessionProvider.tsx';
+import { config } from '../../config.ts';
+import { fixtureParams } from '../../client/fixtures.ts';
 import type { SheetGroup, SimchaWeek } from '../../client/types.ts';
 import { nextSimcha, simchaTitle } from '../../client/simchasView.ts';
 import { useI18n } from '../../i18n/I18nProvider.tsx';
@@ -12,6 +14,7 @@ import { Icon } from '../../kit/Icon.tsx';
 import type { IconName } from '../../kit/Icon.tsx';
 import { ListGroup, NavRow } from '../../kit/NavRows.tsx';
 import { CountBadge } from '../../kit/NavRows.tsx';
+import { LogoTile } from '../../kit/LogoTile.tsx';
 import { PadScroll } from '../../kit/PadScroll.tsx';
 import { parashaOf } from '../../schedule/parasha.ts';
 import { addDays } from '../../schedule/week.ts';
@@ -19,7 +22,9 @@ import { timesStatus } from '../../seats/times.ts';
 import type { SeatTimes } from '../../seats/times.ts';
 import { useShabbat } from '../../seats/useShabbat.ts';
 import { BackLink } from '../Me.tsx';
+import { useLogoUri } from '../SchedulePrint.tsx';
 import { useWaiting } from '../useWaiting.ts';
+import { LogoPanel, LogoSheet } from './logo/LogoSheet.tsx';
 import { CapSheet, PrivacyContactSheet, TermsSheet, termsDate } from './SettingsSheets.tsx';
 import { WIDE, useAdminErrText, useShortDate } from './shared.tsx';
 
@@ -94,7 +99,8 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
   const date = useShortDate();
   const { parasha } = useShabbat();
   const { data, error, reload } = useAreaData();
-  const [sheet, setSheet] = React.useState<'cap' | 'privacy' | 'terms' | null>(null);
+  const [sheet, setSheet] = React.useState<'logo' | 'cap' | 'privacy' | 'terms' | null>(() => (config.fixtures && fixtureParams().screen?.startsWith('logo') ? 'logo' : null));
+  const logo = useLogoUri();
   const { refresh } = waiting;
   // Which kinds of items wait (the todo caption). Best effort: unknown while loading or on a failure.
   const { api } = useAuth();
@@ -162,19 +168,30 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
   };
   const open = (r: AreaRow) => {
     if (!r.target) return undefined;
+    if (r.target === 'sheet:logo') return () => setSheet('logo');
     if (r.target === 'sheet:cap') return () => setSheet('cap');
     if (r.target === 'sheet:privacy') return () => setSheet('privacy');
     if (r.target === 'sheet:terms') return () => setSheet('terms');
     const target = r.target;
     return () => onGo(target);
   };
+  const kehilaRec = state.kehila;
+  const logoLetter = [...(kehilaRec?.name ?? '').trim()][0] ?? '';
+  const rowTitle = (r: AreaRow) => (r.id === 'logo' ? t('logo.row') : t(`admin.row.${r.id}`));
   const row = (r: AreaRow) => {
     const s = rowStatus(r);
-    return <NavRow key={r.id} icon={ROW_ICON[r.id]} title={t(`admin.row.${r.id}`)} status={s.status} value={s.value} badge={badgeOf(r)} tone={r.id === 'holders' && waiting.linkHints > 0 ? 'attention' : undefined} onPress={open(r)} />;
+    if (r.id === 'logo' && kehilaRec) {
+      const has = !!kehilaRec.logoVersion;
+      const status = has ? (kehilaRec.logoInfo ? t('logo.rowSet', { date: date(kehilaRec.logoInfo.at) }) : undefined) : t('logo.rowNone', { letter: logoLetter });
+      return <NavRow key={r.id} big title={rowTitle(r)} status={status} tone={has ? undefined : 'warn'} lead={<LogoTile uri={logo.uri} letter={logoLetter} size={40} label={t('logo.label', { kehila: kehilaRec.name })} />} onPress={open(r)} />;
+    }
+    return <NavRow key={r.id} icon={ROW_ICON[r.id]} title={rowTitle(r)} status={s.status} value={s.value} badge={badgeOf(r)} tone={r.id === 'holders' && waiting.linkHints > 0 ? 'attention' : undefined} onPress={open(r)} />;
   };
 
+  const panelMode = wide && !!(area && list.some(a => a.id === area));
   const sheets = (
     <>
+      <LogoSheet visible={sheet === 'logo' && !panelMode} onClose={() => setSheet(null)} onToast={onToast} />
       <CapSheet visible={sheet === 'cap'} cap={data?.cap} listeners={data?.listeners} onClose={() => setSheet(null)} onSaved={() => { onToast(t('admin.overview.cap.saved')); void reload(); }} />
       <PrivacyContactSheet visible={sheet === 'privacy'} contact={data?.contact ?? ''} onClose={() => setSheet(null)} onSaved={() => { onToast(t('admin.overview.privacy.saved')); void reload(); void refreshKehila(); }} />
       <TermsSheet visible={sheet === 'terms'} accepted={data?.terms} onClose={() => setSheet(null)} />
@@ -191,8 +208,11 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
         <BackLink onPress={onBack} label={t('admin.area.back')} />
         <Txt serif size="title" accessibilityRole="header">{t(`admin.area.${current.id}`)}</Txt>
         {error ? <Banner tone="error" text={error} /> : null}
-        <View style={{ gap: 16, maxWidth: 680, width: '100%' }}>
-          {sections.map((s, i) => <ListGroup key={i} label={s.label}>{s.rows.map(row)}</ListGroup>)}
+        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
+          <View style={{ gap: 16, maxWidth: 680, width: '100%', flexShrink: 1 }}>
+            {sections.map((s, i) => <ListGroup key={i} label={s.label}>{s.rows.map(row)}</ListGroup>)}
+          </View>
+          {panelMode && sheet === 'logo' ? <LogoPanel onClose={() => setSheet(null)} onToast={onToast} /> : null}
         </View>
         {sheets}
       </PadScroll>
@@ -229,7 +249,7 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
             <Txt size="small" bold color={k.muted} accessibilityRole="header" style={{ marginHorizontal: 4 }}>{t('admin.area.label')}</Txt>
             {wide ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                {list.map(a => <GridCard key={a.id} area={a} status={areaStatus(a.id)} onOpen={() => onArea(a.id)} badge={(r: AreaRow) => badgeOf(r)} open={open} />)}
+                {list.map(a => <GridCard key={a.id} area={a} status={areaStatus(a.id)} onOpen={() => onArea(a.id)} badge={(r: AreaRow) => badgeOf(r)} open={open} rowTitle={rowTitle} />)}
               </View>
             ) : (
               <ListGroup>
@@ -248,7 +268,7 @@ export function Overview({ area, onArea, onGo, onBack, onToast }: { area: AreaId
 }
 
 /** Wide overview: one card per group with its status line and its rows (one click from the overview to every tool). */
-function GridCard({ area, status, onOpen, badge, open }: { area: Area; status: string | undefined; onOpen: () => void; badge: (r: AreaRow) => number | undefined; open: (r: AreaRow) => (() => void) | undefined }) {
+function GridCard({ area, status, onOpen, badge, open, rowTitle }: { area: Area; status: string | undefined; onOpen: () => void; badge: (r: AreaRow) => number | undefined; open: (r: AreaRow) => (() => void) | undefined; rowTitle: (r: AreaRow) => string }) {
   const { t } = useI18n();
   const k = useTokens();
   return (
@@ -260,7 +280,7 @@ function GridCard({ area, status, onOpen, badge, open }: { area: Area; status: s
         </View>
         {status ? <Txt size="small" color={k.muted} numberOfLines={1}>{status}</Txt> : null}
       </Pressable>
-      {area.rows.map(r => <View key={r.id} style={{ borderTopWidth: 1, borderTopColor: k.line }}><MiniRow title={t(`admin.row.${r.id}`)} badge={badge(r)} onPress={open(r)} /></View>)}
+      {area.rows.map(r => <View key={r.id} style={{ borderTopWidth: 1, borderTopColor: k.line }}><MiniRow title={rowTitle(r)} badge={badge(r)} onPress={open(r)} /></View>)}
     </View>
   );
 }

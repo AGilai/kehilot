@@ -30,6 +30,32 @@ export function cropRect(view: CropView, image: { width: number; height: number 
   };
 }
 
+export const MIN_ZOOM = 1;
+export const MAX_ZOOM = 4;
+export type SourceError = 'logo.err.format';
+
+/** The type and size checks before cropping. `type` is the MIME type; '' (unknown) passes only with `allowUnknown` (a phone file URI). */
+export function sourceError(type: string, bytes: number, allowUnknown = false): SourceError | null {
+  const ok = type === 'image/png' || type === 'image/jpeg' || (type === '' && allowUnknown);
+  return ok && bytes <= MAX_INPUT_BYTES ? null : 'logo.err.format';
+}
+
+/** Keeps the zoom in range and the pan so the image always covers the frame. */
+export function clampView(view: CropView, image: { width: number; height: number }, frame: number): CropView {
+  const swap = view.rotation === 90 || view.rotation === 270;
+  const w = swap ? image.height : image.width;
+  const h = swap ? image.width : image.height;
+  const scale = clamp(view.scale, MIN_ZOOM, MAX_ZOOM);
+  const display = (frame / Math.min(w, h)) * scale;
+  const mx = Math.max(0, (w * display - frame) / 2);
+  const my = Math.max(0, (h * display - frame) / 2);
+  return { ...view, scale, x: clamp(view.x, -mx, mx), y: clamp(view.y, -my, my) };
+}
+
+export const zoomView = (view: CropView, delta: number, image: { width: number; height: number }, frame: number): CropView => clampView({ ...view, scale: view.scale + delta }, image, frame);
+export const nudgeView = (view: CropView, dx: number, dy: number, image: { width: number; height: number }, frame: number): CropView => clampView({ ...view, x: view.x + dx, y: view.y + dy }, image, frame);
+export const rotateView = (view: CropView): CropView => ({ ...view, x: 0, y: 0, rotation: (((view.rotation + 90) % 360) as 0 | 90 | 180 | 270) });
+
 /** Sides to try, largest first; never up-scales. */
 export function targetSides(side: number): number[] {
   if (side < 256) return [side];
